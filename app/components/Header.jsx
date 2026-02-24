@@ -1,23 +1,48 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Menu, X, Home, Library } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Menu, X, Home, Library, CloudOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   return (
     <header className="sticky top-0 z-[200] bg-white border-b border-neutral-200 px-6 py-5">
       <div className="flex items-center justify-between">
         {/* Title updated to Scarlet color */}
-        <Link href="/">
-          <h1 className="text-2xl font-black tracking-tighter uppercase text-neutral-900 leading-none">
-            earlymusic
-          </h1>
-        </Link>
+        <div className="flex items-center gap-x-3">
+          <Link href="/">
+            <h1 className="text-2xl font-black tracking-tighter uppercase text-neutral-900 leading-none">
+              earlymusic
+            </h1>
+          </Link>
+          {!isOnline && (
+            <div className="flex items-center gap-x-1.5 bg-neutral-100 px-2 py-1 rounded-full animate-pulse">
+              <CloudOff size={12} className="text-neutral-500" />
+              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
+                Offline
+              </span>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-x-2">
           {/* Search Button - Now opens the search page on mobile */}

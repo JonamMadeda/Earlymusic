@@ -19,12 +19,25 @@ export default function Home() {
         }
 
         setIsLoading(true);
-        const { data } = await supabase
+
+        // Try to load cached songs from localStorage first
+        const cachedSongs = localStorage.getItem("earlymusic_songs_cache");
+        if (cachedSongs) {
+          setAllSongs(JSON.parse(cachedSongs));
+          setIsLoading(false);
+        }
+
+        const { data, error } = await supabase
           .from("songs")
           .select("*")
           .order("title", { ascending: true });
 
-        if (data) setAllSongs(data);
+        if (data) {
+          setAllSongs(data);
+          localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
+        } else if (error && !cachedSongs) {
+          console.error("Fetch error and no cache:", error);
+        }
       } catch (error) {
         console.error("Error:", error);
       } finally {

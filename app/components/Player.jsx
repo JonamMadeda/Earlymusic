@@ -14,6 +14,7 @@ import {
   SkipBack,
   SkipForward,
 } from "lucide-react";
+import { getCachedAudioUrl, cacheAudioFile } from "@/lib/cacheUtils";
 
 const Player = () => {
   const audioRef = useRef(null);
@@ -37,16 +38,47 @@ const Player = () => {
 
   useEffect(() => {
     if (song) {
-      const { data } = supabase.storage
-        .from("songs")
-        .getPublicUrl(song.song_path);
+      const loadAudio = async () => {
+        const { data } = supabase.storage
+          .from("songs")
+          .getPublicUrl(song.song_path);
 
-      setAudioUrl(data.publicUrl);
-      setIsPlaying(true);
-      // Reset progress when a new song starts
-      setCurrentTime(0);
+        const publicUrl = data.publicUrl;
+
+        // Check cache first
+        const cachedUrl = await getCachedAudioUrl(publicUrl);
+        if (cachedUrl) {
+          setAudioUrl(cachedUrl);
+        } else {
+          setAudioUrl(publicUrl);
+          // Gently cache it for next time
+          cacheAudioFile(publicUrl);
+        }
+
+        setIsPlaying(true);
+        setCurrentTime(0);
+      };
+
+      loadAudio();
     }
   }, [song]);
+
+  // Sync isPlaying state with audio element
+  useEffect(() => {
+    if (!audioRef.current || !audioUrl) return;
+
+    if (isPlaying) {
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.error("Playback error:", error);
+          setIsPlaying(false);
+        });
+      }
+    } else {
+      audioRef.current.pause();
+    }
+  }, [isPlaying, audioUrl]);
 
   const onPlayNext = () => {
     if (!songs || songs.length === 0) return;
@@ -72,9 +104,7 @@ const Player = () => {
   };
 
   const togglePlay = () => {
-    if (isPlaying) audioRef.current.pause();
-    else audioRef.current.play();
-    setIsPlaying(!isPlaying);
+    setIsPlaying((prev) => !prev);
   };
 
   const toggleMute = () => {
@@ -145,11 +175,10 @@ const Player = () => {
                   setIsShuffle(newState);
                   if (newState) setIsLooping(false); // Mutually exclusive
                 }}
-                className={`transition-colors active:scale-90 ${
-                  isShuffle
-                    ? "text-red-600"
-                    : "text-neutral-400 hover:text-neutral-900"
-                }`}
+                className={`transition-colors active:scale-90 ${isShuffle
+                  ? "text-red-600"
+                  : "text-neutral-400 hover:text-neutral-900"
+                  }`}
               >
                 <Shuffle size={18} />
               </button>
@@ -189,11 +218,10 @@ const Player = () => {
                   setIsLooping(newState);
                   if (newState) setIsShuffle(false); // Mutually exclusive
                 }}
-                className={`transition-colors active:scale-90 ${
-                  isLooping
-                    ? "text-red-600"
-                    : "text-neutral-400 hover:text-neutral-900"
-                }`}
+                className={`transition-colors active:scale-90 ${isLooping
+                  ? "text-red-600"
+                  : "text-neutral-400 hover:text-neutral-900"
+                  }`}
               >
                 <Repeat size={18} />
               </button>
@@ -246,7 +274,6 @@ const Player = () => {
           if (audioRef.current) setDuration(audioRef.current.duration);
         }}
         onEnded={onPlayNext}
-        autoPlay
       />
     </div>
   );
