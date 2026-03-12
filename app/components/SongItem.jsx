@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Play, Music, Heart } from "lucide-react";
+import { Play, Music, Heart, Info } from "lucide-react";
 
 const SongItem = ({ song, onClick }) => {
   const [isSaved, setIsSaved] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     const library = JSON.parse(
@@ -31,12 +32,17 @@ const SongItem = ({ song, onClick }) => {
     window.dispatchEvent(new Event("libraryUpdated"));
   };
 
+  const toggleInfo = (e) => {
+    e.stopPropagation();
+    setShowInfo(!showInfo);
+  };
+
   return (
     <div
       onClick={onClick}
-      className="group flex items-center justify-between p-1.5 md:p-2 hover:bg-neutral-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-neutral-100"
+      className="group relative flex items-center justify-between p-1.5 md:p-2 hover:bg-neutral-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-neutral-100"
     >
-      <div className="flex items-center gap-x-4 md:gap-x-6">
+      <div className="flex items-center gap-x-4 md:gap-x-6 flex-1 min-w-0">
         {/* Simple Play Indicator */}
         <div className="w-4 flex items-center justify-center">
           <Play
@@ -51,32 +57,75 @@ const SongItem = ({ song, onClick }) => {
           <Music className="text-neutral-400" size={18} />
         </div>
 
-        <div>
+        <div className="flex-1 min-w-0">
           {/* TITLE: Simple semibold font, no forced caps */}
-          <p className="font-semibold text-neutral-900 text-[15px] leading-tight mb-0.5 tracking-tight">
+          <p className="font-semibold text-neutral-900 text-[15px] leading-tight mb-0.5 tracking-tight truncate">
             {song.title}
           </p>
           {/* AUTHOR: Simple medium font, gray color */}
-          <p className="text-[13px] text-neutral-500 font-medium tracking-normal">
+          <p className="text-[13px] text-neutral-500 font-medium tracking-normal truncate">
             {song.author}
           </p>
         </div>
       </div>
 
-      <button
-        onClick={toggleSave}
-        className={`pr-2 md:pr-4 transition-transform active:scale-90 ${isSaved ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-          }`}
-      >
-        <Heart
-          size={20}
-          className={
-            isSaved
-              ? "text-red-600 fill-red-600"
-              : "text-neutral-300 hover:text-red-400"
-          }
-        />
-      </button>
+      <div className="flex items-center gap-x-2">
+        <button
+          onClick={toggleInfo}
+          className="p-2 text-neutral-300 hover:text-red-600 transition-colors"
+          title="Song Details"
+        >
+          <Info size={18} />
+        </button>
+
+        <button
+          onClick={toggleSave}
+          className={`pr-2 md:pr-4 transition-transform active:scale-90 ${isSaved ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            }`}
+        >
+          <Heart
+            size={20}
+            className={
+              isSaved
+                ? "text-red-600 fill-red-600"
+                : "text-neutral-300 hover:text-red-400"
+            }
+          />
+        </button>
+      </div>
+
+      {showInfo && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute right-12 top-0 mt-8 z-50 bg-white border border-neutral-100 shadow-xl rounded-2xl p-5 min-w-[240px] animate-in fade-in zoom-in-95 duration-200"
+        >
+          <div className="flex flex-col gap-y-4">
+            <div className="flex items-center justify-between border-b border-neutral-50 pb-2">
+              <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Compilation Details</h4>
+              <button onClick={() => setShowInfo(false)} className="text-neutral-300 hover:text-red-600 transition">
+                <Info size={14} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-y-4 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
+              {song.original_songs && song.original_songs.length > 0 ? (
+                song.original_songs.map((entry, i) => (
+                  <div key={i} className="flex flex-col gap-y-1 group/entry">
+                    <p className="text-[14px] font-bold text-neutral-900 group-hover/entry:text-red-600 transition-colors leading-tight">
+                      {entry.title || "Unknown Title"}
+                    </p>
+                    <p className="text-[12px] font-medium text-neutral-500">
+                      Original Artist: <span className="text-neutral-900">{entry.artist || "Unknown"}</span>
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[12px] text-neutral-400 italic py-2">No original song details available.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

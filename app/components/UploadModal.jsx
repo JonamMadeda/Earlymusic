@@ -2,17 +2,32 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { X, UploadCloud } from "lucide-react";
+import { X, UploadCloud, Plus, Trash2 } from "lucide-react";
 
 const UploadModal = ({ isOpen, onClose, onSuccess }) => {
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
+  const [originalSongs, setOriginalSongs] = useState([{ title: "", artist: "" }]);
   const [category, setCategory] = useState("Worship");
   const [songFile, setSongFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
   if (!isOpen) return null;
+
+  const handleAddOriginal = () => {
+    setOriginalSongs([...originalSongs, { title: "", artist: "" }]);
+  };
+
+  const handleRemoveOriginal = (index) => {
+    setOriginalSongs(originalSongs.filter((_, i) => i !== index));
+  };
+
+  const handleOriginalChange = (index, field, value) => {
+    const updated = [...originalSongs];
+    updated[index][field] = value;
+    setOriginalSongs(updated);
+  };
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -49,17 +64,21 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
       const { error: dbError } = await supabase.from("songs").insert({
         title: title,
         author: author,
-        category: category,
+        original_songs: originalSongs.filter(s => s.title || s.artist),
+        category: category.trim(),
         song_path: filePath,
       });
 
       if (dbError) throw dbError;
 
+      // Clear cache so other pages see the new song
+      localStorage.removeItem("earlymusic_songs_cache");
       onSuccess();
       onClose();
       // Reset form
       setTitle("");
       setAuthor("");
+      setOriginalSongs([{ title: "", artist: "" }]);
       setSongFile(null);
       setUploadProgress(0);
     } catch (error) {
@@ -114,6 +133,57 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
               className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:ring-2 focus:ring-red-600/10 focus:border-red-600 focus:bg-white text-neutral-900 transition"
               required
             />
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
+                Original Songs (Compilation)
+              </label>
+              <button
+                type="button"
+                onClick={handleAddOriginal}
+                className="text-red-600 hover:text-neutral-900 transition flex items-center gap-1 text-[11px] font-bold"
+              >
+                <Plus size={14} /> Add Song
+              </button>
+            </div>
+
+            <div className="max-h-[200px] overflow-y-auto pr-2 flex flex-col gap-y-3 custom-scrollbar">
+              {originalSongs.map((s, index) => (
+                <div key={index} className="flex flex-col gap-y-2 p-3 bg-neutral-50 rounded-xl border border-neutral-100 relative group/item">
+                  <div className="grid grid-cols-2 gap-x-3">
+                    <div className="flex flex-col gap-y-1">
+                      <input
+                        type="text"
+                        placeholder="Original Title"
+                        value={s.title}
+                        onChange={(e) => handleOriginalChange(index, "title", e.target.value)}
+                        className="p-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-red-600 text-[13px] transition"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-y-1">
+                      <input
+                        type="text"
+                        placeholder="Original Artist"
+                        value={s.artist}
+                        onChange={(e) => handleOriginalChange(index, "artist", e.target.value)}
+                        className="p-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-red-600 text-[13px] transition"
+                      />
+                    </div>
+                  </div>
+                  {originalSongs.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveOriginal(index)}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-white border border-neutral-200 rounded-full flex items-center justify-center text-neutral-400 hover:text-red-600 hover:border-red-200 shadow-sm transition opacity-0 group-hover/item:opacity-100"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-col gap-y-1">

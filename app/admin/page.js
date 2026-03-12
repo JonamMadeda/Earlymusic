@@ -12,6 +12,7 @@ import {
   Search,
   Edit3,
   Check,
+  Plus,
   X,
 } from "lucide-react";
 import UploadModal from "../components/UploadModal";
@@ -29,6 +30,7 @@ export default function AdminDashboard() {
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editAuthor, setEditAuthor] = useState("");
+  const [editOriginalSongs, setEditOriginalSongs] = useState([]);
   const [editCategory, setEditCategory] = useState("Worship");
 
   const router = useRouter();
@@ -75,29 +77,48 @@ export default function AdminDashboard() {
     setEditingId(song.id);
     setEditTitle(song.title);
     setEditAuthor(song.author);
-    setEditCategory(song.category || "Worship");
+    setEditOriginalSongs(song.original_songs || [{ title: "", artist: "" }]);
+    const normalizedCat = (song.category || "Worship").trim();
+    setEditCategory(normalizedCat.charAt(0).toUpperCase() + normalizedCat.slice(1).toLowerCase());
+  };
+
+  const addEditOriginal = () => {
+    setEditOriginalSongs([...editOriginalSongs, { title: "", artist: "" }]);
+  };
+
+  const removeEditOriginal = (index) => {
+    setEditOriginalSongs(editOriginalSongs.filter((_, i) => i !== index));
+  };
+
+  const handleEditOriginalChange = (index, field, value) => {
+    const updated = [...editOriginalSongs];
+    updated[index][field] = value;
+    setEditOriginalSongs(updated);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditTitle("");
     setEditAuthor("");
+    setEditOriginalSongs([]);
     setEditCategory("Worship");
   };
 
   const handleUpdate = async (id) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("songs")
         .update({
           title: editTitle,
           author: editAuthor,
-          category: editCategory,
+          original_songs: editOriginalSongs.filter(s => s.title || s.artist),
+          category: editCategory.trim(),
         })
-        .eq("id", id);
+        .eq("id", id)
+        .select();
 
       if (error) throw error;
-
+      
       setAllSongs((prev) =>
         prev.map((s) =>
           s.id === id
@@ -105,15 +126,18 @@ export default function AdminDashboard() {
               ...s,
               title: editTitle,
               author: editAuthor,
-              category: editCategory,
+              original_songs: editOriginalSongs.filter(s => s.title || s.artist),
+              category: editCategory.trim(),
             }
             : s
         )
       );
+      // Clear cache so other pages see the update
+      localStorage.removeItem("earlymusic_songs_cache");
       cancelEdit();
     } catch (err) {
-      console.error(err);
-      alert("Update failed.");
+      console.error("Update Error:", err);
+      alert(`Update failed: ${err.message || "Unknown error"}`);
     }
   };
 
@@ -237,6 +261,44 @@ export default function AdminDashboard() {
                             onChange={(e) => setEditAuthor(e.target.value)}
                             className="w-full md:flex-1 bg-neutral-100 border-none rounded-xl px-4 py-2 text-[13px] font-medium outline-none focus:ring-2 ring-red-600/20"
                           />
+                          <div className="flex-1 flex flex-col gap-y-2 max-w-md">
+                            <div className="flex items-center justify-between px-1">
+                              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Compilations</span>
+                              <button
+                                type="button"
+                                onClick={addEditOriginal}
+                                className="text-red-600 hover:text-neutral-900 transition flex items-center gap-1 text-[10px] font-bold"
+                              >
+                                <Plus size={12} /> Add
+                              </button>
+                            </div>
+                            <div className="flex flex-col gap-y-1.5 max-h-[120px] overflow-y-auto pr-1">
+                              {editOriginalSongs.map((s, idx) => (
+                                <div key={idx} className="flex items-center gap-2 group/edit-item">
+                                  <input
+                                    value={s.title}
+                                    onChange={(e) => handleEditOriginalChange(idx, "title", e.target.value)}
+                                    placeholder="Title"
+                                    className="flex-1 bg-neutral-100 border-none rounded-lg px-3 py-1.5 text-[11px] font-medium outline-none focus:ring-1 ring-red-600/20"
+                                  />
+                                  <input
+                                    value={s.artist}
+                                    onChange={(e) => handleEditOriginalChange(idx, "artist", e.target.value)}
+                                    placeholder="Artist"
+                                    className="flex-1 bg-neutral-100 border-none rounded-lg px-3 py-1.5 text-[11px] font-medium outline-none focus:ring-1 ring-red-600/20"
+                                  />
+                                  {editOriginalSongs.length > 1 && (
+                                    <button
+                                      onClick={() => removeEditOriginal(idx)}
+                                      className="text-neutral-300 hover:text-red-600 transition opacity-0 group-hover/edit-item:opacity-100"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                           <select
                             value={editCategory}
                             onChange={(e) => setEditCategory(e.target.value)}

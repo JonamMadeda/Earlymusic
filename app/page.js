@@ -71,8 +71,8 @@ export default function Home() {
     // Apply Category Filter
     if (activeCategory !== "All") {
       result = result.filter((song) => {
-        const songCategory = song.category || "Worship";
-        return songCategory === activeCategory;
+        const songCategory = (song.category || "Worship").trim().toLowerCase();
+        return songCategory === activeCategory.trim().toLowerCase();
       });
     }
 
