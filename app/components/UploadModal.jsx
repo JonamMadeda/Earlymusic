@@ -6,7 +6,7 @@ import { X, UploadCloud, Plus, Trash2 } from "lucide-react";
 
 const UploadModal = ({ isOpen, onClose, onSuccess }) => {
   const [title, setTitle] = useState("");
-  const [author, setAuthor] = useState("");
+  const [author, setAuthor] = useState("Pastor Marita Mbae");
   const [originalSongs, setOriginalSongs] = useState([{ title: "", artist: "" }]);
   const [category, setCategory] = useState("Worship");
   const [songFile, setSongFile] = useState(null);
@@ -77,7 +77,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
       onClose();
       // Reset form
       setTitle("");
-      setAuthor("");
+      setAuthor("Pastor Marita Mbae");
       setOriginalSongs([{ title: "", artist: "" }]);
       setSongFile(null);
       setUploadProgress(0);
@@ -214,7 +214,14 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
             <input
               type="file"
               accept="audio/mpeg, audio/mp3"
-              onChange={(e) => setSongFile(e.target.files[0])}
+              onChange={(e) => {
+                const file = e.target.files[0];
+                setSongFile(file);
+                if (file) {
+                  const fileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
+                  setTitle(fileNameWithoutExt);
+                }
+              }}
               className="absolute inset-0 opacity-0 cursor-pointer z-10"
               required={!isLoading}
               disabled={isLoading}
