@@ -48,7 +48,7 @@ export default function LibraryPage() {
   const alphabet = Object.keys(groupedSongs).sort();
 
   return (
-    <main className="min-h-[90vh] bg-white px-6 py-8 pb-32">
+    <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center gap-x-3 mb-12 px-2">
           <LibraryIcon className="text-red-600" size={24} />

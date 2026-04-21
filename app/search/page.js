@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search as SearchIcon, Disc, Music2, Heart, Info } from "lucide-react";
+import { Search as SearchIcon, Disc, Music, Heart, Info } from "lucide-react";
 import Loader from "../components/Loader";
 import { usePlayer } from "../context/PlayerContext";
 
@@ -18,14 +18,14 @@ const SongResultItem = ({ song, isActive, onClick }) => {
       onClick={onClick}
       className="bg-white p-1.5 md:p-2 rounded-2xl flex items-center justify-between group hover:bg-neutral-50 border border-transparent hover:border-neutral-100 transition-all duration-300 cursor-pointer relative"
     >
-      <div className="flex items-center gap-x-5 flex-1 min-w-0">
+      <div className="flex items-center gap-x-4 md:gap-x-6 flex-1 min-w-0">
         <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all border ${isActive
-            ? "bg-red-600 border-red-600 text-white"
-            : "bg-neutral-50 border-neutral-100 text-neutral-400 group-hover:bg-white"
+          className={`h-10 w-10 md:h-11 md:w-11 rounded-xl flex items-center justify-center transition-all border ${isActive
+            ? "bg-red-600 border-red-600 text-white shadow-sm"
+            : "bg-neutral-100 border-transparent text-neutral-400 group-hover:bg-white group-hover:shadow-sm group-hover:border-neutral-100"
             }`}
         >
-          <Music2 size={16} />
+          <Music size={18} />
         </div>
         <div className="flex-1 min-w-0">
           <p
@@ -34,7 +34,7 @@ const SongResultItem = ({ song, isActive, onClick }) => {
           >
             {song.title}
           </p>
-          <p className="text-[13px] text-neutral-500 font-medium truncate">
+          <p className="text-[13px] text-neutral-500 font-medium tracking-normal truncate">
             {song.author}
           </p>
         </div>
@@ -118,8 +118,8 @@ export default function SearchPage() {
   const alphabet = Object.keys(groupedSongs).sort();
 
   return (
-    <main className="min-h-[90vh] bg-white pb-40 relative">
-      <div className="max-w-5xl mx-auto px-8 py-10">
+    <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
+      <div className="max-w-5xl mx-auto">
         {/* SEARCH INPUT */}
         <div className="relative mb-16">
           <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">

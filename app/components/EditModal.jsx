@@ -1,19 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { X, UploadCloud, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2 } from "lucide-react";
 
-const UploadModal = ({ isOpen, onClose, onSuccess }) => {
+const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
   const [title, setTitle] = useState("");
-  const [author, setAuthor] = useState("Pastor Marita Mbae");
+  const [author, setAuthor] = useState("");
   const [originalSongs, setOriginalSongs] = useState([{ title: "", artist: "" }]);
   const [category, setCategory] = useState("Worship");
-  const [songFile, setSongFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (song && isOpen) {
+      setTitle(song.title || "");
+      setAuthor(song.author || "");
+      setOriginalSongs(song.original_songs && song.original_songs.length > 0 ? song.original_songs : [{ title: "", artist: "" }]);
+      const normalizedCat = (song.category || "Worship").trim();
+      setCategory(normalizedCat.charAt(0).toUpperCase() + normalizedCat.slice(1).toLowerCase());
+    }
+  }, [song, isOpen]);
+
+  if (!isOpen || !song) return null;
 
   const handleAddOriginal = () => {
     setOriginalSongs([...originalSongs, { title: "", artist: "" }]);
@@ -29,61 +37,33 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
     setOriginalSongs(updated);
   };
 
-  const handleUpload = async (e) => {
+  const handleUpdate = async (e) => {
     e.preventDefault();
-    if (!songFile || !title || !author) return alert("Please fill all fields");
+    if (!title || !author) return alert("Please fill all required fields");
 
     try {
       setIsLoading(true);
-      setUploadProgress(0);
 
-      const fileExt = songFile.name.split(".").pop();
-      // Using a timestamp for better uniqueness
-      const fileName = `${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(7)}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      // UPLOAD WITH PROGRESS HANDLING
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { data, error } = await supabase
         .from("songs")
-        .upload(filePath, songFile, {
-          cacheControl: "3600",
-          upsert: false,
-          // Use the native progress event
-          onUploadProgress: (progressEvent) => {
-            const percent = (progressEvent.loaded / progressEvent.total) * 100;
-            // Use Math.floor to avoid jittery 100% before completion
-            setUploadProgress(Math.floor(percent));
-          },
-        });
+        .update({
+          title: title,
+          author: author,
+          original_songs: originalSongs.filter(s => s.title || s.artist),
+          category: category.trim(),
+        })
+        .eq("id", song.id)
+        .select();
 
-      if (uploadError) throw uploadError;
+      if (error) throw error;
 
-      // DATABASE INSERT
-      const { error: dbError } = await supabase.from("songs").insert({
-        title: title,
-        author: author,
-        original_songs: originalSongs.filter(s => s.title || s.artist),
-        category: category.trim(),
-        song_path: filePath,
-      });
-
-      if (dbError) throw dbError;
-
-      // Clear cache so other pages see the new song
+      // Clear cache so other pages see the update
       localStorage.removeItem("earlymusic_songs_cache");
-      onSuccess();
+      onSuccess(data[0]); // pass the updated song back if needed
       onClose();
-      // Reset form
-      setTitle("");
-      setAuthor("Pastor Marita Mbae");
-      setOriginalSongs([{ title: "", artist: "" }]);
-      setSongFile(null);
-      setUploadProgress(0);
     } catch (error) {
-      console.error("Upload failed:", error);
-      alert(error.message || "Error uploading song.");
+      console.error("Update failed:", error);
+      alert(error.message || "Error updating song.");
     } finally {
       setIsLoading(false);
     }
@@ -100,13 +80,13 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
         </button>
 
         <h2 className="text-2xl font-semibold mb-1 text-neutral-900 tracking-tight">
-          Upload Track
+          Edit Track
         </h2>
         <p className="text-neutral-500 mb-6 text-sm">
-          Add a new song to your library.
+          Update the metadata for this song.
         </p>
 
-        <form onSubmit={handleUpload} className="flex flex-col gap-y-5">
+        <form onSubmit={handleUpdate} className="flex flex-col gap-y-5">
           <div className="flex flex-col gap-y-1">
             <label className="text-xs font-medium text-neutral-500 ml-1">
               Track Title
@@ -210,62 +190,12 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
           </div>
 
-          <div className="p-6 border-2 border-dashed border-neutral-200 rounded-xl bg-neutral-50 hover:border-red-300 transition cursor-pointer relative group">
-            <input
-              type="file"
-              accept="audio/mpeg, audio/mp3"
-              onChange={(e) => {
-                const file = e.target.files[0];
-                setSongFile(file);
-                if (file) {
-                  const fileNameWithoutExt = file.name.split('.').slice(0, -1).join('.');
-                  setTitle(fileNameWithoutExt);
-                }
-              }}
-              className="absolute inset-0 opacity-0 cursor-pointer z-10"
-              required={!isLoading}
-              disabled={isLoading}
-            />
-            <div className="text-center flex flex-col items-center">
-              <UploadCloud
-                className={`mb-2 ${songFile
-                  ? "text-red-600"
-                  : "text-neutral-300 group-hover:text-red-400"
-                  } transition-colors`}
-                size={32}
-              />
-              <p className="text-sm text-neutral-600 truncate max-w-full px-2">
-                {songFile ? songFile.name : "Select MP3 File"}
-              </p>
-            </div>
-          </div>
-
-          {/* PROGRESS BAR SECTION */}
-          {isLoading && (
-            <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
-              <div className="flex justify-between items-center text-xs font-medium text-red-600">
-                <span>
-                  {uploadProgress === 100
-                    ? "Finalizing..."
-                    : "Uploading track..."}
-                </span>
-                <span className="tabular-nums">{uploadProgress}%</span>
-              </div>
-              <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-red-600 transition-all duration-300 ease-out"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={isLoading}
-            className="bg-red-600 py-3.5 rounded-xl text-white font-bold hover:bg-neutral-900 transition-all shadow-lg shadow-red-100 disabled:opacity-50 disabled:cursor-not-allowed mt-2 text-sm uppercase tracking-tight"
+            className="bg-red-600 py-3.5 rounded-xl text-white font-bold hover:bg-neutral-900 transition-all shadow-lg shadow-red-100 disabled:opacity-50 disabled:cursor-not-allowed mt-4 text-sm uppercase tracking-tight"
           >
-            {isLoading ? `Publishing...` : "Publish Track"}
+            {isLoading ? `Saving...` : "Save Changes"}
           </button>
         </form>
       </div>
@@ -273,4 +203,4 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
   );
 };
 
-export default UploadModal;
+export default EditModal;

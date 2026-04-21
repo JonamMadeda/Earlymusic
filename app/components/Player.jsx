@@ -8,7 +8,7 @@ import {
   Pause,
   Volume2,
   VolumeX,
-  Disc,
+  Music,
   Repeat,
   Shuffle,
   SkipBack,
@@ -175,7 +175,7 @@ const Player = () => {
           {/* TRACK INFO */}
           <div className="flex items-center gap-x-3 w-full md:w-[25%] min-w-0">
             <div className="w-10 h-10 bg-neutral-900 rounded-lg flex-shrink-0 flex items-center justify-center shadow-lg">
-              <Disc
+              <Music
                 className={`text-white ${isPlaying ? "animate-spin-slow" : ""}`}
                 size={18}
               />

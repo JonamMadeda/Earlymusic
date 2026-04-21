@@ -8,7 +8,7 @@ import {
   Upload,
   ArrowLeft,
   ShieldCheck,
-  Music2,
+  Music,
   Search,
   Edit3,
   Check,
@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import UploadModal from "../components/UploadModal";
+import EditModal from "../components/EditModal";
 import { usePlayer } from "../context/PlayerContext";
 
 export default function AdminDashboard() {
@@ -27,11 +28,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Edit State
-  const [editingId, setEditingId] = useState(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editAuthor, setEditAuthor] = useState("");
-  const [editOriginalSongs, setEditOriginalSongs] = useState([]);
-  const [editCategory, setEditCategory] = useState("Worship");
+  const [editModalSong, setEditModalSong] = useState(null);
 
   const router = useRouter();
   const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
@@ -74,71 +71,7 @@ export default function AdminDashboard() {
   };
 
   const handleEditClick = (song) => {
-    setEditingId(song.id);
-    setEditTitle(song.title);
-    setEditAuthor(song.author);
-    setEditOriginalSongs(song.original_songs || [{ title: "", artist: "" }]);
-    const normalizedCat = (song.category || "Worship").trim();
-    setEditCategory(normalizedCat.charAt(0).toUpperCase() + normalizedCat.slice(1).toLowerCase());
-  };
-
-  const addEditOriginal = () => {
-    setEditOriginalSongs([...editOriginalSongs, { title: "", artist: "" }]);
-  };
-
-  const removeEditOriginal = (index) => {
-    setEditOriginalSongs(editOriginalSongs.filter((_, i) => i !== index));
-  };
-
-  const handleEditOriginalChange = (index, field, value) => {
-    const updated = [...editOriginalSongs];
-    updated[index][field] = value;
-    setEditOriginalSongs(updated);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditTitle("");
-    setEditAuthor("");
-    setEditOriginalSongs([]);
-    setEditCategory("Worship");
-  };
-
-  const handleUpdate = async (id) => {
-    try {
-      const { data, error } = await supabase
-        .from("songs")
-        .update({
-          title: editTitle,
-          author: editAuthor,
-          original_songs: editOriginalSongs.filter(s => s.title || s.artist),
-          category: editCategory.trim(),
-        })
-        .eq("id", id)
-        .select();
-
-      if (error) throw error;
-      
-      setAllSongs((prev) =>
-        prev.map((s) =>
-          s.id === id
-            ? {
-              ...s,
-              title: editTitle,
-              author: editAuthor,
-              original_songs: editOriginalSongs.filter(s => s.title || s.artist),
-              category: editCategory.trim(),
-            }
-            : s
-        )
-      );
-      // Clear cache so other pages see the update
-      localStorage.removeItem("earlymusic_songs_cache");
-      cancelEdit();
-    } catch (err) {
-      console.error("Update Error:", err);
-      alert(`Update failed: ${err.message || "Unknown error"}`);
-    }
+    setEditModalSong(song);
   };
 
   const handleDelete = async (id, path) => {
@@ -182,28 +115,30 @@ export default function AdminDashboard() {
   if (loading || !isAuthorized) return null;
 
   return (
-    <main className="min-h-[90vh] bg-white p-6 md:p-10 pb-40">
+    <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
       <div className="max-w-5xl mx-auto">
         <header className="flex flex-col gap-y-10 mb-16">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
               <button
                 onClick={handleLogout}
-                className="text-neutral-400 hover:text-red-600 flex items-center gap-2 mb-4 transition font-semibold text-[13px]"
+                className="text-neutral-400 hover:text-red-600 flex items-center gap-2 mb-4 transition font-semibold text-[12px] uppercase tracking-wider"
               >
                 <ArrowLeft size={14} /> Lock Vault
               </button>
               <div className="flex items-center gap-x-4">
-                <h1 className="text-6xl font-semibold text-neutral-900 tracking-tight">
+                <h1 className="text-4xl font-black text-neutral-900 tracking-tighter uppercase">
                   Vault
                 </h1>
-                <ShieldCheck size={28} className="text-red-600" />
+                <div className="h-8 w-8 bg-black rounded-lg flex items-center justify-center text-white shadow-lg">
+                  <ShieldCheck size={18} />
+                </div>
               </div>
             </div>
 
             <button
               onClick={() => setIsModalOpen(true)}
-              className="bg-red-600 text-white px-10 py-4 rounded-2xl font-semibold flex items-center justify-center gap-3 hover:bg-neutral-900 transition-all shadow-xl shadow-red-100 active:scale-95 text-sm"
+              className="bg-red-600 text-white px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-neutral-900 transition-all shadow-xl shadow-red-100 active:scale-95 text-sm uppercase tracking-tight"
             >
               <Upload size={18} strokeWidth={2.5} /> Upload Track
             </button>
@@ -219,136 +154,63 @@ export default function AdminDashboard() {
               placeholder="Search tracks or artists in vault..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-100 rounded-2xl py-5 pl-16 pr-8 outline-none focus:border-red-600 focus:bg-white transition-all font-medium text-neutral-900 text-[15px]"
+              className="w-full bg-neutral-50 border border-neutral-100 rounded-2xl py-4.5 pl-16 pr-8 outline-none focus:border-red-600 focus:bg-white transition-all font-medium text-neutral-900 text-[15px] placeholder:text-neutral-300"
             />
           </div>
         </header>
 
-        <div className="flex flex-col gap-y-12">
+        <div className="flex flex-col gap-y-6">
           {alphabet.length === 0 ? (
             <div className="py-32 flex flex-col items-center justify-center border border-dashed border-neutral-100 rounded-[2rem] text-neutral-200">
-              <Music2 size={48} strokeWidth={1.5} className="mb-4 opacity-20" />
+              <Music size={48} strokeWidth={1.5} className="mb-4 opacity-20" />
               <p className="font-medium text-[13px] text-neutral-400">
                 No matching tracks found
               </p>
             </div>
           ) : (
             alphabet.map((letter) => (
-              <div key={letter} className="flex flex-col gap-y-4">
-                <div className="flex items-center gap-x-4 px-2">
-                  <h2 className="text-3xl font-semibold text-red-600 tracking-tight">
+              <div key={letter} className="flex flex-col gap-y-2">
+                <div className="flex items-center gap-x-4 border-b border-neutral-50 pb-2 px-2">
+                  <h2 className="text-3xl font-semibold text-neutral-900 tracking-tight">
                     {letter}
                   </h2>
-                  <div className="h-[1px] flex-1 bg-neutral-50" />
                 </div>
 
                 <div className="flex flex-col gap-y-1">
                   {groupedSongs[letter].map((song) => (
-                    <div
-                      key={song.id}
-                      className="bg-white p-4 rounded-2xl flex items-center justify-between group hover:bg-neutral-50 border border-transparent hover:border-neutral-100 transition-all duration-300"
-                    >
-                      {editingId === song.id ? (
-                        <div className="flex-1 flex flex-col md:flex-row items-center gap-3 pr-4 animate-in fade-in slide-in-from-left-2">
-                          <input
-                            autoFocus
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            className="w-full md:flex-1 bg-neutral-100 border-none rounded-xl px-4 py-2 text-[15px] font-semibold outline-none focus:ring-2 ring-red-600/20"
-                          />
-                          <input
-                            value={editAuthor}
-                            onChange={(e) => setEditAuthor(e.target.value)}
-                            className="w-full md:flex-1 bg-neutral-100 border-none rounded-xl px-4 py-2 text-[13px] font-medium outline-none focus:ring-2 ring-red-600/20"
-                          />
-                          <div className="flex-1 flex flex-col gap-y-2 max-w-md">
-                            <div className="flex items-center justify-between px-1">
-                              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Compilations</span>
-                              <button
-                                type="button"
-                                onClick={addEditOriginal}
-                                className="text-red-600 hover:text-neutral-900 transition flex items-center gap-1 text-[10px] font-bold"
-                              >
-                                <Plus size={12} /> Add
-                              </button>
+                      <div
+                        key={song.id}
+                        className="bg-white p-1.5 md:p-2 rounded-2xl flex items-center justify-between group hover:bg-neutral-50 border border-transparent hover:border-neutral-100 transition-all duration-300"
+                      >
+                          <div className="flex items-center gap-x-4 md:gap-x-6 flex-1 min-w-0">
+                            <div className="h-10 w-10 md:h-11 md:w-11 bg-neutral-100 rounded-xl flex items-center justify-center text-neutral-400 group-hover:bg-white group-hover:shadow-sm transition-all border border-transparent group-hover:border-neutral-100 flex-shrink-0">
+                              <Music size={18} />
                             </div>
-                            <div className="flex flex-col gap-y-1.5 max-h-[120px] overflow-y-auto pr-1">
-                              {editOriginalSongs.map((s, idx) => (
-                                <div key={idx} className="flex items-center gap-2 group/edit-item">
-                                  <input
-                                    value={s.title}
-                                    onChange={(e) => handleEditOriginalChange(idx, "title", e.target.value)}
-                                    placeholder="Title"
-                                    className="flex-1 bg-neutral-100 border-none rounded-lg px-3 py-1.5 text-[11px] font-medium outline-none focus:ring-1 ring-red-600/20"
-                                  />
-                                  <input
-                                    value={s.artist}
-                                    onChange={(e) => handleEditOriginalChange(idx, "artist", e.target.value)}
-                                    placeholder="Artist"
-                                    className="flex-1 bg-neutral-100 border-none rounded-lg px-3 py-1.5 text-[11px] font-medium outline-none focus:ring-1 ring-red-600/20"
-                                  />
-                                  {editOriginalSongs.length > 1 && (
-                                    <button
-                                      onClick={() => removeEditOriginal(idx)}
-                                      className="text-neutral-300 hover:text-red-600 transition opacity-0 group-hover/edit-item:opacity-100"
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
+                            <div className="flex-1 min-w-0 flex items-center">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-neutral-900 text-[15px] leading-tight mb-0.5 tracking-tight truncate">
+                                  {song.title}
+                                </p>
+                                <p className="text-[13px] text-neutral-500 font-medium tracking-normal truncate">
+                                  {song.author}
+                                </p>
+                              </div>
+                              <div className="flex-shrink-0 ml-2">
+                                {(song.category || "Worship") && (
+                                  <span
+                                    className={`
+                                      px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider
+                                      ${song.category === "Praise"
+                                        ? "bg-red-50 text-red-600"
+                                        : "bg-neutral-100 text-neutral-400"
+                                      }
+                                    `}
+                                  >
+                                    {song.category || "Worship"}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          <select
-                            value={editCategory}
-                            onChange={(e) => setEditCategory(e.target.value)}
-                            className="bg-neutral-100 border-none rounded-xl px-4 py-2 text-[13px] font-semibold outline-none focus:ring-2 ring-red-600/20 appearance-none"
-                          >
-                            <option value="Worship">Worship</option>
-                            <option value="Praise">Praise</option>
-                          </select>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleUpdate(song.id)}
-                              className="p-2 bg-red-600 text-white rounded-xl hover:bg-neutral-900 transition"
-                            >
-                              <Check size={18} />
-                            </button>
-                            <button
-                              onClick={cancelEdit}
-                              className="p-2 bg-neutral-200 text-neutral-600 rounded-xl hover:bg-neutral-300 transition"
-                            >
-                              <X size={18} />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center gap-x-6">
-                            <div className="h-10 w-10 bg-neutral-50 rounded-lg flex items-center justify-center text-neutral-300">
-                              <Music2 size={16} />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-neutral-900 text-[15px] leading-tight">
-                                {song.title}
-                              </p>
-                              <p className="text-[13px] text-neutral-500 font-medium">
-                                {song.author}
-                              </p>
-                            </div>
-                            {(song.category || "Worship") && (
-                              <span
-                                className={`
-                                  ml-2 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-                                  ${song.category === "Praise"
-                                    ? "bg-red-50 text-red-600"
-                                    : "bg-neutral-100 text-neutral-400"
-                                  }
-                                `}
-                              >
-                                {song.category || "Worship"}
-                              </span>
-                            )}
                           </div>
 
                           <div className="flex items-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
@@ -367,8 +229,6 @@ export default function AdminDashboard() {
                               <Trash2 size={18} />
                             </button>
                           </div>
-                        </>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -384,6 +244,17 @@ export default function AdminDashboard() {
         onSuccess={() => {
           fetchSongs();
           // NO handleLogout() here - stay in the vault after upload
+        }}
+      />
+
+      <EditModal 
+        isOpen={!!editModalSong}
+        onClose={() => setEditModalSong(null)}
+        song={editModalSong}
+        onSuccess={(updatedSong) => {
+          setAllSongs((prev) => 
+            prev.map(s => s.id === updatedSong.id ? updatedSong : s)
+          );
         }}
       />
     </main>
