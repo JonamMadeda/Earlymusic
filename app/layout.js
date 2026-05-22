@@ -3,6 +3,7 @@ import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import PlayerWrapper from "./components/PlayerWrapper";
 import { PlayerProvider } from "./context/PlayerContext";
+import { AuthProvider } from "./context/AuthContext";
 import { Analytics } from "@vercel/analytics/react";
 import InstallPrompt from "./components/InstallPrompt";
 
@@ -36,6 +37,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className="bg-white text-neutral-900 antialiased">
         <PlayerProvider>
+          <AuthProvider>
           {/* Main App Shell 
               Maintained min-h-[90vh] per your instructions.
               Using h-screen ensures the sidebar/main scroll independently.
@@ -59,6 +61,7 @@ export default function RootLayout({ children }) {
 
           {/* InstallPrompt: Custom PWA installation logic */}
           <InstallPrompt />
+          </AuthProvider>
         </PlayerProvider>
       </body>
     </html>

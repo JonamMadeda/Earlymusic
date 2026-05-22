@@ -11,6 +11,7 @@ export default function Home() {
     usePlayer();
   const [activeFilter, setActiveFilter] = useState("All");
   const [activeCategory, setActiveCategory] = useState("All");
+  const [activeDuration, setActiveDuration] = useState("All");
 
   const filters = [
     { label: "All", days: null },
@@ -76,8 +77,13 @@ export default function Home() {
       });
     }
 
+    // Apply Duration Filter
+    if (activeDuration !== "All") {
+      result = result.filter((song) => (song.duration || "Long") === activeDuration);
+    }
+
     return result;
-  }, [allSongs, activeFilter, activeCategory]);
+  }, [allSongs, activeFilter, activeCategory, activeDuration]);
 
   const groupedSongs = useMemo(() => {
     return (filteredSongs || []).reduce((groups, song) => {
@@ -131,12 +137,31 @@ export default function Home() {
             </select>
           </div>
 
+          {/* Duration Picker */}
+          <div className="flex items-center gap-x-2 md:gap-x-3 bg-neutral-50 px-3 py-2 md:px-4 md:py-2.5 rounded-2xl border border-neutral-100/50 flex-shrink-0">
+            <span className="text-[10px] md:text-[11px] font-medium text-neutral-400">
+              Duration
+            </span>
+            <select
+              value={activeDuration}
+              onChange={(e) => setActiveDuration(e.target.value)}
+              className="bg-transparent text-[12px] md:text-[13px] font-bold text-neutral-900 outline-none cursor-pointer pr-1"
+            >
+              {["All", "Long", "Short"].map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Active Status Indicators */}
-          {(activeFilter !== "All" || activeCategory !== "All") && (
+          {(activeFilter !== "All" || activeCategory !== "All" || activeDuration !== "All") && (
             <button
               onClick={() => {
                 setActiveFilter("All");
                 setActiveCategory("All");
+                setActiveDuration("All");
               }}
               className="ml-auto flex-shrink-0 text-red-600 text-[10px] md:text-[11px] font-bold uppercase tracking-widest hover:underline"
             >

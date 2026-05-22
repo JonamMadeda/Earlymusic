@@ -1,25 +1,40 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Home, Search, Library } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Home, Search, Library, ListMusic, LogOut, LogIn } from "lucide-react";
+import { useAuth } from "@/app/context/AuthContext";
 import LikedSongs from "./LikedSongs";
 
 const Sidebar = () => {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, signOut } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const routes = [
     {
       icon: Home,
       label: "Home",
-      active: pathname === "/",
+      active: mounted && pathname === "/",
       href: "/",
     },
     {
       icon: Search,
       label: "Search",
-      active: pathname === "/search",
+      active: mounted && pathname === "/search",
       href: "/search",
+    },
+    {
+      icon: ListMusic,
+      label: "Playlists",
+      active: mounted && pathname.startsWith("/playlists"),
+      href: "/playlists",
     },
   ];
 
@@ -57,13 +72,13 @@ const Sidebar = () => {
           className={`
             flex items-center gap-x-4 mb-6 transition-all cursor-pointer group
             ${
-              pathname === "/library"
+              mounted && pathname === "/library"
                 ? "text-red-600"
                 : "text-neutral-500 hover:text-neutral-900"
             }
           `}
         >
-          <Library size={20} strokeWidth={pathname === "/library" ? 2.5 : 2} />
+          <Library size={20} strokeWidth={mounted && pathname === "/library" ? 2.5 : 2} />
           <span className="text-[14px] font-semibold tracking-tight">
             Your Library
           </span>
@@ -80,10 +95,27 @@ const Sidebar = () => {
       </div>
 
       {/* CREDITS AT THE VERY BOTTOM */}
-      <div className="px-5 py-2">
+      <div className="px-5 py-2 flex items-center justify-between">
         <p className="text-[10px] text-neutral-400 font-medium tracking-wider uppercase opacity-60">
           Created by Jonam
         </p>
+        {user ? (
+          <button
+            onClick={() => { signOut(); router.push("/"); }}
+            className="text-neutral-300 hover:text-red-600 transition"
+            title="Sign Out"
+          >
+            <LogOut size={14} />
+          </button>
+        ) : (
+          <Link
+            href="/auth"
+            className="text-neutral-300 hover:text-red-600 transition"
+            title="Sign In"
+          >
+            <LogIn size={14} />
+          </Link>
+        )}
       </div>
     </aside>
   );

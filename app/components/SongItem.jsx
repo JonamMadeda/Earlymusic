@@ -1,41 +1,100 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Play, Music, Heart, Info } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import { Play, Music, Heart, Info, ListPlus, ListMusic, Plus } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/app/context/AuthContext";
 
 const SongItem = ({ song, onClick }) => {
+  const { user } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const isPraise = song.category?.toLowerCase() === "praise";
   const [isSaved, setIsSaved] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showPlaylists, setShowPlaylists] = useState(false);
+  const [playlists, setPlaylists] = useState([]);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
 
   useEffect(() => {
-    const library = JSON.parse(
-      localStorage.getItem("earlymusic_library") || "[]"
-    );
-    setIsSaved(library.some((s) => s.id === song.id));
-  }, [song.id]);
+    if (!user) { setIsSaved(false); return; }
+    supabase
+      .from("saved_songs")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("song_id", song.id)
+      .maybeSingle()
+      .then(({ data }) => setIsSaved(!!data));
+  }, [user, song.id]);
 
-  const toggleSave = (e) => {
+  useEffect(() => {
+    if (showPlaylists && user) {
+      supabase
+        .from("playlists")
+        .select("id, name")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .then(({ data }) => setPlaylists(data || []));
+    }
+  }, [showPlaylists, user]);
+
+  const toggleSave = async (e) => {
     e.stopPropagation();
-    const library = JSON.parse(
-      localStorage.getItem("earlymusic_library") || "[]"
-    );
-    let updatedLibrary;
+    if (!user) { router.push(`/auth?redirectTo=${encodeURIComponent(pathname)}`); return; }
 
     if (isSaved) {
-      updatedLibrary = library.filter((s) => s.id !== song.id);
+      await supabase
+        .from("saved_songs")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("song_id", song.id);
+      setIsSaved(false);
     } else {
-      updatedLibrary = [song, ...library];
+      await supabase
+        .from("saved_songs")
+        .insert({ user_id: user.id, song_id: song.id });
+      setIsSaved(true);
     }
-
-    localStorage.setItem("earlymusic_library", JSON.stringify(updatedLibrary));
-    setIsSaved(!isSaved);
-    window.dispatchEvent(new Event("libraryUpdated"));
   };
 
   const toggleInfo = (e) => {
     e.stopPropagation();
     setShowInfo(!showInfo);
+  };
+
+  const togglePlaylists = (e) => {
+    e.stopPropagation();
+    if (!user) { router.push(`/auth?redirectTo=${encodeURIComponent(pathname)}`); return; }
+    setShowPlaylists(!showPlaylists);
+    setShowInfo(false);
+  };
+
+  const addToPlaylist = async (e, playlistId) => {
+    e.stopPropagation();
+    await supabase
+      .from("playlist_songs")
+      .insert({ playlist_id: playlistId, song_id: song.id });
+  };
+
+  const createAndAdd = async (e) => {
+    e.stopPropagation();
+    const name = newPlaylistName.trim();
+    if (!name || !user) return;
+
+    const { data: pl } = await supabase
+      .from("playlists")
+      .insert({ name, user_id: user.id })
+      .select()
+      .single();
+
+    if (pl) {
+      await supabase
+        .from("playlist_songs")
+        .insert({ playlist_id: pl.id, song_id: song.id });
+      setNewPlaylistName("");
+      setShowPlaylists(false);
+    }
   };
 
   return (
@@ -44,7 +103,6 @@ const SongItem = ({ song, onClick }) => {
       className="group relative flex items-center justify-between p-1.5 md:p-2 hover:bg-neutral-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-neutral-100"
     >
       <div className="flex items-center gap-x-4 md:gap-x-6 flex-1 min-w-0">
-        {/* Simple Play Indicator */}
         <div className="w-4 flex items-center justify-center">
           <Play
             className="text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -53,7 +111,6 @@ const SongItem = ({ song, onClick }) => {
           />
         </div>
 
-        {/* Music Square */}
         <div className={`h-10 w-10 md:h-11 md:w-11 rounded-xl flex items-center justify-center transition-all border border-transparent group-hover:bg-white group-hover:shadow-sm ${isPraise
           ? "bg-red-50 group-hover:border-red-100"
           : "bg-neutral-100 group-hover:border-neutral-100"
@@ -66,6 +123,11 @@ const SongItem = ({ song, onClick }) => {
             <p className="font-semibold text-neutral-900 text-[15px] leading-tight tracking-tight truncate">
               {song.title}
             </p>
+            {song.duration && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider flex-shrink-0 ${song.duration === "Short" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"}`}>
+                {song.duration}
+              </span>
+            )}
           </div>
           <p className="text-[13px] text-neutral-500 font-medium tracking-normal truncate">
             {song.author}
@@ -80,6 +142,14 @@ const SongItem = ({ song, onClick }) => {
           title="Song Details"
         >
           <Info size={18} />
+        </button>
+
+        <button
+          onClick={togglePlaylists}
+          className="p-2 text-neutral-300 hover:text-red-600 transition-colors"
+          title="Add to Playlist"
+        >
+          <ListPlus size={18} />
         </button>
 
         <button
@@ -126,6 +196,61 @@ const SongItem = ({ song, onClick }) => {
               ) : (
                 <p className="text-[12px] text-neutral-400 italic py-2">No original song details available.</p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPlaylists && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute right-12 top-0 mt-8 z-50 bg-white border border-neutral-100 shadow-xl rounded-2xl p-4 min-w-[220px] animate-in fade-in zoom-in-95 duration-200"
+        >
+          <div className="flex items-center justify-between border-b border-neutral-50 pb-2 mb-3">
+            <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Add to Playlist</h4>
+            <button onClick={() => setShowPlaylists(false)} className="text-neutral-300 hover:text-red-600 transition">
+              <Info size={14} />
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-y-1 max-h-[200px] overflow-y-auto custom-scrollbar">
+            {playlists.length === 0 ? (
+              <p className="text-[12px] text-neutral-400 italic py-2 text-center">
+                No playlists yet
+              </p>
+            ) : (
+              playlists.map((pl) => (
+                <button
+                  key={pl.id}
+                  onClick={(e) => addToPlaylist(e, pl.id)}
+                  className="flex items-center gap-x-3 p-2.5 rounded-xl text-left transition w-full hover:bg-neutral-50 text-neutral-700 hover:text-neutral-900"
+                >
+                  <ListMusic size={16} className="text-red-600" />
+                  <span className="text-[13px] font-semibold truncate flex-1">{pl.name}</span>
+                </button>
+              ))
+            )}
+          </div>
+
+          <div className="border-t border-neutral-50 pt-3 mt-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="New playlist..."
+                value={newPlaylistName}
+                onChange={(e) => setNewPlaylistName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && createAndAdd(e)}
+                className="flex-1 p-2 bg-neutral-50 border border-neutral-200 rounded-lg outline-none focus:border-red-600 text-[12px] font-medium transition"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <button
+                onClick={createAndAdd}
+                disabled={!newPlaylistName.trim()}
+                className="p-2 bg-red-600 text-white rounded-lg hover:bg-neutral-900 transition disabled:opacity-50 flex-shrink-0"
+                title="Create & Add"
+              >
+                <Plus size={14} strokeWidth={3} />
+              </button>
             </div>
           </div>
         </div>

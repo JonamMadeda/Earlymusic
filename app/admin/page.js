@@ -195,7 +195,12 @@ export default function AdminDashboard() {
                                   {song.author}
                                 </p>
                               </div>
-                              <div className="flex-shrink-0 ml-2">
+                              <div className="flex-shrink-0 ml-2 flex items-center gap-1.5">
+                                {song.duration && (
+                                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${song.duration === "Short" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"}`}>
+                                    {song.duration}
+                                  </span>
+                                )}
                                 {(song.category || "Worship") && (
                                   <span
                                     className={`

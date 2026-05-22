@@ -8,6 +8,13 @@ export default function InstallPrompt() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    // Unregister any leftover service workers from next-pwa
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((r) => r.unregister());
+      });
+    }
+
     const handler = (e) => {
       // Prevent Chrome 67 and earlier from automatically showing the prompt
       e.preventDefault();

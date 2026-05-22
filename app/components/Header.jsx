@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Menu, X, Home, Library, CloudOff } from "lucide-react";
+import { Search, Menu, X, Home, Library, ListMusic, LogOut, LogIn, User, CloudOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/app/context/AuthContext";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const { user, signOut } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -45,6 +47,26 @@ const Header = () => {
         </div>
 
         <div className="flex items-center gap-x-2">
+          {/* Desktop auth button */}
+          {user ? (
+            <button
+              onClick={() => { signOut(); router.push("/"); }}
+              className="hidden md:flex items-center gap-2 text-neutral-400 hover:text-red-600 transition text-[12px] font-bold uppercase tracking-wider px-3 py-1.5"
+              title="Sign Out"
+            >
+              <LogOut size={16} />
+              Sign Out
+            </button>
+          ) : (
+            <button
+              onClick={() => router.push("/auth")}
+              className="hidden md:flex items-center gap-2 bg-red-600 text-white px-4 py-1.5 rounded-xl font-bold text-[12px] hover:bg-neutral-900 transition shadow-lg shadow-red-100"
+            >
+              <LogIn size={14} />
+              Sign In
+            </button>
+          )}
+
           {/* Search Button - Now opens the search page on mobile */}
           <button
             onClick={() => router.push("/search")}
@@ -77,6 +99,14 @@ const Header = () => {
               <span className="uppercase text-sm tracking-tight">Home</span>
             </Link>
             <Link
+              href="/playlists"
+              onClick={() => setIsMenuOpen(false)}
+              className="flex items-center gap-x-3 p-4 hover:bg-neutral-50 rounded-xl text-neutral-600 font-bold transition"
+            >
+              <ListMusic size={20} />
+              <span className="uppercase text-sm tracking-tight">Playlists</span>
+            </Link>
+            <Link
               href="/library"
               onClick={() => setIsMenuOpen(false)}
               className="flex items-center gap-x-3 p-4 hover:bg-neutral-50 rounded-xl text-neutral-600 font-bold transition"
@@ -84,6 +114,25 @@ const Header = () => {
               <Library size={20} />
               <span className="uppercase text-sm tracking-tight">Library</span>
             </Link>
+            <div className="border-t border-neutral-100 my-2" />
+            {user ? (
+              <button
+                onClick={() => { signOut(); setIsMenuOpen(false); router.push("/"); }}
+                className="flex items-center gap-x-3 p-4 hover:bg-neutral-50 rounded-xl text-neutral-600 font-bold transition w-full"
+              >
+                <LogOut size={20} />
+                <span className="uppercase text-sm tracking-tight">Sign Out</span>
+              </button>
+            ) : (
+              <Link
+                href="/auth"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-x-3 p-4 hover:bg-neutral-50 rounded-xl text-neutral-600 font-bold transition"
+              >
+                <LogIn size={20} />
+                <span className="uppercase text-sm tracking-tight">Sign In</span>
+              </Link>
+            )}
           </nav>
         </div>
       )}

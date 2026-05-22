@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Search, Library } from "lucide-react";
+import { Home, Search, Library, ListMusic } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,6 +10,7 @@ const BottomNav = () => {
   const navItems = [
     { icon: Home, label: "Home", href: "/" },
     { icon: Search, label: "Search", href: "/search" },
+    { icon: ListMusic, label: "Playlists", href: "/playlists" },
     { icon: Library, label: "Library", href: "/library" },
   ];
 

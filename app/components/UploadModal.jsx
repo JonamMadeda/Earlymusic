@@ -9,6 +9,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
   const [author, setAuthor] = useState("Pastor Marita Mbae");
   const [originalSongs, setOriginalSongs] = useState([{ title: "", artist: "" }]);
   const [category, setCategory] = useState("Worship");
+  const [duration, setDuration] = useState("Long");
   const [songFile, setSongFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -66,6 +67,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
         author: author,
         original_songs: originalSongs.filter(s => s.title || s.artist),
         category: category.trim(),
+        duration: duration,
         song_path: filePath,
       });
 
@@ -199,6 +201,30 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
                   className={`
                     flex-1 py-2 rounded-lg text-sm font-semibold transition-all
                     ${category === item
+                      ? "bg-white text-red-600 shadow-sm border border-neutral-100"
+                      : "text-neutral-400 hover:text-neutral-600"
+                    }
+                  `}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-y-1">
+            <label className="text-xs font-medium text-neutral-500 ml-1">
+              Duration
+            </label>
+            <div className="flex items-center gap-x-2 p-1 bg-neutral-50 border border-neutral-200 rounded-xl">
+              {["Long", "Short"].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setDuration(item)}
+                  className={`
+                    flex-1 py-2 rounded-lg text-sm font-semibold transition-all
+                    ${duration === item
                       ? "bg-white text-red-600 shadow-sm border border-neutral-100"
                       : "text-neutral-400 hover:text-neutral-600"
                     }
