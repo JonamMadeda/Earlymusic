@@ -181,7 +181,7 @@ export default function Home() {
             ) : (
               alphabet.map((letter) => (
                 <div key={letter} className="flex flex-col gap-y-2">
-                  <div className="flex items-center gap-x-4 border-b border-neutral-50 pb-2 px-2">
+                  <div className="flex items-center gap-x-4 border-b border-neutral-100 pb-2 px-2">
                     <h2 className="text-3xl font-semibold text-neutral-900 tracking-tight">
                       {letter}
                     </h2>
