@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ListMusic, Music, Trash2, LogIn } from "lucide-react";
+import { ArrowLeft, ListMusic, Music, Trash2, LogIn, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
@@ -18,6 +18,10 @@ export default function PlaylistDetailPage() {
   const [playlist, setPlaylist] = useState(null);
   const [songIds, setSongIds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSongIds, setSelectedSongIds] = useState(new Set());
+  const [showAddSongs, setShowAddSongs] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   // Fetch playlist + its songs from DB
   useEffect(() => {
@@ -64,6 +68,43 @@ export default function PlaylistDetailPage() {
       .map((sid) => allSongs.find((s) => s.id === sid))
       .filter(Boolean);
   }, [songIds, allSongs]);
+
+  const availableSongs = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return allSongs.filter(
+      (s) =>
+        !songIds.includes(s.id) &&
+        (s.title?.toLowerCase().includes(q) || s.author?.toLowerCase().includes(q))
+    );
+  }, [allSongs, songIds, searchQuery]);
+
+  const toggleSelect = (id) => {
+    setSelectedSongIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const addSelectedSongs = async () => {
+    if (selectedSongIds.size === 0) return;
+    setAdding(true);
+    const newIds = Array.from(selectedSongIds).filter((id) => !songIds.includes(id));
+    if (newIds.length === 0) { setAdding(false); return; }
+    const inserts = newIds.map((songId) => ({
+      playlist_id: params.id,
+      song_id: songId,
+    }));
+    const { error } = await supabase.from("playlist_songs").insert(inserts);
+    if (!error) {
+      setSongIds((prev) => [...prev, ...newIds]);
+      setSelectedSongIds(new Set());
+      setSearchQuery("");
+    }
+    setAdding(false);
+  };
 
   const removeSong = async (e, songId) => {
     e.stopPropagation();
@@ -128,13 +169,75 @@ export default function PlaylistDetailPage() {
           </button>
         </div>
 
+        {/* Add Songs Section */}
+        <div className="mb-6 px-2">
+          <button
+            onClick={() => setShowAddSongs(!showAddSongs)}
+            className="flex items-center gap-x-2 text-[13px] font-semibold text-red-600 hover:text-neutral-900 transition"
+          >
+            <Plus size={16} />
+            {showAddSongs ? "Cancel" : "Add Songs"}
+          </button>
+
+          {showAddSongs && (
+            <div className="mt-4 bg-neutral-50 rounded-2xl p-4 border border-neutral-100">
+              <input
+                type="text"
+                placeholder="Search songs by title or artist..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full p-3 bg-white border border-neutral-200 rounded-xl outline-none focus:border-red-600 text-[14px] transition"
+                autoFocus
+              />
+
+              {searchQuery.trim() && (
+                <>
+                  <div className="mt-3 max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-y-1">
+                    {availableSongs.length === 0 ? (
+                      <p className="text-[13px] text-neutral-400 italic py-4 text-center">No matching songs found.</p>
+                    ) : (
+                      availableSongs.map((s) => (
+                        <label
+                          key={s.id}
+                          className="flex items-center gap-x-3 p-2.5 rounded-xl hover:bg-white transition cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedSongIds.has(s.id)}
+                            onChange={() => toggleSelect(s.id)}
+                            className="accent-red-600 w-4 h-4"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[14px] font-semibold text-neutral-900 truncate">{s.title}</p>
+                            <p className="text-[12px] text-neutral-500 truncate">{s.author}</p>
+                          </div>
+                        </label>
+                      ))
+                    )}
+                  </div>
+
+                  {availableSongs.length > 0 && (
+                    <button
+                      onClick={addSelectedSongs}
+                      disabled={selectedSongIds.size === 0 || adding}
+                      className="mt-3 w-full bg-red-600 text-white py-2.5 rounded-xl font-bold text-[13px] hover:bg-neutral-900 transition disabled:opacity-50"
+                    >
+                      {adding ? "Adding..." : `Add ${selectedSongIds.size} Selected Song${selectedSongIds.size !== 1 ? "s" : ""}`}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
         {songs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center">
             <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mb-4">
               <Music className="text-neutral-200" size={32} />
             </div>
             <p className="text-[15px] font-medium text-neutral-900">This playlist is empty</p>
-            <p className="text-[13px] text-neutral-400 mt-1">Add songs from the Home or Search page.</p>
+            <p className="text-[13px] text-neutral-400 mt-1">Use "Add Songs" above to fill it up.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-y-1">

@@ -123,11 +123,6 @@ const SongItem = ({ song, onClick }) => {
             <p className="font-semibold text-neutral-900 text-[15px] leading-tight tracking-tight truncate">
               {song.title}
             </p>
-            {song.duration && (
-              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider flex-shrink-0 ${song.duration === "Short" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"}`}>
-                {song.duration}
-              </span>
-            )}
           </div>
           <p className="text-[13px] text-neutral-500 font-medium tracking-normal truncate">
             {song.author}
