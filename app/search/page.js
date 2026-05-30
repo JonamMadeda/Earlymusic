@@ -1,62 +1,73 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search as SearchIcon, Disc, Music, Heart, Info } from "lucide-react";
+import { Search as SearchIcon, Disc, Music, Info, Play } from "lucide-react";
 import Loader from "../components/Loader";
 import { usePlayer } from "../context/PlayerContext";
 
 const SongResultItem = ({ song, isActive, onClick }) => {
   const [showInfo, setShowInfo] = useState(false);
-
-  const toggleInfo = (e) => {
-    e.stopPropagation();
-    setShowInfo(!showInfo);
-  };
+  const isPraise = song.category?.toLowerCase() === "praise";
+  const isNew = song.created_at && (Date.now() - new Date(song.created_at).getTime()) < 14 * 24 * 60 * 60 * 1000;
 
   return (
     <div
       onClick={onClick}
-      className="bg-white p-1.5 md:p-2 rounded-2xl flex items-center justify-between group hover:bg-neutral-50 border border-transparent hover:border-neutral-100 transition-all duration-300 cursor-pointer relative"
+      className="group relative flex items-center justify-between p-1.5 md:p-2 hover:bg-neutral-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-neutral-100"
     >
       <div className="flex items-center gap-x-4 md:gap-x-6 flex-1 min-w-0">
-        <div
-          className={`h-10 w-10 md:h-11 md:w-11 rounded-xl flex items-center justify-center transition-all border ${isActive
-            ? "bg-red-600 border-red-600 text-white shadow-sm"
-            : "bg-neutral-100 border-transparent text-neutral-400 group-hover:bg-white group-hover:shadow-sm group-hover:border-neutral-100"
-            }`}
-        >
-          <Music size={18} />
+        <div className="w-4 flex items-center justify-center">
+          <Play
+            className={`transition-opacity ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+            size={16}
+            fill={isActive ? "currentColor" : "#dc2626"}
+            color={isActive ? "currentColor" : "#dc2626"}
+          />
         </div>
+
+        <div className={`h-10 w-10 md:h-11 md:w-11 rounded-xl flex items-center justify-center transition-all border ${isActive
+          ? "bg-red-600 border-red-600 text-white shadow-sm"
+          : "border-transparent group-hover:bg-white group-hover:shadow-sm bg-neutral-100 group-hover:border-neutral-100"
+          }`}
+        >
+          <Music size={18} className={isActive ? "text-white" : "text-neutral-400"} />
+        </div>
+
         <div className="flex-1 min-w-0">
-          <p
-            className={`font-semibold text-[15px] leading-tight mb-0.5 tracking-tight transition-colors truncate ${isActive ? "text-red-600" : "text-neutral-900"
+          <div className="flex items-center gap-x-2 mb-0.5">
+            <p className={`font-semibold text-[15px] leading-tight tracking-tight truncate transition-colors ${isActive ? "text-red-600" : "text-neutral-900"
               }`}
-          >
-            {song.title}
-          </p>
+            >
+              {song.title}
+            </p>
+            {isNew && (
+              <span className="text-[9px] font-bold text-red-400 uppercase tracking-wider flex-shrink-0">
+                NEW
+              </span>
+            )}
+          </div>
           <p className="text-[13px] text-neutral-500 font-medium tracking-normal truncate">
             {song.author}
+            <span className="text-neutral-300 mx-1">·</span>
+            <span className="text-[11px] text-neutral-400 font-normal">{song.category || "Worship"}</span>
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-x-2">
+      <div className="flex items-center gap-x-2 pr-2 md:pr-4">
         <button
-          onClick={toggleInfo}
+          onClick={(e) => { e.stopPropagation(); setShowInfo(!showInfo); }}
           className="p-2 text-neutral-300 hover:text-red-600 transition-colors"
           title="Song Details"
         >
           <Info size={16} />
-        </button>
-        <button className="w-10 h-10 flex items-center justify-center text-neutral-200 hover:text-red-600 transition-all active:scale-90">
-          <Heart size={18} />
         </button>
       </div>
 
       {showInfo && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute right-12 top-0 mt-8 z-50 bg-white border border-neutral-100 shadow-xl rounded-2xl p-5 min-w-[240px] animate-in fade-in zoom-in-95 duration-200"
+          className="absolute right-0 top-0 mt-8 z-50 bg-white border border-neutral-100 shadow-xl rounded-2xl p-5 min-w-[240px] animate-in fade-in zoom-in-95 duration-200"
         >
           <div className="flex flex-col gap-y-4">
             <div className="flex items-center justify-between border-b border-neutral-50 pb-2">

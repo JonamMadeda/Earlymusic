@@ -100,7 +100,7 @@ export default function Home() {
     <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
       <div className="max-w-5xl mx-auto">
         {/* Consolidated Filters */}
-        <div className="flex items-center gap-1.5 md:gap-4 mb-8 md:mb-12 flex-wrap py-2">
+        <div className="flex items-center gap-1.5 md:gap-4 mb-8 md:mb-12 overflow-x-auto no-scrollbar py-2">
           {/* Time Picker */}
           <div className="flex items-center gap-x-1.5 md:gap-x-3 bg-neutral-50 px-2.5 py-1.5 md:px-4 md:py-2.5 rounded-2xl border border-neutral-100/50 flex-shrink-0">
             <span className="text-[10px] md:text-[11px] font-medium text-neutral-400">
@@ -181,7 +181,7 @@ export default function Home() {
             ) : (
               alphabet.map((letter) => (
                 <div key={letter} className="flex flex-col gap-y-2">
-                  <div className="flex items-center gap-x-4 border-b border-neutral-100 pb-2 px-2">
+                  <div className="flex items-center gap-x-4 border-b border-neutral-50 pb-2 px-2">
                     <h2 className="text-3xl font-semibold text-neutral-900 tracking-tight">
                       {letter}
                     </h2>

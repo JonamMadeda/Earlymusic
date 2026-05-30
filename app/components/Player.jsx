@@ -35,22 +35,22 @@ const Player = () => {
 
   const currentIndex = (songs || []).findIndex((s) => s.id === song?.id);
 
-  // Sync isPlaying state with audio element
+  const playRef = useRef(false);
+
   useEffect(() => {
-    if (!audioRef.current || !audioUrl) return;
+    if (!audioRef.current) return;
 
     if (isPlaying) {
       const playPromise = audioRef.current.play();
       if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.error("Playback error:", error);
+        playPromise.catch(() => {
           setIsPlaying(false);
         });
       }
     } else {
       audioRef.current.pause();
     }
-  }, [isPlaying, audioUrl]);
+  }, [isPlaying]);
 
   const onPlayNext = useCallback(() => {
     if (!songs || songs.length === 0) return;
@@ -108,14 +108,12 @@ const Player = () => {
   useEffect(() => {
     if (song) {
       const loadAudio = async () => {
-        // Construct URL synchronously to avoid unnecessary await if possible
         const { data } = supabase.storage
           .from("songs")
           .getPublicUrl(song.song_path);
 
         const publicUrl = data.publicUrl;
 
-        // Check cache
         const cachedUrl = await getCachedAudioUrl(publicUrl);
         if (cachedUrl) {
           setAudioUrl(cachedUrl);
@@ -124,7 +122,7 @@ const Player = () => {
           cacheAudioFile(publicUrl);
         }
 
-        setIsPlaying(true);
+        playRef.current = true;
         setCurrentTime(0);
       };
 
@@ -294,6 +292,12 @@ const Player = () => {
         loop={isLooping}
         onTimeUpdate={() => {
           if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+        }}
+        onCanPlay={() => {
+          if (playRef.current) {
+            playRef.current = false;
+            audioRef.current?.play().catch(() => {});
+          }
         }}
         onLoadedMetadata={() => {
           if (audioRef.current) setDuration(audioRef.current.duration);
