@@ -15,6 +15,7 @@ export default function Home() {
 
   const filters = [
     { label: "All", days: null },
+    { label: "New", days: 14 },
     { label: "1 Month", days: 30 },
     { label: "3 Months", days: 90 },
     { label: "1 Year", days: 365 },

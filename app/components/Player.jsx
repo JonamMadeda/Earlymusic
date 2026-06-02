@@ -297,6 +297,7 @@ const Player = () => {
           if (playRef.current) {
             playRef.current = false;
             audioRef.current?.play().catch(() => {});
+            setIsPlaying(true);
           }
         }}
         onLoadedMetadata={() => {
