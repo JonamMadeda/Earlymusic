@@ -466,16 +466,16 @@ export default function SongsPage() {
   ].filter((value) => value && value !== "All").length;
 
   return (
-    <main className="min-h-[90vh] bg-transparent px-3 py-4 pb-36 md:px-8 md:py-10">
+    <main className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-5xl">
         <section className="mb-6 md:mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-7 w-1 rounded-full bg-accent" />
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-neutral-900 uppercase">
+            <div className="h-6 w-1 rounded-full bg-accent" />
+            <h1 className="text-xl font-bold tracking-[0.15em] text-neutral-900 md:text-2xl uppercase">
               Songs
             </h1>
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-neutral-400 max-w-xl">
+          <p className="mt-1.5 text-sm leading-relaxed text-neutral-450 max-w-xl">
             Browse the full collection of curated songs.
           </p>
           <div className="mt-3 md:mt-4 flex items-center gap-3.5 text-xs text-neutral-400">

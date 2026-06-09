@@ -28,9 +28,9 @@ const SongRailCard = ({ song, onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-[76vw] flex-shrink-0 snap-start items-center gap-3.5 rounded-2xl bg-neutral-50/60 p-3.5 text-left transition-all duration-300 hover:bg-neutral-100/80 md:w-[290px]"
+      className="group flex w-[76vw] flex-shrink-0 snap-start items-center gap-3.5 rounded-2xl bg-neutral-50/60 p-3.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:bg-neutral-100/80 hover:shadow-md md:w-[290px]"
     >
-      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800 transition-colors group-hover:bg-accent group-hover:text-white">
+      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800 shadow-sm transition-colors group-hover:bg-accent group-hover:text-white">
         <Music size={18} />
       </div>
       <div className="min-w-0 flex-1">
@@ -65,28 +65,28 @@ const FeaturedCard = ({ song, onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-[160px] flex-shrink-0 snap-start flex-col items-center gap-3 rounded-2xl bg-neutral-50/60 p-4 text-center transition-all duration-300 hover:bg-neutral-100/80 md:w-[200px]"
+      className="group relative flex w-[140px] flex-shrink-0 snap-start flex-col items-center gap-2.5 rounded-xl border border-neutral-100 bg-white p-3.5 text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md md:w-[170px] md:gap-3 md:rounded-2xl md:p-4"
     >
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-900/5 text-neutral-800 transition-colors group-hover:bg-accent group-hover:text-white md:h-20 md:w-20">
-        <Music size={22} className="md:size-[28px]" />
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-100 text-neutral-500 transition-colors group-hover:bg-accent group-hover:text-white md:h-14 md:w-14 md:rounded-2xl">
+        <Music size={18} className="md:size-[22px]" />
       </div>
       <div className="w-full min-w-0">
-        <div className="flex items-center justify-center gap-1.5">
-          <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+        <div className="flex items-center justify-center gap-1">
+          <p className="truncate text-xs font-semibold tracking-tight text-neutral-900 md:text-sm">
             {song.title}
           </p>
           {isNew && (
-            <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
+            <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-accent md:text-[8px]">
               New
             </span>
           )}
         </div>
-        <p className="truncate text-[11px] font-medium text-neutral-400 mt-0.5">
+        <p className="truncate text-[10px] font-medium text-neutral-400 mt-0.5 md:text-[11px]">
           {song.author}
         </p>
       </div>
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-all duration-300 group-hover:bg-accent group-hover:text-white">
-        <Play size={14} fill="currentColor" className="ml-0.5" />
+      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-all duration-300 group-hover:bg-accent group-hover:text-white md:h-8 md:w-8">
+        <Play size={11} fill="currentColor" className="ml-0.5 md:size-[13px]" />
       </div>
     </button>
   );
@@ -100,10 +100,10 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, ver
         <div>
           <div className="flex items-center gap-2">
             <div className="h-4 w-0.5 rounded-full bg-accent/60" />
-            <Icon size={16} className="text-neutral-900" />
-            <h2 className="text-base font-bold tracking-tight text-neutral-900">{title}</h2>
+            <Icon size={15} className="text-neutral-500" />
+            <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">{title}</h2>
           </div>
-          <p className="mt-1.5 ml-4 text-xs text-neutral-400">{subtitle}</p>
+          <p className="mt-1 ml-4 text-[11px] text-neutral-400 md:text-xs">{subtitle}</p>
         </div>
         {cta && (
           <Link
@@ -116,7 +116,7 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, ver
         )}
       </div>
 
-      <div className="flex snap-x snap-mandatory gap-3.5 overflow-x-auto pb-2 no-scrollbar">
+      <div className="flex snap-x snap-mandatory gap-3.5 overflow-x-auto pb-2 no-scrollbar [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent_100%)]">
         {items.length > 0 ? (
           items.map((song) => (
             <Card
@@ -238,62 +238,31 @@ export default function Home() {
         
         {/* Typographic Hero Banner */}
         <section className="mb-8">
-          <div className="flex items-center gap-3">
-            <div className="h-7 w-1 rounded-full bg-accent" />
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
-              Worship in Song
-            </h1>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-6 w-1 rounded-full bg-accent" />
+              <div>
+                <h1 className="text-xl font-bold tracking-[0.15em] text-neutral-900 md:text-2xl uppercase">
+                  Worship in Song
+                </h1>
+                <p className="mt-1.5 text-sm leading-relaxed text-neutral-450 max-w-xl">
+                  A curated collection of worship and praise songs.
+                </p>
+              </div>
+            </div>
+            <div className="hidden shrink-0 md:flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3.5 py-1.5 text-[11px] font-medium text-neutral-400">
+              <span>{stats.total} tracks</span>
+              <span className="h-1 w-1 rounded-full bg-neutral-300" />
+              <span className="text-accent font-semibold">{stats.new} new</span>
+            </div>
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-neutral-400 max-w-xl">
-            A curated collection of worship and praise songs.
-          </p>
           
-          <div className="mt-4 flex items-center gap-3.5 text-xs text-neutral-400">
-            <span>{stats.total} total tracks</span>
-            <span className="h-1 w-1 rounded-full bg-neutral-200" />
-            <span>{stats.new} new uploads</span>
+          <div className="mt-4 md:hidden inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3.5 py-1.5 text-[11px] font-medium text-neutral-400">
+            <span>{stats.total} tracks</span>
+            <span className="h-1 w-1 rounded-full bg-neutral-300" />
+            <span className="text-accent font-semibold">{stats.new} new</span>
           </div>
         </section>
-
-        {/* Minimal Navigation & Filters */}
-        <div className="mb-10 flex flex-wrap items-center gap-2 border-b border-neutral-100 pb-6">
-          <Link
-            href="/songs"
-            className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90"
-          >
-            Browse Full Library
-            <ArrowRight size={13} />
-          </Link>
-          
-          <button
-            type="button"
-            onClick={() => document.getElementById("newest-songs")?.scrollIntoView({ behavior: "smooth" })}
-            className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
-          >
-            Newest
-          </button>
-          <button
-            type="button"
-            onClick={() => document.getElementById("recently-played")?.scrollIntoView({ behavior: "smooth" })}
-            className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
-          >
-            Recent
-          </button>
-          <button
-            type="button"
-            onClick={() => document.getElementById("featured-songs")?.scrollIntoView({ behavior: "smooth" })}
-            className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
-          >
-            Featured
-          </button>
-          <button
-            type="button"
-            onClick={() => document.getElementById("recommended-songs")?.scrollIntoView({ behavior: "smooth" })}
-            className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
-          >
-            Recommended
-          </button>
-        </div>
 
         {isLoading ? (
           <Loader />
@@ -307,6 +276,7 @@ export default function Home() {
               items={newestSongs}
               onPlay={setActiveSong}
               cta={{ href: "/songs", label: "View all" }}
+              vertical
             />
 
             {recentlyPlayed.length > 0 && (

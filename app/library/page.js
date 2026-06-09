@@ -80,7 +80,7 @@ export default function LibraryPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
+      <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
         <div className="max-w-5xl mx-auto"><Loader /></div>
       </main>
     );
@@ -88,7 +88,7 @@ export default function LibraryPage() {
 
   if (!user) {
     return (
-      <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
+      <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
         <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-32 text-center">
           <Disc className="mb-4 text-neutral-300" size={32} />
           <p className="text-sm font-semibold text-neutral-900 mb-2">Sign in to see your library</p>
@@ -101,16 +101,16 @@ export default function LibraryPage() {
   }
 
   return (
-    <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
+    <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
       <div className="max-w-5xl mx-auto">
         <section className="mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-7 w-1 rounded-full bg-accent" />
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
+            <div className="h-6 w-1 rounded-full bg-accent" />
+            <h1 className="text-xl font-bold tracking-[0.15em] text-neutral-900 md:text-2xl uppercase">
               Library
             </h1>
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-neutral-400 max-w-xl">
+          <p className="mt-1.5 text-sm leading-relaxed text-neutral-450 max-w-xl">
             Everything you&apos;ve liked, organized and ready to play.
           </p>
           <div className="mt-4 flex items-center gap-3.5 text-xs text-neutral-400">

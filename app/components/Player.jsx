@@ -35,6 +35,15 @@ const Player = () => {
   const [audioUrl, setAudioUrl] = useState(null);
   const [expanded, setExpanded] = useState(false);
 
+  useEffect(() => {
+    const stored = localStorage.getItem("earlymusic_player_expanded");
+    if (stored === "true") setExpanded(true);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("earlymusic_player_expanded", expanded);
+  }, [expanded]);
+
   const currentIndex = (songs || []).findIndex((s) => s.id === song?.id);
 
   const playRef = useRef(false);
@@ -156,7 +165,7 @@ const Player = () => {
           }`}
         >
           {/* Progress bar */}
-          <div className="absolute top-0 left-0 right-0 h-[3px] z-10">
+          <div className="absolute top-0 left-0 right-0 h-[3px] bg-neutral-100/60 z-10">
             <input
               type="range"
               min="0"
@@ -182,8 +191,11 @@ const Player = () => {
             className="flex md:hidden items-center gap-3 px-3 py-2.5 cursor-pointer active:bg-neutral-50/50"
             onClick={() => setExpanded(!expanded)}
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
-              <Music size={14} />
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-white shadow-sm shadow-accent/15">
+              <Music
+                className={`${isPlaying ? "animate-spin-slow" : ""}`}
+                size={13}
+              />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold tracking-tight text-neutral-900">
@@ -221,15 +233,12 @@ const Player = () => {
             <div className="px-4 pb-5 pt-3 md:px-6 md:py-3">
               <div className="flex flex-col gap-y-4 md:flex-row md:items-center">
 
-                {/* Song info */}
-                <div className="flex items-center gap-3 md:w-[28%]">
+                {/* Song info (desktop only — shown in mini-bar on mobile) */}
+                <div className="hidden md:flex md:items-center md:gap-3 md:w-[28%]">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent shadow-sm shadow-accent/15">
                     <Music className="text-white" size={18} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-neutral-400 mb-0.5">
-                      Now Playing
-                    </p>
                     <p className="truncate text-[14px] font-semibold tracking-tight text-neutral-900">
                       {song.title}
                     </p>
@@ -241,22 +250,39 @@ const Player = () => {
 
                 {/* Controls + time */}
                 <div className="flex flex-col items-center gap-2 md:flex-1">
-                  <div className="flex items-center justify-center gap-x-3 md:gap-x-5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newState = !isShuffle;
-                        setIsShuffle(newState);
-                        if (newState) setIsLooping(false);
-                      }}
-                      className={`rounded-full p-1.5 transition-colors active:scale-90 ${
-                        isShuffle
-                          ? "text-accent"
-                          : "text-neutral-400 hover:text-neutral-900"
-                      }`}
-                    >
-                      <Shuffle size={16} />
-                    </button>
+                  <div className="flex items-center justify-center gap-x-2 md:gap-x-4">
+                    <div className="flex items-center gap-x-1 pr-2 md:pr-3 border-r border-neutral-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newState = !isShuffle;
+                          setIsShuffle(newState);
+                          if (newState) setIsLooping(false);
+                        }}
+                        className={`rounded-full p-1.5 transition-colors active:scale-90 ${
+                          isShuffle
+                            ? "text-accent"
+                            : "text-neutral-400 hover:text-neutral-900"
+                        }`}
+                      >
+                        <Shuffle size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newState = !isLooping;
+                          setIsLooping(newState);
+                          if (newState) setIsShuffle(false);
+                        }}
+                        className={`rounded-full p-1.5 transition-colors active:scale-90 ${
+                          isLooping
+                            ? "text-accent"
+                            : "text-neutral-400 hover:text-neutral-900"
+                        }`}
+                      >
+                        <Repeat size={14} />
+                      </button>
+                    </div>
 
                     <button
                       type="button"
@@ -269,7 +295,7 @@ const Player = () => {
                     <button
                       type="button"
                       onClick={togglePlay}
-                      className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-white shadow-md shadow-accent/10 transition hover:bg-accent/90 active:scale-95"
+                      className="hidden md:flex h-11 w-11 items-center justify-center rounded-full bg-accent text-white shadow-md shadow-accent/10 transition hover:bg-accent/90 active:scale-95"
                     >
                       {isPlaying ? (
                         <Pause size={22} fill="currentColor" />
@@ -284,22 +310,6 @@ const Player = () => {
                       className="rounded-full p-1.5 text-neutral-600 transition active:scale-90 hover:text-neutral-900"
                     >
                       <SkipForward size={20} fill="currentColor" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newState = !isLooping;
-                        setIsLooping(newState);
-                        if (newState) setIsShuffle(false);
-                      }}
-                      className={`rounded-full p-1.5 transition-colors active:scale-90 ${
-                        isLooping
-                          ? "text-accent"
-                          : "text-neutral-400 hover:text-neutral-900"
-                      }`}
-                    >
-                      <Repeat size={16} />
                     </button>
                   </div>
                   <div className="flex items-center gap-1.5 text-[11px] font-medium tabular-nums text-neutral-400 md:hidden">
@@ -334,7 +344,7 @@ const Player = () => {
                       if (audioRef.current) audioRef.current.volume = v;
                       if (v > 0) setIsMuted(false);
                     }}
-                    className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-neutral-100 accent-accent"
+                    className="h-1 w-28 cursor-pointer appearance-none rounded-full bg-neutral-100 accent-accent"
                   />
                 </div>
               </div>

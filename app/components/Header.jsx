@@ -27,7 +27,7 @@ const Header = () => {
   }, []);
 
   return (
-    <header className="sticky top-0 z-[200] border-b border-white/70 bg-white/70 px-4 py-4 backdrop-blur-xl md:px-6 md:py-5">
+    <header className="sticky top-0 z-[200] border-b border-white/70 bg-white/70 px-4 py-2 backdrop-blur-xl md:px-6 md:py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-x-3">
           <Link href="/" className="md:hidden">
