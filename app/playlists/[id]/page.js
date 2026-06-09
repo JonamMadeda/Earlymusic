@@ -154,10 +154,13 @@ export default function PlaylistDetailPage() {
             <ArrowLeft size={14} />
             Back
           </button>
-          <h1 className="text-xl font-semibold tracking-tight text-neutral-900 md:text-2xl">
-            {playlist.name}
-          </h1>
-          <p className="mt-1 text-sm leading-relaxed text-neutral-400 max-w-xl">
+          <div className="flex items-center gap-3">
+            <div className="h-7 w-1 rounded-full bg-accent" />
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
+              {playlist.name}
+            </h1>
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-400 max-w-xl">
             {songIds.length} {songIds.length === 1 ? "song" : "songs"}
           </p>
         </div>

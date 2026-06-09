@@ -85,10 +85,13 @@ export default function PlaylistsPage() {
     <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
       <div className="max-w-5xl mx-auto">
         <section className="mb-8">
-          <h1 className="text-xl font-semibold tracking-tight text-neutral-900 md:text-2xl">
-            Playlists
-          </h1>
-          <p className="mt-1 text-sm leading-relaxed text-neutral-400 max-w-xl">
+          <div className="flex items-center gap-3">
+            <div className="h-7 w-1 rounded-full bg-accent" />
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
+              Playlists
+            </h1>
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-400 max-w-xl">
             Build listening sets and keep your favorite compilations grouped together.
           </p>
           <div className="mt-4 flex items-center gap-3.5 text-xs text-neutral-400">

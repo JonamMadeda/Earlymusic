@@ -469,35 +469,38 @@ export default function SongsPage() {
     <main className="min-h-[90vh] bg-transparent px-3 py-4 pb-36 md:px-8 md:py-10">
       <div className="mx-auto max-w-5xl">
         <section className="mb-6 md:mb-8">
-          <h1 className="text-lg md:text-2xl font-semibold tracking-tight text-neutral-900">
-            Songs
-          </h1>
-          <p className="mt-0.5 md:mt-1 text-sm leading-relaxed text-neutral-400 max-w-xl">
+          <div className="flex items-center gap-3">
+            <div className="h-7 w-1 rounded-full bg-accent" />
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-neutral-900 uppercase">
+              Songs
+            </h1>
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-400 max-w-xl">
             Browse the full collection of curated songs.
           </p>
           <div className="mt-3 md:mt-4 flex items-center gap-3.5 text-xs text-neutral-400">
             <span>{allSongs?.length || 0} tracks</span>
           </div>
 
-          <div className="mt-4 md:mt-6 flex flex-col gap-2 sm:flex-row md:min-w-[460px] md:justify-start">
-            <div className="flex flex-1 items-center gap-2 rounded-full border border-neutral-200/80 bg-neutral-50/60 px-3.5 py-2.5 text-neutral-500 transition focus-within:border-neutral-300 focus-within:bg-white">
-              <Search size={14} />
+          <div className="mt-4 md:mt-6 flex flex-row flex-nowrap gap-2 md:min-w-[460px] md:justify-start">
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-neutral-200/80 bg-neutral-50/60 px-3 py-2 text-neutral-500 transition focus-within:border-neutral-300 focus-within:bg-white md:px-3.5 md:py-2.5">
+              <Search size={14} className="shrink-0" />
               <input
                 type="text"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="Search songs or artists"
-                className="w-full bg-transparent text-xs font-medium text-neutral-900 outline-none placeholder:text-neutral-300"
+                placeholder="Search"
+                className="min-w-0 flex-1 bg-transparent text-xs font-medium text-neutral-900 outline-none placeholder:text-neutral-300"
               />
             </div>
             <button
               type="button"
               onClick={() => setFiltersOpen((prev) => !prev)}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-neutral-200/80 bg-white px-3.5 py-2 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900 md:gap-2 md:px-4 md:py-2.5"
             >
               <Filter size={14} />
-              Filters
-              {filtersOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              <span>Filters</span>
+              {filtersOpen ? <ChevronUp size={14} className="shrink-0" /> : <ChevronDown size={14} className="shrink-0" />}
             </button>
           </div>
 

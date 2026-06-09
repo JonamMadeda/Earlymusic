@@ -65,12 +65,12 @@ const FeaturedCard = ({ song, onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-[180px] flex-shrink-0 snap-start flex-col items-center gap-3 rounded-2xl bg-neutral-50/60 p-5 text-center transition-all duration-300 hover:bg-neutral-100/80 md:w-[200px]"
+      className="group flex w-[160px] flex-shrink-0 snap-start flex-col items-center gap-3 rounded-2xl bg-neutral-50/60 p-4 text-center transition-all duration-300 hover:bg-neutral-100/80 md:w-[200px]"
     >
-      <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-neutral-900/5 text-neutral-800 transition-colors group-hover:bg-accent group-hover:text-white">
-        <Music size={28} />
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-900/5 text-neutral-800 transition-colors group-hover:bg-accent group-hover:text-white md:h-20 md:w-20">
+        <Music size={22} className="md:size-[28px]" />
       </div>
-      <div className="min-w-0">
+      <div className="w-full min-w-0">
         <div className="flex items-center justify-center gap-1.5">
           <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
             {song.title}
@@ -99,10 +99,11 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, ver
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
+            <div className="h-4 w-0.5 rounded-full bg-accent/60" />
             <Icon size={16} className="text-neutral-900" />
             <h2 className="text-base font-bold tracking-tight text-neutral-900">{title}</h2>
           </div>
-          <p className="mt-0.5 text-xs text-neutral-400">{subtitle}</p>
+          <p className="mt-1.5 ml-4 text-xs text-neutral-400">{subtitle}</p>
         </div>
         {cta && (
           <Link
@@ -232,15 +233,18 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
+    <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-5xl">
         
         {/* Typographic Hero Banner */}
         <section className="mb-8">
-          <h1 className="text-xl font-semibold tracking-tight text-neutral-900 md:text-2xl">
-            Let everything that has breath praise the Lord.
-          </h1>
-          <p className="mt-1 text-sm leading-relaxed text-neutral-400 max-w-xl">
+          <div className="flex items-center gap-3">
+            <div className="h-7 w-1 rounded-full bg-accent" />
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
+              Worship in Song
+            </h1>
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-400 max-w-xl">
             A curated collection of worship and praise songs.
           </p>
           
@@ -317,6 +321,7 @@ export default function Home() {
               items={recommendedSongs}
               onPlay={setActiveSong}
               cta={{ href: "/songs", label: "View all" }}
+              vertical
             />
 
             {sortedSongs.length === 0 && (

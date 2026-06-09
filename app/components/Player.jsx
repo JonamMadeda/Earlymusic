@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { usePlayer } from "../context/PlayerContext"; // Added Context
+import { usePlayer } from "../context/PlayerContext";
 import {
   Play,
   Pause,
@@ -13,6 +13,7 @@ import {
   Shuffle,
   SkipBack,
   SkipForward,
+  ChevronUp,
 } from "lucide-react";
 import { getCachedAudioUrl, cacheAudioFile } from "@/lib/cacheUtils";
 
@@ -32,6 +33,7 @@ const Player = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
   const [audioUrl, setAudioUrl] = useState(null);
+  const [expanded, setExpanded] = useState(false);
 
   const currentIndex = (songs || []).findIndex((s) => s.id === song?.id);
 
@@ -79,7 +81,6 @@ const Player = () => {
     setIsPlaying((prev) => !prev);
   }, []);
 
-  // MediaSession API integration
   useEffect(() => {
     if (typeof window === "undefined" || !("mediaSession" in navigator) || !song) return;
 
@@ -142,145 +143,202 @@ const Player = () => {
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
+  const progress = duration ? (currentTime / duration) * 100 : 0;
+
   if (!song || !audioUrl) return null;
 
   return (
-    <div className="fixed bottom-20 left-0 right-0 z-[9999] h-auto border-t border-white/80 bg-white/92 shadow-[0_-18px_50px_rgba(15,23,42,0.10)] backdrop-blur-2xl md:bottom-0 md:h-24">
-      <div className="absolute -top-[1px] left-0 h-[3px] w-full cursor-pointer bg-neutral-100">
-        <input
-          type="range"
-          min="0"
-          max={duration || 0}
-          value={currentTime}
-          onChange={(e) => {
-            const time = Number(e.target.value);
-            if (audioRef.current) {
-              audioRef.current.currentTime = time;
-              setCurrentTime(time);
-            }
-          }}
-          className="absolute top-0 left-0 w-full h-full accent-accent bg-transparent cursor-pointer appearance-none z-10"
-        />
+    <div className="fixed bottom-14 left-0 right-0 z-[9999] md:bottom-0 md:left-1/2 md:w-1/2 md:-translate-x-1/2">
+      <div className="relative mx-auto max-w-[1400px] md:px-6">
         <div
-          className="pointer-events-none absolute top-0 left-0 h-full bg-accent transition-all"
-          style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
-        />
-      </div>
-
-      <div className="mx-auto h-full max-w-[1400px] px-4 py-3 md:px-6">
-        <div className="flex h-full flex-col items-center justify-between gap-y-3 md:flex-row">
-          <div className="flex min-w-0 w-full items-center gap-x-3 md:w-[28%]">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent shadow-lg shadow-accent/15">
-              <Music
-                className={`text-white ${isPlaying ? "animate-spin-slow" : ""}`}
-                size={18}
-              />
-            </div>
-            <div className="min-w-0 truncate">
-              <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.24em] text-neutral-400">
-                Now Playing
-              </p>
-              <p className="truncate text-[14px] font-semibold leading-none tracking-tight text-neutral-900">
-                {song.title}
-              </p>
-              <p className="mt-1 truncate text-[12px] font-medium leading-none text-neutral-500">
-                {song.author}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex w-full flex-col items-center gap-y-1 md:flex-1">
-            <div className="flex items-center justify-center gap-x-3 md:gap-x-6">
-              <button
-                type="button"
-                onClick={() => {
-                  const newState = !isShuffle;
-                  setIsShuffle(newState);
-                  if (newState) setIsLooping(false);
-                }}
-className={`rounded-full p-2 transition-colors active:scale-90 ${isShuffle
-                  ? "bg-accent/10 text-accent"
-                  : "text-neutral-400 hover:bg-neutral-50 hover:text-neutral-900"
-                  }`}
-              >
-                <Shuffle size={18} />
-              </button>
-
-              <button
-                type="button"
-                onClick={onPlayPrevious}
-                className="rounded-full p-2 text-neutral-900 transition active:scale-90 hover:bg-neutral-50"
-              >
-                <SkipBack size={24} fill="currentColor" />
-              </button>
-
-              <button
-                type="button"
-                onClick={togglePlay}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-white shadow-lg shadow-accent/10 transition hover:bg-accent/90 active:scale-95"
-              >
-                {isPlaying ? (
-                  <Pause size={24} fill="currentColor" />
-                ) : (
-                  <Play size={24} fill="currentColor" className="ml-1" />
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={onPlayNext}
-                className="rounded-full p-2 text-neutral-900 transition active:scale-90 hover:bg-neutral-50"
-              >
-                <SkipForward size={24} fill="currentColor" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const newState = !isLooping;
-                  setIsLooping(newState);
-                  if (newState) setIsShuffle(false);
-                }}
-className={`rounded-full p-2 transition-colors active:scale-90 ${isLooping
-                  ? "bg-accent/10 text-accent"
-                  : "text-neutral-400 hover:bg-neutral-50 hover:text-neutral-900"
-                  }`}
-              >
-                <Repeat size={18} />
-              </button>
-            </div>
-            <div className="rounded-full border border-neutral-100 bg-neutral-50 px-3 py-1 text-[11px] font-medium tabular-nums text-neutral-400">
-              {formatTime(currentTime)}{" "}
-              <span className="mx-1 opacity-50">/</span> {formatTime(duration)}
-            </div>
-          </div>
-
-          <div className="hidden w-[28%] items-center justify-end gap-x-3 md:flex">
-            <button
-              type="button"
-              onClick={toggleMute}
-              className="rounded-full p-2 text-neutral-400 transition hover:bg-neutral-50 hover:text-accent"
-            >
-              {isMuted || volume === 0 ? (
-                <VolumeX size={18} />
-              ) : (
-                <Volume2 size={18} />
-              )}
-            </button>
+          className={`relative overflow-hidden border-t border-white/70 bg-white/95 backdrop-blur-2xl transition-all duration-300 md:mb-4 md:rounded-2xl md:border ${
+            expanded ? "rounded-t-2xl" : ""
+          }`}
+        >
+          {/* Progress bar */}
+          <div className="absolute top-0 left-0 right-0 h-[3px] z-10">
             <input
               type="range"
               min="0"
-              max="1"
-              step="0.05"
-              value={isMuted ? 0 : volume}
+              max={duration || 0}
+              value={currentTime}
               onChange={(e) => {
-                const v = Number(e.target.value);
-                setVolume(v);
-                if (audioRef.current) audioRef.current.volume = v;
-                if (v > 0) setIsMuted(false);
+                const time = Number(e.target.value);
+                if (audioRef.current) {
+                  audioRef.current.currentTime = time;
+                  setCurrentTime(time);
+                }
               }}
-              className="h-1 w-24 cursor-pointer appearance-none rounded-lg bg-neutral-100 accent-accent"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
             />
+            <div
+              className="h-full bg-accent transition-all duration-150"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          {/* Mobile mini-bar */}
+          <div
+            className="flex md:hidden items-center gap-3 px-3 py-2.5 cursor-pointer active:bg-neutral-50/50"
+            onClick={() => setExpanded(!expanded)}
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
+              <Music size={14} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold tracking-tight text-neutral-900">
+                {song.title}
+              </p>
+              <p className="truncate text-[10px] font-medium text-neutral-400">
+                {song.author}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-sm shadow-accent/10 active:scale-90 transition"
+            >
+              {isPlaying ? (
+                <Pause size={15} fill="currentColor" />
+              ) : (
+                <Play size={15} fill="currentColor" className="ml-0.5" />
+              )}
+            </button>
+            <ChevronUp
+              size={14}
+              className={`shrink-0 text-neutral-300 transition-transform duration-300 ${
+                expanded ? "rotate-180" : ""
+              }`}
+            />
+          </div>
+
+          {/* Expanded area */}
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-hidden ${
+              expanded ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
+            } md:!max-h-full md:!opacity-100`}
+          >
+            <div className="px-4 pb-5 pt-3 md:px-6 md:py-3">
+              <div className="flex flex-col gap-y-4 md:flex-row md:items-center">
+
+                {/* Song info */}
+                <div className="flex items-center gap-3 md:w-[28%]">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent shadow-sm shadow-accent/15">
+                    <Music className="text-white" size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-neutral-400 mb-0.5">
+                      Now Playing
+                    </p>
+                    <p className="truncate text-[14px] font-semibold tracking-tight text-neutral-900">
+                      {song.title}
+                    </p>
+                    <p className="truncate text-[11px] font-medium text-neutral-400">
+                      {song.author}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Controls + time */}
+                <div className="flex flex-col items-center gap-2 md:flex-1">
+                  <div className="flex items-center justify-center gap-x-3 md:gap-x-5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newState = !isShuffle;
+                        setIsShuffle(newState);
+                        if (newState) setIsLooping(false);
+                      }}
+                      className={`rounded-full p-1.5 transition-colors active:scale-90 ${
+                        isShuffle
+                          ? "text-accent"
+                          : "text-neutral-400 hover:text-neutral-900"
+                      }`}
+                    >
+                      <Shuffle size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onPlayPrevious}
+                      className="rounded-full p-1.5 text-neutral-600 transition active:scale-90 hover:text-neutral-900"
+                    >
+                      <SkipBack size={20} fill="currentColor" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={togglePlay}
+                      className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-white shadow-md shadow-accent/10 transition hover:bg-accent/90 active:scale-95"
+                    >
+                      {isPlaying ? (
+                        <Pause size={22} fill="currentColor" />
+                      ) : (
+                        <Play size={22} fill="currentColor" className="ml-0.5" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onPlayNext}
+                      className="rounded-full p-1.5 text-neutral-600 transition active:scale-90 hover:text-neutral-900"
+                    >
+                      <SkipForward size={20} fill="currentColor" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newState = !isLooping;
+                        setIsLooping(newState);
+                        if (newState) setIsShuffle(false);
+                      }}
+                      className={`rounded-full p-1.5 transition-colors active:scale-90 ${
+                        isLooping
+                          ? "text-accent"
+                          : "text-neutral-400 hover:text-neutral-900"
+                      }`}
+                    >
+                      <Repeat size={16} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium tabular-nums text-neutral-400 md:hidden">
+                    <span>{formatTime(currentTime)}</span>
+                    <span className="text-neutral-300">/</span>
+                    <span>{formatTime(duration)}</span>
+                  </div>
+                </div>
+
+                {/* Volume (desktop only) */}
+                <div className="hidden md:flex md:w-[28%] md:items-center md:justify-end md:gap-3">
+                  <button
+                    type="button"
+                    onClick={toggleMute}
+                    className="rounded-full p-2 text-neutral-400 transition hover:text-accent"
+                  >
+                    {isMuted || volume === 0 ? (
+                      <VolumeX size={18} />
+                    ) : (
+                      <Volume2 size={18} />
+                    )}
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={isMuted ? 0 : volume}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setVolume(v);
+                      if (audioRef.current) audioRef.current.volume = v;
+                      if (v > 0) setIsMuted(false);
+                    }}
+                    className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-neutral-100 accent-accent"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
