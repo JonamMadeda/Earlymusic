@@ -87,11 +87,11 @@ export default function PlaylistsPage() {
         <section className="mb-8">
           <div className="flex items-center gap-3">
             <div className="h-6 w-1 rounded-full bg-accent" />
-            <h1 className="text-xl font-bold tracking-[0.15em] text-neutral-900 md:text-2xl uppercase">
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
               Playlists
             </h1>
           </div>
-          <p className="mt-1.5 text-sm leading-relaxed text-neutral-450 max-w-xl">
+          <p className="mt-1.5 text-sm leading-relaxed text-neutral-400 max-w-xl">
             Build listening sets and keep your favorite compilations grouped together.
           </p>
           <div className="mt-4 flex items-center gap-3.5 text-xs text-neutral-400">

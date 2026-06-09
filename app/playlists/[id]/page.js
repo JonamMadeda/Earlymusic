@@ -156,11 +156,11 @@ export default function PlaylistDetailPage() {
           </button>
           <div className="flex items-center gap-3">
             <div className="h-6 w-1 rounded-full bg-accent" />
-            <h1 className="text-xl font-bold tracking-[0.15em] text-neutral-900 md:text-2xl uppercase">
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
               {playlist.name}
             </h1>
           </div>
-          <p className="mt-1.5 text-sm leading-relaxed text-neutral-450 max-w-xl">
+          <p className="mt-1.5 text-sm leading-relaxed text-neutral-400 max-w-xl">
             {songIds.length} {songIds.length === 1 ? "song" : "songs"}
           </p>
         </div>

@@ -99,11 +99,10 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, ver
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <div className="h-4 w-0.5 rounded-full bg-accent/60" />
-            <Icon size={15} className="text-neutral-500" />
+            <Icon size={15} className="text-neutral-400" />
             <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">{title}</h2>
           </div>
-          <p className="mt-1 ml-4 text-[11px] text-neutral-400 md:text-xs">{subtitle}</p>
+          <p className="mt-0.5 ml-7 text-[11px] text-neutral-400 md:text-xs">{subtitle}</p>
         </div>
         {cta && (
           <Link
@@ -242,10 +241,10 @@ export default function Home() {
             <div className="flex items-center gap-3">
               <div className="h-6 w-1 rounded-full bg-accent" />
               <div>
-                <h1 className="text-xl font-bold tracking-[0.15em] text-neutral-900 md:text-2xl uppercase">
+                <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
                   Worship in Song
                 </h1>
-                <p className="mt-1.5 text-sm leading-relaxed text-neutral-450 max-w-xl">
+                <p className="mt-2 text-sm leading-relaxed text-neutral-400 max-w-xl">
                   A curated collection of worship and praise songs.
                 </p>
               </div>
@@ -263,6 +262,23 @@ export default function Home() {
             <span className="text-accent font-semibold">{stats.new} new</span>
           </div>
         </section>
+
+        {/* Banner */}
+        <div className="mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-accent/5 via-accent/10 to-transparent border border-accent/10 px-5 py-4 md:rounded-3xl md:px-8 md:py-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent md:h-12 md:w-12">
+              <Music size={18} className="md:size-[22px]" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold tracking-tight text-neutral-900 md:text-base">
+                Psalm 150:6
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-neutral-500 md:text-sm">
+                Let everything that has breath praise the Lord.
+              </p>
+            </div>
+          </div>
+        </div>
 
         {isLoading ? (
           <Loader />
@@ -309,7 +325,6 @@ export default function Home() {
               items={recommendedSongs}
               onPlay={setActiveSong}
               cta={{ href: "/songs", label: "View all" }}
-              vertical
             />
 
             {sortedSongs.length === 0 && (
