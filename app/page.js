@@ -9,6 +9,15 @@ import { Disc, Music, Sparkles, Wand2, ArrowRight, Play } from "lucide-react";
 
 const timeWindowDays = 14;
 
+const shuffle = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
 const SongRailCard = ({ song, onClick }) => {
   const isNew =
     song.created_at &&
@@ -183,7 +192,7 @@ export default function Home() {
     const mixed = [...praiseFirst, ...sortedSongs].filter(
       (song, index, list) => list.findIndex((item) => item.id === song.id) === index
     );
-    return mixed.slice(0, 6);
+    return shuffle(mixed).slice(0, 6);
   }, [sortedSongs]);
 
   const featuredIds = useMemo(
@@ -209,10 +218,11 @@ export default function Home() {
       return score;
     };
 
-    return [...sortedSongs]
-      .filter((song) => !featuredIds.has(song.id) && !newestIds.has(song.id))
-      .sort((a, b) => scoreSong(b) - scoreSong(a))
-      .slice(0, 6);
+    return shuffle(
+      [...sortedSongs]
+        .filter((song) => !featuredIds.has(song.id) && !newestIds.has(song.id))
+        .sort((a, b) => scoreSong(b) - scoreSong(a))
+    ).slice(0, 6);
   }, [sortedSongs, featuredIds, newestIds]);
 
   const stats = {
@@ -253,17 +263,17 @@ export default function Home() {
           
           <button
             type="button"
-            onClick={() => document.getElementById("featured-songs")?.scrollIntoView({ behavior: "smooth" })}
-            className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
-          >
-            Featured
-          </button>
-          <button
-            type="button"
             onClick={() => document.getElementById("newest-songs")?.scrollIntoView({ behavior: "smooth" })}
             className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
           >
             Newest
+          </button>
+          <button
+            type="button"
+            onClick={() => document.getElementById("featured-songs")?.scrollIntoView({ behavior: "smooth" })}
+            className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+          >
+            Featured
           </button>
           <button
             type="button"

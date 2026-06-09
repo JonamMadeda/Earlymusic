@@ -78,17 +78,19 @@ const Sidebar = () => {
         <div className="mt-auto pt-5">
           <div className="mb-3 border-t border-neutral-200/60" />
           <nav className="flex flex-col gap-y-1">
-            <Link
-              href="/account"
-              className={`flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
-                pathname === "/account"
-                  ? "bg-accent text-white shadow-sm shadow-accent/10"
-                  : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
-              }`}
-            >
-              <User size={18} />
-              <span>Account</span>
-            </Link>
+            {user && (
+              <Link
+                href="/account"
+                className={`flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
+                  pathname === "/account"
+                    ? "bg-accent text-white shadow-sm shadow-accent/10"
+                    : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
+                }`}
+              >
+                <User size={18} />
+                <span>Account</span>
+              </Link>
+            )}
           </nav>
           {!user && (
             <Link

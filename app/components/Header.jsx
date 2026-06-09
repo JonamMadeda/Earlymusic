@@ -113,14 +113,16 @@ const Header = () => {
               <Library size={20} />
               <span className="uppercase text-sm tracking-tight">Library</span>
             </Link>
-            <Link
-              href="/account"
-              onClick={() => setIsMenuOpen(false)}
-              className="flex items-center gap-x-3 rounded-2xl border border-transparent p-4 font-bold text-neutral-600 transition hover:border-neutral-100 hover:bg-neutral-50"
-            >
-              <User size={20} />
-              <span className="uppercase text-sm tracking-tight">Account</span>
-            </Link>
+            {user && (
+              <Link
+                href="/account"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-x-3 rounded-2xl border border-transparent p-4 font-bold text-neutral-600 transition hover:border-neutral-100 hover:bg-neutral-50"
+              >
+                <User size={20} />
+                <span className="uppercase text-sm tracking-tight">Account</span>
+              </Link>
+            )}
             <div className="my-2 border-t border-neutral-100" />
             {user ? (
               <button
