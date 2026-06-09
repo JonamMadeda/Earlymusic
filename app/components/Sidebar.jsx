@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, ListMusic, LogOut, LogIn, Music, User } from "lucide-react";
+import { Home, ListMusic, LogOut, LogIn, Music, User, Clock } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
+import { usePlayer } from "@/app/context/PlayerContext";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const { recentlyPlayed, setActiveSong, allSongs } = usePlayer();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -73,6 +75,31 @@ const Sidebar = () => {
             </Link>
           ))}
         </nav>
+
+        {/* Recently Played */}
+        {recentlyPlayed.length > 0 && (
+          <div className="mt-6">
+            <div className="mb-2 flex items-center gap-2 px-1.5">
+              <Clock size={12} className="text-neutral-400" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+                Recent
+              </span>
+            </div>
+            <nav className="flex flex-col gap-y-0.5">
+              {recentlyPlayed.slice(0, 7).map((song) => (
+                <button
+                  key={song.id}
+                  type="button"
+                  onClick={() => setActiveSong(song, allSongs)}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs text-neutral-500 transition hover:bg-neutral-200/50 hover:text-neutral-900"
+                >
+                  <Music size={12} className="shrink-0 text-neutral-300" />
+                  <span className="truncate">{song.title}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
+        )}
 
         {/* Bottom Profile / Auth */}
         <div className="mt-auto pt-5">

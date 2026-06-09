@@ -181,7 +181,7 @@ const SongRow = ({ song, onClick, isActive }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="rounded bg-neutral-900/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-neutral-800">
+            <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
               New
             </span>
           )}

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "./context/PlayerContext";
 import Loader from "./components/Loader";
-import { Disc, Music, Sparkles, Wand2, ArrowRight, Play } from "lucide-react";
+import { Disc, Music, Sparkles, Wand2, ArrowRight, Play, Clock } from "lucide-react";
 
 const timeWindowDays = 14;
 
@@ -39,7 +39,7 @@ const SongRailCard = ({ song, onClick }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="rounded bg-neutral-900/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-neutral-800">
+            <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
               New
             </span>
           )}
@@ -76,7 +76,7 @@ const FeaturedCard = ({ song, onClick }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="rounded bg-neutral-900/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-neutral-800">
+            <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
               New
             </span>
           )}
@@ -136,7 +136,7 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, ver
 };
 
 export default function Home() {
-  const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading } =
+  const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed } =
     usePlayer();
 
   useEffect(() => {
@@ -274,6 +274,13 @@ export default function Home() {
           </button>
           <button
             type="button"
+            onClick={() => document.getElementById("recently-played")?.scrollIntoView({ behavior: "smooth" })}
+            className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+          >
+            Recent
+          </button>
+          <button
+            type="button"
             onClick={() => document.getElementById("featured-songs")?.scrollIntoView({ behavior: "smooth" })}
             className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
           >
@@ -301,6 +308,17 @@ export default function Home() {
               onPlay={setActiveSong}
               cta={{ href: "/songs", label: "View all" }}
             />
+
+            {recentlyPlayed.length > 0 && (
+              <SectionBlock
+                id="recently-played"
+                title="Recently Played"
+                subtitle="Your listening history"
+                icon={Clock}
+                items={recentlyPlayed}
+                onPlay={setActiveSong}
+              />
+            )}
 
             <SectionBlock
               id="featured-songs"
