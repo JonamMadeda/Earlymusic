@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ListMusic, Music, Trash2, LogIn, Plus } from "lucide-react";
+import { ArrowLeft, ListMusic, Disc, Trash2, LogIn, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
@@ -124,7 +124,7 @@ export default function PlaylistDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
+      <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
         <div className="max-w-5xl mx-auto"><Loader /></div>
       </main>
     );
@@ -132,14 +132,12 @@ export default function PlaylistDetailPage() {
 
   if (!user) {
     return (
-      <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
+      <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
         <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-32 text-center">
-          <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mb-4">
-            <Music className="text-neutral-200" size={32} />
-          </div>
-          <p className="text-[15px] font-medium text-neutral-900 mb-2">Sign in to view playlists</p>
-          <Link href="/auth" className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-neutral-900 transition-all flex items-center gap-2 shadow-lg shadow-red-100">
-            <LogIn size={16} /> Sign In
+          <Disc className="mb-4 text-neutral-300" size={32} />
+          <p className="text-sm font-semibold text-neutral-900 mb-2">Sign in to view playlists</p>
+          <Link href="/auth" className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90">
+            <LogIn size={14} /> Sign In
           </Link>
         </div>
       </main>
@@ -149,44 +147,45 @@ export default function PlaylistDetailPage() {
   if (!playlist) return null;
 
   return (
-    <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
+    <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-x-4 mb-8 px-2">
-          <button onClick={() => router.back()} className="p-2 text-neutral-400 hover:text-red-600 transition">
-            <ArrowLeft size={22} />
+        <div className="mb-8">
+          <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-400 hover:text-neutral-900 transition mb-4">
+            <ArrowLeft size={14} />
+            Back
           </button>
-          <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
-            <ListMusic className="text-red-600" size={22} />
-          </div>
-          <div className="flex-1">
-            <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">{playlist.name}</h1>
-            <p className="text-[13px] text-neutral-500 font-medium">
-              {songIds.length} {songIds.length === 1 ? "song" : "songs"}
-            </p>
-          </div>
-          <button onClick={deletePlaylist} className="text-neutral-300 hover:text-red-600 transition p-2" title="Delete playlist">
-            <Trash2 size={18} />
-          </button>
+          <h1 className="text-xl font-semibold tracking-tight text-neutral-900 md:text-2xl">
+            {playlist.name}
+          </h1>
+          <p className="mt-1 text-sm leading-relaxed text-neutral-400 max-w-xl">
+            {songIds.length} {songIds.length === 1 ? "song" : "songs"}
+          </p>
         </div>
 
         {/* Add Songs Section */}
-        <div className="mb-6 px-2">
-          <button
-            onClick={() => setShowAddSongs(!showAddSongs)}
-            className="flex items-center gap-x-2 text-[13px] font-semibold text-red-600 hover:text-neutral-900 transition"
-          >
-            <Plus size={16} />
-            {showAddSongs ? "Cancel" : "Add Songs"}
-          </button>
+        <div className="mb-6">
+          <div className="flex flex-wrap items-center gap-2 border-b border-neutral-100 pb-6">
+            <button
+              onClick={() => setShowAddSongs(!showAddSongs)}
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90"
+            >
+              <Plus size={13} />
+              {showAddSongs ? "Cancel" : "Add Songs"}
+            </button>
+            <button onClick={deletePlaylist} className="inline-flex items-center gap-2 rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900" title="Delete playlist">
+              <Trash2 size={13} />
+              Delete
+            </button>
+          </div>
 
           {showAddSongs && (
-            <div className="mt-4 bg-neutral-50 rounded-2xl p-4 border border-neutral-100">
+            <div className="mt-6 bg-neutral-50/60 rounded-2xl p-4">
               <input
                 type="text"
                 placeholder="Search songs by title or artist..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full p-3 bg-white border border-neutral-200 rounded-xl outline-none focus:border-red-600 text-[14px] transition"
+                className="w-full rounded-full border border-neutral-200/80 bg-white px-3.5 py-2.5 text-xs font-medium outline-none transition placeholder:text-neutral-300 focus:border-neutral-300"
                 autoFocus
               />
 
@@ -194,22 +193,22 @@ export default function PlaylistDetailPage() {
                 <>
                   <div className="mt-3 max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-y-1">
                     {availableSongs.length === 0 ? (
-                      <p className="text-[13px] text-neutral-400 italic py-4 text-center">No matching songs found.</p>
+                      <p className="text-xs text-neutral-400 italic py-4 text-center">No matching songs found.</p>
                     ) : (
                       availableSongs.map((s) => (
                         <label
                           key={s.id}
-                          className="flex items-center gap-x-3 p-2.5 rounded-xl hover:bg-white transition cursor-pointer"
+                          className="flex items-center gap-x-3 p-2.5 rounded-xl hover:bg-neutral-100/80 transition cursor-pointer"
                         >
                           <input
                             type="checkbox"
                             checked={selectedSongIds.has(s.id)}
                             onChange={() => toggleSelect(s.id)}
-                            className="accent-red-600 w-4 h-4"
+                            className="accent-neutral-900 w-4 h-4"
                           />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[14px] font-semibold text-neutral-900 truncate">{s.title}</p>
-                            <p className="text-[12px] text-neutral-500 truncate">{s.author}</p>
+                            <p className="text-[13px] font-semibold text-neutral-900 truncate">{s.title}</p>
+                            <p className="text-[11px] text-neutral-500 truncate">{s.author}</p>
                           </div>
                         </label>
                       ))
@@ -220,7 +219,7 @@ export default function PlaylistDetailPage() {
                     <button
                       onClick={addSelectedSongs}
                       disabled={selectedSongIds.size === 0 || adding}
-                      className="mt-3 w-full bg-red-600 text-white py-2.5 rounded-xl font-bold text-[13px] hover:bg-neutral-900 transition disabled:opacity-50"
+                      className="mt-3 w-full rounded-full bg-accent py-2.5 text-xs font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
                     >
                       {adding ? "Adding..." : `Add ${selectedSongIds.size} Selected Song${selectedSongIds.size !== 1 ? "s" : ""}`}
                     </button>
@@ -232,24 +231,22 @@ export default function PlaylistDetailPage() {
         </div>
 
         {songs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 text-center">
-            <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mb-4">
-              <Music className="text-neutral-200" size={32} />
-            </div>
-            <p className="text-[15px] font-medium text-neutral-900">This playlist is empty</p>
-            <p className="text-[13px] text-neutral-400 mt-1">Use "Add Songs" above to fill it up.</p>
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Disc className="mb-4 text-neutral-300" size={32} />
+            <p className="text-sm font-semibold text-neutral-900">This playlist is empty</p>
+            <p className="mt-1 max-w-sm text-xs text-neutral-450">Use "Add Songs" above to fill it up.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-y-1">
+          <div className="flex flex-col gap-y-2">
             {songs.map((song) => (
               <div key={song.id} className="group relative">
                 <SongItem song={song} onClick={() => setActiveSong(song, songs)} />
                 <button
                   onClick={(e) => removeSong(e, song.id)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-neutral-300 hover:text-red-600 transition opacity-0 group-hover:opacity-100"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-white"
                   title="Remove from playlist"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={14} />
                 </button>
               </div>
             ))}

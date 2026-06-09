@@ -7,7 +7,7 @@ import Loader from "../components/Loader";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
-import { Library as LibraryIcon, HeartOff, LogIn } from "lucide-react";
+import { Disc, LogIn } from "lucide-react";
 import Link from "next/link";
 
 export default function LibraryPage() {
@@ -80,7 +80,7 @@ export default function LibraryPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
+      <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
         <div className="max-w-5xl mx-auto"><Loader /></div>
       </main>
     );
@@ -88,12 +88,12 @@ export default function LibraryPage() {
 
   if (!user) {
     return (
-      <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
+      <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
         <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-32 text-center">
-          <HeartOff className="text-neutral-200 mb-4" size={32} />
-          <p className="text-[15px] font-medium text-neutral-900 mb-2">Sign in to see your library</p>
-          <Link href="/auth" className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-neutral-900 transition-all flex items-center gap-2 shadow-lg shadow-red-100">
-            <LogIn size={16} /> Sign In
+          <Disc className="mb-4 text-neutral-300" size={32} />
+          <p className="text-sm font-semibold text-neutral-900 mb-2">Sign in to see your library</p>
+          <Link href="/auth" className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90">
+            <LogIn size={14} /> Sign In
           </Link>
         </div>
       </main>
@@ -101,25 +101,30 @@ export default function LibraryPage() {
   }
 
   return (
-    <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
+    <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-x-3 mb-12 px-2">
-          <LibraryIcon className="text-red-600" size={24} />
-          <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">
+        <section className="mb-8">
+          <h1 className="text-xl font-semibold tracking-tight text-neutral-900 md:text-2xl">
             Library
           </h1>
-        </div>
+          <p className="mt-1 text-sm leading-relaxed text-neutral-400 max-w-xl">
+            Everything you&apos;ve liked, organized and ready to play.
+          </p>
+          <div className="mt-4 flex items-center gap-3.5 text-xs text-neutral-400">
+            <span>{librarySongs.length} saved song{librarySongs.length !== 1 ? "s" : ""}</span>
+          </div>
+        </section>
 
         {librarySongs.length > 0 ? (
           <div className="flex flex-col gap-y-6">
             {alphabet.map((letter) => (
-              <div key={letter} className="flex flex-col gap-y-2">
-                <div className="flex items-center gap-x-4 border-b border-neutral-50 pb-2 px-2">
-                  <h2 className="text-3xl font-semibold text-neutral-900 tracking-tight">
+              <div key={letter} className="flex flex-col gap-y-3">
+                <div className="flex items-center gap-x-4 border-b border-neutral-100 pb-2 px-2">
+                  <h2 className="text-3xl font-semibold tracking-tight text-neutral-900">
                     {letter}
                   </h2>
                 </div>
-                <div className="flex flex-col gap-y-1">
+                <div className="flex flex-col gap-y-2">
                   {groupedSongs[letter].map((song) => (
                     <SongItem
                       key={song.id}
@@ -132,12 +137,12 @@ export default function LibraryPage() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-32 text-center">
-            <HeartOff className="text-neutral-200 mb-4" size={32} />
-            <p className="text-[15px] font-medium text-neutral-900">
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Disc className="mb-4 text-neutral-300" size={32} />
+            <p className="text-sm font-semibold text-neutral-900">
               Your library is empty
             </p>
-            <p className="text-[13px] text-neutral-400 mt-1">
+            <p className="mt-1 max-w-sm text-xs text-neutral-450">
               Songs you heart will appear here.
             </p>
           </div>

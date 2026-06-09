@@ -1,6 +1,7 @@
 import "./globals.css";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
+import BottomNav from "./components/BottomNav";
 import PlayerWrapper from "./components/PlayerWrapper";
 import { PlayerProvider } from "./context/PlayerContext";
 import { AuthProvider } from "./context/AuthContext";
@@ -35,35 +36,30 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className="bg-white text-neutral-900 antialiased">
+      <body className="min-h-screen bg-transparent text-neutral-900 antialiased">
         <PlayerProvider>
           <AuthProvider>
-          {/* Main App Shell 
-              Maintained min-h-[90vh] per your instructions.
-              Using h-screen ensures the sidebar/main scroll independently.
-          */}
-          <div className="flex flex-col md:flex-row min-h-[90vh] h-screen overflow-hidden">
-            <Sidebar />
+            <div className="relative flex min-h-[90vh] h-screen overflow-hidden bg-white">
+              <Sidebar />
 
-            <main className="flex-1 bg-neutral-50 md:rounded-2xl md:m-2 md:border border-neutral-200 overflow-hidden relative flex flex-col">
-              <Header />
-              <div className="flex-1 overflow-y-auto no-scrollbar pb-32">
-                {children}
-              </div>
-            </main>
-          </div>
+              <main className="relative flex flex-1 flex-col overflow-hidden border-l border-neutral-200 bg-white">
+                <Header />
+                <div className="flex-1 overflow-y-auto no-scrollbar pb-44 md:pb-32">
+                  {children}
+                </div>
+              </main>
+            </div>
 
-          {/* Player Wrapper: Persistent across route changes */}
-          <PlayerWrapper />
+            <BottomNav />
+            <PlayerWrapper />
 
-          {/* Analytics: Vercel usage tracking */}
-          <Analytics />
+            <Analytics />
 
-          {/* InstallPrompt: Custom PWA installation logic */}
-          <InstallPrompt />
+            <InstallPrompt />
           </AuthProvider>
         </PlayerProvider>
       </body>
     </html>
   );
 }
+

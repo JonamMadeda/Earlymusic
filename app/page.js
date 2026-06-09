@@ -1,25 +1,133 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "./context/PlayerContext";
 import Loader from "./components/Loader";
-import SongItem from "./components/SongItem";
+import { Disc, Music, Sparkles, Wand2, ArrowRight, Play } from "lucide-react";
+
+const timeWindowDays = 14;
+
+const SongRailCard = ({ song, onClick }) => {
+  const isNew =
+    song.created_at &&
+    Date.now() - new Date(song.created_at).getTime() <
+      timeWindowDays * 24 * 60 * 60 * 1000;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex w-[76vw] flex-shrink-0 snap-start items-center gap-3.5 rounded-2xl bg-neutral-50/60 p-3.5 text-left transition-all duration-300 hover:bg-neutral-100/80 md:w-[290px]"
+    >
+      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800 transition-colors group-hover:bg-accent group-hover:text-white">
+        <Music size={18} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+            {song.title}
+          </p>
+          {isNew && (
+            <span className="rounded bg-neutral-900/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-neutral-800">
+              New
+            </span>
+          )}
+        </div>
+        <p className="truncate text-[11px] font-medium text-neutral-400 mt-0.5">
+          {song.author}
+        </p>
+      </div>
+      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-all duration-300 group-hover:bg-accent group-hover:text-white">
+        <Play size={14} fill="currentColor" className="ml-0.5" />
+      </div>
+    </button>
+  );
+};
+
+const FeaturedCard = ({ song, onClick }) => {
+  const isNew =
+    song.created_at &&
+    Date.now() - new Date(song.created_at).getTime() <
+      timeWindowDays * 24 * 60 * 60 * 1000;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex w-[180px] flex-shrink-0 snap-start flex-col items-center gap-3 rounded-2xl bg-neutral-50/60 p-5 text-center transition-all duration-300 hover:bg-neutral-100/80 md:w-[200px]"
+    >
+      <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-neutral-900/5 text-neutral-800 transition-colors group-hover:bg-accent group-hover:text-white">
+        <Music size={28} />
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center justify-center gap-1.5">
+          <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+            {song.title}
+          </p>
+          {isNew && (
+            <span className="rounded bg-neutral-900/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-neutral-800">
+              New
+            </span>
+          )}
+        </div>
+        <p className="truncate text-[11px] font-medium text-neutral-400 mt-0.5">
+          {song.author}
+        </p>
+      </div>
+      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-all duration-300 group-hover:bg-accent group-hover:text-white">
+        <Play size={14} fill="currentColor" className="ml-0.5" />
+      </div>
+    </button>
+  );
+};
+
+const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, vertical }) => {
+  const Card = vertical ? FeaturedCard : SongRailCard;
+  return (
+    <section id={id} className="scroll-mt-24 py-2">
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Icon size={16} className="text-neutral-900" />
+            <h2 className="text-base font-bold tracking-tight text-neutral-900">{title}</h2>
+          </div>
+          <p className="mt-0.5 text-xs text-neutral-400">{subtitle}</p>
+        </div>
+        {cta && (
+          <Link
+            href={cta.href}
+            className="group flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-450 transition hover:text-neutral-900"
+          >
+            {cta.label}
+            <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        )}
+      </div>
+
+      <div className="flex snap-x snap-mandatory gap-3.5 overflow-x-auto pb-2 no-scrollbar">
+        {items.length > 0 ? (
+          items.map((song) => (
+            <Card
+              key={song.id}
+              song={song}
+              onClick={() => onPlay(song)}
+            />
+          ))
+        ) : (
+          <div className="w-full rounded-2xl border border-dashed border-neutral-100 bg-neutral-50/20 py-8 text-center text-xs text-neutral-400">
+            No songs available in this section yet.
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
 
 export default function Home() {
   const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading } =
     usePlayer();
-  const [activeFilter, setActiveFilter] = useState("All");
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [activeDuration, setActiveDuration] = useState("All");
-
-  const filters = [
-    { label: "All", days: null },
-    { label: "New", days: 14 },
-    { label: "1 Month", days: 30 },
-    { label: "3 Months", days: 90 },
-    { label: "1 Year", days: 365 },
-  ];
 
   useEffect(() => {
     const fetchSongs = async () => {
@@ -54,150 +162,163 @@ export default function Home() {
         setIsLoading(false);
       }
     };
+
     fetchSongs();
   }, [allSongs, setAllSongs, setIsLoading]);
 
-  const filteredSongs = useMemo(() => {
-    let result = allSongs || [];
+  const sortedSongs = useMemo(() => {
+    return [...(allSongs || [])].sort(
+      (a, b) =>
+        new Date(b.created_at || 0).getTime() -
+        new Date(a.created_at || 0).getTime()
+    );
+  }, [allSongs]);
 
-    // Apply Time Filter
-    if (activeFilter !== "All") {
-      const filterObj = filters.find((f) => f.label === activeFilter);
-      if (filterObj && filterObj.days) {
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - filterObj.days);
-        result = result.filter((song) => new Date(song.created_at) >= cutoff);
-      }
-    }
+  const newestSongs = useMemo(() => sortedSongs.slice(0, 6), [sortedSongs]);
 
-    // Apply Category Filter
-    if (activeCategory !== "All") {
-      result = result.filter((song) => {
-        const songCategory = (song.category || "Worship").trim().toLowerCase();
-        return songCategory === activeCategory.trim().toLowerCase();
-      });
-    }
+  const featuredSongs = useMemo(() => {
+    const praiseFirst = sortedSongs.filter(
+      (song) => (song.category || "").toLowerCase() === "praise"
+    );
+    const mixed = [...praiseFirst, ...sortedSongs].filter(
+      (song, index, list) => list.findIndex((item) => item.id === song.id) === index
+    );
+    return mixed.slice(0, 6);
+  }, [sortedSongs]);
 
-    // Apply Duration Filter
-    if (activeDuration !== "All") {
-      result = result.filter((song) => (song.duration || "Long") === activeDuration);
-    }
+  const featuredIds = useMemo(
+    () => new Set(featuredSongs.map((song) => song.id)),
+    [featuredSongs]
+  );
+  const newestIds = useMemo(() => new Set(newestSongs.map((song) => song.id)), [newestSongs]);
 
-    return result;
-  }, [allSongs, activeFilter, activeCategory, activeDuration]);
+  const recommendedSongs = useMemo(() => {
+    const scoreSong = (song) => {
+      let score = 0;
+      const category = (song.category || "").toLowerCase();
+      const duration = (song.duration || "").toLowerCase();
+      const createdAt = new Date(song.created_at || 0).getTime();
+      const ageDays = Number.isFinite(createdAt)
+        ? (Date.now() - createdAt) / (24 * 60 * 60 * 1000)
+        : 999;
 
-  const groupedSongs = useMemo(() => {
-    return (filteredSongs || []).reduce((groups, song) => {
-      const letter = song.title[0]?.toUpperCase() || "#";
-      if (!groups[letter]) groups[letter] = [];
-      groups[letter].push(song);
-      return groups;
-    }, {});
-  }, [filteredSongs]);
+      if (category === "praise") score += 4;
+      if (duration === "long") score += 1.5;
+      if (ageDays <= 30) score += 3;
+      else if (ageDays <= 90) score += 1;
+      return score;
+    };
 
-  const alphabet = Object.keys(groupedSongs).sort();
+    return [...sortedSongs]
+      .filter((song) => !featuredIds.has(song.id) && !newestIds.has(song.id))
+      .sort((a, b) => scoreSong(b) - scoreSong(a))
+      .slice(0, 6);
+  }, [sortedSongs, featuredIds, newestIds]);
+
+  const stats = {
+    total: allSongs?.length || 0,
+    new: newestSongs.length,
+    featured: featuredSongs.length,
+  };
 
   return (
-    <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
-      <div className="max-w-5xl mx-auto">
-        {/* Consolidated Filters */}
-        <div className="flex items-center gap-1.5 md:gap-4 mb-8 md:mb-12 overflow-x-auto no-scrollbar py-2">
-          {/* Time Picker */}
-          <div className="flex items-center gap-x-1.5 md:gap-x-3 bg-neutral-50 px-2.5 py-1.5 md:px-4 md:py-2.5 rounded-2xl border border-neutral-100/50 flex-shrink-0">
-            <span className="text-[10px] md:text-[11px] font-medium text-neutral-400">
-              Time
-            </span>
-            <select
-              value={activeFilter}
-              onChange={(e) => setActiveFilter(e.target.value)}
-              className="bg-transparent text-[12px] md:text-[13px] font-bold text-neutral-900 outline-none cursor-pointer pr-1"
-            >
-              {filters.map((f) => (
-                <option key={f.label} value={f.label}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
+    <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
+      <div className="mx-auto max-w-5xl">
+        
+        {/* Typographic Hero Banner */}
+        <section className="mb-8">
+          <h1 className="text-xl font-semibold tracking-tight text-neutral-900 md:text-2xl">
+            Let everything that has breath praise the Lord.
+          </h1>
+          <p className="mt-1 text-sm leading-relaxed text-neutral-400 max-w-xl">
+            A curated collection of worship and praise songs.
+          </p>
+          
+          <div className="mt-4 flex items-center gap-3.5 text-xs text-neutral-400">
+            <span>{stats.total} total tracks</span>
+            <span className="h-1 w-1 rounded-full bg-neutral-200" />
+            <span>{stats.new} new uploads</span>
           </div>
+        </section>
 
-          {/* Category Picker */}
-          <div className="flex items-center gap-x-1.5 md:gap-x-3 bg-neutral-50 px-2.5 py-1.5 md:px-4 md:py-2.5 rounded-2xl border border-neutral-100/50 flex-shrink-0">
-            <span className="text-[10px] md:text-[11px] font-medium text-neutral-400">
-              Type
-            </span>
-            <select
-              value={activeCategory}
-              onChange={(e) => setActiveCategory(e.target.value)}
-              className="bg-transparent text-[12px] md:text-[13px] font-bold text-neutral-900 outline-none cursor-pointer pr-1"
-            >
-              {["All", "Worship", "Praise"].map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Duration Picker */}
-          <div className="flex items-center gap-x-1.5 md:gap-x-3 bg-neutral-50 px-2.5 py-1.5 md:px-4 md:py-2.5 rounded-2xl border border-neutral-100/50 flex-shrink-0">
-            <span className="text-[10px] md:text-[11px] font-medium text-neutral-400">
-              Duration
-            </span>
-            <select
-              value={activeDuration}
-              onChange={(e) => setActiveDuration(e.target.value)}
-              className="bg-transparent text-[12px] md:text-[13px] font-bold text-neutral-900 outline-none cursor-pointer pr-1"
-            >
-              {["All", "Long", "Short"].map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Active Status Indicators */}
-          {(activeFilter !== "All" || activeCategory !== "All" || activeDuration !== "All") && (
-            <button
-              onClick={() => {
-                setActiveFilter("All");
-                setActiveCategory("All");
-                setActiveDuration("All");
-              }}
-              className="ml-auto flex-shrink-0 text-red-600 text-[10px] md:text-[11px] font-bold uppercase tracking-widest hover:underline"
-            >
-              Reset
-            </button>
-          )}
+        {/* Minimal Navigation & Filters */}
+        <div className="mb-10 flex flex-wrap items-center gap-2 border-b border-neutral-100 pb-6">
+          <Link
+            href="/songs"
+            className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90"
+          >
+            Browse Full Library
+            <ArrowRight size={13} />
+          </Link>
+          
+          <button
+            type="button"
+            onClick={() => document.getElementById("featured-songs")?.scrollIntoView({ behavior: "smooth" })}
+            className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+          >
+            Featured
+          </button>
+          <button
+            type="button"
+            onClick={() => document.getElementById("newest-songs")?.scrollIntoView({ behavior: "smooth" })}
+            className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+          >
+            Newest
+          </button>
+          <button
+            type="button"
+            onClick={() => document.getElementById("recommended-songs")?.scrollIntoView({ behavior: "smooth" })}
+            className="cursor-pointer rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+          >
+            Recommended
+          </button>
         </div>
 
         {isLoading ? (
           <Loader />
         ) : (
-          <div className="flex flex-col gap-y-6">
-            {alphabet.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-neutral-400">
-                <p className="text-sm font-medium">No songs found for this timeframe</p>
+          <div className="flex flex-col gap-8 md:gap-10">
+            <SectionBlock
+              id="newest-songs"
+              title="New Additions"
+              subtitle="Recently added to the collection"
+              icon={Music}
+              items={newestSongs}
+              onPlay={setActiveSong}
+              cta={{ href: "/songs", label: "View all" }}
+            />
+
+            <SectionBlock
+              id="featured-songs"
+              title="Featured"
+              subtitle="Standout songs curated for you"
+              icon={Wand2}
+              items={featuredSongs}
+              onPlay={setActiveSong}
+              cta={{ href: "/songs", label: "View all" }}
+              vertical
+            />
+            
+            <SectionBlock
+              id="recommended-songs"
+              title="Recommended"
+              subtitle="Suggestions based on your categories"
+              icon={Sparkles}
+              items={recommendedSongs}
+              onPlay={setActiveSong}
+              cta={{ href: "/songs", label: "View all" }}
+            />
+
+            {sortedSongs.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <Disc className="mb-4 text-neutral-300" size={32} />
+                <p className="text-sm font-semibold text-neutral-900">
+                  No songs found
+                </p>
+                <p className="mt-1 max-w-sm text-xs text-neutral-450">
+                  When tracks are uploaded, they’ll appear here in the library sections.
+                </p>
               </div>
-            ) : (
-              alphabet.map((letter) => (
-                <div key={letter} className="flex flex-col gap-y-2">
-                  <div className="flex items-center gap-x-4 border-b border-neutral-50 pb-2 px-2">
-                    <h2 className="text-3xl font-semibold text-neutral-900 tracking-tight">
-                      {letter}
-                    </h2>
-                  </div>
-                  <div className="flex flex-col gap-y-1">
-                    {groupedSongs[letter].map((song) => (
-                      <SongItem
-                        key={song.id}
-                        song={song}
-                        onClick={() => setActiveSong(song, filteredSongs)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))
             )}
           </div>
         )}

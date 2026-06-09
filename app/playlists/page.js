@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ListMusic, Plus, Music, Trash2, LogIn } from "lucide-react";
+import { ListMusic, Plus, Trash2, LogIn, Disc } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
 import Link from "next/link";
@@ -55,9 +55,9 @@ export default function PlaylistsPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
+      <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
         <div className="max-w-5xl mx-auto flex items-center justify-center py-32">
-          <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-neutral-900 border-t-transparent rounded-full animate-spin" />
         </div>
       </main>
     );
@@ -65,17 +65,15 @@ export default function PlaylistsPage() {
 
   if (!user) {
     return (
-      <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
+      <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
         <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-32 text-center">
-          <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mb-4">
-            <ListMusic className="text-neutral-200" size={32} />
-          </div>
-          <p className="text-[15px] font-medium text-neutral-900 mb-2">Sign in to manage playlists</p>
+          <Disc className="mb-4 text-neutral-300" size={32} />
+          <p className="text-sm font-semibold text-neutral-900 mb-2">Sign in to manage playlists</p>
           <Link
             href="/auth"
-            className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-neutral-900 transition-all flex items-center gap-2 shadow-lg shadow-red-100"
+            className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90"
           >
-            <LogIn size={16} />
+            <LogIn size={14} />
             Sign In
           </Link>
         </div>
@@ -84,39 +82,45 @@ export default function PlaylistsPage() {
   }
 
   return (
-    <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
+    <main className="min-h-[90vh] bg-transparent px-4 py-6 pb-40 md:px-8 md:py-10">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-12 px-2">
-          <div className="flex items-center gap-x-3">
-            <ListMusic className="text-red-600" size={24} />
-            <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">
-              Playlists
-            </h1>
+        <section className="mb-8">
+          <h1 className="text-xl font-semibold tracking-tight text-neutral-900 md:text-2xl">
+            Playlists
+          </h1>
+          <p className="mt-1 text-sm leading-relaxed text-neutral-400 max-w-xl">
+            Build listening sets and keep your favorite compilations grouped together.
+          </p>
+          <div className="mt-4 flex items-center gap-3.5 text-xs text-neutral-400">
+            <span>{playlists.length} playlist{playlists.length !== 1 ? "s" : ""}</span>
           </div>
+        </section>
+
+        <div className="mb-8 flex flex-wrap items-center gap-2 border-b border-neutral-100 pb-6">
           <button
             onClick={() => setShowCreate(!showCreate)}
-            className="bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-neutral-900 transition-all flex items-center gap-2 shadow-lg shadow-red-100"
+            className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90"
           >
-            <Plus size={16} strokeWidth={3} />
-            New
+            <Plus size={13} />
+            New Playlist
           </button>
         </div>
 
         {showCreate && (
-          <div className="mb-8 flex items-center gap-3 bg-neutral-50 p-4 rounded-2xl border border-neutral-100">
+          <div className="mb-8 -mt-4 flex items-center gap-3 bg-neutral-50/60 rounded-2xl p-3.5">
             <input
               type="text"
               placeholder="Playlist name..."
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createPlaylist()}
-              className="flex-1 p-3 bg-white border border-neutral-200 rounded-xl outline-none focus:border-red-600 text-sm font-medium transition"
+              className="flex-1 rounded-full border border-neutral-200/80 bg-white px-3.5 py-2.5 text-xs font-medium outline-none transition placeholder:text-neutral-300 focus:border-neutral-300"
               autoFocus
             />
             <button
               onClick={createPlaylist}
               disabled={!newName.trim()}
-              className="bg-red-600 text-white px-5 py-3 rounded-xl font-bold text-sm hover:bg-neutral-900 transition-all disabled:opacity-50"
+              className="rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
             >
               Create
             </button>
@@ -124,14 +128,12 @@ export default function PlaylistsPage() {
         )}
 
         {playlists.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 text-center">
-            <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mb-4">
-              <ListMusic className="text-neutral-200" size={32} />
-            </div>
-            <p className="text-[15px] font-medium text-neutral-900">
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Disc className="mb-4 text-neutral-300" size={32} />
+            <p className="text-sm font-semibold text-neutral-900">
               No playlists yet
             </p>
-            <p className="text-[13px] text-neutral-400 mt-1">
+            <p className="mt-1 max-w-sm text-xs text-neutral-450">
               Create your first playlist to organize your songs.
             </p>
           </div>
@@ -141,26 +143,27 @@ export default function PlaylistsPage() {
               <div
                 key={pl.id}
                 onClick={() => router.push(`/playlists/${pl.id}`)}
-                className="bg-neutral-50 border border-neutral-100 rounded-2xl p-5 hover:border-red-200 hover:shadow-md transition-all cursor-pointer group relative"
+                className="group flex cursor-pointer flex-col gap-3 rounded-2xl bg-neutral-50/60 p-5 text-left transition-all duration-300 hover:bg-neutral-100/80"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                    <ListMusic className="text-red-600" size={22} />
+                <div className="flex items-start justify-between">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800">
+                    <ListMusic size={22} />
                   </div>
                   <button
                     onClick={(e) => deletePlaylist(e, pl.id)}
-                    className="text-neutral-300 hover:text-red-600 transition opacity-0 group-hover:opacity-100"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-white"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
-                <h3 className="font-bold text-neutral-900 text-[15px] mb-1 truncate">
-                  {pl.name}
-                </h3>
-                <p className="text-[12px] text-neutral-400 font-medium">
-                  {/* song count will be fetched on detail page */}
-                  Playlist
-                </p>
+                <div>
+                  <h3 className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+                    {pl.name}
+                  </h3>
+                  <p className="mt-0.5 text-[11px] font-medium text-neutral-400">
+                    Playlist
+                  </p>
+                </div>
               </div>
             ))}
           </div>

@@ -51,7 +51,7 @@ export default function InstallPrompt() {
     <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[10000] w-[90%] max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="bg-white border border-neutral-100 shadow-2xl rounded-2xl p-4 flex items-center justify-between gap-x-4">
         <div className="flex items-center gap-x-3">
-          <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shrink-0">
+          <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center text-white font-bold text-xl shrink-0">
             EM
           </div>
           <div>

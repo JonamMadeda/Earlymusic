@@ -38,9 +38,9 @@ const LikedSongs = () => {
 
   if (!user || songs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-6 px-4 border border-dashed border-neutral-100 rounded-xl">
-        <Heart size={16} className="text-neutral-200 mb-2" />
-        <p className="text-[12px] font-medium text-neutral-400 text-center leading-snug">
+      <div className="flex flex-col items-center justify-center rounded-[22px] border border-dashed border-neutral-200 bg-white/60 py-6 px-4">
+        <Heart size={16} className="mb-2 text-neutral-200" />
+        <p className="text-center text-[12px] font-medium leading-snug text-neutral-400">
           Liked songs will <br /> appear here
         </p>
       </div>
@@ -53,20 +53,20 @@ const LikedSongs = () => {
         <Link
           key={song.id}
           href="/library"
-          className="flex items-center gap-x-3 group transition cursor-pointer p-1 rounded-lg hover:bg-neutral-50"
+          className="group flex cursor-pointer items-center gap-x-3 rounded-2xl border border-transparent p-2 transition hover:border-neutral-100 hover:bg-neutral-50"
         >
-          <div className="h-9 w-9 bg-neutral-50 rounded-lg flex items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all shrink-0 border border-transparent group-hover:border-neutral-100">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-transparent bg-neutral-50 transition-all group-hover:border-neutral-100 group-hover:bg-white group-hover:shadow-sm">
             <Music
               size={14}
-              className="text-neutral-400 group-hover:text-red-600 transition"
+              className="text-neutral-400 group-hover:text-accent transition"
             />
           </div>
 
           <div className="overflow-hidden">
-            <p className="text-[13px] font-semibold text-neutral-600 group-hover:text-neutral-900 truncate transition-colors">
+            <p className="truncate text-[13px] font-semibold text-neutral-600 transition-colors group-hover:text-neutral-900">
               {song.title}
             </p>
-            <p className="text-[11px] text-neutral-400 font-medium truncate">
+            <p className="truncate text-[11px] font-medium text-neutral-400">
               {song.author}
             </p>
           </div>

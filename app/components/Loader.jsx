@@ -11,7 +11,7 @@ const Loader = () => {
 
         {/* Rotating Disc Icon - Simplified shadow */}
         <div className="relative h-16 w-16 bg-white rounded-full flex items-center justify-center shadow-sm border border-neutral-100">
-          <Disc className="text-red-600 animate-spin-slow" size={32} />
+          <Disc className="text-accent animate-spin-slow" size={32} />
         </div>
       </div>
 
