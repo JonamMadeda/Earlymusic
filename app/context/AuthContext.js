@@ -28,12 +28,17 @@ export const AuthProvider = ({ children }) => {
     supabase.auth.signInWithPassword({ email, password });
 
   const signUp = (email, password) =>
-    supabase.auth.signUp({ email, password, options: { emailRedirectTo: undefined } });
+    supabase.auth.signUp({ email, password, options: { emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined } });
+
+  const resetPassword = (email) =>
+    supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth?mode=update-password` : undefined,
+    });
 
   const signOut = () => supabase.auth.signOut();
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, resetPassword, signOut }}>
       {children}
     </AuthContext.Provider>
   );

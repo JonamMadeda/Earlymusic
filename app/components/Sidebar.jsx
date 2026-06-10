@@ -78,23 +78,28 @@ const Sidebar = () => {
 
         {/* Recently Played */}
         {recentlyPlayed.length > 0 && (
-          <div className="mt-6">
+          <div className="mt-6 flex-1 overflow-hidden">
             <div className="mb-2 flex items-center gap-2 px-1.5">
-              <Clock size={12} className="text-neutral-400" />
+              <div className="h-3 w-0.5 rounded-full bg-accent/60" />
+              <Clock size={11} className="text-neutral-400" />
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
                 Recent
               </span>
             </div>
-            <nav className="flex flex-col gap-y-0.5">
+            <nav className="flex flex-col gap-y-0.5 overflow-y-auto max-h-[calc(100%-2rem)] no-scrollbar">
               {recentlyPlayed.slice(0, 7).map((song) => (
                 <button
                   key={song.id}
                   type="button"
                   onClick={() => setActiveSong(song, allSongs)}
-                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs text-neutral-500 transition hover:bg-neutral-200/50 hover:text-neutral-900"
+                  className="group flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-accent/10"
                 >
-                  <Music size={12} className="shrink-0 text-neutral-300" />
-                  <span className="truncate">{song.title}</span>
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-neutral-100 text-neutral-400 transition group-hover:bg-accent/15 group-hover:text-accent">
+                    <Music size={11} />
+                  </div>
+                  <p className="min-w-0 flex-1 truncate text-xs font-medium text-neutral-600 transition group-hover:text-accent">
+                    {song.title}
+                  </p>
                 </button>
               ))}
             </nav>

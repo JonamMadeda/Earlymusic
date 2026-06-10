@@ -232,22 +232,17 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
+    <main className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-5xl">
         
         {/* Typographic Hero Banner */}
-        <section className="mb-8">
-          <div className="flex items-start justify-between gap-4">
+        <section className="mb-6 md:mb-8">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="h-6 w-1 rounded-full bg-accent" />
-              <div>
-                <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
-                  Worship in Song
-                </h1>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-400 max-w-xl">
-                  A curated collection of worship and praise songs.
-                </p>
-              </div>
+              <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
+                Worship in Song
+              </h1>
             </div>
             <div className="hidden shrink-0 md:flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3.5 py-1.5 text-[11px] font-medium text-neutral-400">
               <span>{stats.total} tracks</span>
@@ -255,6 +250,9 @@ export default function Home() {
               <span className="text-accent font-semibold">{stats.new} new</span>
             </div>
           </div>
+          <p className="mt-1.5 text-sm leading-relaxed text-neutral-400 max-w-xl">
+            A curated collection of worship and praise songs.
+          </p>
           
           <div className="mt-4 md:hidden inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3.5 py-1.5 text-[11px] font-medium text-neutral-400">
             <span>{stats.total} tracks</span>
