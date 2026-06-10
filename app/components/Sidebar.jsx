@@ -45,15 +45,17 @@ const Sidebar = () => {
         
         {/* Brand Logo Header */}
         <div className="mb-8 flex items-center gap-3 px-1.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-xs font-black tracking-tight text-white shadow-sm shadow-accent/10">
-            EM
-          </div>
+          <img
+            src="/icons/icon-192x192.png"
+            alt="Early Music"
+            className="h-9 w-9 rounded-xl object-cover shadow-sm shadow-accent/10"
+          />
           <div className="min-w-0">
-            <h2 className="text-[15px] font-extrabold tracking-[-0.04em] text-neutral-900 leading-none">
-              earlymusic
+            <h2 className="text-[15px] font-black tracking-tight text-neutral-900 leading-none md:text-[17px]">
+              Early Music
             </h2>
-            <span className="mt-1.5 block text-[9px] font-bold uppercase tracking-[0.22em] text-neutral-400">
-              curated songs
+            <span className="mt-1 block text-[8px] font-semibold uppercase tracking-[0.28em] text-neutral-400">
+              Curated Collection
             </span>
           </div>
         </div>
