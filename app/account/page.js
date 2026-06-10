@@ -2,17 +2,28 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { User, Mail, Calendar, Disc, Heart, LogOut, LogIn } from "lucide-react";
+import { User, Mail, Calendar, Disc, Heart, LogOut, LogIn, Save } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
 import Link from "next/link";
 
 export default function AccountPage() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, profile, loading: authLoading, signOut, updateProfile } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [savedCount, setSavedCount] = useState(0);
   const [playlistCount, setPlaylistCount] = useState(0);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+
+  useEffect(() => {
+    if (profile) {
+      setFirstName(profile.first_name || "");
+      setLastName(profile.last_name || "");
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -26,6 +37,19 @@ export default function AccountPage() {
       setPlaylistCount(plRes.count || 0);
     }).finally(() => setLoading(false));
   }, [user, authLoading]);
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    setSaveMsg("");
+    const { error } = await updateProfile({ first_name: firstName, last_name: lastName });
+    setSaving(false);
+    if (error) {
+      setSaveMsg("Failed to save");
+    } else {
+      setSaveMsg("Saved");
+      setTimeout(() => setSaveMsg(""), 2000);
+    }
+  };
 
   if (authLoading || loading) {
     return (
@@ -59,6 +83,8 @@ export default function AccountPage() {
     ? new Date(user.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
     : "Unknown";
 
+  const displayName = [firstName, lastName].filter(Boolean).join(" ") || user.email;
+
   return (
     <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
       <div className="max-w-5xl mx-auto">
@@ -75,23 +101,74 @@ export default function AccountPage() {
         </section>
 
         <div className="flex flex-col gap-6">
-          <div className="flex items-center gap-4 rounded-2xl bg-neutral-50/60 p-5">
-            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
-              <User size={24} />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
-                {user.email}
-              </p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <Calendar size={11} className="text-neutral-400" />
-                <p className="text-[11px] font-medium text-neutral-400">
-                  Joined {joinedDate}
-                </p>
+          {/* Profile card */}
+          <div className="rounded-2xl bg-neutral-50/60 p-5">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                <User size={24} />
               </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+                  {displayName}
+                </p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <Mail size={11} className="text-neutral-400" />
+                  <p className="text-[11px] font-medium text-neutral-400 truncate">
+                    {user.email}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <Calendar size={11} className="text-neutral-400" />
+                  <p className="text-[11px] font-medium text-neutral-400">
+                    Joined {joinedDate}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 ml-1">
+                  First name
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="First"
+                  className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-neutral-300 placeholder:text-neutral-300"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 ml-1">
+                  Last name
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Last"
+                  className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-neutral-300 placeholder:text-neutral-300"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                onClick={handleSaveProfile}
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90 disabled:opacity-50"
+              >
+                <Save size={13} />
+                {saving ? "Saving..." : "Save"}
+              </button>
+              {saveMsg && (
+                <span className="text-[11px] font-medium text-green-600">{saveMsg}</span>
+              )}
             </div>
           </div>
 
+          {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="rounded-2xl bg-neutral-50/60 p-5">
               <Heart size={18} className="text-neutral-800" />
@@ -113,6 +190,7 @@ export default function AccountPage() {
             </div>
           </div>
 
+          {/* Sign out */}
           <div className="border-t border-neutral-100 pt-6">
             <button
               onClick={() => { signOut(); router.push("/"); }}
