@@ -26,6 +26,42 @@ self.addEventListener("message", (event) => {
 
 const SUPABASE_AUDIO_ORIGIN = "https://nrwjnbpypbchxrcyqbca.supabase.co";
 
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  if (request.method !== "GET") return;
+
+  if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+    return;
+  }
+
+  if (url.origin === SUPABASE_AUDIO_ORIGIN && url.pathname.includes("/songs/")) {
+    event.respondWith(
+      fromCache(request, AUDIO_CACHE).then((res) => res || fetch(request).catch(() => new Response("", { status: 503 })))
+    );
+    return;
+  }
+
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      fromCache(request).then((res) => res || offlinePage())
+    );
+    return;
+  }
+
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fromNetwork(request).then((res) => res || offlinePage())
+    );
+    return;
+  }
+
+  event.respondWith(
+    fromNetwork(request).then((res) => res || offlinePage())
+  );
+});
+
 const fromCache = async (request, cacheName = CACHE_NAME) => {
   try {
     const cache = await caches.open(cacheName);
@@ -68,35 +104,3 @@ const offlinePage = async () => {
     { status: 503, headers: { "Content-Type": "text/html" } }
   );
 };
-
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  if (request.method !== "GET") return;
-
-  if (url.origin === SUPABASE_AUDIO_ORIGIN && url.pathname.includes("/songs/")) {
-    event.respondWith(
-      fromCache(request, AUDIO_CACHE).then((res) => res || new Response("", { status: 503 }))
-    );
-    return;
-  }
-
-  if (url.pathname.startsWith("/_next/static/")) {
-    event.respondWith(
-      fromCache(request).then((res) => res || offlinePage())
-    );
-    return;
-  }
-
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fromNetwork(request).then((res) => res || offlinePage())
-    );
-    return;
-  }
-
-  event.respondWith(
-    fromNetwork(request).then((res) => res || offlinePage())
-  );
-});

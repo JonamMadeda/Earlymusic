@@ -4,6 +4,8 @@ import { useEffect } from "react";
 
 export default function SWRegister() {
   useEffect(() => {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") return;
+
     // Clear old caches instantly on the client side
     if ("caches" in window) {
       caches.keys().then((keys) => {

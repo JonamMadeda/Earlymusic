@@ -21,6 +21,20 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/playlists",
+        destination: "/library",
+        permanent: true,
+      },
+      {
+        source: "/downloads",
+        destination: "/library",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
