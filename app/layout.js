@@ -7,6 +7,7 @@ import { PlayerProvider } from "./context/PlayerContext";
 import { AuthProvider } from "./context/AuthContext";
 import { Analytics } from "@vercel/analytics/react";
 import InstallPrompt from "./components/InstallPrompt";
+import SWRegister from "./components/SWRegister";
 
 // UPDATED: Theme color changed to white for the mobile top bar
 export const viewport = {
@@ -56,6 +57,7 @@ export default function RootLayout({ children }) {
             <Analytics />
 
             <InstallPrompt />
+            <SWRegister />
           </AuthProvider>
         </PlayerProvider>
       </body>

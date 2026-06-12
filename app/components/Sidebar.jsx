@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, ListMusic, LogOut, LogIn, Music, User, Clock } from "lucide-react";
+import { Home, ListMusic, LogOut, LogIn, Music, User, Clock, Download } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
 
@@ -36,6 +36,12 @@ const Sidebar = () => {
       label: "Playlists",
       active: mounted && pathname.startsWith("/playlists"),
       href: "/playlists",
+    },
+    {
+      icon: Download,
+      label: "Downloads",
+      active: mounted && pathname === "/downloads",
+      href: "/downloads",
     },
   ];
 

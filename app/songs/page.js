@@ -5,11 +5,13 @@ import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
+import { downloadSong, removeDownload, isSongDownloaded } from "@/lib/downloadManager";
 import Loader from "../components/Loader";
 import {
   ChevronDown,
   ChevronUp,
   Disc,
+  Download,
   Filter,
   Music,
   MoreHorizontal,
@@ -60,6 +62,8 @@ const SongRow = ({ song, onClick, isActive }) => {
   const [showPlaylists, setShowPlaylists] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [isDownloaded, setIsDownloaded] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     if (!showMenu && !showInfo && !showPlaylists) return;
@@ -101,6 +105,26 @@ const SongRow = ({ song, onClick, isActive }) => {
         .then(({ data }) => setPlaylists(data || []));
     }
   }, [showPlaylists, user]);
+
+  useEffect(() => {
+    setIsDownloaded(isSongDownloaded(song.id));
+  }, [song.id]);
+
+  const handleDownload = async (e) => {
+    e.stopPropagation();
+    if (isDownloaded) {
+      await removeDownload(song.id);
+      setIsDownloaded(false);
+    } else {
+      setIsDownloading(true);
+      try {
+        await downloadSong(song);
+        setIsDownloaded(true);
+      } catch {}
+      setIsDownloading(false);
+    }
+    setShowMenu(false);
+  };
 
   const addToPlaylist = async (e, playlistId) => {
     e.stopPropagation();
@@ -233,6 +257,19 @@ const SongRow = ({ song, onClick, isActive }) => {
             >
               <ListPlus size={16} className="text-neutral-400" />
               <span className="text-[13px] font-semibold">Add to Playlist</span>
+            </button>
+            <button
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="flex w-full items-center gap-x-3 rounded-2xl px-3 py-3 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900 disabled:opacity-50"
+            >
+              <Download
+                size={16}
+                className={isDownloaded ? "text-accent" : "text-neutral-400"}
+              />
+              <span className="text-[13px] font-semibold">
+                {isDownloading ? "Downloading..." : isDownloaded ? "Remove Download" : "Download"}
+              </span>
             </button>
             <button
               onClick={toggleSave}
