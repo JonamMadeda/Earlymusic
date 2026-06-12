@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Library, Music, Download, Settings } from "lucide-react";
+import { Home, Library, Music, Download, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -12,7 +12,7 @@ const BottomNav = () => {
     { icon: Music, label: "Songs", href: "/songs" },
     { icon: Download, label: "Downloads", href: "/downloads" },
     { icon: Library, label: "Library", href: "/library" },
-    { icon: Settings, label: "Settings", href: "/settings" },
+    { icon: User, label: "Account", href: "/account" },
   ];
 
   return (

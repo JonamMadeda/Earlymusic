@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { User, Mail, Calendar, Disc, Heart, LogOut, LogIn, Save } from "lucide-react";
+import { User, Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
 import Link from "next/link";
@@ -188,6 +188,26 @@ export default function AccountPage() {
                 Playlists
               </p>
             </div>
+          </div>
+
+          {/* Settings */}
+          <div className="rounded-2xl bg-neutral-50/60 p-5">
+            <Link
+              href="/settings"
+              className="flex items-center gap-3"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-200/60 text-neutral-500">
+                <Settings size={18} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold tracking-tight text-neutral-900">
+                  Settings
+                </p>
+                <p className="text-[11px] font-medium text-neutral-400">
+                  Storage, data, and app preferences
+                </p>
+              </div>
+            </Link>
           </div>
 
           {/* Sign out */}
