@@ -1,4 +1,4 @@
-const CACHE_NAME = "earlymusic-app-v2";
+const CACHE_NAME = "earlymusic-app-v3";
 const AUDIO_CACHE = "earlymusic-audio-cache-v1";
 
 self.addEventListener("install", (event) => {
@@ -27,12 +27,13 @@ self.addEventListener("message", (event) => {
 const SUPABASE_AUDIO_ORIGIN = "https://nrwjnbpypbchxrcyqbca.supabase.co";
 
 const fromCache = async (request, cacheName = CACHE_NAME) => {
-  const cached = await caches.match(request);
-  if (cached) return cached;
   try {
+    const cache = await caches.open(cacheName);
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    
     const response = await fetch(request);
     if (response.ok) {
-      const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
     }
     return response;
@@ -50,14 +51,18 @@ const fromNetwork = async (request) => {
     }
     return response;
   } catch {
-    const cached = await caches.match(request);
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(request);
     return cached || null;
   }
 };
 
 const offlinePage = async () => {
-  const root = await caches.match("/");
-  if (root) return root;
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const root = await cache.match("/");
+    if (root) return root;
+  } catch {}
   return new Response(
     `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline</title><style>body{font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fafafa;color:#1a1a1a}div{text-align:center;padding:2rem}h1{font-size:1.25rem;margin:0 0 0.5rem}p{font-size:0.875rem;color:#666;margin:0}</style></head><body><div><h1>You're offline</h1><p>Connect to the internet and try again.</p></div></body></html>`,
     { status: 503, headers: { "Content-Type": "text/html" } }

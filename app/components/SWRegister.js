@@ -4,6 +4,17 @@ import { useEffect } from "react";
 
 export default function SWRegister() {
   useEffect(() => {
+    // Clear old caches instantly on the client side
+    if ("caches" in window) {
+      caches.keys().then((keys) => {
+        keys.forEach((key) => {
+          if (key !== "earlymusic-app-v3" && key !== "earlymusic-audio-cache-v1") {
+            caches.delete(key);
+          }
+        });
+      });
+    }
+
     if (!("serviceWorker" in navigator)) return;
 
     let refreshing = false;
