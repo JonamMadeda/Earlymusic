@@ -64,6 +64,12 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 const cacheFirst = async (request) => {
   const cached = await caches.match(request);
   if (cached) return cached;
