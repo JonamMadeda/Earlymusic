@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, ListMusic, LogOut, LogIn, Music, User, Clock, Download } from "lucide-react";
+import { Home, ListMusic, LogOut, LogIn, Music, User, Clock, Download, Settings } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
 
@@ -118,6 +118,17 @@ const Sidebar = () => {
         <div className="mt-auto pt-5">
           <div className="mb-3 border-t border-neutral-200/60" />
           <nav className="flex flex-col gap-y-1">
+            <Link
+              href="/settings"
+              className={`flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
+                pathname === "/settings"
+                  ? "bg-accent text-white shadow-sm shadow-accent/10"
+                  : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
+              }`}
+            >
+              <Settings size={18} />
+              <span>Settings</span>
+            </Link>
             {user && (
               <Link
                 href="/account"
