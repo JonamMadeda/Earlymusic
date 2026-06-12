@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, ListMusic, LogOut, LogIn, Music, User, Clock, Download, Settings } from "lucide-react";
@@ -12,35 +11,30 @@ const Sidebar = () => {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { recentlyPlayed, setActiveSong, allSongs } = usePlayer();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const routes = [
     {
       icon: Home,
       label: "Home",
-      active: mounted && pathname === "/",
+      active: pathname === "/",
       href: "/",
     },
     {
       icon: Music,
       label: "Songs",
-      active: mounted && pathname === "/songs",
+      active: pathname === "/songs",
       href: "/songs",
     },
     {
       icon: ListMusic,
       label: "Playlists",
-      active: mounted && pathname.startsWith("/playlists"),
+      active: pathname.startsWith("/playlists"),
       href: "/playlists",
     },
     {
       icon: Download,
       label: "Downloads",
-      active: mounted && pathname === "/downloads",
+      active: pathname === "/downloads",
       href: "/downloads",
     },
   ];
