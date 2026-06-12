@@ -8,7 +8,8 @@ const BottomNav = () => {
   const pathname = usePathname();
 
   const navItems = [
-    { icon: Home, label: "Home", href: "/songs" },
+    { icon: Home, label: "Home", href: "/" },
+    { icon: Music, label: "Songs", href: "/songs" },
     { icon: Download, label: "Downloads", href: "/downloads" },
     { icon: Library, label: "Library", href: "/library" },
     { icon: User, label: "Account", href: "/account" },
