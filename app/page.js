@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "./context/PlayerContext";
@@ -136,16 +135,8 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, ver
 };
 
 export default function Home() {
-  const router = useRouter();
   const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed } =
     usePlayer();
-
-  useEffect(() => {
-    if (!sessionStorage.getItem("em_redirected")) {
-      sessionStorage.setItem("em_redirected", "1");
-      router.replace("/songs");
-    }
-  }, [router]);
 
   useEffect(() => {
     const fetchSongs = async () => {
