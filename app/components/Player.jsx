@@ -129,7 +129,7 @@ const Player = () => {
           setAudioUrl(cachedUrl);
         } else {
           setAudioUrl(publicUrl);
-          cacheAudioFile(publicUrl);
+          cacheAudioFile(publicUrl, song.song_path);
         }
 
         playRef.current = true;
