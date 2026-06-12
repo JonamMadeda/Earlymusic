@@ -10,7 +10,7 @@ export default function SWRegister() {
     if ("caches" in window) {
       caches.keys().then((keys) => {
         keys.forEach((key) => {
-          if (key !== "earlymusic-app-v3" && key !== "earlymusic-audio-cache-v1") {
+          if (key !== "earlymusic-app-v4" && key !== "earlymusic-audio-cache-v1") {
             caches.delete(key);
           }
         });

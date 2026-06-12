@@ -1,4 +1,4 @@
-const CACHE_NAME = "earlymusic-app-v3";
+const CACHE_NAME = "earlymusic-app-v4";
 const AUDIO_CACHE = "earlymusic-audio-cache-v1";
 
 self.addEventListener("install", (event) => {

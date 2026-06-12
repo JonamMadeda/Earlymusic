@@ -48,13 +48,13 @@ export default function InstallPrompt() {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[10000] w-[90%] max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white border border-neutral-100 shadow-2xl rounded-2xl p-4 flex items-center justify-between gap-x-4">
-        <div className="flex items-center gap-x-3">
-          <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center text-white font-bold text-xl shrink-0">
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[10000] w-[92%] max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-white border border-neutral-100 shadow-2xl rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 sm:gap-x-4">
+        <div className="flex items-center gap-x-3 w-full sm:w-auto">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-accent rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl shrink-0">
             EM
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="text-sm font-semibold text-neutral-900">
               Install Early Music
             </h3>
@@ -64,17 +64,17 @@ export default function InstallPrompt() {
           </div>
         </div>
 
-        <div className="flex items-center gap-x-2">
+        <div className="flex items-center gap-x-2 w-full sm:w-auto">
           <button
             onClick={handleInstallClick}
-            className="bg-neutral-900 text-white text-xs font-bold px-4 py-2.5 rounded-lg hover:bg-red-600 transition-colors flex items-center gap-x-2"
+            className="flex-1 sm:flex-none bg-neutral-900 text-white text-xs font-bold px-4 py-2.5 rounded-lg hover:bg-red-600 transition-colors inline-flex items-center justify-center gap-x-2"
           >
             <Download size={14} />
             Install
           </button>
           <button
             onClick={() => setIsVisible(false)}
-            className="p-2 text-neutral-400 hover:text-neutral-900 transition-colors"
+            className="p-2 text-neutral-400 hover:text-neutral-900 transition-colors shrink-0"
           >
             <X size={18} />
           </button>
