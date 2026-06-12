@@ -141,7 +141,10 @@ export default function Home() {
     usePlayer();
 
   useEffect(() => {
-    router.replace("/songs");
+    if (!sessionStorage.getItem("em_redirected")) {
+      sessionStorage.setItem("em_redirected", "1");
+      router.replace("/songs");
+    }
   }, [router]);
 
   useEffect(() => {
