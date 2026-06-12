@@ -6,11 +6,12 @@ import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import Loader from "../components/Loader";
-import DownloadButton from "../components/DownloadButton";
+
 import {
   ChevronDown,
   ChevronUp,
   Disc,
+  Download,
   Filter,
   Music,
   MoreHorizontal,
@@ -20,6 +21,8 @@ import {
   ListPlus,
   ListMusic,
   Plus,
+  Check,
+  Loader as SpinnerIcon,
 } from "lucide-react";
 
 const timeFilters = [
@@ -61,6 +64,39 @@ const SongRow = ({ song, onClick, isActive }) => {
   const [showPlaylists, setShowPlaylists] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [downloadStatus, setDownloadStatus] = useState("idle");
+  const [downloadError, setDownloadError] = useState("");
+  const dlTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    import("@/lib/downloadManager").then(({ isSongDownloaded }) => {
+      if (isSongDownloaded(song.id)) setDownloadStatus("downloaded");
+    });
+  }, [song.id]);
+
+  const toggleDownload = async (e) => {
+    e.stopPropagation();
+    if (downloadStatus === "downloaded") {
+      const { removeDownload } = await import("@/lib/downloadManager");
+      await removeDownload(song.id);
+      setDownloadStatus("idle");
+      setShowMenu(false);
+      return;
+    }
+    setDownloadStatus("downloading");
+    setDownloadError("");
+    try {
+      const { downloadSong } = await import("@/lib/downloadManager");
+      await downloadSong(song);
+      setDownloadStatus("downloaded");
+      setShowMenu(false);
+    } catch (err) {
+      setDownloadStatus("error");
+      setDownloadError(err.message === "Storage is full" ? "Storage is full" : "Download failed");
+      clearTimeout(dlTimeoutRef.current);
+      dlTimeoutRef.current = setTimeout(() => { setDownloadStatus("idle"); setDownloadError(""); }, 3000);
+    }
+  };
 
   useEffect(() => {
     if (!showMenu && !showInfo && !showPlaylists) return;
@@ -198,7 +234,6 @@ const SongRow = ({ song, onClick, isActive }) => {
       </div>
 
       <div className="relative flex items-center gap-1.5">
-        <DownloadButton song={song} />
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -240,6 +275,21 @@ const SongRow = ({ song, onClick, isActive }) => {
             >
               <ListPlus size={16} className="text-neutral-400" />
               <span className="text-[13px] font-semibold">Add to Playlist</span>
+            </button>
+            <button
+              onClick={toggleDownload}
+              className="flex w-full items-center gap-x-3 rounded-2xl px-3 py-3 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+            >
+              {downloadStatus === "downloading" ? (
+                <SpinnerIcon size={16} className="animate-spin text-neutral-400" />
+              ) : downloadStatus === "downloaded" ? (
+                <Check size={16} className="text-green-500" strokeWidth={3} />
+              ) : (
+                <Download size={16} className="text-neutral-400" />
+              )}
+              <span className={`text-[13px] font-semibold ${downloadStatus === "error" ? "text-red-500" : ""}`}>
+                {downloadStatus === "downloading" ? "Downloading..." : downloadStatus === "downloaded" ? "Remove Download" : downloadStatus === "error" ? downloadError : "Download for offline"}
+              </span>
             </button>
             <button
               onClick={toggleSave}

@@ -1,40 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Home, ListMusic, LogOut, LogIn, Music, User, Clock, Download, Settings } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Home, ListMusic, LogOut, LogIn, Music, User, Clock, Download } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
+import { useState, useEffect } from "react";
 
 const Sidebar = () => {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, signOut } = useAuth();
   const { recentlyPlayed, setActiveSong, allSongs } = usePlayer();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const routes = [
     {
       icon: Home,
       label: "Home",
-      active: pathname === "/",
+      active: mounted && pathname === "/",
       href: "/",
     },
     {
       icon: Music,
       label: "Songs",
-      active: pathname === "/songs",
+      active: mounted && pathname === "/songs",
       href: "/songs",
     },
     {
       icon: ListMusic,
       label: "Playlists",
-      active: pathname.startsWith("/playlists"),
+      active: mounted && pathname.startsWith("/playlists"),
       href: "/playlists",
     },
     {
       icon: Download,
       label: "Downloads",
-      active: pathname === "/downloads",
+      active: mounted && pathname === "/downloads",
       href: "/downloads",
     },
   ];
@@ -66,15 +69,12 @@ const Sidebar = () => {
             <Link
               key={item.label}
               href={item.href}
-              className={`relative flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
+              className={`flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
                 item.active
                   ? "bg-accent/8 text-accent"
                   : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
               }`}
             >
-              {item.active && (
-                <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent" />
-              )}
               <item.icon size={18} strokeWidth={item.active ? 2.5 : 2} />
               <span>{item.label}</span>
             </Link>
@@ -115,32 +115,15 @@ const Sidebar = () => {
         <div className="mt-auto pt-5">
           <div className="mb-3 border-t border-neutral-200/60" />
           <nav className="flex flex-col gap-y-1">
-            <Link
-              href="/settings"
-              className={`relative flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
-                pathname === "/settings"
-                  ? "bg-accent/8 text-accent"
-                  : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
-              }`}
-            >
-              {pathname === "/settings" && (
-                <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent" />
-              )}
-              <Settings size={18} />
-              <span>Settings</span>
-            </Link>
             {user && (
               <Link
                 href="/account"
-                className={`relative flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
-                  pathname === "/account"
+                className={`flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
+                  mounted && pathname === "/account"
                     ? "bg-accent/8 text-accent"
                     : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
                 }`}
               >
-                {pathname === "/account" && (
-                  <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent" />
-                )}
                 <User size={18} />
                 <span>Account</span>
               </Link>
