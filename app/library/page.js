@@ -323,8 +323,8 @@ export default function LibraryPage() {
                     key={song.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setActiveSong(song, allSongs)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setActiveSong(song, allSongs); }}
+                    onClick={() => setActiveSong(song, downloadedSongs)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setActiveSong(song, downloadedSongs); }}
                     className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl bg-neutral-50/60 p-3 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm"
                   >
                     <div className="flex h-10 w-10 md:h-12 md:w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800 transition-colors group-hover:bg-accent group-hover:text-white">

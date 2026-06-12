@@ -659,7 +659,7 @@ export default function SongsPage() {
                       key={song.id}
                       song={song}
                       isActive={activeSong?.id === song.id}
-                      onClick={() => setActiveSong(song, allSongs)}
+                      onClick={() => setActiveSong(song, groupedSongs[letter])}
                     />
                   ))}
                 </div>

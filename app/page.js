@@ -326,7 +326,7 @@ export default function Home() {
               subtitle="Recently added to the collection"
               icon={Music}
               items={newestSongs}
-              onPlay={setActiveSong}
+              onPlay={(song) => setActiveSong(song, newestSongs)}
               activeSongId={activeSong?.id}
               cta={{ href: "/songs", label: "View all" }}
               vertical
@@ -339,7 +339,7 @@ export default function Home() {
                 subtitle="Your listening history"
                 icon={Clock}
                 items={recentlyPlayed}
-                onPlay={setActiveSong}
+                onPlay={(song) => setActiveSong(song, recentlyPlayed)}
                 activeSongId={activeSong?.id}
               />
             )}
@@ -350,7 +350,7 @@ export default function Home() {
               subtitle="Standout songs curated for you"
               icon={Wand2}
               items={featuredSongs}
-              onPlay={setActiveSong}
+              onPlay={(song) => setActiveSong(song, featuredSongs)}
               activeSongId={activeSong?.id}
               cta={{ href: "/songs", label: "View all" }}
               vertical
@@ -362,7 +362,7 @@ export default function Home() {
               subtitle="Suggestions based on your categories"
               icon={Sparkles}
               items={recommendedSongs}
-              onPlay={setActiveSong}
+              onPlay={(song) => setActiveSong(song, recommendedSongs)}
               activeSongId={activeSong?.id}
               cta={{ href: "/songs", label: "View all" }}
             />

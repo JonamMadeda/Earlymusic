@@ -90,7 +90,7 @@ const Sidebar = () => {
                 <button
                   key={song.id}
                   type="button"
-                  onClick={() => setActiveSong(song, allSongs)}
+                  onClick={() => setActiveSong(song, recentlyPlayed)}
                   className="group flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-accent/10"
                 >
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-neutral-100 text-neutral-400 transition group-hover:bg-accent/15 group-hover:text-accent">
