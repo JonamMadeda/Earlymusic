@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "./context/PlayerContext";
 import Loader from "./components/Loader";
-import { Disc, Music, Sparkles, Wand2, ArrowRight, Play, Clock } from "lucide-react";
+import { Disc, Music, Sparkles, Wand2, ArrowRight, Play, Clock, Pause } from "lucide-react";
 
 const timeWindowDays = 14;
 
@@ -18,7 +18,7 @@ const shuffle = (arr) => {
   return a;
 };
 
-const SongRailCard = ({ song, onClick }) => {
+const SongRailCard = ({ song, onClick, isActive }) => {
   const isNew =
     song.created_at &&
     Date.now() - new Date(song.created_at).getTime() <
@@ -28,17 +28,34 @@ const SongRailCard = ({ song, onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-[76vw] flex-shrink-0 snap-start items-center gap-3.5 rounded-2xl bg-neutral-50/60 p-3.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:bg-neutral-100/80 hover:shadow-md md:w-[290px]"
+      className={`group relative flex w-[76vw] flex-shrink-0 snap-start items-center gap-3.5 rounded-2xl p-3.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md md:w-[290px] ${
+        isActive
+          ? "bg-accent/8 border border-accent/20 shadow-sm"
+          : "bg-neutral-50/60 hover:bg-neutral-100/80 border border-transparent"
+      }`}
     >
-      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800 shadow-sm transition-colors group-hover:bg-accent group-hover:text-white">
-        <Music size={18} />
+      {isActive && (
+        <span className="absolute top-2.5 right-2.5 flex h-1.5 w-1.5 rounded-full bg-accent">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
+        </span>
+      )}
+      <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl shadow-sm transition-colors ${
+        isActive ? "bg-accent text-white" : "bg-neutral-900/5 text-neutral-800 group-hover:bg-accent group-hover:text-white"
+      }`}>
+        {isActive ? (
+          <div className="waveform text-white"><span /><span /><span /><span /></div>
+        ) : (
+          <Music size={18} />
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+          <p className={`truncate text-sm font-semibold tracking-tight ${
+            isActive ? "text-accent" : "text-neutral-900"
+          }`}>
             {song.title}
           </p>
-          {isNew && (
+          {isNew && !isActive && (
             <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
               New
             </span>
@@ -48,7 +65,9 @@ const SongRailCard = ({ song, onClick }) => {
           {song.author}
         </p>
       </div>
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-all duration-300 group-hover:bg-accent group-hover:text-white">
+      <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+        isActive ? "bg-accent text-white" : "bg-neutral-100 text-neutral-600 group-hover:bg-accent group-hover:text-white"
+      }`}>
         <Play size={14} fill="currentColor" className="ml-0.5" />
       </div>
     </button>
@@ -92,7 +111,7 @@ const FeaturedCard = ({ song, onClick }) => {
   );
 };
 
-const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, vertical }) => {
+const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, vertical, activeSongId }) => {
   const Card = vertical ? FeaturedCard : SongRailCard;
   return (
     <section id={id} className="scroll-mt-24 py-2">
@@ -121,6 +140,7 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, ver
             <Card
               key={song.id}
               song={song}
+              isActive={song.id === activeSongId}
               onClick={() => onPlay(song)}
             />
           ))
@@ -135,7 +155,7 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, ver
 };
 
 export default function Home() {
-  const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed } =
+  const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed, activeSong } =
     usePlayer();
 
   useEffect(() => {
@@ -262,18 +282,36 @@ export default function Home() {
         </section>
 
         {/* Banner */}
-        <div className="mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-accent/5 via-accent/10 to-transparent border border-accent/10 px-5 py-4 md:rounded-3xl md:px-8 md:py-6">
+        <div className="mb-8 overflow-hidden rounded-2xl border px-5 py-4 md:rounded-3xl md:px-8 md:py-6 transition-all duration-500 bg-gradient-to-r from-accent/5 via-accent/10 to-transparent border-accent/10">
           <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent md:h-12 md:w-12">
-              <Music size={18} className="md:size-[22px]" />
+              {activeSong ? (
+                <div className="waveform text-accent"><span /><span /><span /><span /></div>
+              ) : (
+                <Music size={18} className="md:size-[22px]" />
+              )}
             </div>
-            <div>
-              <p className="text-sm font-semibold tracking-tight text-neutral-900 md:text-base">
-                Psalm 150:6
-              </p>
-              <p className="mt-0.5 text-xs leading-relaxed text-neutral-500 md:text-sm">
-                Let everything that has breath praise the Lord.
-              </p>
+            <div className="min-w-0 flex-1">
+              {activeSong ? (
+                <>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-accent/70 mb-0.5">Now Playing</p>
+                  <p className="truncate text-sm font-semibold tracking-tight text-neutral-900 md:text-base">
+                    {activeSong.title}
+                  </p>
+                  <p className="truncate mt-0.5 text-xs leading-relaxed text-neutral-500">
+                    {activeSong.author}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold tracking-tight text-neutral-900 md:text-base">
+                    Psalm 150:6
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-neutral-500 md:text-sm">
+                    Let everything that has breath praise the Lord.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -289,6 +327,7 @@ export default function Home() {
               icon={Music}
               items={newestSongs}
               onPlay={setActiveSong}
+              activeSongId={activeSong?.id}
               cta={{ href: "/songs", label: "View all" }}
               vertical
             />
@@ -301,6 +340,7 @@ export default function Home() {
                 icon={Clock}
                 items={recentlyPlayed}
                 onPlay={setActiveSong}
+                activeSongId={activeSong?.id}
               />
             )}
 
@@ -311,6 +351,7 @@ export default function Home() {
               icon={Wand2}
               items={featuredSongs}
               onPlay={setActiveSong}
+              activeSongId={activeSong?.id}
               cta={{ href: "/songs", label: "View all" }}
               vertical
             />
@@ -322,6 +363,7 @@ export default function Home() {
               icon={Sparkles}
               items={recommendedSongs}
               onPlay={setActiveSong}
+              activeSongId={activeSong?.id}
               cta={{ href: "/songs", label: "View all" }}
             />
 

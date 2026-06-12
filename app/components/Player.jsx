@@ -192,10 +192,9 @@ const Player = () => {
             onClick={() => setExpanded(!expanded)}
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-white shadow-sm shadow-accent/15">
-              <Music
-                className={`${isPlaying ? "animate-spin-slow" : ""}`}
-                size={13}
-              />
+              <div className={`waveform${isPlaying ? "" : " paused"}`}>
+                <span /><span /><span /><span />
+              </div>
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold tracking-tight text-neutral-900">
@@ -236,7 +235,9 @@ const Player = () => {
                 {/* Song info (desktop only — shown in mini-bar on mobile) */}
                 <div className="hidden md:flex md:items-center md:gap-3 md:w-[28%]">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent shadow-sm shadow-accent/15">
-                    <Music className="text-white" size={18} />
+                    <div className={`waveform text-white${isPlaying ? "" : " paused"}`}>
+                      <span /><span /><span /><span />
+                    </div>
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14px] font-semibold tracking-tight text-neutral-900">

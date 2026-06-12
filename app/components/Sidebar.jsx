@@ -66,12 +66,15 @@ const Sidebar = () => {
             <Link
               key={item.label}
               href={item.href}
-              className={`flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
+              className={`relative flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
                 item.active
-                  ? "bg-accent text-white shadow-sm shadow-accent/10"
+                  ? "bg-accent/8 text-accent"
                   : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
               }`}
             >
+              {item.active && (
+                <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent" />
+              )}
               <item.icon size={18} strokeWidth={item.active ? 2.5 : 2} />
               <span>{item.label}</span>
             </Link>
@@ -114,24 +117,30 @@ const Sidebar = () => {
           <nav className="flex flex-col gap-y-1">
             <Link
               href="/settings"
-              className={`flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
+              className={`relative flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
                 pathname === "/settings"
-                  ? "bg-accent text-white shadow-sm shadow-accent/10"
+                  ? "bg-accent/8 text-accent"
                   : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
               }`}
             >
+              {pathname === "/settings" && (
+                <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent" />
+              )}
               <Settings size={18} />
               <span>Settings</span>
             </Link>
             {user && (
               <Link
                 href="/account"
-                className={`flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
+                className={`relative flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
                   pathname === "/account"
-                    ? "bg-accent text-white shadow-sm shadow-accent/10"
+                    ? "bg-accent/8 text-accent"
                     : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
                 }`}
               >
+                {pathname === "/account" && (
+                  <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent" />
+                )}
                 <User size={18} />
                 <span>Account</span>
               </Link>

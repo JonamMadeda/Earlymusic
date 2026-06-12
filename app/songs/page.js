@@ -162,8 +162,8 @@ const SongRow = ({ song, onClick, isActive }) => {
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(e); }}
       className={`group relative flex w-full items-center gap-2.5 md:gap-3.5 rounded-2xl p-2.5 md:p-3.5 text-left transition-all duration-300 ${
         isActive
-          ? "bg-neutral-100/80"
-          : "bg-neutral-50/60 hover:bg-neutral-100/80"
+          ? "bg-neutral-100/80 border-l-2 border-accent pl-3 md:pl-3.5"
+          : "bg-neutral-50/60 hover:bg-neutral-100/80 border-l-2 border-transparent"
       }`}
     >
       <div
@@ -181,7 +181,12 @@ const SongRow = ({ song, onClick, isActive }) => {
           <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
             {song.title}
           </p>
-          {isNew && (
+          {isActive && (
+            <div className="waveform shrink-0 text-accent">
+              <span /><span /><span /><span />
+            </div>
+          )}
+          {isNew && !isActive && (
             <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
               New
             </span>

@@ -23,22 +23,23 @@ const BottomNav = () => {
           <Link
             key={item.label}
             href={item.href}
-            className={`flex w-full flex-col items-center gap-y-0.5 rounded-xl py-1 transition ${
-              isActive ? "bg-accent/10 text-accent" : "text-neutral-400"
+            className={`relative flex w-full flex-col items-center gap-y-0.5 rounded-xl py-1 transition ${
+              isActive ? "text-accent" : "text-neutral-400"
             }`}
           >
-      <item.icon
-              size={20}
-              className={isActive ? "text-accent" : "text-neutral-400"}
-              strokeWidth={isActive ? 2.5 : 2}
-            />
-            <span
-              className={`text-[9px] font-bold ${
-                isActive ? "text-accent" : "text-neutral-400"
-              }`}
-            >
+            <div className={`rounded-xl px-3 py-1 transition-colors ${isActive ? "bg-accent/10" : ""}`}>
+              <item.icon
+                size={20}
+                className={isActive ? "text-accent" : "text-neutral-400"}
+                strokeWidth={isActive ? 2.5 : 2}
+              />
+            </div>
+            <span className={`text-[9px] font-bold ${isActive ? "text-accent" : "text-neutral-400"}`}>
               {item.label}
             </span>
+            {isActive && (
+              <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-accent" />
+            )}
           </Link>
         );
       })}
