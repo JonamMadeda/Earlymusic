@@ -1,53 +1,7 @@
-const CACHE_NAME = "earlymusic-app-v1";
+const CACHE_NAME = "earlymusic-app-v2";
 const AUDIO_CACHE = "earlymusic-audio-cache-v1";
 
-const STATIC_ASSETS = [
-  "/",
-  "/songs",
-  "/library",
-  "/playlists",
-  "/account",
-  "/auth",
-  "/downloads",
-  "/admin",
-];
-
-const ASSET_RE = /(href|src)=["']([^"']+)["']/g;
-
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.addAll(STATIC_ASSETS).catch(() => {});
-
-      const pageUrls = [];
-      for (const path of STATIC_ASSETS) {
-        const req = new Request(path);
-        const res = await cache.match(req);
-        if (!res) continue;
-        const html = await res.text();
-        let match;
-        while ((match = ASSET_RE.exec(html)) !== null) {
-          const url = match[2];
-          if (
-            url.startsWith("/_next/static/") ||
-            url.startsWith("/icons/") ||
-            url.startsWith("/favicon")
-          ) {
-            pageUrls.push(url);
-          }
-        }
-      }
-
-      await Promise.allSettled(
-        [...new Set(pageUrls)].map((url) =>
-          fetch(url).then((r) => {
-            if (r.ok) cache.put(url, r);
-          })
-        )
-      );
-    })()
-  );
   self.skipWaiting();
 });
 
@@ -70,23 +24,24 @@ self.addEventListener("message", (event) => {
   }
 });
 
-const cacheFirst = async (request) => {
+const SUPABASE_AUDIO_ORIGIN = "https://nrwjnbpypbchxrcyqbca.supabase.co";
+
+const fromCache = async (request, cacheName = CACHE_NAME) => {
   const cached = await caches.match(request);
   if (cached) return cached;
   try {
     const response = await fetch(request);
     if (response.ok) {
-      const cache = await caches.open(CACHE_NAME);
+      const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
     }
     return response;
   } catch {
-    const fallback = await caches.match("/");
-    return fallback || new Response("Offline", { status: 503 });
+    return null;
   }
 };
 
-const networkFirst = async (request) => {
+const fromNetwork = async (request) => {
   try {
     const response = await fetch(request);
     if (response.ok) {
@@ -96,8 +51,17 @@ const networkFirst = async (request) => {
     return response;
   } catch {
     const cached = await caches.match(request);
-    return cached || caches.match("/") || new Response("Offline", { status: 503 });
+    return cached || null;
   }
+};
+
+const offlinePage = async () => {
+  const root = await caches.match("/");
+  if (root) return root;
+  return new Response(
+    `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline</title><style>body{font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fafafa;color:#1a1a1a}div{text-align:center;padding:2rem}h1{font-size:1.25rem;margin:0 0 0.5rem}p{font-size:0.875rem;color:#666;margin:0}</style></head><body><div><h1>You're offline</h1><p>Connect to the internet and try again.</p></div></body></html>`,
+    { status: 503, headers: { "Content-Type": "text/html" } }
+  );
 };
 
 self.addEventListener("fetch", (event) => {
@@ -106,23 +70,28 @@ self.addEventListener("fetch", (event) => {
 
   if (request.method !== "GET") return;
 
-  if (
-    url.origin === "https://nrwjnbpypbchxrcyqbca.supabase.co" &&
-    url.pathname.includes("/songs/")
-  ) {
-    event.respondWith(cacheFirst(request));
+  if (url.origin === SUPABASE_AUDIO_ORIGIN && url.pathname.includes("/songs/")) {
+    event.respondWith(
+      fromCache(request, AUDIO_CACHE).then((res) => res || new Response("", { status: 503 }))
+    );
     return;
   }
 
   if (url.pathname.startsWith("/_next/static/")) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(
+      fromCache(request).then((res) => res || offlinePage())
+    );
     return;
   }
 
   if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request));
+    event.respondWith(
+      fromNetwork(request).then((res) => res || offlinePage())
+    );
     return;
   }
 
-  event.respondWith(cacheFirst(request));
+  event.respondWith(
+    fromNetwork(request).then((res) => res || offlinePage())
+  );
 });
