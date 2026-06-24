@@ -157,7 +157,7 @@ const Player = () => {
   if (!song || !audioUrl) return null;
 
   return (
-    <div className="fixed bottom-14 left-0 right-0 z-[9999] md:bottom-0 md:left-1/2 md:w-[70%] md:-translate-x-1/2">
+    <div className="fixed bottom-14 left-0 right-0 z-[9999] md:bottom-0 md:left-1/2 md:w-1/2 md:-translate-x-1/2">
       <div className="relative mx-auto max-w-[1400px] md:px-6">
         <div
           className={`relative overflow-hidden border-t border-white/70 bg-white/95 backdrop-blur-2xl transition-all duration-300 md:mb-4 md:rounded-2xl md:border ${
