@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
 import SongItem from "@/app/components/SongItem";
-import Loader from "@/app/components/Loader";
+import { PageSkeleton } from "@/app/components/Skeleton";
 import Link from "next/link";
 
 export default function PlaylistDetailPage() {
@@ -125,7 +125,7 @@ export default function PlaylistDetailPage() {
   if (authLoading || loading) {
     return (
       <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
-        <div className="max-w-5xl mx-auto"><Loader /></div>
+        <div className="max-w-5xl mx-auto"><PageSkeleton /></div>
       </main>
     );
   }

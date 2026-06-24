@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import SongItem from "../components/SongItem";
-import Loader from "../components/Loader";
+import { PageSkeleton } from "../components/Skeleton";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
@@ -124,7 +124,7 @@ export default function LibraryPage() {
   if (authLoading || loading) {
     return (
       <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
-        <div className="max-w-5xl mx-auto"><Loader /></div>
+        <div className="max-w-5xl mx-auto"><PageSkeleton /></div>
       </main>
     );
   }

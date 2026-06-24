@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
-import Loader from "../components/Loader";
+import { PageSkeleton } from "../components/Skeleton";
 
 import {
   ChevronDown,
@@ -643,7 +643,7 @@ export default function SongsPage() {
         )}
 
         {isLoading ? (
-          <Loader />
+          <PageSkeleton />
         ) : alphabet.length > 0 ? (
           <div className="flex flex-col gap-y-4 md:gap-y-6">
             {alphabet.map((letter) => (

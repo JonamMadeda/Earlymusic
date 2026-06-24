@@ -157,7 +157,7 @@ const Player = () => {
   if (!song || !audioUrl) return null;
 
   return (
-    <div className="fixed bottom-14 left-0 right-0 z-[9999] md:bottom-0 md:left-1/2 md:w-1/2 md:-translate-x-1/2">
+    <div className="fixed bottom-14 left-0 right-0 z-[9999] md:bottom-0 md:left-1/2 md:w-3/5 lg:w-2/5 xl:w-[520px] md:-translate-x-1/2">
       <div className="relative mx-auto max-w-[1400px] md:px-6">
         <div
           className={`relative overflow-hidden border-t border-white/70 bg-white/95 backdrop-blur-2xl transition-all duration-300 md:mb-4 md:rounded-2xl md:border ${
@@ -313,7 +313,7 @@ const Player = () => {
                       <SkipForward size={20} fill="currentColor" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] font-medium tabular-nums text-neutral-400 md:hidden">
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium tabular-nums text-neutral-400">
                     <span>{formatTime(currentTime)}</span>
                     <span className="text-neutral-300">/</span>
                     <span>{formatTime(duration)}</span>

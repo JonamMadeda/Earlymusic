@@ -10,7 +10,7 @@ import { useState, useEffect } from "react";
 const Sidebar = () => {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const { recentlyPlayed, setActiveSong, allSongs } = usePlayer();
+  const { recentlyPlayed, setActiveSong, allSongs, activeSong } = usePlayer();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -91,12 +91,28 @@ const Sidebar = () => {
                   key={song.id}
                   type="button"
                   onClick={() => setActiveSong(song, recentlyPlayed)}
-                  className="group flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-accent/10"
+                  className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition ${
+                    activeSong?.id === song.id
+                      ? "bg-accent/10"
+                      : "hover:bg-accent/10"
+                  }`}
                 >
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-neutral-100 text-neutral-400 transition group-hover:bg-accent/15 group-hover:text-accent">
-                    <Music size={11} />
+                  <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition ${
+                    activeSong?.id === song.id
+                      ? "bg-accent/15 text-accent"
+                      : "bg-neutral-100 text-neutral-400 group-hover:bg-accent/15 group-hover:text-accent"
+                  }`}>
+                    {activeSong?.id === song.id ? (
+                      <div className="waveform text-accent" style={{ height: 10, gap: 1 }}><span /><span /><span /><span /></div>
+                    ) : (
+                      <Music size={11} />
+                    )}
                   </div>
-                  <p className="min-w-0 flex-1 truncate text-xs font-medium text-neutral-600 transition group-hover:text-accent">
+                  <p className={`min-w-0 flex-1 truncate text-xs font-medium transition ${
+                    activeSong?.id === song.id
+                      ? "text-accent"
+                      : "text-neutral-600 group-hover:text-accent"
+                  }`}>
                     {song.title}
                   </p>
                 </button>

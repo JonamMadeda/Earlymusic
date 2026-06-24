@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "./context/PlayerContext";
-import Loader from "./components/Loader";
+import { PageSkeleton } from "./components/Skeleton";
 import { Disc, Music, Sparkles, Wand2, ArrowRight, Play, Clock, Pause } from "lucide-react";
+
+const verses = [
+  { ref: "Psalm 150:6", text: "Let everything that has breath praise the Lord." },
+  { ref: "Psalm 95:1", text: "Oh come, let us sing to the Lord; let us make a joyful noise to the rock of our salvation!" },
+  { ref: "Psalm 100:1-2", text: "Make a joyful noise to the Lord, all the earth! Serve the Lord with gladness!" },
+  { ref: "Colossians 3:16", text: "Let the word of Christ dwell in you richly, singing psalms and hymns and spiritual songs." },
+  { ref: "Psalm 96:1", text: "Oh sing to the Lord a new song; sing to the Lord, all the earth!" },
+  { ref: "Ephesians 5:19", text: "Addressing one another in psalms and hymns and spiritual songs, singing and making melody to the Lord." },
+];
 
 const timeWindowDays = 14;
 
@@ -157,6 +166,15 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, ver
 export default function Home() {
   const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed, activeSong } =
     usePlayer();
+  const [verseIndex, setVerseIndex] = useState(0);
+
+  useEffect(() => {
+    if (activeSong) return;
+    const interval = setInterval(() => {
+      setVerseIndex((prev) => (prev + 1) % verses.length);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [activeSong]);
 
   useEffect(() => {
     const fetchSongs = async () => {
@@ -305,10 +323,10 @@ export default function Home() {
               ) : (
                 <>
                   <p className="text-sm font-semibold tracking-tight text-neutral-900 md:text-base">
-                    Psalm 150:6
+                    {verses[verseIndex].ref}
                   </p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-neutral-500 md:text-sm">
-                    Let everything that has breath praise the Lord.
+                  <p className="mt-0.5 text-xs leading-relaxed text-neutral-500 md:text-sm transition-opacity duration-500">
+                    {verses[verseIndex].text}
                   </p>
                 </>
               )}
@@ -317,7 +335,7 @@ export default function Home() {
         </div>
 
         {isLoading ? (
-          <Loader />
+          <PageSkeleton letterGroups={3} />
         ) : (
           <div className="flex flex-col gap-8 md:gap-10">
             <SectionBlock
