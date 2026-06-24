@@ -230,16 +230,16 @@ const Player = () => {
             } md:!max-h-full md:!opacity-100`}
           >
             <div className="px-4 pb-5 pt-3 md:px-6 md:py-3">
-              <div className="flex flex-col gap-y-4 md:flex-row md:items-center">
+              <div className="flex flex-col gap-y-4 md:flex-row md:items-center md:gap-x-6">
 
-                {/* Song info (desktop only — shown in mini-bar on mobile) */}
-                <div className="hidden md:flex md:items-center md:gap-3 md:w-[28%]">
+                {/* Song info (desktop only) */}
+                <div className="hidden md:flex md:items-center md:gap-3 md:min-w-0 md:shrink md:basis-0 md:flex-1">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent shadow-sm shadow-accent/15">
                     <div className={`waveform text-white${isPlaying ? "" : " paused"}`}>
                       <span /><span /><span /><span />
                     </div>
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0">
                     <p className="truncate text-[14px] font-semibold tracking-tight text-neutral-900">
                       {song.title}
                     </p>
@@ -250,40 +250,23 @@ const Player = () => {
                 </div>
 
                 {/* Controls + time */}
-                <div className="flex flex-col items-center gap-2 md:flex-1">
-                  <div className="flex items-center justify-center gap-x-2 md:gap-x-4">
-                    <div className="flex items-center gap-x-1 pr-2 md:pr-3 border-r border-neutral-200">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newState = !isShuffle;
-                          setIsShuffle(newState);
-                          if (newState) setIsLooping(false);
-                        }}
-                        className={`rounded-full p-1.5 transition-colors active:scale-90 ${
-                          isShuffle
-                            ? "text-accent"
-                            : "text-neutral-400 hover:text-neutral-900"
-                        }`}
-                      >
-                        <Shuffle size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newState = !isLooping;
-                          setIsLooping(newState);
-                          if (newState) setIsShuffle(false);
-                        }}
-                        className={`rounded-full p-1.5 transition-colors active:scale-90 ${
-                          isLooping
-                            ? "text-accent"
-                            : "text-neutral-400 hover:text-neutral-900"
-                        }`}
-                      >
-                        <Repeat size={14} />
-                      </button>
-                    </div>
+                <div className="flex flex-col items-center gap-1.5 md:gap-2 md:shrink-0 md:mx-auto">
+                  <div className="flex items-center gap-x-0.5 md:gap-x-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newState = !isShuffle;
+                        setIsShuffle(newState);
+                        if (newState) setIsLooping(false);
+                      }}
+                      className={`rounded-full p-1.5 transition-colors active:scale-90 ${
+                        isShuffle
+                          ? "text-accent"
+                          : "text-neutral-400 hover:text-neutral-900"
+                      }`}
+                    >
+                      <Shuffle size={14} />
+                    </button>
 
                     <button
                       type="button"
@@ -312,6 +295,22 @@ const Player = () => {
                     >
                       <SkipForward size={20} fill="currentColor" />
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newState = !isLooping;
+                        setIsLooping(newState);
+                        if (newState) setIsShuffle(false);
+                      }}
+                      className={`rounded-full p-1.5 transition-colors active:scale-90 ${
+                        isLooping
+                          ? "text-accent"
+                          : "text-neutral-400 hover:text-neutral-900"
+                      }`}
+                    >
+                      <Repeat size={14} />
+                    </button>
                   </div>
                   <div className="flex items-center gap-1.5 text-[11px] font-medium tabular-nums text-neutral-400">
                     <span>{formatTime(currentTime)}</span>
@@ -321,7 +320,7 @@ const Player = () => {
                 </div>
 
                 {/* Volume (desktop only) */}
-                <div className="hidden md:flex md:w-[28%] md:items-center md:justify-end md:gap-3">
+                <div className="hidden md:flex md:items-center md:justify-end md:gap-3 md:min-w-0 md:shrink md:basis-0 md:flex-1">
                   <button
                     type="button"
                     onClick={toggleMute}
@@ -345,7 +344,7 @@ const Player = () => {
                       if (audioRef.current) audioRef.current.volume = v;
                       if (v > 0) setIsMuted(false);
                     }}
-                    className="h-1 w-28 cursor-pointer appearance-none rounded-full bg-neutral-100 accent-accent"
+                    className="h-1 w-20 lg:w-28 cursor-pointer appearance-none rounded-full bg-neutral-100 accent-accent"
                   />
                 </div>
               </div>
