@@ -221,7 +221,12 @@ export default function Home() {
     );
   }, [allSongs]);
 
-  const newestSongs = useMemo(() => sortedSongs.slice(0, 6), [sortedSongs]);
+  const newestSongs = useMemo(() => {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return sortedSongs.filter(
+      (song) => song.created_at && new Date(song.created_at).getTime() >= cutoff
+    );
+  }, [sortedSongs]);
 
   const featuredSongs = useMemo(() => {
     const praiseFirst = sortedSongs.filter(
@@ -353,7 +358,7 @@ export default function Home() {
             <SectionBlock
               id="newest-songs"
               title="New Additions"
-              subtitle="Recently added to the collection"
+              subtitle="Added in the past month"
               icon={Music}
               items={newestSongs}
               onPlay={(song) => setActiveSong(song, newestSongs)}
