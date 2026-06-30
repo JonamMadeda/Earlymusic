@@ -221,7 +221,7 @@ export default function Home() {
     );
   }, [allSongs]);
 
-  const newestSongs = useMemo(() => sortedSongs.slice(0, 6), [sortedSongs]);
+  const newestSongs = useMemo(() => sortedSongs, [sortedSongs]);
 
   const featuredSongs = useMemo(() => {
     const praiseFirst = sortedSongs.filter(
@@ -230,7 +230,7 @@ export default function Home() {
     const mixed = [...praiseFirst, ...sortedSongs].filter(
       (song, index, list) => list.findIndex((item) => item.id === song.id) === index
     );
-    return shuffle(mixed).slice(0, 6);
+    return shuffle(mixed).slice(0, 15);
   }, [sortedSongs]);
 
   const featuredIds = useMemo(
