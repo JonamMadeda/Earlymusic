@@ -339,6 +339,18 @@ export default function Home() {
         ) : (
           <div className="flex flex-col gap-8 md:gap-10">
             <SectionBlock
+              id="featured-songs"
+              title="Featured"
+              subtitle="Standout songs curated for you"
+              icon={Wand2}
+              items={featuredSongs}
+              onPlay={(song) => setActiveSong(song, featuredSongs)}
+              activeSongId={activeSong?.id}
+              cta={{ href: "/songs", label: "View all" }}
+              vertical
+            />
+
+            <SectionBlock
               id="newest-songs"
               title="New Additions"
               subtitle="Recently added to the collection"
@@ -361,18 +373,6 @@ export default function Home() {
                 activeSongId={activeSong?.id}
               />
             )}
-
-            <SectionBlock
-              id="featured-songs"
-              title="Featured"
-              subtitle="Standout songs curated for you"
-              icon={Wand2}
-              items={featuredSongs}
-              onPlay={(song) => setActiveSong(song, featuredSongs)}
-              activeSongId={activeSong?.id}
-              cta={{ href: "/songs", label: "View all" }}
-              vertical
-            />
             
             <SectionBlock
               id="recommended-songs"
