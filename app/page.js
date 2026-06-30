@@ -16,7 +16,7 @@ const verses = [
   { ref: "Ephesians 5:19", text: "Addressing one another in psalms and hymns and spiritual songs, singing and making melody to the Lord." },
 ];
 
-const timeWindowDays = 14;
+const timeWindowDays = 30;
 
 const shuffle = (arr) => {
   const a = [...arr];
@@ -221,12 +221,7 @@ export default function Home() {
     );
   }, [allSongs]);
 
-  const newestSongs = useMemo(() => {
-    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    return sortedSongs.filter(
-      (song) => song.created_at && new Date(song.created_at).getTime() >= cutoff
-    );
-  }, [sortedSongs]);
+  const newestSongs = useMemo(() => sortedSongs.slice(0, 6), [sortedSongs]);
 
   const featuredSongs = useMemo(() => {
     const praiseFirst = sortedSongs.filter(
@@ -358,7 +353,7 @@ export default function Home() {
             <SectionBlock
               id="newest-songs"
               title="New Additions"
-              subtitle="Added in the past month"
+              subtitle="Recently added to the collection"
               icon={Music}
               items={newestSongs}
               onPlay={(song) => setActiveSong(song, newestSongs)}
