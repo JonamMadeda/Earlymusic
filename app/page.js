@@ -376,6 +376,18 @@ export default function Home() {
               cta={{ href: "/songs", label: "View all" }}
             />
 
+            <SectionBlock
+              id="newest-songs"
+              title="New Additions"
+              subtitle="Added in the past month"
+              icon={Music}
+              items={newestSongs}
+              onPlay={(song) => setActiveSong(song, newestSongs)}
+              activeSongId={activeSong?.id}
+              cta={{ href: "/songs", label: "View all" }}
+              vertical
+            />
+
             {praiseSongs.length > 0 && (
               <SectionBlock
                 id="praise-songs"
@@ -401,18 +413,6 @@ export default function Home() {
                 cta={{ href: "/songs", label: "View all" }}
               />
             )}
-
-            <SectionBlock
-              id="newest-songs"
-              title="New Additions"
-              subtitle="Added in the past month"
-              icon={Music}
-              items={newestSongs}
-              onPlay={(song) => setActiveSong(song, newestSongs)}
-              activeSongId={activeSong?.id}
-              cta={{ href: "/songs", label: "View all" }}
-              vertical
-            />
 
             {recentlyPlayed.length > 0 && (
               <SectionBlock
