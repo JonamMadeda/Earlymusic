@@ -365,6 +365,17 @@ export default function Home() {
               vertical
             />
 
+            <SectionBlock
+              id="recommended-songs"
+              title="Recommended"
+              subtitle="Suggestions based on your categories"
+              icon={Sparkles}
+              items={recommendedSongs}
+              onPlay={(song) => setActiveSong(song, recommendedSongs)}
+              activeSongId={activeSong?.id}
+              cta={{ href: "/songs", label: "View all" }}
+            />
+
             {praiseSongs.length > 0 && (
               <SectionBlock
                 id="praise-songs"
@@ -414,17 +425,6 @@ export default function Home() {
                 activeSongId={activeSong?.id}
               />
             )}
-
-            <SectionBlock
-              id="recommended-songs"
-              title="Recommended"
-              subtitle="Suggestions based on your categories"
-              icon={Sparkles}
-              items={recommendedSongs}
-              onPlay={(song) => setActiveSong(song, recommendedSongs)}
-              activeSongId={activeSong?.id}
-              cta={{ href: "/songs", label: "View all" }}
-            />
 
             {sortedSongs.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 text-center">
