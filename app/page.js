@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "./context/PlayerContext";
 import { PageSkeleton } from "./components/Skeleton";
-import { Disc, Music, Sparkles, Wand2, ArrowRight, Play, Clock, Pause } from "lucide-react";
+import { Disc, Music, Sparkles, Wand2, ArrowRight, Play, Clock, Pause, Heart, BookOpen } from "lucide-react";
 
 const verses = [
   { ref: "Psalm 150:6", text: "Let everything that has breath praise the Lord." },
@@ -238,6 +238,16 @@ export default function Home() {
     return shuffle(mixed).slice(0, 15);
   }, [sortedSongs]);
 
+  const praiseSongs = useMemo(
+    () => sortedSongs.filter((song) => (song.category || "").toLowerCase() === "praise"),
+    [sortedSongs]
+  );
+
+  const worshipSongs = useMemo(
+    () => sortedSongs.filter((song) => (song.category || "").toLowerCase() !== "praise"),
+    [sortedSongs]
+  );
+
   const featuredIds = useMemo(
     () => new Set(featuredSongs.map((song) => song.id)),
     [featuredSongs]
@@ -355,6 +365,32 @@ export default function Home() {
               vertical
             />
 
+            {praiseSongs.length > 0 && (
+              <SectionBlock
+                id="praise-songs"
+                title="Praise Songs"
+                subtitle="High-energy praise and celebration"
+                icon={Heart}
+                items={praiseSongs}
+                onPlay={(song) => setActiveSong(song, praiseSongs)}
+                activeSongId={activeSong?.id}
+                cta={{ href: "/songs", label: "View all" }}
+              />
+            )}
+
+            {worshipSongs.length > 0 && (
+              <SectionBlock
+                id="worship-songs"
+                title="Worship Songs"
+                subtitle="Intimate worship and reflection"
+                icon={BookOpen}
+                items={worshipSongs}
+                onPlay={(song) => setActiveSong(song, worshipSongs)}
+                activeSongId={activeSong?.id}
+                cta={{ href: "/songs", label: "View all" }}
+              />
+            )}
+
             <SectionBlock
               id="newest-songs"
               title="New Additions"
@@ -378,7 +414,7 @@ export default function Home() {
                 activeSongId={activeSong?.id}
               />
             )}
-            
+
             <SectionBlock
               id="recommended-songs"
               title="Recommended"
