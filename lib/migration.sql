@@ -90,3 +90,30 @@ CREATE POLICY "Users can save songs"
 CREATE POLICY "Users can unsave songs"
   ON public.saved_songs FOR DELETE
   USING (auth.uid() = user_id);
+
+-- 4. RECENTLY PLAYED table (persists listening history across devices)
+CREATE TABLE IF NOT EXISTS public.recently_played (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  song_id BIGINT REFERENCES public.songs(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, song_id)
+);
+
+ALTER TABLE public.recently_played ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their recently played"
+  ON public.recently_played FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert recently played"
+  ON public.recently_played FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update recently played"
+  ON public.recently_played FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete from recently played"
+  ON public.recently_played FOR DELETE
+  USING (auth.uid() = user_id);
