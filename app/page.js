@@ -239,12 +239,12 @@ export default function Home() {
   }, [sortedSongs]);
 
   const praiseSongs = useMemo(
-    () => sortedSongs.filter((song) => (song.category || "").toLowerCase() === "praise"),
+    () => shuffle(sortedSongs.filter((song) => (song.category || "").toLowerCase() === "praise")).slice(0, 15),
     [sortedSongs]
   );
 
   const worshipSongs = useMemo(
-    () => sortedSongs.filter((song) => (song.category || "").toLowerCase() !== "praise"),
+    () => shuffle(sortedSongs.filter((song) => (song.category || "").toLowerCase() !== "praise")).slice(0, 15),
     [sortedSongs]
   );
 
