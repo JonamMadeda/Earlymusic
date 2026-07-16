@@ -82,3 +82,38 @@ body {
   animation-play-state: paused;
   transform: scaleY(0.35);
 }
+
+/* Big waveform for full-screen player */
+.waveform-big {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 80px;
+}
+
+.waveform-big span {
+  display: block;
+  width: 6px;
+  border-radius: 99px;
+  background: currentColor;
+  animation: waveBar 0.9s ease-in-out infinite;
+}
+
+.waveform-big span:nth-child(1) { animation-delay: 0s;    height: 55%; }
+.waveform-big span:nth-child(2) { animation-delay: 0.2s;  height: 100%; }
+.waveform-big span:nth-child(3) { animation-delay: 0.12s; height: 70%; }
+.waveform-big span:nth-child(4) { animation-delay: 0.33s; height: 45%; }
+
+.waveform-big.paused span {
+  animation-play-state: paused;
+  transform: scaleY(0.35);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out;
+}
