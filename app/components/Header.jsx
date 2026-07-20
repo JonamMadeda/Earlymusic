@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Menu, X, Home, Library, ListMusic, LogOut, LogIn, CloudOff, Music, User } from "lucide-react";
+import { Menu, X, Home, Library, ListMusic, LogOut, LogIn, CloudOff, Music, User, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
@@ -9,7 +9,7 @@ import { useAuth } from "@/app/context/AuthContext";
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -121,6 +121,16 @@ const Header = () => {
               >
                 <User size={20} />
                 <span className="uppercase text-sm tracking-tight">Account</span>
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-x-3 rounded-2xl border border-transparent p-4 font-bold text-neutral-600 transition hover:border-neutral-100 hover:bg-neutral-50"
+              >
+                <ShieldCheck size={20} />
+                <span className="uppercase text-sm tracking-tight">Admin</span>
               </Link>
             )}
             <div className="my-2 border-t border-neutral-100" />

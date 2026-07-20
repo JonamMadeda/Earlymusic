@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Library, LogOut, LogIn, Music, User, Clock } from "lucide-react";
+import { Home, Library, LogOut, LogIn, Music, User, Clock, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
 import { useState, useEffect } from "react";
 
 const Sidebar = () => {
   const pathname = usePathname();
-  const { user, signOut } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { recentlyPlayed, setActiveSong, allSongs, activeSong } = usePlayer();
   const [mounted, setMounted] = useState(false);
 
@@ -136,6 +136,19 @@ const Sidebar = () => {
               >
                 <User size={18} />
                 <span>Account</span>
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className={`flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
+                  mounted && pathname === "/admin"
+                    ? "bg-accent/8 text-accent"
+                    : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
+                }`}
+              >
+                <ShieldCheck size={18} />
+                <span>Admin</span>
               </Link>
             )}
           </nav>

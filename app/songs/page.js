@@ -426,9 +426,12 @@ export default function SongsPage() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [activeCategory, setActiveCategory] = useState("All");
   const [activeDuration, setActiveDuration] = useState("All");
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const fetchSongs = async () => {
+      let hasCachedSongs = false;
+
       try {
         if (allSongs.length > 0) {
           setIsLoading(false);
@@ -439,8 +442,16 @@ export default function SongsPage() {
 
         const cachedSongs = localStorage.getItem("earlymusic_songs_cache");
         if (cachedSongs) {
-          setAllSongs(JSON.parse(cachedSongs));
-          setIsLoading(false);
+          try {
+            const parsedSongs = JSON.parse(cachedSongs);
+            hasCachedSongs = Array.isArray(parsedSongs) && parsedSongs.length > 0;
+            if (hasCachedSongs) {
+              setAllSongs(parsedSongs);
+              setIsLoading(false);
+            }
+          } catch {
+            localStorage.removeItem("earlymusic_songs_cache");
+          }
         }
 
         const { data, error } = await supabase
@@ -451,11 +462,12 @@ export default function SongsPage() {
         if (data) {
           setAllSongs(data);
           localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
-        } else if (error && !cachedSongs) {
-          console.error("Fetch error and no cache:", error);
+        } else if (error) {
+          throw error;
         }
       } catch (error) {
         console.error("Error:", error);
+        if (!hasCachedSongs) setLoadError(true);
       } finally {
         setIsLoading(false);
       }
@@ -669,9 +681,13 @@ export default function SongsPage() {
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Disc className="mb-4 text-neutral-300" size={32} />
-            <p className="text-sm font-semibold text-neutral-900">No songs yet</p>
+            <p className="text-sm font-semibold text-neutral-900">
+              {loadError ? "Songs could not be loaded" : "No songs yet"}
+            </p>
             <p className="mt-1 max-w-sm text-xs text-neutral-450">
-              Once tracks are uploaded, they&apos;ll appear here.
+              {loadError
+                ? "Check your connection or Supabase configuration and try again."
+                : "Once tracks are uploaded, they&apos;ll appear here."}
             </p>
           </div>
         )}

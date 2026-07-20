@@ -38,28 +38,32 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
       setIsLoading(true);
       setUploadProgress(0);
 
-      const fileExt = songFile.name.split(".").pop();
-      // Using a timestamp for better uniqueness
-      const fileName = `${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(7)}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error("Sign in before uploading a track.");
 
-      // UPLOAD WITH PROGRESS HANDLING
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("songs")
-        .upload(filePath, songFile, {
-          cacheControl: "3600",
-          upsert: false,
-          // Use the native progress event
-          onUploadProgress: (progressEvent) => {
-            const percent = (progressEvent.loaded / progressEvent.total) * 100;
-            // Use Math.floor to avoid jittery 100% before completion
-            setUploadProgress(Math.floor(percent));
-          },
-        });
+      const signingResponse = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          filename: songFile.name,
+          contentType: songFile.type,
+          contentLength: songFile.size,
+        }),
+      });
+      const signingBody = await signingResponse.json();
+      if (!signingResponse.ok) throw new Error(signingBody.error || "Could not prepare the upload.");
 
-      if (uploadError) throw uploadError;
+      const uploadResponse = await fetch(signingBody.presignedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": songFile.type },
+        body: songFile,
+      });
+      if (!uploadResponse.ok) throw new Error("Cloudflare R2 rejected the audio upload.");
+      setUploadProgress(100);
 
       // DATABASE INSERT
       const { error: dbError } = await supabase.from("songs").insert({
@@ -68,7 +72,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
         original_songs: originalSongs.filter(s => s.title || s.artist),
         category: category.trim(),
         duration: duration,
-        song_path: filePath,
+        song_path: signingBody.publicStorageUrl,
       });
 
       if (dbError) throw dbError;

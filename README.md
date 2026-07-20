@@ -27,3 +27,37 @@ The app now follows a warmer, more branded visual system with a soft ivory backg
 - Improve modal and admin surfaces.
 - Add stronger loading states and micro-interactions.
 - Refine playlist detail interactions and overall accessibility.
+
+## Cloudflare R2 uploads
+
+Audio uploads use a short-lived presigned URL from `POST /api/upload`; R2 credentials stay on the server. Set `R2BUCKETNAME` in `.env.local` to the real bucket name before uploading.
+
+Configure the R2 bucket CORS policy to allow browser `PUT` requests from your deployed site and `http://localhost:3000` during development:
+
+```json
+[
+  {
+    "AllowedOrigins": ["http://localhost:3000", "https://your-production-domain"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["Content-Type"],
+    "ExposeHeaders": [],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Run `lib/migration.sql` in the Supabase SQL editor to create the `audio_tracks` table and its row-level security policies.
+
+## Administrator access
+
+The `/admin` dashboard and R2 signing endpoint require a Supabase account with an `admin` row in `public.user_roles`; the former browser password is not used. After the migration runs, grant access in the Supabase SQL editor using your administrator's user ID:
+
+```sql
+insert into public.user_roles (user_id, role)
+values ('YOUR_AUTH_USER_UUID', 'admin')
+on conflict (user_id) do update set role = excluded.role;
+```
+
+Sign out and back in after granting the role. Do not put administrative roles in `user_metadata`, since users can edit that data themselves.
+
+To grant roles later from the dashboard, set the server-only `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` or your deployment environment. Create the user through Supabase Auth first, then enter their email in the **Administrator access** panel on `/admin`. Never expose the service-role key in client-side environment variables.

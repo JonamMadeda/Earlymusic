@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "./context/PlayerContext";
 import { PageSkeleton } from "./components/Skeleton";
-import { Disc, Music, Sparkles, Wand2, ArrowRight, Play, Clock, Pause, Heart, BookOpen } from "lucide-react";
+import { Disc, Music, ArrowRight, Play } from "lucide-react";
 
 const verses = [
   { ref: "Psalm 150:6", text: "Let everything that has breath praise the Lord." },
@@ -120,24 +120,17 @@ const FeaturedCard = ({ song, onClick }) => {
   );
 };
 
-const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, cta, vertical, activeSongId }) => {
+const SectionBlock = ({ id, title, items, onPlay, cta, vertical, activeSongId }) => {
   const Card = vertical ? FeaturedCard : SongRailCard;
   return (
     <section id={id} className="scroll-mt-24 py-2">
       <div className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Icon size={15} className="text-neutral-400" />
-            <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">{title}</h2>
-          </div>
-          <p className="mt-0.5 ml-7 text-[11px] text-neutral-400 md:text-xs">{subtitle}</p>
-        </div>
+        <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">{title}</h2>
         {cta && (
           <Link
             href={cta.href}
-            className="group flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-450 transition hover:text-neutral-900"
+            className="group flex items-center gap-1 text-[11px] font-medium text-neutral-400 transition hover:text-neutral-900"
           >
-            {cta.label}
             <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
           </Link>
         )}
@@ -167,6 +160,7 @@ export default function Home() {
   const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed, activeSong } =
     usePlayer();
   const [verseIndex, setVerseIndex] = useState(0);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (activeSong) return;
@@ -178,6 +172,8 @@ export default function Home() {
 
   useEffect(() => {
     const fetchSongs = async () => {
+      let hasCachedSongs = false;
+
       try {
         if (allSongs.length > 0) {
           setIsLoading(false);
@@ -188,8 +184,16 @@ export default function Home() {
 
         const cachedSongs = localStorage.getItem("earlymusic_songs_cache");
         if (cachedSongs) {
-          setAllSongs(JSON.parse(cachedSongs));
-          setIsLoading(false);
+          try {
+            const parsedSongs = JSON.parse(cachedSongs);
+            hasCachedSongs = Array.isArray(parsedSongs) && parsedSongs.length > 0;
+            if (hasCachedSongs) {
+              setAllSongs(parsedSongs);
+              setIsLoading(false);
+            }
+          } catch {
+            localStorage.removeItem("earlymusic_songs_cache");
+          }
         }
 
         const { data, error } = await supabase
@@ -200,11 +204,12 @@ export default function Home() {
         if (data) {
           setAllSongs(data);
           localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
-        } else if (error && !cachedSongs) {
-          console.error("Fetch error and no cache:", error);
+        } else if (error) {
+          throw error;
         }
       } catch (error) {
         console.error("Error:", error);
+        if (!hasCachedSongs) setLoadError(true);
       } finally {
         setIsLoading(false);
       }
@@ -238,188 +243,87 @@ export default function Home() {
     return shuffle(mixed).slice(0, 15);
   }, [sortedSongs]);
 
-  const praiseSongs = useMemo(
-    () => shuffle(sortedSongs.filter((song) => (song.category || "").toLowerCase() === "praise")).slice(0, 15),
-    [sortedSongs]
-  );
-
-  const worshipSongs = useMemo(
-    () => shuffle(sortedSongs.filter((song) => (song.category || "").toLowerCase() !== "praise")).slice(0, 15),
-    [sortedSongs]
-  );
-
-  const featuredIds = useMemo(
-    () => new Set(featuredSongs.map((song) => song.id)),
-    [featuredSongs]
-  );
-  const newestIds = useMemo(() => new Set(newestSongs.map((song) => song.id)), [newestSongs]);
-
-  const recommendedSongs = useMemo(() => {
-    const scoreSong = (song) => {
-      let score = 0;
-      const category = (song.category || "").toLowerCase();
-      const duration = (song.duration || "").toLowerCase();
-      const createdAt = new Date(song.created_at || 0).getTime();
-      const ageDays = Number.isFinite(createdAt)
-        ? (Date.now() - createdAt) / (24 * 60 * 60 * 1000)
-        : 999;
-
-      if (category === "praise") score += 4;
-      if (duration === "long") score += 1.5;
-      if (ageDays <= 30) score += 3;
-      else if (ageDays <= 90) score += 1;
-      return score;
-    };
-
-    return shuffle(
-      [...sortedSongs]
-        .filter((song) => !featuredIds.has(song.id) && !newestIds.has(song.id))
-        .sort((a, b) => scoreSong(b) - scoreSong(a))
-    ).slice(0, 6);
-  }, [sortedSongs, featuredIds, newestIds]);
-
   const stats = {
     total: allSongs?.length || 0,
     new: newestSongs.length,
-    featured: featuredSongs.length,
   };
 
   return (
     <main className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-5xl">
         
-        {/* Typographic Hero Banner */}
+        {/* Hero */}
         <section className="mb-6 md:mb-8">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-6 w-1 rounded-full bg-accent" />
-              <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
-                Worship in Song
-              </h1>
-            </div>
-            <div className="hidden shrink-0 md:flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3.5 py-1.5 text-[11px] font-medium text-neutral-400">
-              <span>{stats.total} tracks</span>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
+              Worship in Song
+            </h1>
+            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3 py-1 text-[11px] font-medium text-neutral-400">
+              <span>{stats.total}</span>
               <span className="h-1 w-1 rounded-full bg-neutral-300" />
-              <span className="text-accent font-semibold">{stats.new} new</span>
-            </div>
+              <span className="text-accent">{stats.new} new</span>
+            </span>
           </div>
-          <p className="mt-1.5 text-sm leading-relaxed text-neutral-400 max-w-xl">
-            A curated collection of worship and praise songs.
-          </p>
-          
-          <div className="mt-4 md:hidden inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3.5 py-1.5 text-[11px] font-medium text-neutral-400">
+          <div className="mt-3 md:hidden inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3 py-1 text-[11px] font-medium text-neutral-400">
             <span>{stats.total} tracks</span>
             <span className="h-1 w-1 rounded-full bg-neutral-300" />
-            <span className="text-accent font-semibold">{stats.new} new</span>
+            <span className="text-accent">{stats.new} new</span>
           </div>
         </section>
 
-        {/* Banner */}
-        <div className="mb-8 overflow-hidden rounded-2xl border px-5 py-4 md:rounded-3xl md:px-8 md:py-6 transition-all duration-500 bg-gradient-to-r from-accent/5 via-accent/10 to-transparent border-accent/10">
-          <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent md:h-12 md:w-12">
-              {activeSong ? (
-                <div className="waveform text-accent"><span /><span /><span /><span /></div>
-              ) : (
-                <Music size={18} className="md:size-[22px]" />
-              )}
+        {/* Now Playing / Verse */}
+        <div className="mb-8 overflow-hidden rounded-xl border px-4 py-3 transition-all bg-gradient-to-r from-accent/5 via-accent/10 to-transparent border-accent/10">
+          {activeSong ? (
+            <div className="flex items-center gap-3">
+              <div className="waveform text-accent flex h-7 w-7 shrink-0 items-center justify-center"><span /><span /><span /><span /></div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{activeSong.title}</p>
+                <p className="truncate text-xs text-neutral-500">{activeSong.author}</p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              {activeSong ? (
-                <>
-                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-accent/70 mb-0.5">Now Playing</p>
-                  <p className="truncate text-sm font-semibold tracking-tight text-neutral-900 md:text-base">
-                    {activeSong.title}
-                  </p>
-                  <p className="truncate mt-0.5 text-xs leading-relaxed text-neutral-500">
-                    {activeSong.author}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-semibold tracking-tight text-neutral-900 md:text-base">
-                    {verses[verseIndex].ref}
-                  </p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-neutral-500 md:text-sm transition-opacity duration-500">
-                    {verses[verseIndex].text}
-                  </p>
-                </>
-              )}
+          ) : (
+            <div className="flex items-center gap-3">
+              <Music size={14} className="shrink-0 text-neutral-400" />
+              <p className="text-xs leading-relaxed text-neutral-500 italic transition-opacity duration-500">
+                {verses[verseIndex].text}
+              </p>
             </div>
-          </div>
+          )}
         </div>
 
         {isLoading ? (
           <PageSkeleton letterGroups={3} />
         ) : (
           <div className="flex flex-col gap-8 md:gap-10">
+            {loadError && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                Songs could not be loaded. Check your connection or Supabase configuration and try again.
+              </div>
+            )}
             <SectionBlock
               id="featured-songs"
               title="Featured"
-              subtitle="Standout songs curated for you"
-              icon={Wand2}
               items={featuredSongs}
               onPlay={(song) => setActiveSong(song, featuredSongs)}
               activeSongId={activeSong?.id}
-              cta={{ href: "/songs", label: "View all" }}
+              cta={{ href: "/songs" }}
               vertical
-            />
-
-            <SectionBlock
-              id="recommended-songs"
-              title="Recommended"
-              subtitle="Suggestions based on your categories"
-              icon={Sparkles}
-              items={recommendedSongs}
-              onPlay={(song) => setActiveSong(song, recommendedSongs)}
-              activeSongId={activeSong?.id}
-              cta={{ href: "/songs", label: "View all" }}
             />
 
             <SectionBlock
               id="newest-songs"
               title="New Additions"
-              subtitle="Added in the past month"
-              icon={Music}
               items={newestSongs}
               onPlay={(song) => setActiveSong(song, newestSongs)}
               activeSongId={activeSong?.id}
-              cta={{ href: "/songs", label: "View all" }}
+              cta={{ href: "/songs" }}
               vertical
             />
-
-            {praiseSongs.length > 0 && (
-              <SectionBlock
-                id="praise-songs"
-                title="Praise Songs"
-                subtitle="High-energy praise and celebration"
-                icon={Heart}
-                items={praiseSongs}
-                onPlay={(song) => setActiveSong(song, praiseSongs)}
-                activeSongId={activeSong?.id}
-                cta={{ href: "/songs", label: "View all" }}
-              />
-            )}
-
-            {worshipSongs.length > 0 && (
-              <SectionBlock
-                id="worship-songs"
-                title="Worship Songs"
-                subtitle="Intimate worship and reflection"
-                icon={BookOpen}
-                items={worshipSongs}
-                onPlay={(song) => setActiveSong(song, worshipSongs)}
-                activeSongId={activeSong?.id}
-                cta={{ href: "/songs", label: "View all" }}
-              />
-            )}
 
             {recentlyPlayed.length > 0 && (
               <SectionBlock
                 id="recently-played"
                 title="Recently Played"
-                subtitle="Your listening history"
-                icon={Clock}
                 items={recentlyPlayed}
                 onPlay={(song) => setActiveSong(song, recentlyPlayed)}
                 activeSongId={activeSong?.id}

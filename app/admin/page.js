@@ -18,48 +18,29 @@ import {
 import UploadModal from "../components/UploadModal";
 import EditModal from "../components/EditModal";
 import { usePlayer } from "../context/PlayerContext";
+import { useAuth } from "../context/AuthContext";
 
 export default function AdminDashboard() {
   const { allSongs, setAllSongs } = usePlayer();
+  const { user, loading: authLoading, isAdmin, roleLoading } = useAuth();
 
-  const [isAuthorized, setIsAuthorized] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [isGrantingAdmin, setIsGrantingAdmin] = useState(false);
+  const [adminMessage, setAdminMessage] = useState("");
 
   // Edit State
   const [editModalSong, setEditModalSong] = useState(null);
 
   const router = useRouter();
-  const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
-
-  // Manual Logout: Only happens when the user clicks the button
   const handleLogout = () => {
-    setIsAuthorized(false);
-    router.replace("/");
+    supabase.auth.signOut().finally(() => router.replace("/"));
   };
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const checkAuth = () => {
-      // If already authorized in this session, don't prompt again
-      if (isAuthorized) return;
-
-      const password = prompt("Admin Access Required:");
-
-      if (password === ADMIN_PASSWORD && ADMIN_PASSWORD) {
-        setIsAuthorized(true);
-        fetchSongs();
-      } else {
-        router.replace("/");
-      }
-      setLoading(false);
-    };
-
-    checkAuth();
-    // Removed all auto-logout timers and listeners
-  }, [router, ADMIN_PASSWORD, isAuthorized]);
+    if (!authLoading && !roleLoading && isAdmin) fetchSongs();
+  }, [authLoading, roleLoading, isAdmin]);
 
   const fetchSongs = async () => {
     const { data } = await supabase
@@ -79,19 +60,58 @@ export default function AdminDashboard() {
     if (!isConfirmed) return;
 
     try {
-      await supabase.storage.from("songs").remove([path]);
-      const { error: dbError } = await supabase
-        .from("songs")
-        .delete()
-        .eq("id", id);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error("Sign in again before deleting songs.");
 
-      if (dbError) throw dbError;
+      const response = await fetch(`/api/admin/songs/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ songPath: path }),
+      });
+      if (!response.ok) {
+        const body = await response.json();
+        throw new Error(body.error || "Deletion failed.");
+      }
 
       // Update local state without redirecting
       setAllSongs((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
       console.error(err);
       alert("Deletion failed.");
+    }
+  };
+
+  const handleGrantAdmin = async (event) => {
+    event.preventDefault();
+    setAdminMessage("");
+    setIsGrantingAdmin(true);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error("Sign in again before changing administrator access.");
+
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ email: adminEmail }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Unable to grant administrator access.");
+
+      setAdminMessage(`${body.email} is now an administrator.`);
+      setAdminEmail("");
+    } catch (error) {
+      setAdminMessage(error.message || "Unable to grant administrator access.");
+    } finally {
+      setIsGrantingAdmin(false);
     }
   };
 
@@ -112,7 +132,24 @@ export default function AdminDashboard() {
 
   const alphabet = Object.keys(groupedSongs).sort();
 
-  if (loading || !isAuthorized) return null;
+  if (authLoading || roleLoading) {
+    return <main className="flex min-h-[90vh] items-center justify-center text-sm font-medium text-neutral-500">Checking administrator access…</main>;
+  }
+
+  if (!user || !isAdmin) {
+    return (
+      <main className="flex min-h-[90vh] items-center justify-center px-6">
+        <section className="max-w-md rounded-3xl border border-neutral-200 bg-white p-8 text-center shadow-sm">
+          <ShieldCheck className="mx-auto mb-4 text-neutral-400" size={32} />
+          <h1 className="text-xl font-bold text-neutral-900">Administrator access required</h1>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-500">Sign in with an account assigned the administrator role to manage the music library.</p>
+          <button onClick={() => router.push(user ? "/" : "/auth?redirectTo=/admin")} className="mt-6 rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white">
+            {user ? "Return home" : "Sign in"}
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
@@ -157,6 +194,37 @@ export default function AdminDashboard() {
               className="w-full bg-neutral-50 border border-neutral-100 rounded-2xl py-4.5 pl-16 pr-8 outline-none focus:border-red-600 focus:bg-white transition-all font-medium text-neutral-900 text-[15px] placeholder:text-neutral-300"
             />
           </div>
+
+          <section className="rounded-2xl border border-neutral-100 bg-neutral-50/70 p-5 md:p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-neutral-900">
+                  <ShieldCheck size={18} className="text-accent" />
+                  <h2 className="text-sm font-bold">Administrator access</h2>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-neutral-500">Grant dashboard access to an account that has already signed up.</p>
+              </div>
+              <form onSubmit={handleGrantAdmin} className="flex w-full gap-2 md:w-auto">
+                <input
+                  type="email"
+                  value={adminEmail}
+                  onChange={(event) => setAdminEmail(event.target.value)}
+                  placeholder="user@example.com"
+                  required
+                  disabled={isGrantingAdmin}
+                  className="min-w-0 flex-1 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-accent md:w-64"
+                />
+                <button
+                  type="submit"
+                  disabled={isGrantingAdmin}
+                  className="shrink-0 rounded-xl bg-neutral-900 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-neutral-700 disabled:opacity-50"
+                >
+                  {isGrantingAdmin ? "Granting…" : "Grant access"}
+                </button>
+              </form>
+            </div>
+            {adminMessage && <p role="status" className="mt-3 text-xs font-medium text-neutral-600">{adminMessage}</p>}
+          </section>
         </header>
 
         <div className="flex flex-col gap-y-6">

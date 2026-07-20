@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getAudioPublicUrl } from "@/lib/audioUrl";
 import { usePlayer } from "../context/PlayerContext";
 import {
   Play,
@@ -109,11 +110,7 @@ const Player = () => {
   useEffect(() => {
     if (song) {
       const loadAudio = async () => {
-        const { data } = supabase.storage
-          .from("songs")
-          .getPublicUrl(song.song_path);
-
-        const publicUrl = data.publicUrl;
+        const publicUrl = getAudioPublicUrl(song.song_path);
 
         const cachedUrl = await getCachedAudioUrl(publicUrl);
         if (cachedUrl) {

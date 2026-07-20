@@ -9,10 +9,15 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [roleLoading, setRoleLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      setLoading(false);
+    }).catch(() => {
+      supabase.auth.signOut({ scope: "local" });
       setLoading(false);
     });
 
@@ -32,6 +37,25 @@ export const AuthProvider = ({ children }) => {
       .then(({ data }) => {
         if (data) setProfile(data);
       });
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setIsAdmin(false);
+      setRoleLoading(false);
+      return;
+    }
+
+    setRoleLoading(true);
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle()
+      .then(({ data }) => setIsAdmin(data?.role === "admin"))
+      .catch(() => setIsAdmin(false))
+      .finally(() => setRoleLoading(false));
   }, [user]);
 
   const signIn = (email, password) =>
@@ -62,7 +86,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, resetPassword, signOut, updateProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAdmin, roleLoading, signIn, signUp, resetPassword, signOut, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
