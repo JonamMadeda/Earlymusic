@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "./context/PlayerContext";
 import { PageSkeleton } from "./components/Skeleton";
+import SongAvatar, { pastelGradient, initialLetter } from "./components/SongAvatar";
 import { Disc, Music, ArrowRight, Play } from "lucide-react";
 
 const verses = [
@@ -37,10 +38,10 @@ const SongRailCard = ({ song, onClick, isActive }) => {
     <button
       type="button"
       onClick={onClick}
-      className={`group relative flex w-[76vw] flex-shrink-0 snap-start items-center gap-3.5 rounded-2xl p-3.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md md:w-[290px] ${
+      className={`group relative flex w-[76vw] flex-shrink-0 snap-start items-center gap-3.5 rounded-2xl p-3.5 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg md:w-[290px] ${
         isActive
-          ? "bg-accent/8 border border-accent/20 shadow-sm"
-          : "bg-neutral-50/60 hover:bg-neutral-100/80 border border-transparent"
+          ? "bg-accent/8 border border-accent/20 shadow-md shadow-accent/5"
+          : "bg-white border border-neutral-100 shadow-sm hover:shadow-md hover:border-neutral-200"
       }`}
     >
       {isActive && (
@@ -48,15 +49,7 @@ const SongRailCard = ({ song, onClick, isActive }) => {
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
         </span>
       )}
-      <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl shadow-sm transition-colors ${
-        isActive ? "bg-accent text-white" : "bg-neutral-900/5 text-neutral-800 group-hover:bg-accent group-hover:text-white"
-      }`}>
-        {isActive ? (
-          <div className="waveform text-white"><span /><span /><span /><span /></div>
-        ) : (
-          <Music size={18} />
-        )}
-      </div>
+      <SongAvatar title={song.title} size="lg" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <p className={`truncate text-sm font-semibold tracking-tight ${
@@ -93,11 +86,9 @@ const FeaturedCard = ({ song, onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className="group relative flex w-[140px] flex-shrink-0 snap-start flex-col items-center gap-2.5 rounded-xl border border-neutral-100 bg-white p-3.5 text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md md:w-[170px] md:gap-3 md:rounded-2xl md:p-4"
+      className="group relative flex w-[140px] flex-shrink-0 snap-start flex-col items-center gap-2.5 rounded-xl border border-neutral-100 bg-white p-3.5 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg md:w-[170px] md:gap-3 md:rounded-2xl md:p-4 shadow-sm"
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-100 text-neutral-500 transition-colors group-hover:bg-accent group-hover:text-white md:h-14 md:w-14 md:rounded-2xl">
-        <Music size={18} className="md:size-[22px]" />
-      </div>
+      <SongAvatar title={song.title} size="lg" />
       <div className="w-full min-w-0">
         <div className="flex items-center justify-center gap-1">
           <p className="truncate text-xs font-semibold tracking-tight text-neutral-900 md:text-sm">
@@ -120,12 +111,39 @@ const FeaturedCard = ({ song, onClick }) => {
   );
 };
 
-const SectionBlock = ({ id, title, items, onPlay, cta, vertical, activeSongId }) => {
-  const Card = vertical ? FeaturedCard : SongRailCard;
+const SpotifyCard = ({ song, onClick }) => {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(song)}
+      className="group relative flex w-[170px] flex-shrink-0 snap-start flex-col rounded-2xl bg-white border border-neutral-100 p-3 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg shadow-sm"
+    >
+      <div className="relative mb-3 overflow-hidden rounded-xl">
+        <div
+          className="flex h-24 w-full items-center justify-center md:h-28"
+          style={{ background: pastelGradient(song.title || "default") }}
+        >
+          <Music size={24} className="text-white/40" />
+        </div>
+        <div className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white shadow-lg opacity-0 translate-y-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
+          <Play size={13} fill="currentColor" className="ml-0.5" />
+        </div>
+      </div>
+      <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
+      <p className="truncate text-xs text-neutral-400 mt-0.5">{song.author}</p>
+    </button>
+  );
+};
+
+const SectionBlock = ({ id, title, items, onPlay, cta, cardType, activeSongId }) => {
+  const Card = cardType === "spotify" ? SpotifyCard : cardType === "featured" ? FeaturedCard : SongRailCard;
   return (
     <section id={id} className="scroll-mt-24 py-2">
-      <div className="mb-4 flex items-end justify-between gap-4">
-        <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">{title}</h2>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-4 w-0.5 rounded-full bg-accent/50" />
+          <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">{title}</h2>
+        </div>
         {cta && (
           <Link
             href={cta.href}
@@ -143,7 +161,7 @@ const SectionBlock = ({ id, title, items, onPlay, cta, vertical, activeSongId })
               key={song.id}
               song={song}
               isActive={song.id === activeSongId}
-              onClick={() => onPlay(song)}
+              onClick={cardType === "spotify" ? () => onPlay(song) : onPlay}
             />
           ))
         ) : (
@@ -243,6 +261,11 @@ export default function Home() {
     return shuffle(mixed).slice(0, 15);
   }, [sortedSongs]);
 
+  const spotifySong = useMemo(() => {
+    if (sortedSongs.length === 0) return null;
+    return sortedSongs[Math.floor(Math.random() * Math.min(sortedSongs.length, 5))];
+  }, [sortedSongs]);
+
   const stats = {
     total: allSongs?.length || 0,
     new: newestSongs.length,
@@ -251,45 +274,48 @@ export default function Home() {
   return (
     <main className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-5xl">
-        
+
         {/* Hero */}
-        <section className="mb-6 md:mb-8">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
-              Worship in Song
-            </h1>
-            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3 py-1 text-[11px] font-medium text-neutral-400">
-              <span>{stats.total}</span>
+        <section className="relative mb-8 overflow-hidden rounded-2xl px-5 py-6 md:rounded-3xl md:px-8 md:py-8">
+          <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent" />
+          <div className="absolute top-0 right-0 h-64 w-64 translate-x-1/3 -translate-y-1/3 rounded-full bg-accent/5 blur-3xl" />
+          <div className="relative">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
+                Worship in Song
+              </h1>
+              <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200/60 bg-white/60 px-3 py-1 text-[11px] font-medium text-neutral-400 backdrop-blur-sm">
+                <span>{stats.total}</span>
+                <span className="h-1 w-1 rounded-full bg-neutral-300" />
+                <span className="text-accent">{stats.new} new</span>
+              </span>
+            </div>
+            <div className="mt-3 md:hidden inline-flex items-center gap-2 rounded-full border border-neutral-200/60 bg-white/60 px-3 py-1 text-[11px] font-medium text-neutral-400 backdrop-blur-sm">
+              <span>{stats.total} tracks</span>
               <span className="h-1 w-1 rounded-full bg-neutral-300" />
               <span className="text-accent">{stats.new} new</span>
-            </span>
-          </div>
-          <div className="mt-3 md:hidden inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3 py-1 text-[11px] font-medium text-neutral-400">
-            <span>{stats.total} tracks</span>
-            <span className="h-1 w-1 rounded-full bg-neutral-300" />
-            <span className="text-accent">{stats.new} new</span>
+            </div>
+            <div className="mt-4 flex items-center gap-3 rounded-xl bg-white/40 px-4 py-3 backdrop-blur-sm border border-white/60">
+              {activeSong ? (
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <SongAvatar title={activeSong.title} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{activeSong.title}</p>
+                    <p className="truncate text-xs text-neutral-500">{activeSong.author}</p>
+                  </div>
+                  <div className="waveform text-accent flex h-6 items-center"><span /><span /><span /><span /></div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <Music size={14} className="shrink-0 text-neutral-400" />
+                  <p className="text-xs leading-relaxed text-neutral-500 italic transition-opacity duration-500">
+                    {verses[verseIndex].text}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </section>
-
-        {/* Now Playing / Verse */}
-        <div className="mb-8 overflow-hidden rounded-xl border px-4 py-3 transition-all bg-gradient-to-r from-accent/5 via-accent/10 to-transparent border-accent/10">
-          {activeSong ? (
-            <div className="flex items-center gap-3">
-              <div className="waveform text-accent flex h-7 w-7 shrink-0 items-center justify-center"><span /><span /><span /><span /></div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{activeSong.title}</p>
-                <p className="truncate text-xs text-neutral-500">{activeSong.author}</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <Music size={14} className="shrink-0 text-neutral-400" />
-              <p className="text-xs leading-relaxed text-neutral-500 italic transition-opacity duration-500">
-                {verses[verseIndex].text}
-              </p>
-            </div>
-          )}
-        </div>
 
         {isLoading ? (
           <PageSkeleton letterGroups={3} />
@@ -300,6 +326,42 @@ export default function Home() {
                 Songs could not be loaded. Check your connection or Supabase configuration and try again.
               </div>
             )}
+
+            {spotifySong && (
+              <section className="scroll-mt-24 py-2">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-4 w-0.5 rounded-full bg-accent/50" />
+                  <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">Spotlight</h2>
+                </div>
+                <div className="relative overflow-hidden rounded-2xl md:rounded-3xl">
+                  <div
+                    className="absolute inset-0"
+                    style={{ background: pastelGradient(spotifySong.title || "default") }}
+                  />
+                  <div className="relative flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between md:p-8">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl font-bold text-white shadow-inner md:h-20 md:w-20 md:text-3xl backdrop-blur-sm">
+                        {initialLetter(spotifySong.title)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/70">Featured Track</p>
+                        <p className="truncate text-lg font-bold text-white md:text-xl">{spotifySong.title}</p>
+                        <p className="truncate text-sm text-white/70">{spotifySong.author}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSong(spotifySong, sortedSongs)}
+                      className="flex items-center gap-2 self-start rounded-full bg-white/20 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/30 md:self-auto"
+                    >
+                      <Play size={14} fill="currentColor" />
+                      Play
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
+
             <SectionBlock
               id="featured-songs"
               title="Featured"
@@ -307,7 +369,7 @@ export default function Home() {
               onPlay={(song) => setActiveSong(song, featuredSongs)}
               activeSongId={activeSong?.id}
               cta={{ href: "/songs" }}
-              vertical
+              cardType="spotify"
             />
 
             <SectionBlock
@@ -317,7 +379,7 @@ export default function Home() {
               onPlay={(song) => setActiveSong(song, newestSongs)}
               activeSongId={activeSong?.id}
               cta={{ href: "/songs" }}
-              vertical
+              cardType="featured"
             />
 
             {recentlyPlayed.length > 0 && (
@@ -337,7 +399,7 @@ export default function Home() {
                   No songs found
                 </p>
                 <p className="mt-1 max-w-sm text-xs text-neutral-450">
-                  When tracks are uploaded, they’ll appear here in the library sections.
+                  When tracks are uploaded, they&apos;ll appear here in the library sections.
                 </p>
               </div>
             )}

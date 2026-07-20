@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { PageSkeleton } from "../components/Skeleton";
+import SongAvatar from "../components/SongAvatar";
 
 import {
   ChevronDown,
@@ -13,7 +14,6 @@ import {
   Disc,
   Download,
   Filter,
-  Music,
   MoreHorizontal,
   Search,
   Info,
@@ -22,6 +22,7 @@ import {
   ListMusic,
   Plus,
   Check,
+  Play,
   Loader as SpinnerIcon,
 } from "lucide-react";
 
@@ -196,20 +197,19 @@ const SongRow = ({ song, onClick, isActive }) => {
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(e); }}
-      className={`group relative flex w-full items-center gap-2.5 md:gap-3.5 rounded-2xl p-2.5 md:p-3.5 text-left transition-all duration-300 ${
+      className={`group relative flex w-full items-center gap-2.5 md:gap-3.5 rounded-2xl p-2.5 md:p-3.5 text-left transition-all duration-300 shadow-sm ${
         isActive
-          ? "bg-neutral-100/80 border-l-2 border-accent pl-3 md:pl-3.5"
-          : "bg-neutral-50/60 hover:bg-neutral-100/80 border-l-2 border-transparent"
+          ? "bg-neutral-100/80 shadow-inner"
+          : "bg-white border border-neutral-100 hover:shadow-md hover:border-neutral-200"
       }`}
     >
-      <div
-        className={`flex h-10 w-10 md:h-12 md:w-12 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${
-          isActive
-            ? "bg-neutral-900 text-white"
-            : "bg-neutral-900/5 text-neutral-800 group-hover:bg-accent group-hover:text-white"
-        }`}
-      >
-        <Music size={18} />
+      <div className="relative shrink-0">
+        <SongAvatar title={song.title} />
+        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/0 transition-all group-hover:bg-black/30">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-neutral-900 opacity-0 transition-all group-hover:opacity-100 shadow-sm translate-y-1 group-hover:translate-y-0">
+            <Play size={11} fill="currentColor" className="ml-0.5" />
+          </div>
+        </div>
       </div>
 
       <div className="min-w-0 flex-1">
@@ -239,7 +239,7 @@ const SongRow = ({ song, onClick, isActive }) => {
             e.stopPropagation();
             setShowMenu(!showMenu);
           }}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-all duration-300 hover:bg-accent hover:text-white"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
           title="More"
         >
           <MoreHorizontal size={14} />
@@ -539,16 +539,15 @@ export default function SongsPage() {
       <div className="mx-auto max-w-5xl">
         <section className="mb-6 md:mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-6 w-1 rounded-full bg-accent" />
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
               Songs
             </h1>
+            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3 py-1 text-[11px] font-medium text-neutral-400">
+              {allSongs?.length || 0}
+            </span>
           </div>
-          <p className="mt-1.5 text-sm leading-relaxed text-neutral-400 max-w-xl">
-            Browse the full collection of curated songs.
-          </p>
-          <div className="mt-3 md:mt-4 flex items-center gap-3.5 text-xs text-neutral-400">
-            <span>{allSongs?.length || 0} tracks</span>
+          <div className="mt-3 md:hidden inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3 py-1 text-[11px] font-medium text-neutral-400">
+            {allSongs?.length || 0} tracks
           </div>
 
           <div className="mt-4 md:mt-6 flex flex-row flex-nowrap gap-2 md:min-w-[460px] md:justify-start">
@@ -660,10 +659,10 @@ export default function SongsPage() {
           <div className="flex flex-col gap-y-4 md:gap-y-6">
             {alphabet.map((letter) => (
               <div key={letter} className="flex flex-col gap-y-2 md:gap-y-3">
-                <div className="flex items-center gap-x-3 border-b border-neutral-100 pb-1.5 md:pb-2 px-1 md:px-2">
-                  <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-neutral-900">
+                <div className="flex items-center gap-3 border-b border-neutral-100 pb-1.5 md:pb-2 px-1 md:px-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-100 text-sm font-bold text-neutral-500 md:h-8 md:w-8 md:text-base">
                     {letter}
-                  </h2>
+                  </div>
                 </div>
                   <div className="flex flex-col gap-y-1 md:gap-y-2">
                     {groupedSongs[letter].map((song) => (

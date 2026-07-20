@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Download, Music, Play, Trash2, Disc, HardDrive } from "lucide-react";
+import { Download, Play, Trash2, Disc, HardDrive } from "lucide-react";
 import { usePlayer } from "@/app/context/PlayerContext";
+import SongAvatar from "@/app/components/SongAvatar";
 import {
   getDownloadedSongs,
   removeDownload,
@@ -67,7 +68,7 @@ export default function DownloadsPage() {
           )}
 
           {storage && (
-            <div className="mt-4 rounded-2xl bg-neutral-50/60 p-4">
+            <div className="mt-4 rounded-2xl bg-neutral-50/60 p-4 backdrop-blur-2xl">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
                   <HardDrive size={13} />
@@ -115,11 +116,9 @@ export default function DownloadsPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") handlePlay(song.id);
                 }}
-                className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl bg-neutral-50/60 p-3 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm"
+                className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl bg-neutral-50/60 p-3 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm hover:-translate-y-0.5"
               >
-                <div className="flex h-10 w-10 md:h-12 md:w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800 transition-colors group-hover:bg-accent group-hover:text-white">
-                  <Music size={18} />
-                </div>
+                <SongAvatar title={song.title} size="sm" />
 
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">

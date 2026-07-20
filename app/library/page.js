@@ -3,12 +3,13 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import SongItem from "../components/SongItem";
+import SongAvatar from "@/app/components/SongAvatar";
 import { PageSkeleton } from "../components/Skeleton";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import {
-  Disc, LogIn, Heart, ListMusic, Download, Play, Trash2, Plus, Music, HardDrive,
+  Disc, LogIn, Heart, ListMusic, Download, Play, Trash2, Plus, HardDrive,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -166,7 +167,7 @@ export default function LibraryPage() {
         </section>
 
         {/* Tabs */}
-        <div className="mb-6 flex gap-1 rounded-2xl bg-neutral-50/60 p-1">
+        <div className="mb-6 flex gap-1 rounded-2xl bg-neutral-50/60 p-1 backdrop-blur-2xl">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
@@ -226,7 +227,7 @@ export default function LibraryPage() {
             </div>
 
             {showCreate && (
-              <div className="mb-6 -mt-2 flex items-center gap-3 bg-neutral-50/60 rounded-2xl p-3.5">
+              <div className="mb-6 -mt-2 flex items-center gap-3 bg-neutral-50/60 rounded-2xl p-3.5 backdrop-blur-2xl">
                 <input
                   type="text"
                   placeholder="Playlist name..."
@@ -258,7 +259,7 @@ export default function LibraryPage() {
                   <div
                     key={pl.id}
                     onClick={() => router.push(`/playlists/${pl.id}`)}
-                    className="group flex cursor-pointer flex-col gap-3 rounded-2xl bg-neutral-50/60 p-5 text-left transition-all duration-300 hover:bg-neutral-100/80"
+                    className="group flex cursor-pointer flex-col gap-3 rounded-2xl bg-neutral-50/60 p-5 text-left transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800">
@@ -286,7 +287,7 @@ export default function LibraryPage() {
         {activeTab === "downloads" && (
           <div>
             {storage && (
-              <div className="mb-6 rounded-2xl bg-neutral-50/60 p-4">
+              <div className="mb-6 rounded-2xl bg-neutral-50/60 p-4 backdrop-blur-2xl">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
                     <HardDrive size={13} />
@@ -325,11 +326,9 @@ export default function LibraryPage() {
                     tabIndex={0}
                     onClick={() => setActiveSong(song, downloadedSongs)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setActiveSong(song, downloadedSongs); }}
-                    className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl bg-neutral-50/60 p-3 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm"
+                    className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl bg-neutral-50/60 p-3 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm backdrop-blur-2xl"
                   >
-                    <div className="flex h-10 w-10 md:h-12 md:w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800 transition-colors group-hover:bg-accent group-hover:text-white">
-                      <Music size={18} />
-                    </div>
+                    <SongAvatar title={song.title} size="sm" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
                       <p className="truncate text-[11px] font-medium text-neutral-400 mt-0.5">{song.author}</p>

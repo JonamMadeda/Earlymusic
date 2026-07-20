@@ -19,6 +19,7 @@ import UploadModal from "../components/UploadModal";
 import EditModal from "../components/EditModal";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
+import SongAvatar from "@/app/components/SongAvatar";
 
 export default function AdminDashboard() {
   const { allSongs, setAllSongs } = usePlayer();
@@ -152,30 +153,26 @@ export default function AdminDashboard() {
   }
 
   return (
-    <main className="min-h-[90vh] bg-white px-6 py-8 pb-40 relative">
+    <main className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
       <div className="max-w-5xl mx-auto">
         <header className="flex flex-col gap-y-10 mb-16">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
               <button
                 onClick={handleLogout}
-                className="text-neutral-400 hover:text-red-600 flex items-center gap-2 mb-4 transition font-semibold text-[12px] uppercase tracking-wider"
+                className="text-neutral-400 hover:text-accent flex items-center gap-2 mb-4 transition font-semibold text-[12px] uppercase tracking-wider"
               >
                 <ArrowLeft size={14} /> Lock Vault
               </button>
-              <div className="flex items-center gap-x-4">
-                <h1 className="text-4xl font-black text-neutral-900 tracking-tighter uppercase">
-                  Vault
-                </h1>
-                <div className="h-8 w-8 bg-black rounded-lg flex items-center justify-center text-white shadow-lg">
-                  <ShieldCheck size={18} />
-                </div>
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-1 rounded-full bg-accent" />
+                <h1 className="text-xl font-bold tracking-tight text-neutral-900 uppercase">Vault</h1>
               </div>
             </div>
 
             <button
               onClick={() => setIsModalOpen(true)}
-              className="bg-red-600 text-white px-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-neutral-900 transition-all shadow-xl shadow-red-100 active:scale-95 text-sm uppercase tracking-tight"
+              className="rounded-full bg-accent text-white shadow-sm px-8 py-3.5 font-bold flex items-center justify-center gap-3 hover:bg-accent/90 transition-all active:scale-95 text-sm uppercase tracking-tight"
             >
               <Upload size={18} strokeWidth={2.5} /> Upload Track
             </button>
@@ -183,7 +180,7 @@ export default function AdminDashboard() {
 
           <div className="relative group">
             <Search
-              className="absolute left-6 top-1/2 -translate-y-1/2 text-neutral-300 group-focus-within:text-red-600 transition-colors"
+              className="absolute left-6 top-1/2 -translate-y-1/2 text-neutral-300 group-focus-within:text-accent transition-colors"
               size={18}
             />
             <input
@@ -191,11 +188,11 @@ export default function AdminDashboard() {
               placeholder="Search tracks or artists in vault..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-100 rounded-2xl py-4.5 pl-16 pr-8 outline-none focus:border-red-600 focus:bg-white transition-all font-medium text-neutral-900 text-[15px] placeholder:text-neutral-300"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-2xl py-4.5 pl-16 pr-8 outline-none focus:border-accent focus:bg-white transition-all font-medium text-neutral-900 text-[15px] placeholder:text-neutral-300"
             />
           </div>
 
-          <section className="rounded-2xl border border-neutral-100 bg-neutral-50/70 p-5 md:p-6">
+          <section className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5 md:p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
                 <div className="flex items-center gap-2 text-neutral-900">
@@ -217,7 +214,7 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   disabled={isGrantingAdmin}
-                  className="shrink-0 rounded-xl bg-neutral-900 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-neutral-700 disabled:opacity-50"
+                  className="shrink-0 rounded-full bg-accent px-4 py-2.5 text-xs font-bold text-white transition hover:bg-accent/90 disabled:opacity-50"
                 >
                   {isGrantingAdmin ? "Granting…" : "Grant access"}
                 </button>
@@ -229,7 +226,7 @@ export default function AdminDashboard() {
 
         <div className="flex flex-col gap-y-6">
           {alphabet.length === 0 ? (
-            <div className="py-32 flex flex-col items-center justify-center border border-dashed border-neutral-100 rounded-[2rem] text-neutral-200">
+            <div className="py-32 flex flex-col items-center justify-center rounded-2xl bg-neutral-50/60 text-neutral-200">
               <Music size={48} strokeWidth={1.5} className="mb-4 opacity-20" />
               <p className="font-medium text-[13px] text-neutral-400">
                 No matching tracks found
@@ -251,9 +248,7 @@ export default function AdminDashboard() {
                         className="bg-white p-1.5 md:p-2 rounded-2xl flex items-center justify-between group hover:bg-neutral-50 border border-transparent hover:border-neutral-100 transition-all duration-300"
                       >
                           <div className="flex items-center gap-x-4 md:gap-x-6 flex-1 min-w-0">
-                            <div className="h-10 w-10 md:h-11 md:w-11 bg-neutral-100 rounded-xl flex items-center justify-center text-neutral-400 group-hover:bg-white group-hover:shadow-sm transition-all border border-transparent group-hover:border-neutral-100 flex-shrink-0">
-                              <Music size={18} />
-                            </div>
+                            <SongAvatar title={song.title} size="sm" />
                             <div className="flex-1 min-w-0 flex items-center">
                               <div className="min-w-0 flex-1">
                                 <p className="font-semibold text-neutral-900 text-[15px] leading-tight mb-0.5 tracking-tight truncate">
@@ -274,7 +269,7 @@ export default function AdminDashboard() {
                                     className={`
                                       px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider
                                       ${song.category === "Praise"
-                                        ? "bg-red-50 text-red-600"
+                                        ? "bg-accent/10 text-accent"
                                         : "bg-neutral-100 text-neutral-400"
                                       }
                                     `}
@@ -289,7 +284,7 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => handleEditClick(song)}
-                              className="w-10 h-10 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                              className="w-10 h-10 flex items-center justify-center text-neutral-400 hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
                             >
                               <Edit3 size={18} />
                             </button>
@@ -297,7 +292,7 @@ export default function AdminDashboard() {
                               onClick={() =>
                                 handleDelete(song.id, song.song_path)
                               }
-                              className="w-10 h-10 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                              className="w-10 h-10 flex items-center justify-center text-neutral-400 hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
                             >
                               <Trash2 size={18} />
                             </button>

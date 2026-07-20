@@ -57,7 +57,7 @@ export default function PlaylistsPage() {
     return (
       <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
         <div className="max-w-5xl mx-auto flex items-center justify-center py-32">
-          <div className="w-8 h-8 border-2 border-neutral-900 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
         </div>
       </main>
     );
@@ -117,7 +117,7 @@ export default function PlaylistsPage() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createPlaylist()}
-              className="flex-1 rounded-full border border-neutral-200/80 bg-white px-3.5 py-2.5 text-xs font-medium outline-none transition placeholder:text-neutral-300 focus:border-neutral-300"
+              className="flex-1 rounded-full border border-neutral-200/80 bg-white px-3.5 py-2.5 text-xs font-medium outline-none transition placeholder:text-neutral-300               focus:border-accent"
               autoFocus
             />
             <button
@@ -131,7 +131,7 @@ export default function PlaylistsPage() {
         )}
 
         {playlists.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="flex flex-col items-center justify-center py-20 text-center rounded-2xl bg-neutral-50/60 backdrop-blur-2xl">
             <Disc className="mb-4 text-neutral-300" size={32} />
             <p className="text-sm font-semibold text-neutral-900">
               No playlists yet
@@ -146,7 +146,7 @@ export default function PlaylistsPage() {
               <div
                 key={pl.id}
                 onClick={() => router.push(`/playlists/${pl.id}`)}
-                className="group flex cursor-pointer flex-col gap-3 rounded-2xl bg-neutral-50/60 p-5 text-left transition-all duration-300 hover:bg-neutral-100/80"
+                className="group flex cursor-pointer flex-col gap-3 rounded-2xl bg-neutral-50/60 p-5 text-left backdrop-blur-2xl hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 hover:bg-neutral-100/80"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800">

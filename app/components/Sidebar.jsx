@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Library, LogOut, LogIn, Music, User, Clock, ShieldCheck } from "lucide-react";
+import { Home, Library, LogIn, User, Clock, ShieldCheck, Music } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
 import { useState, useEffect } from "react";
+import SongAvatar from "@/app/components/SongAvatar";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const { user, isAdmin } = useAuth();
-  const { recentlyPlayed, setActiveSong, allSongs, activeSong } = usePlayer();
+  const { recentlyPlayed, setActiveSong, activeSong } = usePlayer();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -37,39 +38,36 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="sticky top-0 hidden h-full w-[240px] flex-shrink-0 md:flex lg:w-[260px] bg-neutral-50/50">
-      <div className="flex h-full w-full flex-col p-6">
+    <aside className="sticky top-0 hidden h-full w-[240px] flex-shrink-0 md:flex lg:w-[260px] bg-white border-r border-neutral-100 shadow-sm">
+      <div className="flex h-full w-full flex-col p-5">
         
         {/* Brand Logo Header */}
-        <div className="mb-8 flex items-center gap-3 px-1.5">
+        <div className="mb-6 flex items-center gap-3 px-1">
           <img
             src="/icons/icon-192x192.png"
             alt="Early Music"
             className="h-9 w-9 rounded-xl object-cover shadow-sm shadow-accent/10"
           />
-          <div className="min-w-0">
-            <h2 className="text-[15px] font-black tracking-tight text-neutral-900 leading-none md:text-[17px]">
-              Early Music
-            </h2>
-            <span className="mt-1 block text-[8px] font-semibold uppercase tracking-[0.28em] text-neutral-400">
-              Curated Collection
-            </span>
-          </div>
+          <h2 className="text-[15px] font-black tracking-tight text-neutral-900 leading-none md:text-[17px]">
+            Early Music
+          </h2>
         </div>
 
         {/* Navigation Routes */}
-        <nav className="flex flex-col gap-y-1">
+        <nav className="flex flex-col gap-y-0.5">
           {routes.map((item) => (
             <Link
               key={item.label}
               href={item.href}
-              className={`flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
+              className={`group flex items-center gap-x-3 rounded-xl px-3 py-2.5 text-sm font-semibold tracking-tight transition-all duration-200 ${
                 item.active
-                  ? "bg-accent/8 text-accent"
-                  : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
+                  ? "bg-neutral-100 text-neutral-900"
+                  : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
               }`}
             >
-              <item.icon size={18} strokeWidth={item.active ? 2.5 : 2} />
+              {item.active && <div className="h-4 w-0.5 rounded-full bg-accent -ml-0.5 mr-2" />}
+              {!item.active && <div className="w-2.5" />}
+              <item.icon size={17} strokeWidth={item.active ? 2.5 : 2} />
               <span>{item.label}</span>
             </Link>
           ))}
@@ -77,41 +75,33 @@ const Sidebar = () => {
 
         {/* Recently Played */}
         {recentlyPlayed.length > 0 && (
-          <div className="mt-6 flex-1 overflow-hidden">
-            <div className="mb-2 flex items-center gap-2 px-1.5">
-              <div className="h-3 w-0.5 rounded-full bg-accent/60" />
+          <div className="mt-5 flex-1 overflow-hidden">
+            <div className="mb-2 flex items-center gap-2 px-1">
               <Clock size={11} className="text-neutral-400" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">
                 Recent
               </span>
             </div>
-            <nav className="flex flex-col gap-y-0.5 overflow-y-auto max-h-[calc(100%-2rem)] no-scrollbar">
+            <nav className="flex flex-col gap-y-0.5 overflow-y-auto max-h-[calc(100%-2rem)] no-scrollbar custom-scrollbar pr-1">
               {recentlyPlayed.slice(0, 7).map((song) => (
                 <button
                   key={song.id}
                   type="button"
                   onClick={() => setActiveSong(song, recentlyPlayed)}
-                  className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition ${
+                  className={`group flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition ${
                     activeSong?.id === song.id
-                      ? "bg-accent/10"
-                      : "hover:bg-accent/10"
+                      ? "bg-accent/8"
+                      : "hover:bg-neutral-50"
                   }`}
                 >
-                  <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition ${
-                    activeSong?.id === song.id
-                      ? "bg-accent/15 text-accent"
-                      : "bg-neutral-100 text-neutral-400 group-hover:bg-accent/15 group-hover:text-accent"
-                  }`}>
-                    {activeSong?.id === song.id ? (
-                      <div className="waveform text-accent" style={{ height: 10, gap: 1 }}><span /><span /><span /><span /></div>
-                    ) : (
-                      <Music size={11} />
-                    )}
-                  </div>
+                  <SongAvatar title={song.title} size="xs" />
+                  {activeSong?.id === song.id && (
+                    <span className="absolute left-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
+                  )}
                   <p className={`min-w-0 flex-1 truncate text-xs font-medium transition ${
                     activeSong?.id === song.id
                       ? "text-accent"
-                      : "text-neutral-600 group-hover:text-accent"
+                      : "text-neutral-600 group-hover:text-neutral-900"
                   }`}>
                     {song.title}
                   </p>
@@ -122,46 +112,47 @@ const Sidebar = () => {
         )}
 
         {/* Bottom Profile / Auth */}
-        <div className="mt-auto pt-5">
-          <div className="mb-3 border-t border-neutral-200/60" />
-          <nav className="flex flex-col gap-y-1">
-            {user && (
-              <Link
-                href="/account"
-                className={`flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
-                  mounted && pathname === "/account"
-                    ? "bg-accent/8 text-accent"
-                    : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
-                }`}
-              >
-                <User size={18} />
-                <span>Account</span>
-              </Link>
-            )}
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className={`flex items-center gap-x-3.5 rounded-xl px-4 py-3 text-sm font-semibold tracking-tight transition-all duration-200 ${
-                  mounted && pathname === "/admin"
-                    ? "bg-accent/8 text-accent"
-                    : "text-neutral-550 hover:bg-neutral-200/50 hover:text-neutral-900"
-                }`}
-              >
-                <ShieldCheck size={18} />
-                <span>Admin</span>
-              </Link>
-            )}
-          </nav>
-          {!user && (
-            <Link
-              href="/auth"
-              className="mt-1 flex w-full items-center gap-3.5 rounded-xl px-4 py-3 text-left text-sm font-semibold tracking-tight text-neutral-550 transition-all duration-200 hover:bg-neutral-200/50 hover:text-neutral-900"
-              title="Sign In"
-            >
-              <LogIn size={18} />
-              <span>Sign In</span>
-            </Link>
-          )}
+        <div className="mt-auto pt-4">
+          <div className="mb-2 border-t border-neutral-100" />
+          <div className="rounded-xl bg-neutral-50 p-1.5">
+            <nav className="flex flex-col gap-y-0.5">
+              {user && (
+                <Link
+                  href="/account"
+                  className={`flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-semibold tracking-tight transition-all duration-200 ${
+                    mounted && pathname === "/account"
+                      ? "bg-white text-neutral-900 shadow-sm"
+                      : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
+                  }`}
+                >
+                  <User size={17} />
+                  <span>Account</span>
+                </Link>
+              )}
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className={`flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-semibold tracking-tight transition-all duration-200 ${
+                    mounted && pathname === "/admin"
+                      ? "bg-white text-neutral-900 shadow-sm"
+                      : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
+                  }`}
+                >
+                  <ShieldCheck size={17} />
+                  <span>Admin</span>
+                </Link>
+              )}
+              {!user && (
+                <Link
+                  href="/auth"
+                  className="flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-semibold tracking-tight text-neutral-500 transition-all duration-200 hover:bg-white/60 hover:text-neutral-900"
+                >
+                  <LogIn size={17} />
+                  <span>Sign In</span>
+                </Link>
+              )}
+            </nav>
+          </div>
         </div>
       </div>
     </aside>

@@ -71,9 +71,9 @@ function AuthForm() {
 
   if (updated) {
     return (
-      <main className="min-h-[90vh] bg-white flex items-center justify-center px-6 py-8">
+      <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
         <div className="w-full max-w-sm text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600 mx-auto mb-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent mx-auto mb-4">
             <KeyRound size={24} />
           </div>
           <h2 className="text-lg font-bold text-neutral-900">Password updated</h2>
@@ -84,12 +84,18 @@ function AuthForm() {
   }
 
   return (
-    <main className="min-h-[90vh] bg-white flex items-center justify-center px-6 py-8">
+    <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-black tracking-tighter uppercase text-neutral-900">
-            earlymusic
-          </h1>
+          <div className="flex items-center gap-2 justify-center">
+            <div className="h-6 w-1 rounded-full bg-accent" />
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900 uppercase">
+              {mode === "login" && "Sign In"}
+              {mode === "signup" && "Sign Up"}
+              {mode === "reset" && "Reset Password"}
+              {mode === "update-password" && "Update Password"}
+            </h1>
+          </div>
           <p className="text-neutral-500 text-sm mt-2 font-medium">
             {mode === "login" && "Welcome back"}
             {mode === "signup" && "Create an account"}
@@ -157,7 +163,7 @@ function AuthForm() {
           <button
             type="submit"
             disabled={submitting}
-            className="bg-red-600 py-3.5 rounded-xl text-white font-bold hover:bg-neutral-900 transition-all shadow-lg shadow-red-100 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="bg-accent py-3.5 rounded-xl text-white font-bold hover:bg-neutral-900 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {submitting && <Loader size={16} className="animate-spin" />}
             {mode === "login" && "Sign In"}
@@ -181,7 +187,7 @@ function AuthForm() {
               Don&apos;t have an account?{" "}
               <button
                 onClick={() => { setMode("signup"); setError(""); }}
-                className="text-red-600 font-bold hover:underline"
+                className="text-accent font-bold hover:underline"
               >
                 Sign Up
               </button>
@@ -191,7 +197,7 @@ function AuthForm() {
               Already have an account?{" "}
               <button
                 onClick={() => { setMode("login"); setError(""); }}
-                className="text-red-600 font-bold hover:underline"
+                className="text-accent font-bold hover:underline"
               >
                 Sign In
               </button>

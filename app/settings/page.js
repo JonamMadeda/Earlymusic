@@ -82,7 +82,7 @@ export default function SettingsPage() {
 
         <div className="flex flex-col gap-4">
           {/* Storage */}
-          <div className="rounded-2xl bg-neutral-50/60 p-5">
+          <div className="rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl hover:shadow-md">
             <div className="flex items-center gap-2 mb-3">
               <HardDrive size={15} className="text-neutral-400" />
               <h2 className="text-sm font-bold tracking-tight text-neutral-900">Storage</h2>
@@ -120,7 +120,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Clear Downloads */}
-          <div className="rounded-2xl bg-neutral-50/60 p-5">
+          <div className="rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl hover:shadow-md">
             <div className="flex items-center gap-2 mb-2">
               <Trash2 size={15} className="text-neutral-400" />
               <h2 className="text-sm font-bold tracking-tight text-neutral-900">Downloads</h2>
@@ -131,7 +131,7 @@ export default function SettingsPage() {
             <button
               onClick={clearDownloads}
               disabled={clearingDownloads || downloadedSongs.length === 0}
-              className="inline-flex items-center gap-2 rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-600 transition hover:bg-red-50 hover:text-red-500 hover:border-red-200 disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-accent/90 disabled:opacity-40"
             >
               <Trash2 size={13} />
               {clearingDownloads ? "Clearing..." : "Clear Downloads"}
@@ -139,7 +139,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Clear All App Data */}
-          <div className="rounded-2xl bg-neutral-50/60 p-5">
+          <div className="rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl">
             <div className="flex items-center gap-2 mb-2">
               <RotateCcw size={15} className="text-neutral-400" />
               <h2 className="text-sm font-bold tracking-tight text-neutral-900">Reset App Data</h2>
@@ -151,7 +151,7 @@ export default function SettingsPage() {
             <button
               onClick={clearAllData}
               disabled={clearingAll}
-              className="inline-flex items-center gap-2 rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-600 transition hover:bg-red-50 hover:text-red-500 hover:border-red-200 disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-full border border-red-200 px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40"
             >
               <RotateCcw size={13} />
               {clearingAll ? "Resetting..." : "Reset All Data"}
@@ -159,7 +159,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Refresh App */}
-          <div className="rounded-2xl bg-neutral-50/60 p-5">
+          <div className="rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl hover:shadow-md">
             <div className="flex items-center gap-2 mb-2">
               <RefreshCw size={15} className="text-neutral-400" />
               <h2 className="text-sm font-bold tracking-tight text-neutral-900">Update App</h2>
@@ -177,7 +177,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Version */}
-          <div className="rounded-2xl bg-neutral-50/60 px-5 py-3">
+          <div className="rounded-2xl bg-neutral-50/60 px-5 py-3 backdrop-blur-2xl hover:shadow-md">
             <p className="text-[11px] font-medium text-neutral-400 text-center">
               Early Music v1.0.0
             </p>

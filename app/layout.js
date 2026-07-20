@@ -8,8 +8,10 @@ import { AuthProvider } from "./context/AuthContext";
 import { Analytics } from "@vercel/analytics/react";
 import InstallPrompt from "./components/InstallPrompt";
 import SWRegister from "./components/SWRegister";
+import { Inter } from "next/font/google";
 
-// UPDATED: Theme color changed to white for the mobile top bar
+const inter = Inter({ subsets: ["latin"] });
+
 export const viewport = {
   themeColor: "#ffffff",
   width: "device-width",
@@ -23,11 +25,9 @@ export const metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    // "default" ensures a white background with dark text/icons on iOS
     statusBarStyle: "default",
     title: "Early Music",
   },
-  // Mapping icons for PWA and iOS discovery
   icons: {
     icon: "/icons/icon-192x192.png",
     apple: "/icons/icon-192x192.png",
@@ -37,7 +37,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-transparent text-neutral-900 antialiased">
+      <body className={`${inter.className} min-h-screen bg-transparent text-neutral-900 antialiased`}>
         <PlayerProvider>
           <AuthProvider>
             <div className="relative flex min-h-[90vh] h-screen overflow-hidden bg-white">
@@ -64,4 +64,3 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
-

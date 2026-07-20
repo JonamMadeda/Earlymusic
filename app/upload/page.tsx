@@ -68,23 +68,28 @@ export default function UploadPage() {
   };
 
   return (
-    <main className="mx-auto min-h-screen max-w-xl px-6 py-16">
-      <h1 className="text-3xl font-bold text-neutral-900">Upload audio</h1>
-      <p className="mt-2 text-sm text-neutral-500">Audio uploads go directly to Cloudflare R2.</p>
-      <form onSubmit={handleSubmit} className="mt-8 space-y-5 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-        <label className="block text-sm font-medium text-neutral-700">
-          Track title
-          <input value={title} onChange={(event) => setTitle(event.target.value)} required className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2" />
-        </label>
-        <label className="block text-sm font-medium text-neutral-700">
-          Audio file
-          <input type="file" accept="audio/*" required disabled={isUploading} onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="mt-2 block w-full text-sm" />
-        </label>
-        <button type="submit" disabled={isUploading} className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-          {isUploading ? "Uploading…" : "Upload track"}
-        </button>
-        {status && <p role="status" className="text-sm text-neutral-600">{status}</p>}
-      </form>
+    <main className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
+      <div className="mx-auto max-w-xl">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-1 rounded-full bg-accent" />
+          <h1 className="text-xl font-bold tracking-tight text-neutral-900 uppercase">Upload</h1>
+        </div>
+        <p className="mt-1 text-sm text-neutral-500">Upload audio files directly to Cloudflare R2.</p>
+        <form onSubmit={handleSubmit} className="mt-8 space-y-5 rounded-2xl bg-neutral-50/60 p-6">
+          <label className="block text-xs font-medium text-neutral-500">
+            Track title
+            <input value={title} onChange={(event) => setTitle(event.target.value)} required className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-accent" />
+          </label>
+          <label className="block text-xs font-medium text-neutral-500">
+            Audio file
+            <input type="file" accept="audio/*" required disabled={isUploading} onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="mt-2 block w-full text-sm rounded-xl border border-neutral-200 bg-white px-3 py-2.5 file:mr-2 file:rounded-full file:border-0 file:bg-accent file:px-3 file:py-1 file:text-xs file:font-semibold file:text-white" />
+          </label>
+          <button type="submit" disabled={isUploading} className="rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 disabled:opacity-50">
+            {isUploading ? "Uploading…" : "Upload track"}
+          </button>
+          {status && <p role="status" className="text-sm text-neutral-600">{status}</p>}
+        </form>
+      </div>
     </main>
   );
 }
