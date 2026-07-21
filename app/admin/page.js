@@ -134,17 +134,19 @@ export default function AdminDashboard() {
   const alphabet = Object.keys(groupedSongs).sort();
 
   if (authLoading || roleLoading) {
-    return <main className="flex min-h-[90vh] items-center justify-center text-sm font-medium text-neutral-500">Checking administrator access…</main>;
+    return <main className="flex min-h-[90vh] items-center justify-center">
+      <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+    </main>;
   }
 
   if (!user || !isAdmin) {
     return (
       <main className="flex min-h-[90vh] items-center justify-center px-6">
-        <section className="max-w-md rounded-3xl border border-neutral-200 bg-white p-8 text-center shadow-sm">
+        <section className="max-w-md rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-8 text-center shadow-sm">
           <ShieldCheck className="mx-auto mb-4 text-neutral-400" size={32} />
           <h1 className="text-xl font-bold text-neutral-900">Administrator access required</h1>
           <p className="mt-2 text-sm leading-relaxed text-neutral-500">Sign in with an account assigned the administrator role to manage the music library.</p>
-          <button onClick={() => router.push(user ? "/" : "/auth?redirectTo=/admin")} className="mt-6 rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white">
+          <button onClick={() => router.push(user ? "/" : "/auth?redirectTo=/admin")} className="mt-6 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent/90">
             {user ? "Return home" : "Sign in"}
           </button>
         </section>
@@ -162,11 +164,10 @@ export default function AdminDashboard() {
                 onClick={handleLogout}
                 className="text-neutral-400 hover:text-accent flex items-center gap-2 mb-4 transition font-semibold text-[12px] uppercase tracking-wider"
               >
-                <ArrowLeft size={14} /> Lock Vault
+                <ArrowLeft size={14} /> Sign Out
               </button>
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-1 rounded-full bg-accent" />
-                <h1 className="text-xl font-bold tracking-tight text-neutral-900 uppercase">Vault</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">Vault</h1>
               </div>
             </div>
 
@@ -180,15 +181,15 @@ export default function AdminDashboard() {
 
           <div className="relative group">
             <Search
-              className="absolute left-6 top-1/2 -translate-y-1/2 text-neutral-300 group-focus-within:text-accent transition-colors"
-              size={18}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-300 group-focus-within:text-accent transition-colors"
+              size={16}
             />
             <input
               type="text"
-              placeholder="Search tracks or artists in vault..."
+              placeholder="Search tracks or artists..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-2xl py-4.5 pl-16 pr-8 outline-none focus:border-accent focus:bg-white transition-all font-medium text-neutral-900 text-[15px] placeholder:text-neutral-300"
+              className="w-full rounded-full border border-neutral-200/80 bg-neutral-50/60 px-10 py-3 text-sm font-medium text-neutral-900 outline-none transition placeholder:text-neutral-300 focus:border-neutral-300 focus:bg-white"
             />
           </div>
 
@@ -226,7 +227,7 @@ export default function AdminDashboard() {
 
         <div className="flex flex-col gap-y-6">
           {alphabet.length === 0 ? (
-            <div className="py-32 flex flex-col items-center justify-center rounded-2xl bg-neutral-50/60 text-neutral-200">
+            <div className="py-32 flex flex-col items-center justify-center rounded-2xl bg-neutral-50/60 backdrop-blur-2xl text-neutral-200">
               <Music size={48} strokeWidth={1.5} className="mb-4 opacity-20" />
               <p className="font-medium text-[13px] text-neutral-400">
                 No matching tracks found
@@ -235,17 +236,16 @@ export default function AdminDashboard() {
           ) : (
             alphabet.map((letter) => (
               <div key={letter} className="flex flex-col gap-y-2">
-                <div className="flex items-center gap-x-4 border-b border-neutral-50 pb-2 px-2">
-                  <h2 className="text-3xl font-semibold text-neutral-900 tracking-tight">
-                    {letter}
-                  </h2>
+                <div className="flex items-center gap-3 border-b border-neutral-100 pb-2 px-1">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/10 text-[10px] font-bold text-accent">{letter}</span>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">{letter}</h2>
                 </div>
 
                 <div className="flex flex-col gap-y-1">
                   {groupedSongs[letter].map((song) => (
                       <div
                         key={song.id}
-                        className="bg-white p-1.5 md:p-2 rounded-2xl flex items-center justify-between group hover:bg-neutral-50 border border-transparent hover:border-neutral-100 transition-all duration-300"
+                        className="bg-neutral-50/60 p-1.5 md:p-2 rounded-2xl flex items-center justify-between group hover:bg-neutral-100/80 hover:shadow-sm backdrop-blur-2xl border border-transparent transition-all duration-300"
                       >
                           <div className="flex items-center gap-x-4 md:gap-x-6 flex-1 min-w-0">
                             <SongAvatar title={song.title} size="sm" />
@@ -292,7 +292,7 @@ export default function AdminDashboard() {
                               onClick={() =>
                                 handleDelete(song.id, song.song_path)
                               }
-                              className="w-10 h-10 flex items-center justify-center text-neutral-400 hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
+                              className="w-10 h-10 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                             >
                               <Trash2 size={18} />
                             </button>
