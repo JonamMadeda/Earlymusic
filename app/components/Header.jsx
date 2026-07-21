@@ -5,7 +5,6 @@ import { LogIn, CloudOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
-import { pastelGradient } from "./SongAvatar";
 
 const Header = () => {
   const [isOnline, setIsOnline] = useState(true);
@@ -31,20 +30,14 @@ const Header = () => {
       <div className="flex items-center justify-between gap-3">
         <Link href="/" className="md:hidden">
           <span className="flex items-center gap-2.5">
-            <span
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-[11px] font-bold text-white shadow-sm"
-              style={{ background: pastelGradient("earlymusic") }}
-            >
-              EM
-            </span>
-            <span className="flex flex-col">
-              <h1 className="text-base font-bold tracking-tight text-neutral-900 leading-none">
-                Early Music
-              </h1>
-              <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
-                curated songs
-              </span>
-            </span>
+            <img
+              src="/icons/icon-192x192.png"
+              alt="Early Music"
+              className="h-9 w-9 rounded-xl object-cover shadow-sm shadow-accent/10"
+            />
+            <h1 className="text-[15px] font-black tracking-tight text-neutral-900 leading-none md:text-[17px]">
+              Early Music
+            </h1>
           </span>
         </Link>
 
