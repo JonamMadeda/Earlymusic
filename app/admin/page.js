@@ -131,6 +131,15 @@ export default function AdminDashboard() {
 
   const alphabet = Object.keys(groupedSongs).sort();
 
+  // Compute stats — placed before early returns to keep hook order consistent
+  const stats = useMemo(() => {
+    const songs = allSongs || [];
+    const artists = new Set(songs.map((s) => s.author?.toLowerCase().trim()).filter(Boolean));
+    const categories = new Set(songs.map((s) => s.category || "Worship"));
+    const recent = songs.filter((s) => s.created_at && Date.now() - new Date(s.created_at).getTime() < 30 * 24 * 60 * 60 * 1000);
+    return { total: songs.length, artists: artists.size, categories: categories.size, recent: recent.length };
+  }, [allSongs]);
+
   if (authLoading || roleLoading) {
     return <main className="flex min-h-[90vh] items-center justify-center">
       <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -151,15 +160,6 @@ export default function AdminDashboard() {
       </main>
     );
   }
-
-  // Compute stats
-  const stats = useMemo(() => {
-    const songs = allSongs || [];
-    const artists = new Set(songs.map((s) => s.author?.toLowerCase().trim()).filter(Boolean));
-    const categories = new Set(songs.map((s) => s.category || "Worship"));
-    const recent = songs.filter((s) => s.created_at && Date.now() - new Date(s.created_at).getTime() < 30 * 24 * 60 * 60 * 1000);
-    return { total: songs.length, artists: artists.size, categories: categories.size, recent: recent.length };
-  }, [allSongs]);
 
   return (
     <main className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
