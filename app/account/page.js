@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings } from "lucide-react";
+import { Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings, Download, Library, ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
 import Link from "next/link";
@@ -55,8 +55,8 @@ export default function AccountPage() {
   if (authLoading || loading) {
     return (
       <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
-        <div className="max-w-5xl mx-auto flex items-center justify-center py-32">
-          <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        <div className="mx-auto max-w-3xl flex items-center justify-center py-32">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
       </main>
     );
@@ -65,9 +65,9 @@ export default function AccountPage() {
   if (!user) {
     return (
       <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
-        <div className="max-w-md mx-auto flex flex-col items-center justify-center text-center rounded-2xl bg-neutral-50/60 backdrop-blur-2xl px-8 py-16">
+        <div className="mx-auto max-w-md flex flex-col items-center justify-center text-center rounded-2xl bg-neutral-50/60 backdrop-blur-2xl px-8 py-16">
           <Disc className="mb-4 text-neutral-300" size={32} />
-          <p className="text-sm font-semibold text-neutral-900 mb-2">Sign in to view your account</p>
+          <p className="mb-2 text-sm font-semibold text-neutral-900">Sign in to view your account</p>
           <Link
             href="/auth"
             className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90"
@@ -85,143 +85,136 @@ export default function AccountPage() {
     : "Unknown";
 
   const displayName = [firstName, lastName].filter(Boolean).join(" ") || user.email;
+  const initials = (displayName.match(/[a-zA-Z]/g) || ["?"]).slice(0, 2).join("").toUpperCase();
+
+  const quickLinks = [
+    { icon: Settings, label: "Settings", desc: "Storage, data, and app preferences", href: "/settings" },
+    { icon: Download, label: "Downloads", desc: "Manage your offline tracks", href: "/downloads" },
+    { icon: Library, label: "Library", desc: "View your saved songs and playlists", href: "/library" },
+  ];
 
   return (
     <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
-      <div className="max-w-5xl mx-auto">
-        <section className="mb-8">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
-              Account
-            </h1>
-            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200/60 bg-white/60 px-3 py-1 text-[11px] font-medium text-neutral-400 backdrop-blur-sm">
-              {savedCount} saved · {playlistCount} playlist{playlistCount !== 1 ? "s" : ""}
-            </span>
-          </div>
-          <div className="mt-3 md:hidden flex items-center gap-2 text-xs text-neutral-500">
-            <span className="rounded-full bg-neutral-50/60 px-2.5 py-1 font-medium">{savedCount} saved</span>
-            <span className="rounded-full bg-neutral-50/60 px-2.5 py-1 font-medium">{playlistCount} playlist{playlistCount !== 1 ? "s" : ""}</span>
-          </div>
-        </section>
+      <div className="mx-auto max-w-3xl">
+        {/* Page header */}
+        <div className="mb-8 flex items-center gap-3">
+          <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">Account</h1>
+        </div>
 
         <div className="flex flex-col gap-6">
           {/* Profile card */}
-          <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5">
-            <div className="flex items-center gap-4">
-              <div
-                className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white shadow-sm"
-                style={{ background: pastelGradient(user.email || "account") }}
-              >
-                {(displayName.match(/[a-zA-Z]/) || ["?"])[0].toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
-                  {displayName}
-                </p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <Mail size={11} className="text-neutral-400" />
-                  <p className="text-[11px] font-medium text-neutral-400 truncate">
-                    {user.email}
-                  </p>
+          <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl overflow-hidden">
+            <div className="h-20 bg-gradient-to-r from-accent/10 via-accent/5 to-transparent" />
+            <div className="px-5 pb-5">
+              <div className="-mt-10 mb-4 flex items-end gap-4">
+                <div
+                  className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white shadow-md ring-4 ring-white"
+                  style={{ background: pastelGradient(user.email || "account") }}
+                >
+                  {initials}
                 </div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <Calendar size={11} className="text-neutral-400" />
-                  <p className="text-[11px] font-medium text-neutral-400">
-                    Joined {joinedDate}
-                  </p>
+                <div className="min-w-0 pb-1">
+                  <p className="truncate text-base font-bold tracking-tight text-neutral-900">{displayName}</p>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <div className="flex items-center gap-1">
+                      <Mail size={11} className="text-neutral-400" />
+                      <span className="text-[11px] font-medium text-neutral-400 truncate">{user.email}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Calendar size={11} className="text-neutral-400" />
+                      <span className="text-[11px] font-medium text-neutral-400">Joined {joinedDate}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 ml-1">
-                  First name
-                </label>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="First"
-                  className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-accent placeholder:text-neutral-300"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">First name</label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="First"
+                    className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-accent placeholder:text-neutral-300"
+                  />
+                </div>
+                <div>
+                  <label className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Last name</label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Last"
+                    className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-accent placeholder:text-neutral-300"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 ml-1">
-                  Last name
-                </label>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Last"
-                  className="mt-1 w-full rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-accent placeholder:text-neutral-300"
-                />
-              </div>
-            </div>
 
-            <div className="mt-4 flex items-center gap-3">
-              <button
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90 disabled:opacity-50"
-              >
-                <Save size={13} />
-                {saving ? "Saving..." : "Save"}
-              </button>
-              {saveMsg && (
-                <span className="text-[11px] font-medium text-green-600">{saveMsg}</span>
-              )}
+              <div className="mt-4 flex items-center gap-3">
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent/90 disabled:opacity-50"
+                >
+                  <Save size={13} />
+                  {saving ? "Saving..." : "Save"}
+                </button>
+                {saveMsg && (
+                  <span className="text-[11px] font-medium text-green-600">{saveMsg}</span>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
               <Heart size={18} className="text-accent" />
-              <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">
-                {savedCount}
-              </p>
-              <p className="mt-0.5 text-[11px] font-medium text-neutral-400">
-                Saved songs
-              </p>
+              <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">{savedCount}</p>
+              <p className="mt-0.5 text-[11px] font-medium text-neutral-400">Saved songs</p>
             </div>
-            <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
+            <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
               <Disc size={18} className="text-accent" />
-              <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">
-                {playlistCount}
-              </p>
-              <p className="mt-0.5 text-[11px] font-medium text-neutral-400">
-                Playlists
-              </p>
+              <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">{playlistCount}</p>
+              <p className="mt-0.5 text-[11px] font-medium text-neutral-400">Playlists</p>
             </div>
           </div>
 
-          {/* Settings */}
-          <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5">
-            <Link
-              href="/settings"
-              className="flex items-center gap-3"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
-                <Settings size={18} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold tracking-tight text-neutral-900">
-                  Settings
-                </p>
-                <p className="text-[11px] font-medium text-neutral-400">
-                  Storage, data, and app preferences
-                </p>
-              </div>
-            </Link>
+          {/* Quick Links */}
+          <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl overflow-hidden">
+            <div className="px-5 py-3 border-b border-neutral-100/80">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Quick Links</p>
+            </div>
+            <div className="divide-y divide-neutral-100/80">
+              {quickLinks.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-neutral-100/50 group"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                    <link.icon size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold tracking-tight text-neutral-900">{link.label}</p>
+                    <p className="text-[11px] font-medium text-neutral-400">{link.desc}</p>
+                  </div>
+                  <ChevronRight size={15} className="text-neutral-300 transition group-hover:text-neutral-500" />
+                </Link>
+              ))}
+            </div>
           </div>
 
           {/* Sign out */}
-          <div className="border-t border-neutral-100 pt-6">
+          <div className="flex items-center justify-between rounded-2xl border border-red-100 bg-red-50/40 px-5 py-4">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-neutral-900">Sign out</p>
+              <p className="text-[11px] font-medium text-red-500">You&apos;ll need to sign in again to manage your account</p>
+            </div>
             <button
               onClick={() => { signOut(); router.push("/"); }}
-              className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+              className="shrink-0 inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
             >
               <LogOut size={13} />
               Sign Out
