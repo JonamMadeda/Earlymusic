@@ -238,7 +238,6 @@ export default function AdminDashboard() {
               <div key={letter} className="flex flex-col gap-y-2">
                 <div className="flex items-center gap-3 border-b border-neutral-100 pb-2 px-1">
                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/10 text-[10px] font-bold text-accent">{letter}</span>
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">{letter}</h2>
                 </div>
 
                 <div className="flex flex-col gap-y-1">
