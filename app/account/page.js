@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { User, Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings } from "lucide-react";
+import { Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
 import Link from "next/link";
+import { pastelGradient } from "@/app/components/SongAvatar";
 
 export default function AccountPage() {
   const { user, profile, loading: authLoading, signOut, updateProfile } = useAuth();
@@ -90,22 +91,28 @@ export default function AccountPage() {
       <div className="max-w-5xl mx-auto">
         <section className="mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-6 w-1 rounded-full bg-accent" />
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl uppercase">
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
               Account
             </h1>
+            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200/60 bg-white/60 px-3 py-1 text-[11px] font-medium text-neutral-400 backdrop-blur-sm">
+              {savedCount} saved · {playlistCount} playlist{playlistCount !== 1 ? "s" : ""}
+            </span>
           </div>
-          <p className="mt-1.5 text-sm leading-relaxed text-neutral-400 max-w-xl">
-            Manage your profile and see your activity.
-          </p>
+          <div className="mt-3 md:hidden flex items-center gap-2 text-xs text-neutral-500">
+            <span className="rounded-full bg-neutral-50/60 px-2.5 py-1 font-medium">{savedCount} saved</span>
+            <span className="rounded-full bg-neutral-50/60 px-2.5 py-1 font-medium">{playlistCount} playlist{playlistCount !== 1 ? "s" : ""}</span>
+          </div>
         </section>
 
         <div className="flex flex-col gap-6">
           {/* Profile card */}
           <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
-                <User size={24} />
+              <div
+                className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white shadow-sm"
+                style={{ background: pastelGradient(user.email || "account") }}
+              >
+                {(displayName.match(/[a-zA-Z]/) || ["?"])[0].toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
@@ -171,7 +178,7 @@ export default function AccountPage() {
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
-              <Heart size={18} className="text-neutral-800" />
+              <Heart size={18} className="text-accent" />
               <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">
                 {savedCount}
               </p>
@@ -180,7 +187,7 @@ export default function AccountPage() {
               </p>
             </div>
             <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
-              <Disc size={18} className="text-neutral-800" />
+              <Disc size={18} className="text-accent" />
               <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">
                 {playlistCount}
               </p>
@@ -191,12 +198,12 @@ export default function AccountPage() {
           </div>
 
           {/* Settings */}
-          <div className="rounded-2xl bg-neutral-50/60 p-5">
+          <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5">
             <Link
               href="/settings"
               className="flex items-center gap-3"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-neutral-200/60 text-neutral-500">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
                 <Settings size={18} />
               </div>
               <div className="min-w-0 flex-1">
@@ -214,7 +221,7 @@ export default function AccountPage() {
           <div className="border-t border-neutral-100 pt-6">
             <button
               onClick={() => { signOut(); router.push("/"); }}
-              className="inline-flex items-center gap-2 rounded-full border border-neutral-200/80 bg-white px-4 py-2.5 text-xs font-medium text-neutral-500 transition hover:bg-accent hover:text-white"
+              className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
             >
               <LogOut size={13} />
               Sign Out
