@@ -154,7 +154,7 @@ const SectionBlock = ({ id, title, items, onPlay, cta, cardType, activeSongId })
         )}
       </div>
 
-      <div className="flex snap-x snap-mandatory gap-3.5 overflow-x-auto pb-2 no-scrollbar [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent_100%)]">
+      <div className="flex snap-x snap-mandatory gap-3.5 overflow-x-auto pb-2 scrollbar-thin md:pb-0 [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent_100%)] md:[mask-image:none]">
         {items.length > 0 ? (
           items.map((song) => (
             <Card

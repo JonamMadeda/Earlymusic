@@ -30,6 +30,21 @@ body {
   scrollbar-width: none;
 }
 
+/* Thin scrollbar for horizontal sections on desktop */
+.scrollbar-thin::-webkit-scrollbar {
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #a3a3a3;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 10px;
 }
