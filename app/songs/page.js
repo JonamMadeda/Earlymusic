@@ -239,7 +239,7 @@ const SongRow = ({ song, onClick, isActive }) => {
             e.stopPropagation();
             setShowMenu(!showMenu);
           }}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
           title="More"
         >
           <MoreHorizontal size={14} />

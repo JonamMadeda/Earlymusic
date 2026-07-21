@@ -14,6 +14,7 @@ import {
   SkipBack,
   SkipForward,
   ChevronDown,
+  Heart,
 } from "lucide-react";
 import { getCachedAudioUrl, cacheAudioFile } from "@/lib/cacheUtils";
 import SongAvatar, { pastelGradient, gradientFirstColor, initialLetter } from "./SongAvatar";
@@ -30,6 +31,7 @@ const Player = () => {
   const [isLooping, setIsLooping] = useState(false);
   const [isShuffle, setIsShuffle] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -352,7 +354,15 @@ const Player = () => {
             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
               Now Playing
             </span>
-            <div className="w-5" />
+            <button
+              type="button"
+              onClick={() => setIsLiked(!isLiked)}
+              className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
+                isLiked ? "text-white bg-white/15" : "text-white/50 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
+            </button>
           </div>
 
           {/* Artwork — large initial letter */}
