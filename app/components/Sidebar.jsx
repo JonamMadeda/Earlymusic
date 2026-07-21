@@ -59,14 +59,13 @@ const Sidebar = () => {
             <Link
               key={item.label}
               href={item.href}
-              className={`group flex items-center gap-x-3 rounded-xl px-3 py-2.5 text-sm font-semibold tracking-tight transition-all duration-200 ${
+              className={`group relative flex items-center gap-x-3 rounded-xl px-3 py-2.5 text-sm font-semibold tracking-tight transition-all duration-200 ${
                 item.active
                   ? "bg-neutral-100 text-neutral-900"
                   : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
               }`}
             >
-              {item.active && <div className="h-4 w-0.5 rounded-full bg-accent -ml-0.5 mr-2" />}
-              {!item.active && <div className="w-2.5" />}
+              {item.active && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-full bg-accent" />}
               <item.icon size={17} strokeWidth={item.active ? 2.5 : 2} />
               <span>{item.label}</span>
             </Link>
