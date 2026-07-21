@@ -11,9 +11,7 @@ import {
   Music,
   Search,
   Edit3,
-  Check,
-  Plus,
-  X,
+  ChevronDown,
 } from "lucide-react";
 import UploadModal from "../components/UploadModal";
 import EditModal from "../components/EditModal";
@@ -154,148 +152,178 @@ export default function AdminDashboard() {
     );
   }
 
+  // Compute stats
+  const stats = useMemo(() => {
+    const songs = allSongs || [];
+    const artists = new Set(songs.map((s) => s.author?.toLowerCase().trim()).filter(Boolean));
+    const categories = new Set(songs.map((s) => s.category || "Worship"));
+    const recent = songs.filter((s) => s.created_at && Date.now() - new Date(s.created_at).getTime() < 30 * 24 * 60 * 60 * 1000);
+    return { total: songs.length, artists: artists.size, categories: categories.size, recent: recent.length };
+  }, [allSongs]);
+
   return (
     <main className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
-      <div className="max-w-5xl mx-auto">
-        <header className="flex flex-col gap-y-10 mb-16">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div>
-              <button
-                onClick={handleLogout}
-                className="text-neutral-400 hover:text-accent flex items-center gap-2 mb-4 transition font-semibold text-[12px] uppercase tracking-wider"
-              >
-                <ArrowLeft size={14} /> Sign Out
-              </button>
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">Vault</h1>
-              </div>
+      <div className="mx-auto max-w-6xl">
+        {/* Header */}
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">Vault</h1>
+              <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200/60 bg-white/60 px-3 py-1 text-[11px] font-medium text-neutral-400 backdrop-blur-sm">
+                {stats.total} tracks
+              </span>
             </div>
-
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleLogout}
+              className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-neutral-200/80 bg-white px-3.5 py-2 text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-50"
+            >
+              <ArrowLeft size={12} /> Sign Out
+            </button>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="rounded-full bg-accent text-white shadow-sm px-8 py-3.5 font-bold flex items-center justify-center gap-3 hover:bg-accent/90 transition-all active:scale-95 text-sm uppercase tracking-tight"
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent/90 active:scale-95"
             >
-              <Upload size={18} strokeWidth={2.5} /> Upload Track
+              <Upload size={15} strokeWidth={2.5} /> Upload
             </button>
           </div>
+        </div>
 
-          <div className="relative group">
-            <Search
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-300 group-focus-within:text-accent transition-colors"
-              size={16}
-            />
+        {/* Stats row */}
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="rounded-2xl bg-neutral-50/60 p-4 backdrop-blur-2xl">
+            <p className="text-2xl font-bold tracking-tight text-neutral-900">{stats.total}</p>
+            <p className="text-[11px] font-medium text-neutral-400">Tracks</p>
+          </div>
+          <div className="rounded-2xl bg-neutral-50/60 p-4 backdrop-blur-2xl">
+            <p className="text-2xl font-bold tracking-tight text-neutral-900">{stats.artists}</p>
+            <p className="text-[11px] font-medium text-neutral-400">Artists</p>
+          </div>
+          <div className="rounded-2xl bg-neutral-50/60 p-4 backdrop-blur-2xl">
+            <p className="text-2xl font-bold tracking-tight text-neutral-900">{stats.categories}</p>
+            <p className="text-[11px] font-medium text-neutral-400">Categories</p>
+          </div>
+          <div className="rounded-2xl bg-neutral-50/60 p-4 backdrop-blur-2xl">
+            <p className="text-2xl font-bold tracking-tight text-neutral-900">{stats.recent}</p>
+            <p className="text-[11px] font-medium text-neutral-400">Added (30d)</p>
+          </div>
+        </div>
+
+        {/* Toolbar */}
+        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-300" size={15} />
             <input
               type="text"
               placeholder="Search tracks or artists..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-full border border-neutral-200/80 bg-neutral-50/60 px-10 py-3 text-sm font-medium text-neutral-900 outline-none transition placeholder:text-neutral-300 focus:border-neutral-300 focus:bg-white"
+              className="w-full rounded-xl border border-neutral-200/80 bg-neutral-50/60 py-2.5 pl-9 pr-3 text-sm font-medium text-neutral-900 outline-none transition placeholder:text-neutral-300 focus:border-neutral-300 focus:bg-white"
             />
           </div>
+        </div>
 
-          <section className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5 md:p-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-neutral-900">
-                  <ShieldCheck size={18} className="text-accent" />
-                  <h2 className="text-sm font-bold">Administrator access</h2>
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-neutral-500">Grant dashboard access to an account that has already signed up.</p>
-              </div>
-              <form onSubmit={handleGrantAdmin} className="flex w-full gap-2 md:w-auto">
-                <input
-                  type="email"
-                  value={adminEmail}
-                  onChange={(event) => setAdminEmail(event.target.value)}
-                  placeholder="user@example.com"
-                  required
-                  disabled={isGrantingAdmin}
-                  className="min-w-0 flex-1 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-accent md:w-64"
-                />
-                <button
-                  type="submit"
-                  disabled={isGrantingAdmin}
-                  className="shrink-0 rounded-full bg-accent px-4 py-2.5 text-xs font-bold text-white transition hover:bg-accent/90 disabled:opacity-50"
-                >
-                  {isGrantingAdmin ? "Granting…" : "Grant access"}
-                </button>
-              </form>
-            </div>
-            {adminMessage && <p role="status" className="mt-3 text-xs font-medium text-neutral-600">{adminMessage}</p>}
-          </section>
-        </header>
+        {/* Admin access — collapsible */}
+        <details className="group mb-6">
+          <summary className="flex cursor-pointer items-center gap-2 rounded-xl bg-neutral-50/60 px-4 py-2.5 text-xs font-semibold text-neutral-500 transition hover:text-neutral-900 backdrop-blur-2xl list-none [&::-webkit-details-marker]:hidden">
+            <ShieldCheck size={14} className="text-accent" />
+            <span>Administrator access</span>
+            <ChevronDown size={12} className="ml-auto transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="mt-2 rounded-xl bg-neutral-50/60 p-4 backdrop-blur-2xl">
+            <p className="mb-3 text-xs leading-relaxed text-neutral-500">Grant dashboard access to an account that has already signed up.</p>
+            <form onSubmit={handleGrantAdmin} className="flex w-full gap-2">
+              <input
+                type="email"
+                value={adminEmail}
+                onChange={(event) => setAdminEmail(event.target.value)}
+                placeholder="user@example.com"
+                required
+                disabled={isGrantingAdmin}
+                className="min-w-0 flex-1 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-accent"
+              />
+              <button
+                type="submit"
+                disabled={isGrantingAdmin}
+                className="shrink-0 rounded-full bg-accent px-4 py-2.5 text-xs font-bold text-white transition hover:bg-accent/90 disabled:opacity-50"
+              >
+                {isGrantingAdmin ? "Granting…" : "Grant"}
+              </button>
+            </form>
+            {adminMessage && <p role="status" className="mt-2 text-xs font-medium text-neutral-600">{adminMessage}</p>}
+          </div>
+        </details>
 
-        <div className="flex flex-col gap-y-6">
+        {/* Song list */}
+        <div className="flex flex-col">
+          {/* Column headers — desktop only */}
+          <div className="hidden md:grid md:grid-cols-[1fr_180px_120px_96px] gap-4 px-4 py-2 text-[11px] font-semibold uppercase tracking-widest text-neutral-300">
+            <span>Track</span>
+            <span>Artist</span>
+            <span>Category</span>
+            <span className="text-right">Actions</span>
+          </div>
+
           {alphabet.length === 0 ? (
-            <div className="py-32 flex flex-col items-center justify-center rounded-2xl bg-neutral-50/60 backdrop-blur-2xl text-neutral-200">
+            <div className="flex flex-col items-center justify-center rounded-2xl bg-neutral-50/60 py-32 backdrop-blur-2xl text-neutral-200">
               <Music size={48} strokeWidth={1.5} className="mb-4 opacity-20" />
-              <p className="font-medium text-[13px] text-neutral-400">
-                No matching tracks found
-              </p>
+              <p className="text-[13px] font-medium text-neutral-400">No matching tracks found</p>
             </div>
           ) : (
             alphabet.map((letter) => (
-              <div key={letter} className="flex flex-col gap-y-2">
-                <div className="flex items-center gap-3 border-b border-neutral-100 pb-2 px-1">
+              <div key={letter} className="mb-2">
+                <div className="sticky top-0 z-10 pb-1 pt-3">
                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/10 text-[10px] font-bold text-accent">{letter}</span>
                 </div>
+                <div className="flex flex-col">
+                  {groupedSongs[letter].map((song, idx) => (
+                    <div
+                      key={song.id}
+                      className="group grid grid-cols-[1fr_auto] md:grid-cols-[1fr_180px_120px_96px] gap-4 items-center rounded-xl px-2.5 py-2 transition hover:bg-neutral-100/70 md:px-4"
+                    >
+                      {/* Track */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="hidden md:inline text-[12px] font-mono text-neutral-300 w-5 text-right shrink-0">{idx + 1}</span>
+                        <SongAvatar title={song.title} size="xs" />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-neutral-900 leading-tight">{song.title}</p>
+                          <p className="truncate text-[12px] font-medium text-neutral-400 md:hidden">{song.author}</p>
+                        </div>
+                      </div>
 
-                <div className="flex flex-col gap-y-1">
-                  {groupedSongs[letter].map((song) => (
-                      <div
-                        key={song.id}
-                        className="bg-neutral-50/60 p-1.5 md:p-2 rounded-2xl flex items-center justify-between group hover:bg-neutral-100/80 hover:shadow-sm backdrop-blur-2xl border border-transparent transition-all duration-300"
-                      >
-                          <div className="flex items-center gap-x-4 md:gap-x-6 flex-1 min-w-0">
-                            <SongAvatar title={song.title} size="sm" />
-                            <div className="flex-1 min-w-0 flex items-center">
-                              <div className="min-w-0 flex-1">
-                                <p className="font-semibold text-neutral-900 text-[15px] leading-tight mb-0.5 tracking-tight truncate">
-                                  {song.title}
-                                </p>
-                                <p className="text-[13px] text-neutral-500 font-medium tracking-normal truncate">
-                                  {song.author}
-                                </p>
-                              </div>
-                              <div className="flex-shrink-0 ml-2 flex items-center gap-1.5">
-                                {song.duration && (
-                                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${song.duration === "Short" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"}`}>
-                                    {song.duration}
-                                  </span>
-                                )}
-                                {(song.category || "Worship") && (
-                                  <span
-                                    className={`
-                                      px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider
-                                      ${song.category === "Praise"
-                                        ? "bg-accent/10 text-accent"
-                                        : "bg-neutral-100 text-neutral-400"
-                                      }
-                                    `}
-                                  >
-                                    {song.category || "Worship"}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                      {/* Artist — desktop only */}
+                      <span className="hidden md:block truncate text-[13px] font-medium text-neutral-500">{song.author}</span>
 
-                          <div className="flex items-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => handleEditClick(song)}
-                              className="w-10 h-10 flex items-center justify-center text-neutral-400 hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
-                            >
-                              <Edit3 size={18} />
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleDelete(song.id, song.song_path)
-                              }
-                              className="w-10 h-10 flex items-center justify-center text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
+                      {/* Category + duration */}
+                      <div className="flex items-center gap-1.5">
+                        {song.duration && (
+                          <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${song.duration === "Short" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"}`}>
+                            {song.duration}
+                          </span>
+                        )}
+                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${song.category === "Praise" ? "bg-accent/10 text-accent" : "bg-neutral-100 text-neutral-400"}`}>
+                          {song.category || "Worship"}
+                        </span>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleEditClick(song)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-accent/10 hover:text-accent"
+                          title="Edit"
+                        >
+                          <Edit3 size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(song.id, song.song_path)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+                          title="Delete"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
