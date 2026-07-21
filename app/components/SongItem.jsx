@@ -3,14 +3,15 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  Music,
   Heart,
   Info,
   ListPlus,
   ListMusic,
   Plus,
   MoreHorizontal,
+  Play,
 } from "lucide-react";
+import SongAvatar from "@/app/components/SongAvatar";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
 
@@ -102,10 +103,15 @@ const SongItem = ({ song, onClick }) => {
     <div
       ref={rowRef}
       onClick={onClick}
-      className="group relative flex cursor-pointer items-center gap-3.5 rounded-2xl bg-neutral-50/60 p-3.5 text-left transition-all duration-300 hover:bg-neutral-100/80"
+      className="group relative flex cursor-pointer items-center gap-3.5 rounded-2xl bg-neutral-50/60 p-3.5 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm backdrop-blur-2xl"
     >
-      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800 transition-colors group-hover:bg-accent group-hover:text-white">
-        <Music size={18} />
+      <div className="relative shrink-0">
+        <SongAvatar title={song.title} size="md" />
+        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/30 opacity-0 transition-all duration-300 group-hover:opacity-100">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white shadow-md shadow-accent/20">
+            <Play size={13} fill="currentColor" className="ml-0.5" />
+          </div>
+        </div>
       </div>
 
       <div className="min-w-0 flex-1">

@@ -157,12 +157,10 @@ export default function LibraryPage() {
           <p className="mt-1.5 text-sm leading-relaxed text-neutral-400 max-w-xl">
             Your saved songs, playlists, and offline downloads.
           </p>
-          <div className="mt-3 md:mt-4 flex items-center gap-3.5 text-xs text-neutral-400">
-            <span>{savedSongs.length} saved</span>
-            <span className="text-neutral-200">|</span>
-            <span>{playlists.length} playlist{playlists.length !== 1 ? "s" : ""}</span>
-            <span className="text-neutral-200">|</span>
-            <span>{downloadedSongs.length} downloaded</span>
+          <div className="mt-3 md:mt-4 flex items-center gap-2 text-xs text-neutral-400">
+            <span className="rounded-full bg-neutral-100 px-2.5 py-1 font-medium">{savedSongs.length} saved</span>
+            <span className="rounded-full bg-neutral-100 px-2.5 py-1 font-medium">{playlists.length} playlist{playlists.length !== 1 ? "s" : ""}</span>
+            <span className="rounded-full bg-neutral-100 px-2.5 py-1 font-medium">{downloadedSongs.length} downloaded</span>
           </div>
         </section>
 
@@ -191,10 +189,11 @@ export default function LibraryPage() {
             {savedSongs.length > 0 ? (
               <div className="flex flex-col gap-y-6">
                 {Object.keys(groupedSaved).sort().map((letter) => (
-                  <div key={letter} className="flex flex-col gap-y-3">
-                    <div className="flex items-center gap-x-4 border-b border-neutral-100 pb-2 px-2">
-                      <h2 className="text-3xl font-semibold tracking-tight text-neutral-900">{letter}</h2>
-                    </div>
+                    <div key={letter} className="flex flex-col gap-y-3">
+                      <div className="flex items-center gap-3 border-b border-neutral-100 pb-2 px-1">
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/10 text-[10px] font-bold text-accent">{letter}</span>
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-500">{letter}</h2>
+                      </div>
                     <div className="flex flex-col gap-y-2">
                       {groupedSaved[letter].map((song) => (
                         <SongItem key={song.id} song={song} onClick={() => setActiveSong(song, savedSongs)} />
@@ -259,7 +258,7 @@ export default function LibraryPage() {
                   <div
                     key={pl.id}
                     onClick={() => router.push(`/playlists/${pl.id}`)}
-                    className="group flex cursor-pointer flex-col gap-3 rounded-2xl bg-neutral-50/60 p-5 text-left transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+                    className="group flex cursor-pointer flex-col gap-3 rounded-2xl bg-neutral-50/60 p-5 text-left transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 backdrop-blur-2xl"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800">
@@ -267,7 +266,7 @@ export default function LibraryPage() {
                       </div>
                       <button
                         onClick={(e) => deletePlaylist(e, pl.id)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-white"
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 md:opacity-0 md:group-hover:opacity-100 hover:bg-accent hover:text-white"
                       >
                         <Trash2 size={14} />
                       </button>
