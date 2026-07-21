@@ -39,7 +39,7 @@ const Sidebar = () => {
 
   return (
     <aside className="sticky top-0 hidden h-full w-[240px] flex-shrink-0 md:flex lg:w-[260px] bg-white border-r border-neutral-100 shadow-sm">
-      <div className="flex h-full w-full flex-col p-5">
+      <div className="flex h-full w-full flex-col p-5 pb-20">
         
         {/* Brand Logo Header */}
         <div className="mb-6 flex items-center gap-3 px-1">
