@@ -161,7 +161,7 @@ const SectionBlock = ({ id, title, items, onPlay, cta, cardType, activeSongId })
               key={song.id}
               song={song}
               isActive={song.id === activeSongId}
-              onClick={cardType === "spotify" ? () => onPlay(song) : onPlay}
+              onClick={() => onPlay(song)}
             />
           ))
         ) : (

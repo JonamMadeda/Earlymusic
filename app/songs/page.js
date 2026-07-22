@@ -476,7 +476,7 @@ export default function SongsPage() {
     fetchSongs();
   }, [allSongs, setAllSongs, setIsLoading]);
 
-  const groupedSongs = useMemo(() => {
+  const filteredSongs = useMemo(() => {
     let songs = [...(allSongs || [])];
 
     if (searchValue.trim()) {
@@ -511,15 +511,17 @@ export default function SongsPage() {
       );
     }
 
-    return songs
-      .sort((a, b) => a.title.localeCompare(b.title))
-      .reduce((groups, song) => {
+    return songs.sort((a, b) => a.title.localeCompare(b.title));
+  }, [allSongs, searchValue, activeFilter, activeCategory, activeDuration]);
+
+  const groupedSongs = useMemo(() => {
+    return filteredSongs.reduce((groups, song) => {
         const letter = song.title[0]?.toUpperCase() || "#";
         if (!groups[letter]) groups[letter] = [];
         groups[letter].push(song);
         return groups;
       }, {});
-  }, [allSongs, searchValue, activeFilter, activeCategory, activeDuration]);
+  }, [filteredSongs]);
 
   const alphabet = Object.keys(groupedSongs).sort();
   const hasFilters =
@@ -670,7 +672,7 @@ export default function SongsPage() {
                       key={song.id}
                       song={song}
                       isActive={activeSong?.id === song.id}
-                      onClick={() => setActiveSong(song, groupedSongs[letter])}
+                      onClick={() => setActiveSong(song, filteredSongs)}
                     />
                   ))}
                 </div>
