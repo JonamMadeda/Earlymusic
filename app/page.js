@@ -135,6 +135,39 @@ const SpotifyCard = ({ song, onClick }) => {
   );
 };
 
+const RecommendationCard = ({ song, onClick, isActive }) => {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group flex w-full items-center gap-3.5 rounded-2xl p-3.5 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm ${
+        isActive
+          ? "bg-accent/8 border border-accent/20"
+          : "bg-transparent"
+      }`}
+    >
+      <SongAvatar title={song.title} size="md" />
+      <div className="min-w-0 flex-1">
+        <p className={`truncate text-sm font-semibold tracking-tight ${
+          isActive ? "text-accent" : "text-neutral-900"
+        }`}>
+          {song.title}
+        </p>
+        <p className="truncate text-[11px] font-medium text-neutral-400 mt-0.5">
+          {song.author}
+        </p>
+      </div>
+      <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+        isActive
+          ? "bg-accent text-white"
+          : "bg-neutral-100 text-neutral-600 group-hover:bg-accent group-hover:text-white"
+      }`}>
+        <Play size={14} fill="currentColor" className="ml-0.5" />
+      </div>
+    </button>
+  );
+};
+
 const SectionBlock = ({ id, title, items, onPlay, cta, cardType, activeSongId }) => {
   const Card = cardType === "spotify" ? SpotifyCard : cardType === "featured" ? FeaturedCard : SongRailCard;
   return (
@@ -266,6 +299,11 @@ export default function Home() {
     return sortedSongs[Math.floor(Math.random() * Math.min(sortedSongs.length, 5))];
   }, [sortedSongs]);
 
+  const recommendedSongs = useMemo(() => {
+    if (sortedSongs.length === 0) return [];
+    return shuffle(sortedSongs).slice(0, 10);
+  }, [sortedSongs]);
+
   const stats = {
     total: allSongs?.length || 0,
     new: newestSongs.length,
@@ -392,6 +430,25 @@ export default function Home() {
               />
             )}
 
+            {recommendedSongs.length > 0 && (
+              <section id="recommended" className="scroll-mt-24 py-2">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-4 w-0.5 rounded-full bg-accent/50" />
+                  <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">Recommendation</h2>
+                </div>
+                <div className="flex flex-col gap-y-1">
+                  {recommendedSongs.map((song) => (
+                    <RecommendationCard
+                      key={song.id}
+                      song={song}
+                      isActive={song.id === activeSong?.id}
+                      onClick={() => setActiveSong(song, recommendedSongs)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {sortedSongs.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <Disc className="mb-4 text-neutral-300" size={32} />
@@ -401,6 +458,22 @@ export default function Home() {
                 <p className="mt-1 max-w-sm text-xs text-neutral-450">
                   When tracks are uploaded, they&apos;ll appear here in the library sections.
                 </p>
+              </div>
+            )}
+
+            {sortedSongs.length > 0 && (
+              <div className="flex flex-col items-center py-10 text-center">
+                <div className="h-px w-12 bg-neutral-200/60 mb-5" />
+                <p className="text-xs text-neutral-400/70 italic leading-relaxed max-w-xs mb-4">
+                  that&apos;s all for now — refresh to discover new recommendations
+                </p>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="rounded-full border border-neutral-200/70 bg-white/50 px-4 py-2 text-[11px] font-semibold text-neutral-400 backdrop-blur-sm transition hover:border-neutral-300 hover:bg-white hover:text-neutral-700"
+                >
+                  Refresh
+                </button>
               </div>
             )}
           </div>
