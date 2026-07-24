@@ -42,6 +42,18 @@ const Player = () => {
 
   const playRef = useRef(false);
 
+  // Mobile back button closes full-screen player instead of leaving the app
+  useEffect(() => {
+    if (!showFullPlayer) return;
+
+    window.history.pushState(null, "", window.location.href);
+
+    const handlePopState = () => setShowFullPlayer(false);
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [showFullPlayer]);
+
   useEffect(() => {
     if (!audioRef.current) return;
 
@@ -346,7 +358,10 @@ const Player = () => {
           <div className="relative z-10 flex items-center justify-between px-5 pt-5 pb-2">
             <button
               type="button"
-              onClick={() => setShowFullPlayer(false)}
+              onClick={() => {
+                setShowFullPlayer(false);
+                window.history.back();
+              }}
               className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-white/60"
             >
               <ChevronDown size={20} />
