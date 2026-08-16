@@ -22,10 +22,13 @@ export default function PlaylistsPage() {
     supabase
       .from("playlists")
       .select("*")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) throw error;
         if (data) setPlaylists(data);
       })
+      .catch((error) => console.error("Unable to load playlists:", error))
       .finally(() => setLoading(false));
   }, [user, authLoading]);
 
@@ -33,24 +36,34 @@ export default function PlaylistsPage() {
     const name = newName.trim();
     if (!name) return;
 
-    const { data } = await supabase
-      .from("playlists")
-      .insert({ name, user_id: user.id })
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from("playlists")
+        .insert({ name, user_id: user.id })
+        .select()
+        .single();
+      if (error) throw error;
 
-    if (data) {
-      setPlaylists([data, ...playlists]);
-      setNewName("");
-      setShowCreate(false);
+      if (data) {
+        setPlaylists((prev) => [data, ...prev]);
+        setNewName("");
+        setShowCreate(false);
+      }
+    } catch (error) {
+      console.error("Unable to create playlist:", error);
     }
   };
 
   const deletePlaylist = async (e, id) => {
     e.stopPropagation();
     if (!confirm("Delete this playlist?")) return;
-    await supabase.from("playlists").delete().eq("id", id);
-    setPlaylists(playlists.filter((p) => p.id !== id));
+    try {
+      const { error } = await supabase.from("playlists").delete().eq("id", id);
+      if (error) throw error;
+      setPlaylists((prev) => prev.filter((p) => p.id !== id));
+    } catch (error) {
+      console.error("Unable to delete playlist:", error);
+    }
   };
 
   if (authLoading || loading) {
@@ -154,7 +167,7 @@ export default function PlaylistsPage() {
                   </div>
                   <button
                     onClick={(e) => deletePlaylist(e, pl.id)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-white"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 md:opacity-0 md:group-hover:opacity-100 hover:bg-accent hover:text-white"
                   >
                     <Trash2 size={14} />
                   </button>

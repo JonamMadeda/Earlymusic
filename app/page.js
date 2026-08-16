@@ -5,8 +5,11 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "./context/PlayerContext";
 import { PageSkeleton } from "./components/Skeleton";
-import SongAvatar, { pastelGradient, initialLetter } from "./components/SongAvatar";
-import { Disc, Music, ArrowRight, Play } from "lucide-react";
+import SongAvatar, { pastelGradient, initialLetter, hashStr, avoidGreen } from "./components/SongAvatar";
+import { Disc, Music, ArrowRight, Play, Upload, Sparkles } from "lucide-react";
+import LazySection from "./components/LazySection";
+import { prefetchSongAudio } from "@/lib/prefetchAudio";
+
 
 const verses = [
   { ref: "Psalm 150:6", text: "Let everything that has breath praise the Lord." },
@@ -19,10 +22,32 @@ const verses = [
 
 const timeWindowDays = 30;
 
-const shuffle = (arr) => {
+const cyclingGradient = (seed) => {
+  const h1 = avoidGreen(hashStr(seed || "s") % 360);
+  const h2 = avoidGreen((h1 + 40) % 360);
+  const h3 = avoidGreen((h1 + 80) % 360);
+  const h4 = avoidGreen((h1 + 120) % 360);
+  return `linear-gradient(135deg, hsl(${h1},70%,62%), hsl(${h2},65%,58%), hsl(${h3},60%,64%), hsl(${h4},68%,60%))`;
+};
+
+const mulberry32 = (seed) => {
+  return () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+// Deterministic shuffle — identical content always yields the same order,
+// so random sections don't visibly reshuffle when the cache is replaced by
+// the same database response.
+const seededShuffle = (arr, seedStr) => {
+  const rng = mulberry32(hashStr(seedStr || "s"));
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -38,6 +63,7 @@ const SongRailCard = ({ song, onClick, isActive }) => {
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={() => prefetchSongAudio(song)}
       className={`group relative flex w-[76vw] flex-shrink-0 snap-start items-center gap-3.5 rounded-2xl p-3.5 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg md:w-[290px] ${
         isActive
           ? "bg-accent/8 border border-accent/20 shadow-md shadow-accent/5"
@@ -86,6 +112,7 @@ const FeaturedCard = ({ song, onClick }) => {
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={() => prefetchSongAudio(song)}
       className="group relative flex w-[140px] flex-shrink-0 snap-start flex-col items-center gap-2.5 rounded-xl border border-neutral-100 bg-white p-3.5 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg md:w-[170px] md:gap-3 md:rounded-2xl md:p-4 shadow-sm"
     >
       <SongAvatar title={song.title} size="lg" />
@@ -116,6 +143,7 @@ const SpotifyCard = ({ song, onClick }) => {
     <button
       type="button"
       onClick={() => onClick(song)}
+      onMouseEnter={() => prefetchSongAudio(song)}
       className="group relative flex w-[170px] flex-shrink-0 snap-start flex-col rounded-2xl bg-white border border-neutral-100 p-3 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg shadow-sm"
     >
       <div className="relative mb-3 overflow-hidden rounded-xl">
@@ -140,6 +168,7 @@ const RecommendationCard = ({ song, onClick, isActive }) => {
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={() => prefetchSongAudio(song)}
       className={`group flex w-full items-center gap-3.5 rounded-2xl p-3.5 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm ${
         isActive
           ? "bg-accent/8 border border-accent/20"
@@ -222,15 +251,14 @@ export default function Home() {
   }, [activeSong]);
 
   useEffect(() => {
+    const fetchedRef = { current: false };
     const fetchSongs = async () => {
+      if (fetchedRef.current) return;
+      fetchedRef.current = true;
+
       let hasCachedSongs = false;
 
       try {
-        if (allSongs.length > 0) {
-          setIsLoading(false);
-          return;
-        }
-
         setIsLoading(true);
 
         const cachedSongs = localStorage.getItem("earlymusic_songs_cache");
@@ -252,11 +280,15 @@ export default function Home() {
           .select("*")
           .order("title", { ascending: true });
 
+        if (error) {
+          throw error;
+        }
+
         if (data) {
           setAllSongs(data);
-          localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
-        } else if (error) {
-          throw error;
+          if (data.length > 0) {
+            localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
+          }
         }
       } catch (error) {
         console.error("Error:", error);
@@ -267,7 +299,7 @@ export default function Home() {
     };
 
     fetchSongs();
-  }, [allSongs, setAllSongs, setIsLoading]);
+  }, [setAllSongs, setIsLoading]);
 
   const sortedSongs = useMemo(() => {
     return [...(allSongs || [])].sort(
@@ -276,6 +308,13 @@ export default function Home() {
         new Date(a.created_at || 0).getTime()
     );
   }, [allSongs]);
+
+  // Stable identity so random sections don't reshuffle when the cached list is
+  // replaced by an identical response from the database.
+  const songIdsKey = useMemo(
+    () => sortedSongs.map((song) => song.id).join(","),
+    [sortedSongs]
+  );
 
   const newestSongs = useMemo(() => {
     const cutoff = Date.now() - timeWindowDays * 24 * 60 * 60 * 1000;
@@ -291,18 +330,19 @@ export default function Home() {
     const mixed = [...praiseFirst, ...sortedSongs].filter(
       (song, index, list) => list.findIndex((item) => item.id === song.id) === index
     );
-    return shuffle(mixed).slice(0, 15);
-  }, [sortedSongs]);
+    return seededShuffle(mixed, `featured-${songIdsKey}`).slice(0, 15);
+  }, [songIdsKey, sortedSongs]);
 
   const spotifySong = useMemo(() => {
     if (sortedSongs.length === 0) return null;
-    return sortedSongs[Math.floor(Math.random() * Math.min(sortedSongs.length, 5))];
-  }, [sortedSongs]);
+    const rng = mulberry32(hashStr(`spotlight-${songIdsKey}`));
+    return sortedSongs[Math.floor(rng() * Math.min(sortedSongs.length, 5))];
+  }, [songIdsKey, sortedSongs]);
 
   const recommendedSongs = useMemo(() => {
     if (sortedSongs.length === 0) return [];
-    return shuffle(sortedSongs).slice(0, 10);
-  }, [sortedSongs]);
+    return seededShuffle(sortedSongs, `recommend-${songIdsKey}`).slice(0, 30);
+  }, [songIdsKey, sortedSongs]);
 
   const stats = {
     total: allSongs?.length || 0,
@@ -310,7 +350,7 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
+    <main className="min-h-[90vh] bg-transparent px-3 pb-8 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-5xl">
 
         {/* Hero */}
@@ -358,7 +398,7 @@ export default function Home() {
         {isLoading ? (
           <PageSkeleton letterGroups={3} />
         ) : (
-          <div className="flex flex-col gap-8 md:gap-10">
+          <div className="flex flex-col gap-5 md:gap-7">
             {loadError && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                 Songs could not be loaded. Check your connection or Supabase configuration and try again.
@@ -366,105 +406,124 @@ export default function Home() {
             )}
 
             {spotifySong && (
-              <section className="scroll-mt-24 py-2">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="h-4 w-0.5 rounded-full bg-accent/50" />
-                  <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">Spotlight</h2>
-                </div>
-                <div className="relative overflow-hidden rounded-2xl md:rounded-3xl">
-                  <div
-                    className="absolute inset-0"
-                    style={{ background: pastelGradient(spotifySong.title || "default") }}
-                  />
-                  <div className="relative flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between md:p-8">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl font-bold text-white shadow-inner md:h-20 md:w-20 md:text-3xl backdrop-blur-sm">
-                        {initialLetter(spotifySong.title)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/70">Featured Track</p>
-                        <p className="truncate text-lg font-bold text-white md:text-xl">{spotifySong.title}</p>
-                        <p className="truncate text-sm text-white/70">{spotifySong.author}</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveSong(spotifySong, sortedSongs)}
-                      className="flex items-center gap-2 self-start rounded-full bg-white/20 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/30 md:self-auto"
-                    >
-                      <Play size={14} fill="currentColor" />
-                      Play
-                    </button>
+              <LazySection>
+                <section className="scroll-mt-24 py-2">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="h-4 w-0.5 rounded-full bg-accent/50" />
+                    <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">Spotlight</h2>
                   </div>
-                </div>
-              </section>
+                  <div
+                    className="relative overflow-hidden rounded-2xl md:rounded-3xl spotlight-gradient"
+                    style={{ background: cyclingGradient(spotifySong.title || "default") }}
+                    onMouseEnter={() => prefetchSongAudio(spotifySong)}
+                  >
+                    <div className="relative flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between md:p-8">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl font-bold text-white shadow-inner md:h-20 md:w-20 md:text-3xl backdrop-blur-sm">
+                          {initialLetter(spotifySong.title)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/70">Featured Track</p>
+                          <p className="truncate text-lg font-bold text-white md:text-xl">{spotifySong.title}</p>
+                          <p className="truncate text-sm text-white/70">{spotifySong.author}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveSong(spotifySong, sortedSongs)}
+                        className="flex items-center gap-2 self-start rounded-full bg-white/20 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/30 md:self-auto"
+                      >
+                        <Play size={14} fill="currentColor" />
+                        Play
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              </LazySection>
             )}
 
-            <SectionBlock
-              id="featured-songs"
-              title="Featured"
-              items={featuredSongs}
-              onPlay={(song) => setActiveSong(song, featuredSongs)}
-              activeSongId={activeSong?.id}
-              cta={{ href: "/songs" }}
-              cardType="spotify"
-            />
+            <LazySection delay={50}>
+              <SectionBlock
+                id="featured-songs"
+                title="Featured"
+                items={featuredSongs}
+                onPlay={(song) => setActiveSong(song, featuredSongs)}
+                activeSongId={activeSong?.id}
+                cta={{ href: "/songs" }}
+                cardType="spotify"
+              />
+            </LazySection>
 
-            <SectionBlock
-              id="newest-songs"
-              title="New Additions"
-              items={newestSongs}
-              onPlay={(song) => setActiveSong(song, newestSongs)}
-              activeSongId={activeSong?.id}
-              cta={{ href: "/songs" }}
-              cardType="featured"
-            />
+            <LazySection delay={100}>
+              <SectionBlock
+                id="newest-songs"
+                title="New Additions"
+                items={newestSongs}
+                onPlay={(song) => setActiveSong(song, newestSongs)}
+                activeSongId={activeSong?.id}
+                cta={{ href: "/songs" }}
+                cardType="featured"
+              />
+            </LazySection>
 
             {recentlyPlayed.length > 0 && (
-              <SectionBlock
-                id="recently-played"
-                title="Recently Played"
-                items={recentlyPlayed}
-                onPlay={(song) => setActiveSong(song, recentlyPlayed)}
-                activeSongId={activeSong?.id}
-              />
+              <LazySection delay={150}>
+                <SectionBlock
+                  id="recently-played"
+                  title="Recently Played"
+                  items={recentlyPlayed}
+                  onPlay={(song) => setActiveSong(song, recentlyPlayed)}
+                  activeSongId={activeSong?.id}
+                />
+              </LazySection>
             )}
 
             {recommendedSongs.length > 0 && (
-              <section id="recommended" className="scroll-mt-24 py-2">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="h-4 w-0.5 rounded-full bg-accent/50" />
-                  <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">Recommendation</h2>
-                </div>
-                <div className="flex flex-col gap-y-1">
-                  {recommendedSongs.map((song) => (
-                    <RecommendationCard
-                      key={song.id}
-                      song={song}
-                      isActive={song.id === activeSong?.id}
-                      onClick={() => setActiveSong(song, recommendedSongs)}
-                    />
-                  ))}
-                </div>
-              </section>
+              <LazySection delay={200}>
+                <section id="recommended" className="scroll-mt-24 py-2">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="h-4 w-0.5 rounded-full bg-accent/50" />
+                    <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">Recommendation</h2>
+                  </div>
+                  <div className="flex flex-col gap-y-1">
+                    {recommendedSongs.map((song) => (
+                      <RecommendationCard
+                        key={song.id}
+                        song={song}
+                        isActive={song.id === activeSong?.id}
+                        onClick={() => setActiveSong(song, recommendedSongs)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              </LazySection>
             )}
 
             {sortedSongs.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <Disc className="mb-4 text-neutral-300" size={32} />
-                <p className="text-sm font-semibold text-neutral-900">
-                  No songs found
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/8">
+                  <Sparkles className="text-accent" size={28} />
+                </div>
+                <p className="text-base font-bold tracking-tight text-neutral-900">
+                  Your library is empty
                 </p>
-                <p className="mt-1 max-w-sm text-xs text-neutral-450">
-                  When tracks are uploaded, they&apos;ll appear here in the library sections.
+                <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-neutral-400">
+                  Upload your first worship song and start building your collection. Songs will appear here automatically.
                 </p>
+                <Link
+                  href="/admin"
+                  className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-accent/20 transition hover:bg-accent/90 hover:shadow-lg hover:shadow-accent/25"
+                >
+                  <Upload size={14} />
+                  Upload a Song
+                </Link>
               </div>
             )}
 
             {sortedSongs.length > 0 && (
-              <div className="flex flex-col items-center py-10 text-center">
-                <div className="h-px w-12 bg-neutral-200/60 mb-5" />
-                <p className="text-xs text-neutral-400/70 italic leading-relaxed max-w-xs mb-4">
+              <div className="flex flex-col items-center py-3 text-center">
+                <div className="h-px w-12 bg-neutral-200/60 mb-3" />
+                <p className="text-xs text-neutral-400/70 italic leading-relaxed max-w-xs mb-3">
                   that&apos;s all for now — refresh to discover new recommendations
                 </p>
                 <button

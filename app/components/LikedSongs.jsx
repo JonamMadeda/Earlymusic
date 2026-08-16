@@ -13,27 +13,35 @@ const LikedSongs = () => {
   useEffect(() => {
     if (!user) { setSongs([]); return; }
 
+    let cancelled = false;
+
     supabase
       .from("saved_songs")
       .select("song_id")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(5)
-      .then(async ({ data }) => {
+      .then(async ({ data, error }) => {
+        if (cancelled) return;
+        if (error) throw error;
         if (!data || data.length === 0) { setSongs([]); return; }
         const ids = data.map((s) => s.song_id);
 
-        const { data: allSongs } = await supabase
+        const { data: allSongs, error: songsError } = await supabase
           .from("songs")
           .select("*")
           .in("id", ids);
+        if (songsError) throw songsError;
 
         // Preserve the order from saved_songs
         const ordered = ids
           .map((id) => allSongs?.find((s) => s.id === id))
           .filter(Boolean);
-        setSongs(ordered);
-      });
+        if (!cancelled) setSongs(ordered);
+      })
+      .catch((error) => console.error("Unable to load liked songs:", error));
+
+    return () => { cancelled = true; };
   }, [user]);
 
   if (!user || songs.length === 0) {

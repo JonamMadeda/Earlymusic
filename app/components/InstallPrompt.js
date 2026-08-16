@@ -48,7 +48,7 @@ export default function InstallPrompt() {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[10000] w-[92%] max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[10000] w-[92%] max-w-md animate-fade-in">
       <div className="bg-white border border-neutral-100 shadow-2xl rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 sm:gap-x-4">
         <div className="flex items-center gap-x-3 w-full sm:w-auto">
           <div className="w-10 h-10 sm:w-12 sm:h-12 bg-accent rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl shrink-0">

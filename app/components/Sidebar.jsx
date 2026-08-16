@@ -32,7 +32,7 @@ const Sidebar = () => {
     {
       icon: Library,
       label: "Library",
-      active: mounted && (pathname === "/library" || pathname.startsWith("/playlists/")),
+      active: mounted && (pathname === "/library" || pathname === "/playlists" || pathname.startsWith("/playlists/")),
       href: "/library",
     },
   ];
@@ -80,13 +80,13 @@ const Sidebar = () => {
                 Recent
               </span>
             </div>
-            <nav className="flex flex-col gap-y-0.5 overflow-y-auto max-h-[calc(100%-2rem)] no-scrollbar custom-scrollbar pr-1">
+            <nav className="flex flex-col gap-y-0.5 overflow-y-auto max-h-[calc(100%-2rem)] custom-scrollbar pr-1">
               {recentlyPlayed.slice(0, 7).map((song) => (
                 <button
                   key={song.id}
                   type="button"
                   onClick={() => setActiveSong(song, recentlyPlayed)}
-                  className={`group flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition ${
+                  className={`group relative flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition ${
                     activeSong?.id === song.id
                       ? "bg-accent/8"
                       : "hover:bg-neutral-50"

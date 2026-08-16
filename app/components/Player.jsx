@@ -15,9 +15,11 @@ import {
   SkipForward,
   ChevronDown,
   Heart,
+  AlertTriangle,
 } from "lucide-react";
 import { getCachedAudioUrl, cacheAudioFile } from "@/lib/cacheUtils";
 import SongAvatar, { pastelGradient, gradientFirstColor, initialLetter } from "./SongAvatar";
+import { useAuth } from "../context/AuthContext";
 
 const Player = () => {
   const audioRef = useRef(null);
@@ -37,10 +39,64 @@ const Player = () => {
   const [volume, setVolume] = useState(1);
   const [audioUrl, setAudioUrl] = useState(null);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
+  const [audioError, setAudioError] = useState(false);
+
+  const { user } = useAuth();
 
   const currentIndex = (songs || []).findIndex((s) => s.id === song?.id);
 
   const playRef = useRef(false);
+  const loadIdRef = useRef(0);
+  const isPlayingRef = useRef(false);
+  const skipWhilePausedRef = useRef(false);
+  const scrubbingRef = useRef(false);
+  const blobUrlRef = useRef(null);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (!user || !song) {
+      setIsLiked(false);
+      return;
+    }
+    const songId = song.id;
+    supabase
+      .from("saved_songs")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("song_id", song.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (songId === song?.id) setIsLiked(!!data);
+      })
+      .catch((error) => console.error("Unable to check saved song:", error));
+  }, [user, song?.id]);
+
+  const toggleLike = async () => {
+    if (!user || !song) return;
+    const songId = song.id;
+    try {
+      if (isLiked) {
+        const { error } = await supabase
+          .from("saved_songs")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("song_id", song.id);
+        if (error) throw error;
+        if (songId === song?.id) setIsLiked(false);
+      } else {
+        const { error } = await supabase
+          .from("saved_songs")
+          .insert({ user_id: user.id, song_id: song.id });
+        if (error) throw error;
+        if (songId === song?.id) setIsLiked(true);
+      }
+    } catch (error) {
+      console.error("Unable to update saved song:", error);
+    }
+  };
 
   // Mobile back button closes full-screen player instead of leaving the app
   useEffect(() => {
@@ -69,28 +125,39 @@ const Player = () => {
     }
   }, [isPlaying]);
 
-  const onPlayNext = useCallback(() => {
-    if (!songs || songs.length === 0) return;
+  const selectNextSong = useCallback(() => {
+    if (!songs || songs.length === 0) return null;
+    skipWhilePausedRef.current = !isPlayingRef.current;
 
+    let nextIndex;
     if (isShuffle) {
-      let nextIndex = currentIndex;
+      nextIndex = currentIndex;
       if (songs.length > 1) {
         while (nextIndex === currentIndex) {
           nextIndex = Math.floor(Math.random() * songs.length);
         }
       }
-      onSongSelect(songs[nextIndex], songs);
     } else {
-      const nextIndex = (currentIndex + 1) % songs.length;
-      onSongSelect(songs[nextIndex], songs);
+      nextIndex = (currentIndex + 1) % songs.length;
     }
-  }, [songs, isShuffle, currentIndex, onSongSelect]);
+    return songs[nextIndex];
+  }, [songs, isShuffle, currentIndex]);
+
+  const onPlayNext = useCallback(() => {
+    const nextSong = selectNextSong();
+    if (nextSong) onSongSelect(nextSong, songs);
+  }, [selectNextSong, songs, onSongSelect]);
 
   const onPlayPrevious = useCallback(() => {
     if (!songs || songs.length === 0) return;
+    skipWhilePausedRef.current = !isPlayingRef.current;
     const prevIndex = currentIndex <= 0 ? songs.length - 1 : currentIndex - 1;
     onSongSelect(songs[prevIndex], songs);
   }, [songs, currentIndex, onSongSelect]);
+
+  const setPlayState = useCallback((playing) => {
+    setIsPlaying(playing);
+  }, []);
 
   const togglePlay = useCallback(() => {
     setIsPlaying((prev) => !prev);
@@ -108,8 +175,8 @@ const Player = () => {
       ],
     });
 
-    navigator.mediaSession.setActionHandler("play", togglePlay);
-    navigator.mediaSession.setActionHandler("pause", togglePlay);
+    navigator.mediaSession.setActionHandler("play", () => setPlayState(true));
+    navigator.mediaSession.setActionHandler("pause", () => setPlayState(false));
     navigator.mediaSession.setActionHandler("previoustrack", onPlayPrevious);
     navigator.mediaSession.setActionHandler("nexttrack", onPlayNext);
 
@@ -119,28 +186,88 @@ const Player = () => {
       navigator.mediaSession.setActionHandler("previoustrack", null);
       navigator.mediaSession.setActionHandler("nexttrack", null);
     };
-  }, [song, togglePlay, onPlayNext, onPlayPrevious]);
+  }, [song, setPlayState, onPlayNext, onPlayPrevious]);
 
   useEffect(() => {
-    if (song) {
-      const loadAudio = async () => {
+    if (!song) return;
+
+    const loadId = ++loadIdRef.current;
+    let cancelled = false;
+
+    const loadAudio = async () => {
+      setAudioError(false);
+      setDuration(0);
+      setCurrentTime(0);
+
+      try {
         const publicUrl = getAudioPublicUrl(song.song_path);
 
         const cachedUrl = await getCachedAudioUrl(publicUrl);
+        if (cancelled || loadId !== loadIdRef.current) {
+          if (cachedUrl) URL.revokeObjectURL(cachedUrl);
+          return;
+        }
+
+        if (blobUrlRef.current) {
+          URL.revokeObjectURL(blobUrlRef.current);
+          blobUrlRef.current = null;
+        }
+
         if (cachedUrl) {
+          blobUrlRef.current = cachedUrl;
           setAudioUrl(cachedUrl);
         } else {
           setAudioUrl(publicUrl);
           cacheAudioFile(publicUrl, song.song_path);
         }
 
-        playRef.current = true;
-        setCurrentTime(0);
-      };
+        playRef.current = !skipWhilePausedRef.current;
+        skipWhilePausedRef.current = false;
+      } catch (error) {
+        console.error("Unable to load audio:", error);
+        if (!cancelled && loadId === loadIdRef.current) {
+          setAudioError(true);
+          playRef.current = false;
+        }
+      }
+    };
 
-      loadAudio();
-    }
+    loadAudio();
+
+    return () => {
+      cancelled = true;
+    };
   }, [song]);
+
+  // Eager attempt to play as soon as the audio URL is set
+  useEffect(() => {
+    if (!audioUrl || !audioRef.current || !playRef.current) return;
+
+    audioRef.current.play().then(() => {
+      setIsPlaying(true);
+      playRef.current = false;
+    }).catch(() => {
+      playRef.current = false;
+      setIsPlaying(false);
+    });
+  }, [audioUrl]);
+
+  const retryPlayback = () => {
+    if (!song) return;
+    loadIdRef.current += 1;
+    setAudioError(false);
+    playRef.current = true;
+    if (audioRef.current) {
+      audioRef.current.load();
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+        playRef.current = false;
+      }).catch(() => {
+        playRef.current = false;
+        setIsPlaying(false);
+      });
+    }
+  };
 
   const toggleMute = () => {
     const newMuted = !isMuted;
@@ -149,9 +276,17 @@ const Player = () => {
   };
 
   const formatTime = (time) => {
+    if (!Number.isFinite(time) || time < 0) return "0:00";
     const mins = Math.floor(time / 60);
     const secs = Math.floor(time % 60);
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
+
+  const handleSeek = (time) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = time;
+    setCurrentTime(time);
+    scrubbingRef.current = false;
   };
 
   const progress = duration ? (currentTime / duration) * 100 : 0;
@@ -161,7 +296,7 @@ const Player = () => {
   return (
     <>
       {/* Desktop player — full-width bar */}
-      <div className="fixed bottom-14 left-0 right-0 z-[9999] hidden md:block md:bottom-0">
+      <div className="fixed bottom-14 left-0 right-0 z-[900] hidden md:block md:bottom-0">
         <div className="relative overflow-hidden border-t border-white/60 bg-white/80 backdrop-blur-2xl shadow-lg shadow-neutral-900/5">
           {/* Song-tinted gradient overlay */}
           <div className="absolute inset-0 opacity-[0.06]" style={{ background: pastelGradient(song?.title || "default") }} />
@@ -173,13 +308,9 @@ const Player = () => {
               min="0"
               max={duration || 0}
               value={currentTime}
-              onChange={(e) => {
-                const time = Number(e.target.value);
-                if (audioRef.current) {
-                  audioRef.current.currentTime = time;
-                  setCurrentTime(time);
-                }
-              }}
+              onPointerDown={() => { scrubbingRef.current = true; }}
+              onPointerUp={() => { scrubbingRef.current = false; }}
+              onChange={(e) => handleSeek(Number(e.target.value))}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
             />
             <div
@@ -213,6 +344,7 @@ const Player = () => {
                 <div className="flex items-center gap-x-1">
                   <button
                     type="button"
+                    aria-label="Toggle shuffle"
                     onClick={() => {
                       const newState = !isShuffle;
                       setIsShuffle(newState);
@@ -229,6 +361,7 @@ const Player = () => {
 
                   <button
                     type="button"
+                    aria-label="Previous track"
                     onClick={onPlayPrevious}
                     className="rounded-full p-1.5 text-neutral-500 transition active:scale-90 hover:text-neutral-900"
                   >
@@ -237,6 +370,7 @@ const Player = () => {
 
                   <button
                     type="button"
+                    aria-label={isPlaying ? "Pause" : "Play"}
                     onClick={togglePlay}
                     className="mx-1.5 flex h-10 w-10 items-center justify-center rounded-full text-white shadow-[0_0_14px_-2px] transition hover:brightness-110 active:scale-95"
                     style={{ background: pastelGradient(song?.title || "default"), boxShadow: `0 0 14px -2px ${gradientFirstColor(song?.title || "default")}80` }}
@@ -250,6 +384,7 @@ const Player = () => {
 
                   <button
                     type="button"
+                    aria-label="Next track"
                     onClick={onPlayNext}
                     className="rounded-full p-1.5 text-neutral-500 transition active:scale-90 hover:text-neutral-900"
                   >
@@ -258,6 +393,7 @@ const Player = () => {
 
                   <button
                     type="button"
+                    aria-label="Toggle repeat"
                     onClick={() => {
                       const newState = !isLooping;
                       setIsLooping(newState);
@@ -283,6 +419,17 @@ const Player = () => {
               <div className="flex items-center justify-end gap-3 w-[260px] shrink-0">
                 <button
                   type="button"
+                  aria-label={isLiked ? "Remove from saved songs" : "Save song"}
+                  onClick={toggleLike}
+                  className={`rounded-full p-2 transition ${
+                    isLiked ? "text-accent" : "text-neutral-400 hover:text-accent"
+                  }`}
+                >
+                  <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
+                </button>
+                <button
+                  type="button"
+                  aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
                   onClick={toggleMute}
                   className="rounded-full p-2 text-neutral-400 transition hover:text-accent"
                 >
@@ -298,6 +445,7 @@ const Player = () => {
                   max="1"
                   step="0.05"
                   value={isMuted ? 0 : volume}
+                  aria-label="Volume"
                   onChange={(e) => {
                     const v = Number(e.target.value);
                     setVolume(v);
@@ -315,7 +463,7 @@ const Player = () => {
 
       {/* Mobile mini-bar */}
       <div
-        className="fixed bottom-14 left-0 right-0 z-[9999] md:hidden cursor-pointer shadow-lg shadow-neutral-900/5"
+        className="fixed bottom-14 left-0 right-0 z-[900] md:hidden cursor-pointer shadow-lg shadow-neutral-900/5"
         onClick={() => setShowFullPlayer(true)}
       >
         {/* Mini progress bar */}
@@ -334,6 +482,7 @@ const Player = () => {
           </div>
           <button
             type="button"
+            aria-label={isPlaying ? "Pause" : "Play"}
             onClick={(e) => { e.stopPropagation(); togglePlay(); }}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white shadow-md active:scale-90 transition hover:brightness-110"
             style={{ background: pastelGradient(song?.title || "default"), boxShadow: `0 4px 6px -1px ${gradientFirstColor(song?.title || "default")}40` }}
@@ -358,6 +507,7 @@ const Player = () => {
           <div className="relative z-10 flex items-center justify-between px-5 pt-5 pb-2">
             <button
               type="button"
+              aria-label="Close player"
               onClick={() => {
                 setShowFullPlayer(false);
                 window.history.back();
@@ -371,7 +521,8 @@ const Player = () => {
             </span>
             <button
               type="button"
-              onClick={() => setIsLiked(!isLiked)}
+              aria-label={isLiked ? "Remove from saved songs" : "Save song"}
+              onClick={toggleLike}
               className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
                 isLiked ? "text-white bg-white/15" : "text-white/50 hover:text-white hover:bg-white/10"
               }`}
@@ -397,6 +548,16 @@ const Player = () => {
             <p className="mt-1 text-sm font-medium text-white/70">
               {song.author}
             </p>
+            {audioError && (
+              <button
+                type="button"
+                onClick={retryPlayback}
+                className="mt-3 flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm"
+              >
+                <AlertTriangle size={14} />
+                Playback failed — Tap to retry
+              </button>
+            )}
           </div>
 
           {/* Glass-morphism controls panel */}
@@ -408,13 +569,9 @@ const Player = () => {
                 min="0"
                 max={duration || 0}
                 value={currentTime}
-                onChange={(e) => {
-                  const time = Number(e.target.value);
-                  if (audioRef.current) {
-                    audioRef.current.currentTime = time;
-                    setCurrentTime(time);
-                  }
-                }}
+                onPointerDown={() => { scrubbingRef.current = true; }}
+                onPointerUp={() => { scrubbingRef.current = false; }}
+                onChange={(e) => handleSeek(Number(e.target.value))}
                 className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/20 accent-white [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
               />
               <div className="flex items-center justify-between mt-1">
@@ -431,6 +588,7 @@ const Player = () => {
             <div className="flex items-center justify-center gap-5 py-3">
               <button
                 type="button"
+                aria-label="Toggle shuffle"
                 onClick={() => {
                   const newState = !isShuffle;
                   setIsShuffle(newState);
@@ -445,6 +603,7 @@ const Player = () => {
 
               <button
                 type="button"
+                aria-label="Previous track"
                 onClick={onPlayPrevious}
                 className="rounded-full p-1.5 text-white/70 transition active:scale-90"
               >
@@ -453,6 +612,7 @@ const Player = () => {
 
               <button
                 type="button"
+                aria-label={isPlaying ? "Pause" : "Play"}
                 onClick={togglePlay}
                 className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-neutral-900 shadow-xl transition active:scale-95"
               >
@@ -465,6 +625,7 @@ const Player = () => {
 
               <button
                 type="button"
+                aria-label="Next track"
                 onClick={onPlayNext}
                 className="rounded-full p-1.5 text-white/70 transition active:scale-90"
               >
@@ -473,6 +634,7 @@ const Player = () => {
 
               <button
                 type="button"
+                aria-label="Toggle repeat"
                 onClick={() => {
                   const newState = !isLooping;
                   setIsLooping(newState);
@@ -490,6 +652,7 @@ const Player = () => {
             <div className="flex items-center justify-center gap-3 pt-1">
               <button
                 type="button"
+                aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
                 onClick={toggleMute}
                 className="rounded-full p-1 text-white/50"
               >
@@ -505,6 +668,7 @@ const Player = () => {
                 max="1"
                 step="0.05"
                 value={isMuted ? 0 : volume}
+                aria-label="Volume"
                 onChange={(e) => {
                   const v = Number(e.target.value);
                   setVolume(v);
@@ -523,19 +687,31 @@ const Player = () => {
         src={audioUrl}
         loop={isLooping}
         onTimeUpdate={() => {
-          if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+          if (audioRef.current && !scrubbingRef.current) {
+            setCurrentTime(audioRef.current.currentTime);
+          }
         }}
         onCanPlay={() => {
           if (playRef.current) {
             playRef.current = false;
-            audioRef.current?.play().catch(() => {});
+            audioRef.current?.play().catch(() => setIsPlaying(false));
             setIsPlaying(true);
           }
         }}
         onLoadedMetadata={() => {
-          if (audioRef.current) setDuration(audioRef.current.duration);
+          if (audioRef.current && Number.isFinite(audioRef.current.duration)) {
+            setDuration(audioRef.current.duration);
+          }
         }}
-        onEnded={onPlayNext}
+        onError={() => {
+          playRef.current = false;
+          setIsPlaying(false);
+          setAudioError(true);
+        }}
+        onEnded={() => {
+          playRef.current = false;
+          onPlayNext();
+        }}
       />
     </>
   );

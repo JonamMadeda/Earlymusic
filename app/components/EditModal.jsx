@@ -13,6 +13,15 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e) => {
+      if (e.key === "Escape" && !isLoading) onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isOpen, isLoading, onClose]);
+
+  useEffect(() => {
     if (song && isOpen) {
       setTitle(song.title || "");
       setAuthor(song.author || "");
@@ -62,7 +71,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
 
       // Clear cache so other pages see the update
       localStorage.removeItem("earlymusic_songs_cache");
-      onSuccess(data[0]); // pass the updated song back if needed
+      if (data && data[0]) onSuccess(data[0]);
       onClose();
     } catch (error) {
       console.error("Update failed:", error);
@@ -74,7 +83,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
 
   return (
     <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md p-8 relative shadow-2xl border border-neutral-100 animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl w-full max-w-md p-8 relative shadow-2xl border border-neutral-100 animate-fade-in">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900 transition"

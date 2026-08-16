@@ -6,23 +6,32 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
 import { Mail, Lock, Loader, ArrowLeft, KeyRound } from "lucide-react";
 
+const getSafeRedirect = (value) => {
+  if (!value) return "/";
+  if (!value.startsWith("/")) return "/";
+  if (value.startsWith("//") || value.startsWith("/\\")) return "/";
+  if (/[\u0000-\u001f\u007f]/.test(value)) return "/";
+  return value;
+};
+
 function AuthForm() {
   const { signIn, signUp, resetPassword } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") || "/";
+  const redirectTo = getSafeRedirect(searchParams.get("redirectTo"));
   const isUpdatePassword = searchParams.get("mode") === "update-password";
   const [mode, setMode] = useState(isUpdatePassword ? "update-password" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [updated, setUpdated] = useState(false);
 
   useEffect(() => {
     if (isUpdatePassword) {
       supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session) router.push("/auth");
+        if (!session) router.push("/auth?mode=update-password");
       });
     }
   }, [isUpdatePassword, router]);
@@ -30,6 +39,7 @@ function AuthForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setMessage("");
     setSubmitting(true);
 
     if (mode === "reset") {
@@ -37,7 +47,7 @@ function AuthForm() {
       if (authError) {
         setError(authError.message);
       } else {
-        setError("Check your email for a password reset link.");
+        setMessage("Check your email for a password reset link.");
       }
       setSubmitting(false);
       return;
@@ -62,8 +72,13 @@ function AuthForm() {
       setError(authError.message);
       setSubmitting(false);
     } else if (mode === "signup") {
-      setError("Check your email for a confirmation link.");
-      setSubmitting(false);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.push(redirectTo);
+      } else {
+        setMessage("Check your email for a confirmation link.");
+        setSubmitting(false);
+      }
     } else {
       router.push(redirectTo);
     }
@@ -157,6 +172,12 @@ function AuthForm() {
           {error && (
             <p className="text-[13px] font-medium text-red-600 text-center">
               {error}
+            </p>
+          )}
+
+          {message && (
+            <p className="text-[13px] font-medium text-emerald-600 text-center">
+              {message}
             </p>
           )}
 

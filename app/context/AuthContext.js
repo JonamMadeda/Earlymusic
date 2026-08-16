@@ -33,10 +33,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!user) { setProfile(null); return; }
 
-    supabase.from("profiles").select("first_name, last_name").eq("id", user.id).single()
-      .then(({ data }) => {
+    supabase.from("profiles").select("first_name, last_name").eq("id", user.id).maybeSingle()
+      .then(({ data, error }) => {
+        if (error) throw error;
         if (data) setProfile(data);
-      });
+      })
+      .catch((error) => console.error("Unable to load profile:", error));
   }, [user]);
 
   useEffect(() => {

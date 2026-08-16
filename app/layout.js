@@ -16,7 +16,6 @@ export const viewport = {
   themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
 };
 
 export const metadata = {
@@ -40,7 +39,7 @@ export default function RootLayout({ children }) {
       <body className={`${inter.className} min-h-screen bg-transparent text-neutral-900 antialiased`}>
         <PlayerProvider>
           <AuthProvider>
-            <div className="relative flex min-h-[90vh] h-screen overflow-hidden bg-white">
+            <div className="relative flex h-dvh overflow-hidden bg-white">
               <Sidebar />
 
               <main className="relative flex flex-1 flex-col overflow-hidden border-l border-neutral-200 bg-white">

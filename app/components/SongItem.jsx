@@ -15,7 +15,12 @@ import SongAvatar from "@/app/components/SongAvatar";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
 
-const SongItem = ({ song, onClick }) => {
+/**
+ * SongItem renders a playable song row.
+ * When `saved` and `onToggleSave` are provided (batched by the parent),
+ * the per-row saved-state query is skipped entirely.
+ */
+const SongItem = ({ song, onClick, saved, onToggleSave }) => {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -24,13 +29,16 @@ const SongItem = ({ song, onClick }) => {
   const isNew =
     song.created_at &&
     Date.now() - new Date(song.created_at).getTime() <
-      14 * 24 * 60 * 60 * 1000;
-  const [isSaved, setIsSaved] = useState(false);
+      30 * 24 * 60 * 60 * 1000;
+
+  const [internalSaved, setInternalSaved] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showPlaylists, setShowPlaylists] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [newPlaylistName, setNewPlaylistName] = useState("");
+
+  const isSaved = saved !== undefined ? saved : internalSaved;
 
   useEffect(() => {
     if (!showMenu && !showInfo && !showPlaylists) return;
@@ -46,9 +54,11 @@ const SongItem = ({ song, onClick }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showMenu, showInfo, showPlaylists]);
+
   useEffect(() => {
+    if (saved !== undefined) return;
     if (!user) {
-      setIsSaved(false);
+      setInternalSaved(false);
       return;
     }
 
@@ -58,8 +68,9 @@ const SongItem = ({ song, onClick }) => {
       .eq("user_id", user.id)
       .eq("song_id", song.id)
       .maybeSingle()
-      .then(({ data }) => setIsSaved(!!data));
-  }, [user, song.id]);
+      .then(({ data }) => setInternalSaved(!!data))
+      .catch((error) => console.error("Unable to check saved song:", error));
+  }, [user, song.id, saved]);
 
   useEffect(() => {
     if (showPlaylists && user) {
@@ -68,15 +79,59 @@ const SongItem = ({ song, onClick }) => {
         .select("id, name")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .then(({ data }) => setPlaylists(data || []));
+        .then(({ data }) => setPlaylists(data || []))
+        .catch((error) => console.error("Unable to load playlists:", error));
     }
   }, [showPlaylists, user]);
 
+  const handleToggleSave = async () => {
+    if (onToggleSave) {
+      await onToggleSave(song.id);
+      return;
+    }
+    if (!user) {
+      router.push(`/auth?redirectTo=${encodeURIComponent(pathname)}`);
+      return;
+    }
+    try {
+      if (internalSaved) {
+        const { error } = await supabase
+          .from("saved_songs")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("song_id", song.id);
+        if (error) throw error;
+        setInternalSaved(false);
+      } else {
+        const { error } = await supabase
+          .from("saved_songs")
+          .insert({ user_id: user.id, song_id: song.id });
+        if (error) throw error;
+        setInternalSaved(true);
+      }
+    } catch (error) {
+      console.error("Unable to update saved song:", error);
+    }
+  };
+
   const addToPlaylist = async (e, playlistId) => {
     e.stopPropagation();
-    await supabase
-      .from("playlist_songs")
-      .insert({ playlist_id: playlistId, song_id: song.id });
+    try {
+      const { data: existing, error: checkError } = await supabase
+        .from("playlist_songs")
+        .select("id")
+        .eq("playlist_id", playlistId)
+        .eq("song_id", song.id)
+        .maybeSingle();
+      if (checkError) throw checkError;
+      if (existing) return;
+      const { error } = await supabase
+        .from("playlist_songs")
+        .insert({ playlist_id: playlistId, song_id: song.id });
+      if (error) throw error;
+    } catch (error) {
+      console.error("Unable to add song to playlist:", error);
+    }
   };
 
   const createAndAdd = async (e) => {
@@ -84,25 +139,34 @@ const SongItem = ({ song, onClick }) => {
     const name = newPlaylistName.trim();
     if (!name || !user) return;
 
-    const { data: pl } = await supabase
-      .from("playlists")
-      .insert({ name, user_id: user.id })
-      .select()
-      .single();
+    try {
+      const { data: pl, error: createError } = await supabase
+        .from("playlists")
+        .insert({ name, user_id: user.id })
+        .select()
+        .single();
+      if (createError) throw createError;
 
-    if (pl) {
-      await supabase
-        .from("playlist_songs")
-        .insert({ playlist_id: pl.id, song_id: song.id });
-      setNewPlaylistName("");
-      setShowPlaylists(false);
+      if (pl) {
+        const { error } = await supabase
+          .from("playlist_songs")
+          .insert({ playlist_id: pl.id, song_id: song.id });
+        if (error) throw error;
+        setNewPlaylistName("");
+        setShowPlaylists(false);
+      }
+    } catch (error) {
+      console.error("Unable to create playlist:", error);
     }
   };
 
   return (
     <div
       ref={rowRef}
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(e); } }}
       className="group relative flex cursor-pointer items-center gap-3.5 rounded-2xl bg-neutral-50/60 p-3.5 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm backdrop-blur-2xl"
     >
       <div className="relative shrink-0">
@@ -146,6 +210,8 @@ const SongItem = ({ song, onClick }) => {
           onClick={(e) => {
             e.stopPropagation();
             setShowMenu(!showMenu);
+            setShowInfo(false);
+            setShowPlaylists(false);
           }}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-all duration-300 hover:bg-accent hover:text-white"
           title="More"
@@ -187,27 +253,7 @@ const SongItem = ({ song, onClick }) => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (!user) {
-                  router.push(`/auth?redirectTo=${encodeURIComponent(pathname)}`);
-                  return;
-                }
-
-                (async () => {
-                  if (isSaved) {
-                    await supabase
-                      .from("saved_songs")
-                      .delete()
-                      .eq("user_id", user.id)
-                      .eq("song_id", song.id);
-                    setIsSaved(false);
-                  } else {
-                    await supabase
-                      .from("saved_songs")
-                      .insert({ user_id: user.id, song_id: song.id });
-                    setIsSaved(true);
-                  }
-                })();
-                setShowMenu(false);
+                handleToggleSave().finally(() => setShowMenu(false));
               }}
               className="flex w-full items-center gap-x-3 rounded-2xl px-3 py-3 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
             >

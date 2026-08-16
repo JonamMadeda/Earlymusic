@@ -3,15 +3,9 @@
 import { Home, Library, Music, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 
 const BottomNav = () => {
   const pathname = usePathname();
-  const [activePath, setActivePath] = useState(null);
-
-  useEffect(() => {
-    setActivePath(pathname);
-  }, [pathname]);
 
   const navItems = [
     { icon: Home, label: "Home", href: "/" },
@@ -20,10 +14,17 @@ const BottomNav = () => {
     { icon: User, label: "Account", href: "/account" },
   ];
 
+  const isPathActive = (href) => {
+    if (href === "/library") {
+      return pathname === "/library" || pathname === "/playlists" || pathname.startsWith("/playlists/");
+    }
+    return pathname === href;
+  };
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-14 items-center justify-around border-t border-white/70 bg-white/85 px-4 backdrop-blur-xl md:hidden">
       {navItems.map((item) => {
-        const isActive = activePath === item.href;
+        const isActive = isPathActive(item.href);
         return (
           <Link
             key={item.label}

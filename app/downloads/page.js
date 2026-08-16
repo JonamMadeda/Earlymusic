@@ -18,13 +18,15 @@ const formatBytes = (bytes) => {
 };
 
 export default function DownloadsPage() {
-  const { allSongs, setActiveSong } = usePlayer();
+  const { setActiveSong } = usePlayer();
   const [downloadedSongs, setDownloadedSongs] = useState([]);
   const [storage, setStorage] = useState(null);
 
   const refresh = useCallback(() => {
     setDownloadedSongs(getDownloadedSongs());
-    getStorageEstimate().then(setStorage);
+    getStorageEstimate()
+      .then(setStorage)
+      .catch((error) => console.error("Unable to read storage estimate:", error));
   }, []);
 
   useEffect(() => {
@@ -33,13 +35,17 @@ export default function DownloadsPage() {
 
   const handleRemove = async (e, songId) => {
     e.stopPropagation();
-    await removeDownload(songId);
-    refresh();
+    try {
+      await removeDownload(songId);
+      refresh();
+    } catch (error) {
+      console.error("Unable to remove download:", error);
+    }
   };
 
   const handlePlay = (songId) => {
-    const song = allSongs.find((s) => s.id === songId);
-    if (song) setActiveSong(song, allSongs);
+    const song = downloadedSongs.find((s) => s.id === songId);
+    if (song) setActiveSong(song, downloadedSongs);
   };
 
   const storagePercent = storage && storage.quota > 0
@@ -114,7 +120,7 @@ export default function DownloadsPage() {
                 tabIndex={0}
                 onClick={() => handlePlay(song.id)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") handlePlay(song.id);
+                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handlePlay(song.id); }
                 }}
                 className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl bg-neutral-50/60 p-3 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm hover:-translate-y-0.5"
               >

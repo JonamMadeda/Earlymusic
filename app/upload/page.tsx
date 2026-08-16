@@ -11,6 +11,9 @@ type UploadUrlResponse = {
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
+  const [author, setAuthor] = useState("Pastor Marita Mbae");
+  const [category, setCategory] = useState("Worship");
+  const [duration, setDuration] = useState("Long");
   const [status, setStatus] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -20,6 +23,8 @@ export default function UploadPage() {
       setStatus("Choose an audio file and enter a track title.");
       return;
     }
+
+    let uploadedStorageUrl: string | null = null;
 
     setIsUploading(true);
     setStatus("Preparing secure upload…");
@@ -48,19 +53,40 @@ export default function UploadPage() {
         body: file,
       });
       if (!uploadResponse.ok) throw new Error("Cloudflare R2 rejected the audio upload.");
+      uploadedStorageUrl = publicStorageUrl;
 
       setStatus("Saving track metadata…");
-      const { error } = await supabase.from("audio_tracks").insert({
+      const { error } = await supabase.from("songs").insert({
         title: title.trim(),
-        public_storage_url: publicStorageUrl,
-        user_id: sessionData.session.user.id,
+        author: author.trim(),
+        category: category,
+        duration: duration,
+        song_path: publicStorageUrl,
       });
       if (error) throw error;
 
+      localStorage.removeItem("earlymusic_songs_cache");
       setFile(null);
       setTitle("");
       setStatus("Track uploaded successfully.");
     } catch (error) {
+      if (uploadedStorageUrl) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData.session?.access_token) {
+            await fetch("/api/admin/storage", {
+              method: "DELETE",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${sessionData.session.access_token}`,
+              },
+              body: JSON.stringify({ publicStorageUrl: uploadedStorageUrl }),
+            });
+          }
+        } catch (cleanupError) {
+          console.error("Unable to clean up orphaned upload:", cleanupError);
+        }
+      }
       setStatus(error instanceof Error ? error.message : "The upload failed. Please try again.");
     } finally {
       setIsUploading(false);
@@ -80,6 +106,26 @@ export default function UploadPage() {
             Track title
             <input value={title} onChange={(event) => setTitle(event.target.value)} required className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-accent" />
           </label>
+          <label className="block text-xs font-medium text-neutral-500">
+            Artist name
+            <input value={author} onChange={(event) => setAuthor(event.target.value)} required className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-accent" />
+          </label>
+          <div className="flex gap-3">
+            <label className="block flex-1 text-xs font-medium text-neutral-500">
+              Category
+              <select value={category} onChange={(event) => setCategory(event.target.value)} className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-accent">
+                <option>Worship</option>
+                <option>Praise</option>
+              </select>
+            </label>
+            <label className="block flex-1 text-xs font-medium text-neutral-500">
+              Duration
+              <select value={duration} onChange={(event) => setDuration(event.target.value)} className="mt-2 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-accent">
+                <option>Long</option>
+                <option>Short</option>
+              </select>
+            </label>
+          </div>
           <label className="block text-xs font-medium text-neutral-500">
             Audio file
             <input type="file" accept="audio/*" required disabled={isUploading} onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="mt-2 block w-full text-sm rounded-xl border border-neutral-200 bg-white px-3 py-2.5 file:mr-2 file:rounded-full file:border-0 file:bg-accent file:px-3 file:py-1 file:text-xs file:font-semibold file:text-white" />

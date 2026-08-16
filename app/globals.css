@@ -132,3 +132,29 @@ body {
 .animate-fade-in {
   animation: fadeIn 0.25s ease-out;
 }
+
+/* Spotlight gradient cycling */
+@keyframes gradientCycle {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.spotlight-gradient {
+  background-size: 200% 200%;
+  animation: gradientCycle 8s ease infinite;
+}
+
+/* Lazy section fade-in on enter viewport */
+@keyframes sectionReveal {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.section-lazy-enter {
+  opacity: 0;
+}
+
+.section-lazy-enter.section-visible {
+  animation: sectionReveal 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}

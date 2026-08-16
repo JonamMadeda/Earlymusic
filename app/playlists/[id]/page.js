@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ListMusic, Disc, Trash2, LogIn, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
@@ -22,44 +22,82 @@ export default function PlaylistDetailPage() {
   const [selectedSongIds, setSelectedSongIds] = useState(new Set());
   const [showAddSongs, setShowAddSongs] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [savedSongIds, setSavedSongIds] = useState(new Set());
 
   // Fetch playlist + its songs from DB
   useEffect(() => {
     if (authLoading) return;
     if (!user) { setLoading(false); return; }
 
+    let cancelled = false;
     Promise.all([
       supabase.from("playlists").select("*").eq("id", params.id).single(),
       supabase.from("playlist_songs").select("song_id").eq("playlist_id", params.id),
-    ]).then(([plRes, songsRes]) => {
-      if (!plRes.data) { router.replace("/playlists"); return; }
-      setPlaylist(plRes.data);
-      setSongIds((songsRes.data || []).map((s) => s.song_id));
-    }).finally(() => setLoading(false));
+      supabase.from("saved_songs").select("song_id").eq("user_id", user.id),
+    ])
+      .then(([plRes, songsRes, savedRes]) => {
+        if (cancelled) return;
+        if (plRes.error) throw plRes.error;
+        if (!plRes.data || plRes.data.user_id !== user.id) {
+          router.replace("/playlists");
+          return;
+        }
+        setPlaylist(plRes.data);
+        setSongIds((songsRes.data || []).map((s) => s.song_id));
+        setSavedSongIds(new Set((savedRes.data || []).map((s) => s.song_id)));
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Unable to load playlist:", error);
+        router.replace("/playlists");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [params.id, router, user, authLoading]);
 
   // Sync allSongs from PlayerContext or fetch from cache/DB
+  const songsFetchedRef = useRef(false);
   useEffect(() => {
-    if (allSongs.length > 0 || !user) return;
+    if (!user) return;
+    if (allSongs.length > 0) return;
 
-    const cached = localStorage.getItem("earlymusic_songs_cache");
-    if (cached) {
+    const fetchSongs = async () => {
+      if (songsFetchedRef.current) return;
+      songsFetchedRef.current = true;
+
+      const cached = localStorage.getItem("earlymusic_songs_cache");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAllSongs(parsed);
+            return;
+          }
+        } catch {
+          localStorage.removeItem("earlymusic_songs_cache");
+        }
+      }
+
       try {
-        const parsed = JSON.parse(cached);
-        if (parsed.length > 0) { setAllSongs(parsed); return; }
-      } catch {}
-    }
-
-    supabase
-      .from("songs")
-      .select("*")
-      .order("title", { ascending: true })
-      .then(({ data }) => {
+        const { data, error } = await supabase
+          .from("songs")
+          .select("*")
+          .order("title", { ascending: true });
+        if (error) throw error;
         if (data) {
           setAllSongs(data);
-          localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
+          if (data.length > 0) {
+            localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
+          }
         }
-      });
+      } catch (error) {
+        console.error("Unable to load songs:", error);
+      }
+    };
+
+    fetchSongs();
   }, [allSongs.length, setAllSongs, user]);
 
   const songs = useMemo(() => {
@@ -98,7 +136,9 @@ export default function PlaylistDetailPage() {
       song_id: songId,
     }));
     const { error } = await supabase.from("playlist_songs").insert(inserts);
-    if (!error) {
+    if (error) {
+      console.error("Unable to add songs:", error);
+    } else {
       setSongIds((prev) => [...prev, ...newIds]);
       setSelectedSongIds(new Set());
       setSearchQuery("");
@@ -106,19 +146,53 @@ export default function PlaylistDetailPage() {
     setAdding(false);
   };
 
+  const handleToggleSaved = async (songId) => {
+    try {
+      if (savedSongIds.has(songId)) {
+        const { error } = await supabase
+          .from("saved_songs")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("song_id", songId);
+        if (error) throw error;
+        setSavedSongIds((prev) => {
+          const next = new Set(prev);
+          next.delete(songId);
+          return next;
+        });
+      } else {
+        const { error } = await supabase
+          .from("saved_songs")
+          .insert({ user_id: user.id, song_id: songId });
+        if (error) throw error;
+        setSavedSongIds((prev) => new Set(prev).add(songId));
+      }
+    } catch (error) {
+      console.error("Unable to update saved song:", error);
+    }
+  };
+
   const removeSong = async (e, songId) => {
     e.stopPropagation();
-    await supabase
+    const { error } = await supabase
       .from("playlist_songs")
       .delete()
       .eq("playlist_id", params.id)
       .eq("song_id", songId);
-    setSongIds(songIds.filter((sid) => sid !== songId));
+    if (error) {
+      console.error("Unable to remove song:", error);
+      return;
+    }
+    setSongIds((prev) => prev.filter((sid) => sid !== songId));
   };
 
   const deletePlaylist = async () => {
     if (!confirm("Delete this playlist?")) return;
-    await supabase.from("playlists").delete().eq("id", params.id);
+    const { error } = await supabase.from("playlists").delete().eq("id", params.id);
+    if (error) {
+      console.error("Unable to delete playlist:", error);
+      return;
+    }
     router.replace("/playlists");
   };
 
@@ -237,16 +311,21 @@ export default function PlaylistDetailPage() {
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Disc className="mb-4 text-neutral-300" size={32} />
             <p className="text-sm font-semibold text-neutral-900">This playlist is empty</p>
-            <p className="mt-1 max-w-sm text-xs text-neutral-450">Use "Add Songs" above to fill it up.</p>
+            <p className="mt-1 max-w-sm text-xs text-neutral-450">Use &quot;Add Songs&quot; above to fill it up.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-y-2">
             {songs.map((song) => (
               <div key={song.id} className="group relative">
-                <SongItem song={song} onClick={() => setActiveSong(song, songs)} />
+                <SongItem
+                  song={song}
+                  onClick={() => setActiveSong(song, songs)}
+                  saved={savedSongIds.has(song.id)}
+                  onToggleSave={handleToggleSaved}
+                />
                 <button
                   onClick={(e) => removeSong(e, song.id)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-white"
+                  className="absolute right-12 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 md:opacity-0 md:group-hover:opacity-100 hover:bg-accent hover:text-white"
                   title="Remove from playlist"
                 >
                   <Trash2 size={14} />

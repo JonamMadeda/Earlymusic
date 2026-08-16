@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import SongItem from "../components/SongItem";
 import SongAvatar from "@/app/components/SongAvatar";
@@ -52,7 +52,9 @@ export default function LibraryPage() {
 
   const refreshDownloads = useCallback(() => {
     setDownloadedSongs(getDownloadedSongs());
-    getStorageEstimate().then(setStorage);
+    getStorageEstimate()
+      .then(setStorage)
+      .catch((error) => console.error("Unable to read storage estimate:", error));
   }, []);
 
   useEffect(() => {
@@ -63,24 +65,62 @@ export default function LibraryPage() {
     if (authLoading) return;
     if (!user) { setLoading(false); return; }
 
+    let cancelled = false;
     Promise.all([
       supabase.from("saved_songs").select("song_id").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("playlists").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-    ]).then(([savedRes, plRes]) => {
-      setSavedSongIds((savedRes.data || []).map((s) => s.song_id));
-      setPlaylists(plRes.data || []);
-    }).finally(() => setLoading(false));
+    ])
+      .then(([savedRes, plRes]) => {
+        if (cancelled) return;
+        if (savedRes.error) throw savedRes.error;
+        if (plRes.error) throw plRes.error;
+        setSavedSongIds((savedRes.data || []).map((s) => s.song_id));
+        setPlaylists(plRes.data || []);
+      })
+      .catch((error) => console.error("Unable to load library:", error))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [user, authLoading]);
 
+  const songsFetchedRef = useRef(false);
   useEffect(() => {
-    if (allSongs.length > 0 || authLoading || !user) return;
-    const cached = localStorage.getItem("earlymusic_songs_cache");
-    if (cached) {
-      try { const parsed = JSON.parse(cached); if (parsed.length > 0) { setAllSongs(parsed); return; } } catch {}
-    }
-    supabase.from("songs").select("*").order("title", { ascending: true }).then(({ data }) => {
-      if (data) { setAllSongs(data); localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data)); }
-    });
+    if (authLoading || !user) return;
+    if (allSongs.length > 0) return;
+
+    const fetchSongs = async () => {
+      if (songsFetchedRef.current) return;
+      songsFetchedRef.current = true;
+
+      const cached = localStorage.getItem("earlymusic_songs_cache");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAllSongs(parsed);
+            return;
+          }
+        } catch {
+          localStorage.removeItem("earlymusic_songs_cache");
+        }
+      }
+
+      try {
+        const { data, error } = await supabase.from("songs").select("*").order("title", { ascending: true });
+        if (error) throw error;
+        if (data) {
+          setAllSongs(data);
+          if (data.length > 0) {
+            localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
+          }
+        }
+      } catch (error) {
+        console.error("Unable to load songs:", error);
+      }
+    };
+
+    fetchSongs();
   }, [allSongs.length, setAllSongs, authLoading, user]);
 
   const savedSongs = useMemo(() => {
@@ -89,9 +129,9 @@ export default function LibraryPage() {
   }, [savedSongIds, allSongs]);
 
   const groupedSaved = useMemo(() => {
-    const sorted = [...savedSongs].sort((a, b) => a.title.localeCompare(b.title));
+    const sorted = [...savedSongs].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
     return sorted.reduce((groups, song) => {
-      const letter = song.title[0]?.toUpperCase() || "#";
+      const letter = song.title?.[0]?.toUpperCase() || "#";
       if (!groups[letter]) groups[letter] = [];
       groups[letter].push(song);
       return groups;
@@ -101,25 +141,54 @@ export default function LibraryPage() {
   const createPlaylist = async () => {
     const name = newName.trim();
     if (!name) return;
-    const { data } = await supabase.from("playlists").insert({ name, user_id: user.id }).select().single();
-    if (data) {
-      setPlaylists([data, ...playlists]);
-      setNewName("");
-      setShowCreate(false);
+    try {
+      const { data, error } = await supabase.from("playlists").insert({ name, user_id: user.id }).select().single();
+      if (error) throw error;
+      if (data) {
+        setPlaylists((prev) => [data, ...prev]);
+        setNewName("");
+        setShowCreate(false);
+      }
+    } catch (error) {
+      console.error("Unable to create playlist:", error);
     }
   };
 
   const deletePlaylist = async (e, id) => {
     e.stopPropagation();
     if (!confirm("Delete this playlist?")) return;
-    await supabase.from("playlists").delete().eq("id", id);
-    setPlaylists(playlists.filter((p) => p.id !== id));
+    try {
+      const { error } = await supabase.from("playlists").delete().eq("id", id);
+      if (error) throw error;
+      setPlaylists((prev) => prev.filter((p) => p.id !== id));
+    } catch (error) {
+      console.error("Unable to delete playlist:", error);
+    }
   };
 
   const handleRemoveDownload = async (e, songId) => {
     e.stopPropagation();
-    await removeDownload(songId);
-    refreshDownloads();
+    try {
+      await removeDownload(songId);
+      refreshDownloads();
+    } catch (error) {
+      console.error("Unable to remove download:", error);
+    }
+  };
+
+  const handleToggleSaved = async (songId) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from("saved_songs")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("song_id", songId);
+      if (error) throw error;
+      setSavedSongIds((prev) => prev.filter((sid) => sid !== songId));
+    } catch (error) {
+      console.error("Unable to remove saved song:", error);
+    }
   };
 
   if (authLoading || loading) {
@@ -194,7 +263,13 @@ export default function LibraryPage() {
                       </div>
                     <div className="flex flex-col gap-y-2">
                       {groupedSaved[letter].map((song) => (
-                        <SongItem key={song.id} song={song} onClick={() => setActiveSong(song, savedSongs)} />
+                        <SongItem
+                          key={song.id}
+                          song={song}
+                          onClick={() => setActiveSong(song, savedSongs)}
+                          saved={true}
+                          onToggleSave={handleToggleSaved}
+                        />
                       ))}
                     </div>
                   </div>
@@ -283,7 +358,7 @@ export default function LibraryPage() {
         {/* Downloads */}
         {activeTab === "downloads" && (
           <div>
-            {storage && (
+            {storage && storage.quota > 0 && (
               <div className="mb-6 rounded-2xl bg-neutral-50/60 p-4 backdrop-blur-2xl">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
@@ -322,7 +397,7 @@ export default function LibraryPage() {
                     role="button"
                     tabIndex={0}
                     onClick={() => setActiveSong(song, downloadedSongs)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setActiveSong(song, downloadedSongs); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActiveSong(song, downloadedSongs); } }}
                     className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl bg-neutral-50/60 p-3 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm backdrop-blur-2xl"
                   >
                     <SongAvatar title={song.title} size="sm" />

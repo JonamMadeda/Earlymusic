@@ -4,11 +4,9 @@ import { usePlayer } from "../context/PlayerContext";
 import Player from "./Player";
 
 export default function PlayerWrapper() {
-  const { activeSong, songs, setActiveSong } = usePlayer();
+  const { activeSong } = usePlayer();
 
   if (!activeSong) return null;
 
-  return (
-    <Player song={activeSong} songs={songs} onSongSelect={setActiveSong} />
-  );
+  return <Player />;
 }

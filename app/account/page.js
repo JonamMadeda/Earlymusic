@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings, Download, Library, ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
@@ -18,6 +18,11 @@ export default function AccountPage() {
   const [lastName, setLastName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
+  const saveMsgTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => clearTimeout(saveMsgTimeoutRef.current);
+  }, []);
 
   useEffect(() => {
     if (profile) {
@@ -33,10 +38,15 @@ export default function AccountPage() {
     Promise.all([
       supabase.from("saved_songs").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("playlists").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-    ]).then(([savedRes, plRes]) => {
-      setSavedCount(savedRes.count || 0);
-      setPlaylistCount(plRes.count || 0);
-    }).finally(() => setLoading(false));
+    ])
+      .then(([savedRes, plRes]) => {
+        if (savedRes.error) throw savedRes.error;
+        if (plRes.error) throw plRes.error;
+        setSavedCount(savedRes.count || 0);
+        setPlaylistCount(plRes.count || 0);
+      })
+      .catch((error) => console.error("Unable to load account stats:", error))
+      .finally(() => setLoading(false));
   }, [user, authLoading]);
 
   const handleSaveProfile = async () => {
@@ -48,7 +58,8 @@ export default function AccountPage() {
       setSaveMsg("Failed to save");
     } else {
       setSaveMsg("Saved");
-      setTimeout(() => setSaveMsg(""), 2000);
+      clearTimeout(saveMsgTimeoutRef.current);
+      saveMsgTimeoutRef.current = setTimeout(() => setSaveMsg(""), 2000);
     }
   };
 
@@ -213,7 +224,11 @@ export default function AccountPage() {
               <p className="text-[11px] font-medium text-red-500">You&apos;ll need to sign in again to manage your account</p>
             </div>
             <button
-              onClick={() => { signOut(); router.push("/"); }}
+              onClick={() => {
+                signOut()
+                  .then(() => router.push("/"))
+                  .catch((error) => console.error("Unable to sign out:", error));
+              }}
               className="shrink-0 inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
             >
               <LogOut size={13} />

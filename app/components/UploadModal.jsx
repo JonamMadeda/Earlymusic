@@ -1,8 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { X, UploadCloud, Plus, Trash2 } from "lucide-react";
+
+const cleanupOrphanedUpload = async (accessToken, publicStorageUrl) => {
+  try {
+    await fetch("/api/admin/storage", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ publicStorageUrl }),
+    });
+  } catch (error) {
+    console.error("Unable to clean up orphaned upload:", error);
+  }
+};
+
+const resetForm = (setters) => {
+  setters.setTitle("");
+  setters.setAuthor("Pastor Marita Mbae");
+  setters.setOriginalSongs([{ title: "", artist: "" }]);
+  setters.setSongFile(null);
+  setters.setUploadProgress(0);
+};
 
 const UploadModal = ({ isOpen, onClose, onSuccess }) => {
   const [title, setTitle] = useState("");
@@ -13,6 +36,21 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
   const [songFile, setSongFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e) => {
+      if (e.key === "Escape" && !isLoading) onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isOpen, isLoading, onClose]);
+
+  const handleClose = () => {
+    if (isLoading) return;
+    resetForm({ setTitle, setAuthor, setOriginalSongs, setSongFile, setUploadProgress });
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -33,6 +71,8 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!songFile || !title || !author) return alert("Please fill all fields");
+
+    let uploadedStorageUrl = null;
 
     try {
       setIsLoading(true);
@@ -63,7 +103,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
         body: songFile,
       });
       if (!uploadResponse.ok) throw new Error("Cloudflare R2 rejected the audio upload.");
-      setUploadProgress(100);
+      uploadedStorageUrl = signingBody.publicStorageUrl;
 
       // DATABASE INSERT
       const { error: dbError } = await supabase.from("songs").insert({
@@ -79,16 +119,18 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
 
       // Clear cache so other pages see the new song
       localStorage.removeItem("earlymusic_songs_cache");
+      setUploadProgress(100);
       onSuccess();
       onClose();
-      // Reset form
-      setTitle("");
-      setAuthor("Pastor Marita Mbae");
-      setOriginalSongs([{ title: "", artist: "" }]);
-      setSongFile(null);
-      setUploadProgress(0);
+      resetForm({ setTitle, setAuthor, setOriginalSongs, setSongFile, setUploadProgress });
     } catch (error) {
       console.error("Upload failed:", error);
+      if (uploadedStorageUrl) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session?.access_token) {
+          await cleanupOrphanedUpload(sessionData.session.access_token, uploadedStorageUrl);
+        }
+      }
       alert(error.message || "Error uploading song.");
     } finally {
       setIsLoading(false);
@@ -97,9 +139,9 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
 
   return (
     <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md p-8 relative shadow-2xl border border-neutral-100 animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl w-full max-w-md p-8 relative shadow-2xl border border-neutral-100 animate-fade-in">
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900 transition"
         >
           <X size={24} />
@@ -243,7 +285,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
           <div className="p-6 border-2 border-dashed border-neutral-200 rounded-xl bg-neutral-50 hover:border-red-300 transition cursor-pointer relative group">
             <input
               type="file"
-              accept="audio/mpeg, audio/mp3"
+              accept="audio/*"
               onChange={(e) => {
                 const file = e.target.files[0];
                 setSongFile(file);
@@ -272,19 +314,23 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
 
           {/* PROGRESS BAR SECTION */}
           {isLoading && (
-            <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+            <div className="space-y-2 animate-fade-in">
               <div className="flex justify-between items-center text-xs font-medium text-red-600">
                 <span>
                   {uploadProgress === 100
                     ? "Finalizing..."
                     : "Uploading track..."}
                 </span>
-                <span className="tabular-nums">{uploadProgress}%</span>
+                {uploadProgress > 0 && uploadProgress < 100 && (
+                  <span className="tabular-nums">{uploadProgress}%</span>
+                )}
               </div>
               <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-red-600 transition-all duration-300 ease-out"
-                  style={{ width: `${uploadProgress}%` }}
+                  className={`h-full bg-red-600 transition-all duration-300 ease-out ${
+                    uploadProgress === 0 ? "w-1/3 animate-pulse" : ""
+                  }`}
+                  style={uploadProgress === 0 ? {} : { width: `${uploadProgress}%` }}
                 />
               </div>
             </div>

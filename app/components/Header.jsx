@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react";
 import { LogIn, CloudOff } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 
 const Header = () => {
   const [isOnline, setIsOnline] = useState(true);
   const { user } = useAuth();
-  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -51,13 +51,13 @@ const Header = () => {
             </div>
           )}
           {!user && (
-            <button
-              onClick={() => router.push("/auth")}
+            <Link
+              href={`/auth?redirectTo=${encodeURIComponent(pathname)}`}
               className="hidden md:flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-[12px] font-bold text-white shadow-sm transition hover:bg-accent/90"
             >
               <LogIn size={14} />
               Sign In
-            </button>
+            </Link>
           )}
         </div>
       </div>

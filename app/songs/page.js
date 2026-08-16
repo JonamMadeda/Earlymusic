@@ -26,6 +26,9 @@ import {
   Loader as SpinnerIcon,
 } from "lucide-react";
 
+
+const timeWindowDays = 30;
+
 const timeFilters = [
   { label: "All", days: null },
   { label: "New", days: 14 },
@@ -58,7 +61,8 @@ const SongRow = ({ song, onClick, isActive }) => {
   const rowRef = useRef(null);
   const isNew =
     song.created_at &&
-    Date.now() - new Date(song.created_at).getTime() < 14 * 24 * 60 * 60 * 1000;
+    Date.now() - new Date(song.created_at).getTime() <
+      timeWindowDays * 24 * 60 * 60 * 1000;
   const [isSaved, setIsSaved] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
@@ -72,8 +76,12 @@ const SongRow = ({ song, onClick, isActive }) => {
   useEffect(() => {
     import("@/lib/downloadManager").then(({ isSongDownloaded }) => {
       if (isSongDownloaded(song.id)) setDownloadStatus("downloaded");
-    });
+    }).catch((error) => console.error("Unable to check download status:", error));
   }, [song.id]);
+
+  useEffect(() => {
+    return () => clearTimeout(dlTimeoutRef.current);
+  }, []);
 
   const toggleDownload = async (e) => {
     e.stopPropagation();
@@ -86,6 +94,7 @@ const SongRow = ({ song, onClick, isActive }) => {
     }
     setDownloadStatus("downloading");
     setDownloadError("");
+    clearTimeout(dlTimeoutRef.current);
     try {
       const { downloadSong } = await import("@/lib/downloadManager");
       await downloadSong(song);
@@ -94,7 +103,6 @@ const SongRow = ({ song, onClick, isActive }) => {
     } catch (err) {
       setDownloadStatus("error");
       setDownloadError(err.message === "Storage is full" ? "Storage is full" : "Download failed");
-      clearTimeout(dlTimeoutRef.current);
       dlTimeoutRef.current = setTimeout(() => { setDownloadStatus("idle"); setDownloadError(""); }, 3000);
     }
   };
@@ -126,7 +134,8 @@ const SongRow = ({ song, onClick, isActive }) => {
       .eq("user_id", user.id)
       .eq("song_id", song.id)
       .maybeSingle()
-      .then(({ data }) => setIsSaved(!!data));
+      .then(({ data }) => setIsSaved(!!data))
+      .catch((error) => console.error("Unable to check saved song:", error));
   }, [user, song.id]);
 
   useEffect(() => {
@@ -136,15 +145,29 @@ const SongRow = ({ song, onClick, isActive }) => {
         .select("id, name")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .then(({ data }) => setPlaylists(data || []));
+        .then(({ data }) => setPlaylists(data || []))
+        .catch((error) => console.error("Unable to load playlists:", error));
     }
   }, [showPlaylists, user]);
 
   const addToPlaylist = async (e, playlistId) => {
     e.stopPropagation();
-    await supabase
-      .from("playlist_songs")
-      .insert({ playlist_id: playlistId, song_id: song.id });
+    try {
+      const { data: existing, error: checkError } = await supabase
+        .from("playlist_songs")
+        .select("id")
+        .eq("playlist_id", playlistId)
+        .eq("song_id", song.id)
+        .maybeSingle();
+      if (checkError) throw checkError;
+      if (existing) return;
+      const { error } = await supabase
+        .from("playlist_songs")
+        .insert({ playlist_id: playlistId, song_id: song.id });
+      if (error) throw error;
+    } catch (error) {
+      console.error("Unable to add song to playlist:", error);
+    }
   };
 
   const createAndAdd = async (e) => {
@@ -152,18 +175,24 @@ const SongRow = ({ song, onClick, isActive }) => {
     const name = newPlaylistName.trim();
     if (!name || !user) return;
 
-    const { data: pl } = await supabase
-      .from("playlists")
-      .insert({ name, user_id: user.id })
-      .select()
-      .single();
+    try {
+      const { data: pl, error: createError } = await supabase
+        .from("playlists")
+        .insert({ name, user_id: user.id })
+        .select()
+        .single();
+      if (createError) throw createError;
 
-    if (pl) {
-      await supabase
-        .from("playlist_songs")
-        .insert({ playlist_id: pl.id, song_id: song.id });
-      setNewPlaylistName("");
-      setShowPlaylists(false);
+      if (pl) {
+        const { error } = await supabase
+          .from("playlist_songs")
+          .insert({ playlist_id: pl.id, song_id: song.id });
+        if (error) throw error;
+        setNewPlaylistName("");
+        setShowPlaylists(false);
+      }
+    } catch (error) {
+      console.error("Unable to create playlist:", error);
     }
   };
 
@@ -174,20 +203,26 @@ const SongRow = ({ song, onClick, isActive }) => {
       return;
     }
 
-    if (isSaved) {
-      await supabase
-        .from("saved_songs")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("song_id", song.id);
-      setIsSaved(false);
-    } else {
-      await supabase
-        .from("saved_songs")
-        .insert({ user_id: user.id, song_id: song.id });
-      setIsSaved(true);
+    try {
+      if (isSaved) {
+        const { error } = await supabase
+          .from("saved_songs")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("song_id", song.id);
+        if (error) throw error;
+        setIsSaved(false);
+      } else {
+        const { error } = await supabase
+          .from("saved_songs")
+          .insert({ user_id: user.id, song_id: song.id });
+        if (error) throw error;
+        setIsSaved(true);
+      }
+      setShowMenu(false);
+    } catch (error) {
+      console.error("Unable to update saved song:", error);
     }
-    setShowMenu(false);
   };
 
   return (
@@ -196,7 +231,7 @@ const SongRow = ({ song, onClick, isActive }) => {
       role="button"
       tabIndex={0}
       onClick={onClick}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(e); }}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(e); } }}
       className={`group relative flex w-full items-center gap-2.5 md:gap-3.5 rounded-2xl p-2.5 md:p-3.5 text-left transition-all duration-300 shadow-sm ${
         isActive
           ? "bg-neutral-100/80 shadow-inner"
@@ -238,6 +273,8 @@ const SongRow = ({ song, onClick, isActive }) => {
           onClick={(e) => {
             e.stopPropagation();
             setShowMenu(!showMenu);
+            setShowInfo(false);
+            setShowPlaylists(false);
           }}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
           title="More"
@@ -428,16 +465,15 @@ export default function SongsPage() {
   const [activeDuration, setActiveDuration] = useState("All");
   const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
+useEffect(() => {
+    const fetchedRef = { current: false };
     const fetchSongs = async () => {
+      if (fetchedRef.current) return;
+      fetchedRef.current = true;
+
       let hasCachedSongs = false;
 
       try {
-        if (allSongs.length > 0) {
-          setIsLoading(false);
-          return;
-        }
-
         setIsLoading(true);
 
         const cachedSongs = localStorage.getItem("earlymusic_songs_cache");
@@ -459,11 +495,15 @@ export default function SongsPage() {
           .select("*")
           .order("title", { ascending: true });
 
+        if (error) {
+          throw error;
+        }
+
         if (data) {
           setAllSongs(data);
-          localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
-        } else if (error) {
-          throw error;
+          if (data.length > 0) {
+            localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
+          }
         }
       } catch (error) {
         console.error("Error:", error);
@@ -474,7 +514,7 @@ export default function SongsPage() {
     };
 
     fetchSongs();
-  }, [allSongs, setAllSongs, setIsLoading]);
+  }, [setAllSongs, setIsLoading]);
 
   const filteredSongs = useMemo(() => {
     let songs = [...(allSongs || [])];
@@ -511,12 +551,12 @@ export default function SongsPage() {
       );
     }
 
-    return songs.sort((a, b) => a.title.localeCompare(b.title));
+    return songs.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
   }, [allSongs, searchValue, activeFilter, activeCategory, activeDuration]);
 
   const groupedSongs = useMemo(() => {
     return filteredSongs.reduce((groups, song) => {
-        const letter = song.title[0]?.toUpperCase() || "#";
+        const letter = song.title?.[0]?.toUpperCase() || "#";
         if (!groups[letter]) groups[letter] = [];
         groups[letter].push(song);
         return groups;
@@ -537,7 +577,7 @@ export default function SongsPage() {
   ].filter((value) => value && value !== "All").length;
 
   return (
-    <main className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
+    <main className="min-h-[90vh] bg-transparent px-3 pb-16 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-5xl">
         <section className="mb-6 md:mb-8">
           <div className="flex items-center gap-3">
@@ -658,9 +698,9 @@ export default function SongsPage() {
         {isLoading ? (
           <PageSkeleton />
         ) : alphabet.length > 0 ? (
-          <div className="flex flex-col gap-y-4 md:gap-y-6">
+          <div className="flex flex-col gap-y-2 md:gap-y-4">
             {alphabet.map((letter) => (
-              <div key={letter} className="flex flex-col gap-y-2 md:gap-y-3">
+              <div key={letter} className="flex flex-col gap-y-1 md:gap-y-2">
                 <div className="flex items-center gap-3 border-b border-neutral-100 pb-1.5 md:pb-2 px-1 md:px-2">
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-100 text-sm font-bold text-neutral-500 md:h-8 md:w-8 md:text-base">
                     {letter}
@@ -679,16 +719,22 @@ export default function SongsPage() {
               </div>
             ))}
           </div>
-        ) : (
+) : (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Disc className="mb-4 text-neutral-300" size={32} />
             <p className="text-sm font-semibold text-neutral-900">
-              {loadError ? "Songs could not be loaded" : "No songs yet"}
+              {loadError
+                ? "Songs could not be loaded"
+                : hasFilters
+                  ? "No matching songs"
+                  : "No songs yet"}
             </p>
             <p className="mt-1 max-w-sm text-xs text-neutral-450">
               {loadError
                 ? "Check your connection or Supabase configuration and try again."
-                : "Once tracks are uploaded, they&apos;ll appear here."}
+                : hasFilters
+                  ? "Try adjusting your search or clearing the filters."
+                  : "Once tracks are uploaded, they&apos;ll appear here."}
             </p>
           </div>
         )}

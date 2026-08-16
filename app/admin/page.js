@@ -42,12 +42,16 @@ export default function AdminDashboard() {
   }, [authLoading, roleLoading, isAdmin]);
 
   const fetchSongs = async () => {
-    const { data } = await supabase
-      .from("songs")
-      .select("*")
-      .order("title", { ascending: true });
-
-    if (data) setAllSongs(data);
+    try {
+      const { data, error } = await supabase
+        .from("songs")
+        .select("*")
+        .order("title", { ascending: true });
+      if (error) throw error;
+      if (data) setAllSongs(data);
+    } catch (error) {
+      console.error("Unable to load songs:", error);
+    }
   };
 
   const handleEditClick = (song) => {
@@ -71,9 +75,13 @@ export default function AdminDashboard() {
         },
         body: JSON.stringify({ songPath: path }),
       });
-      if (!response.ok) {
-        const body = await response.json();
-        throw new Error(body.error || "Deletion failed.");
+if (!response.ok) {
+        let message = "Deletion failed.";
+        try {
+          const body = await response.json();
+          message = body.error || message;
+        } catch {}
+        throw new Error(message);
       }
 
       // Update local state without redirecting
@@ -94,7 +102,7 @@ export default function AdminDashboard() {
       const accessToken = sessionData.session?.access_token;
       if (!accessToken) throw new Error("Sign in again before changing administrator access.");
 
-      const response = await fetch("/api/admin/users", {
+const response = await fetch("/api/admin/users", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -102,7 +110,10 @@ export default function AdminDashboard() {
         },
         body: JSON.stringify({ email: adminEmail }),
       });
-      const body = await response.json();
+      let body = {};
+      try {
+        body = await response.json();
+      } catch {}
       if (!response.ok) throw new Error(body.error || "Unable to grant administrator access.");
 
       setAdminMessage(`${body.email} is now an administrator.`);
@@ -117,12 +128,12 @@ export default function AdminDashboard() {
   const groupedSongs = useMemo(() => {
     const filtered = (allSongs || []).filter(
       (s) =>
-        s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.author.toLowerCase().includes(searchQuery.toLowerCase())
+        (s.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.author || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return filtered.reduce((groups, song) => {
-      const letter = song.title[0]?.toUpperCase() || "#";
+      const letter = song.title?.[0]?.toUpperCase() || "#";
       if (!groups[letter]) groups[letter] = [];
       groups[letter].push(song);
       return groups;

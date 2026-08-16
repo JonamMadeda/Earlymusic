@@ -35,11 +35,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { email } = await request.json();
-    if (typeof email !== "string" || !/^\S+@\S+\.\S+$/.test(email)) {
+    if (typeof email !== "string" || !email.trim()) {
+      return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
       return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
     }
 
-    const { supabase, user } = await findUserByEmail(email);
+    const { supabase, user } = await findUserByEmail(normalizedEmail);
     if (!user) {
       return NextResponse.json({ error: "No Supabase account exists for that email address." }, { status: 404 });
     }
