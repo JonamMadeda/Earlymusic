@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "../context/PlayerContext";
@@ -23,6 +23,7 @@ import {
   Plus,
   Check,
   Play,
+  ArrowUpDown,
   Loader as SpinnerIcon,
 } from "lucide-react";
 
@@ -40,6 +41,12 @@ const timeFilters = [
 const categories = ["All", "Worship", "Praise"];
 const durations = ["All", "Long", "Short"];
 
+const sortOptions = [
+  { label: "Title", value: "title" },
+  { label: "Artist", value: "author" },
+  { label: "Date Added", value: "created_at" },
+];
+
 const Chip = ({ label, active, onClick }) => (
   <button
     type="button"
@@ -53,6 +60,11 @@ const Chip = ({ label, active, onClick }) => (
     {label}
   </button>
 );
+
+const categoryColors = {
+  Worship: "bg-blue-50 text-blue-600",
+  Praise: "bg-purple-50 text-purple-600",
+};
 
 const SongRow = ({ song, onClick, isActive }) => {
   const { user } = useAuth();
@@ -262,6 +274,11 @@ const SongRow = ({ song, onClick, isActive }) => {
               New
             </span>
           )}
+          {song.category && (
+            <span className={`hidden md:inline-block rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider ${categoryColors[song.category] || "bg-neutral-100 text-neutral-500"}`}>
+              {song.category}
+            </span>
+          )}
         </div>
         <p className="truncate text-[11px] font-medium text-neutral-400 mt-0.5">
           {song.author}
@@ -463,7 +480,12 @@ export default function SongsPage() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [activeCategory, setActiveCategory] = useState("All");
   const [activeDuration, setActiveDuration] = useState("All");
+  const [sortBy, setSortBy] = useState("title");
+  const [sortAsc, setSortAsc] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [jumpLetter, setJumpLetter] = useState(null);
+  const jumpTimeoutRef = useRef(null);
+  const letterRefs = useRef({});
 
 useEffect(() => {
     const fetchedRef = { current: false };
@@ -551,8 +573,15 @@ useEffect(() => {
       );
     }
 
-    return songs.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
-  }, [allSongs, searchValue, activeFilter, activeCategory, activeDuration]);
+    const sorted = songs.sort((a, b) => {
+      const aVal = (a[sortBy] || "").toString().toLowerCase();
+      const bVal = (b[sortBy] || "").toString().toLowerCase();
+      const cmp = aVal.localeCompare(bVal);
+      return sortAsc ? cmp : -cmp;
+    });
+
+    return sorted;
+  }, [allSongs, searchValue, activeFilter, activeCategory, activeDuration, sortBy, sortAsc]);
 
   const groupedSongs = useMemo(() => {
     return filteredSongs.reduce((groups, song) => {
@@ -576,23 +605,43 @@ useEffect(() => {
     activeDuration,
   ].filter((value) => value && value !== "All").length;
 
+  const scrollToLetter = useCallback((letter) => {
+    setJumpLetter(letter);
+    clearTimeout(jumpTimeoutRef.current);
+    jumpTimeoutRef.current = setTimeout(() => setJumpLetter(null), 800);
+
+    const el = letterRefs.current[letter];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimeout(jumpTimeoutRef.current);
+  }, []);
+
   return (
-    <main className="min-h-[90vh] bg-transparent px-3 pb-16 pt-2 md:px-8 md:pt-6">
-      <div className="mx-auto max-w-5xl">
+    <main className="min-h-[90vh] bg-transparent pb-16 pt-2 md:pt-6">
+      <div className="mx-auto max-w-5xl px-3 md:px-8">
         <section className="mb-6 md:mb-8">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
               Songs
             </h1>
             <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3 py-1 text-[11px] font-medium text-neutral-400">
-              {allSongs?.length || 0}
+              {filteredSongs.length} / {allSongs?.length || 0}
             </span>
           </div>
           <div className="mt-3 md:hidden inline-flex items-center gap-2 rounded-full border border-neutral-100 bg-neutral-50/60 px-3 py-1 text-[11px] font-medium text-neutral-400">
-            {allSongs?.length || 0} tracks
+            {filteredSongs.length} tracks
           </div>
+        </section>
+      </div>
 
-          <div className="mt-4 md:mt-6 flex flex-row flex-nowrap gap-2 md:min-w-[460px] md:justify-start">
+      {/* Sticky Search / Filter Bar */}
+      <div className="sticky top-0 z-40 border-b border-neutral-100 bg-white/80 backdrop-blur-xl">
+        <div className="mx-auto max-w-5xl px-3 md:px-8 py-3">
+          <div className="flex flex-row flex-nowrap gap-2 md:min-w-[460px] md:justify-start">
             <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-neutral-200/80 bg-neutral-50/60 px-3 py-2 text-neutral-500 transition focus-within:border-neutral-300 focus-within:bg-white md:px-3.5 md:py-2.5">
               <Search size={14} className="shrink-0" />
               <input
@@ -603,6 +652,37 @@ useEffect(() => {
                 className="min-w-0 flex-1 bg-transparent text-xs font-medium text-neutral-900 outline-none placeholder:text-neutral-300"
               />
             </div>
+
+            {/* Sort Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (sortBy === "title") {
+                  setSortBy("author");
+                } else if (sortBy === "author") {
+                  setSortBy("created_at");
+                  setSortAsc(false);
+                } else {
+                  setSortBy("title");
+                  setSortAsc(true);
+                }
+              }}
+              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-neutral-200/80 bg-white px-3.5 py-2 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900 md:gap-2 md:px-4 md:py-2.5"
+              title={`Sort by: ${sortOptions.find(o => o.value === sortBy)?.label}`}
+            >
+              <ArrowUpDown size={14} />
+              <span className="hidden md:inline">{sortOptions.find(o => o.value === sortBy)?.label}</span>
+              <span
+                className="cursor-pointer text-neutral-400 hover:text-neutral-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSortAsc(!sortAsc);
+                }}
+              >
+                {sortAsc ? "A-Z" : "Z-A"}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => setFiltersOpen((prev) => !prev)}
@@ -615,7 +695,7 @@ useEffect(() => {
           </div>
 
           {hasFilters && (
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-b border-neutral-100 pb-4">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-[11px] font-semibold text-neutral-500">
                 {activeFilterCount} active
               </span>
@@ -641,10 +721,12 @@ useEffect(() => {
               </button>
             </div>
           )}
-        </section>
+        </div>
+      </div>
 
-        {filtersOpen && (
-          <section className="mb-5 md:mb-6 rounded-2xl bg-neutral-50/60 px-3 md:px-4 py-3 md:py-4">
+      {filtersOpen && (
+        <div className="mx-auto max-w-5xl px-3 md:px-8">
+          <section className="mb-5 mt-4 md:mb-6 rounded-2xl bg-neutral-50/60 px-3 md:px-4 py-3 md:py-4">
             <div className="flex flex-col gap-2.5 md:grid md:grid-cols-3 md:gap-3">
               <div>
                 <p className="mb-1.5 md:mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-neutral-400">
@@ -693,33 +775,65 @@ useEffect(() => {
               </div>
             </div>
           </section>
-        )}
+        </div>
+      )}
 
+      {/* Song List + Alphabet Jump */}
+      <div className="mx-auto max-w-5xl px-3 md:px-8 relative">
         {isLoading ? (
           <PageSkeleton />
         ) : alphabet.length > 0 ? (
-          <div className="flex flex-col gap-y-2 md:gap-y-4">
-            {alphabet.map((letter) => (
-              <div key={letter} className="flex flex-col gap-y-1 md:gap-y-2">
-                <div className="flex items-center gap-3 border-b border-neutral-100 pb-1.5 md:pb-2 px-1 md:px-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-100 text-sm font-bold text-neutral-500 md:h-8 md:w-8 md:text-base">
-                    {letter}
+          <div className="flex gap-3">
+            {/* Songs */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col gap-y-2 md:gap-y-4">
+                {alphabet.map((letter) => (
+                  <div
+                    key={letter}
+                    ref={(el) => { letterRefs.current[letter] = el; }}
+                    className="scroll-mt-28 flex flex-col gap-y-1 md:gap-y-2"
+                  >
+                    <div className="flex items-center gap-3 border-b border-neutral-100 pb-1.5 md:pb-2 px-1 md:px-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-100 text-sm font-bold text-neutral-500 md:h-8 md:w-8 md:text-base">
+                        {letter}
+                      </div>
+                      <span className="text-[11px] text-neutral-400">
+                        {groupedSongs[letter].length} {groupedSongs[letter].length === 1 ? "song" : "songs"}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-y-1 md:gap-y-2">
+                      {groupedSongs[letter].map((song) => (
+                        <SongRow
+                          key={song.id}
+                          song={song}
+                          isActive={activeSong?.id === song.id}
+                          onClick={() => setActiveSong(song, filteredSongs)}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-                  <div className="flex flex-col gap-y-1 md:gap-y-2">
-                    {groupedSongs[letter].map((song) => (
-                    <SongRow
-                      key={song.id}
-                      song={song}
-                      isActive={activeSong?.id === song.id}
-                      onClick={() => setActiveSong(song, filteredSongs)}
-                    />
-                  ))}
-                </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* Alphabet Jump Bar */}
+            <div className="hidden lg:flex flex-col items-center gap-0.5 sticky top-28 self-start pt-2">
+              {alphabet.map((letter) => (
+                <button
+                  key={letter}
+                  onClick={() => scrollToLetter(letter)}
+                  className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-all duration-200 ${
+                    jumpLetter === letter
+                      ? "bg-accent text-white scale-125"
+                      : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+                  }`}
+                >
+                  {letter}
+                </button>
+              ))}
+            </div>
           </div>
-) : (
+        ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Disc className="mb-4 text-neutral-300" size={32} />
             <p className="text-sm font-semibold text-neutral-900">
