@@ -8,6 +8,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { Analytics } from "@vercel/analytics/react";
 import InstallPrompt from "./components/InstallPrompt";
 import SWRegister from "./components/SWRegister";
+import GlobalLoader from "./components/GlobalLoader";
 import { Inter } from "next/font/google";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -52,6 +53,7 @@ export default function RootLayout({ children }) {
 
             <BottomNav />
             <PlayerWrapper />
+            <GlobalLoader />
 
             <Analytics />
 

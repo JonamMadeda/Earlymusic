@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LogIn, CloudOff } from "lucide-react";
+import { CloudOff } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/app/context/AuthContext";
 
 const Header = () => {
   const [isOnline, setIsOnline] = useState(true);
-  const { user } = useAuth();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -24,6 +22,9 @@ const Header = () => {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  // Hide header on homepage
+  if (pathname === "/") return null;
 
   return (
     <header className="sticky top-0 z-[200] border-b border-white/70 bg-white/70 px-4 py-2 backdrop-blur-xl md:px-6 md:py-3">
@@ -49,15 +50,6 @@ const Header = () => {
                 Offline
               </span>
             </div>
-          )}
-          {!user && (
-            <Link
-              href={`/auth?redirectTo=${encodeURIComponent(pathname)}`}
-              className="hidden md:flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-[12px] font-bold text-white shadow-sm transition hover:bg-accent/90"
-            >
-              <LogIn size={14} />
-              Sign In
-            </Link>
           )}
         </div>
       </div>

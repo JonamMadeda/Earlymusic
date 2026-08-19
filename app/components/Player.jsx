@@ -296,7 +296,10 @@ const Player = () => {
   return (
     <>
       {/* Desktop player — full-width bar */}
-      <div className="fixed bottom-14 left-0 right-0 z-[900] hidden md:block md:bottom-0">
+      <div
+        className="fixed bottom-14 left-0 right-0 z-[900] hidden md:block md:bottom-0 cursor-pointer"
+        onClick={() => setShowFullPlayer(true)}
+      >
         <div className="relative overflow-hidden border-t border-white/60 bg-white/80 backdrop-blur-2xl shadow-lg shadow-neutral-900/5">
           {/* Song-tinted gradient overlay */}
           <div className="absolute inset-0 opacity-[0.06]" style={{ background: pastelGradient(song?.title || "default") }} />
@@ -345,7 +348,8 @@ const Player = () => {
                   <button
                     type="button"
                     aria-label="Toggle shuffle"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       const newState = !isShuffle;
                       setIsShuffle(newState);
                       if (newState) setIsLooping(false);
@@ -362,7 +366,7 @@ const Player = () => {
                   <button
                     type="button"
                     aria-label="Previous track"
-                    onClick={onPlayPrevious}
+                    onClick={(e) => { e.stopPropagation(); onPlayPrevious(); }}
                     className="rounded-full p-1.5 text-neutral-500 transition active:scale-90 hover:text-neutral-900"
                   >
                     <SkipBack size={17} fill="currentColor" />
@@ -371,7 +375,7 @@ const Player = () => {
                   <button
                     type="button"
                     aria-label={isPlaying ? "Pause" : "Play"}
-                    onClick={togglePlay}
+                    onClick={(e) => { e.stopPropagation(); togglePlay(); }}
                     className="mx-1.5 flex h-10 w-10 items-center justify-center rounded-full text-white shadow-[0_0_14px_-2px] transition hover:brightness-110 active:scale-95"
                     style={{ background: pastelGradient(song?.title || "default"), boxShadow: `0 0 14px -2px ${gradientFirstColor(song?.title || "default")}80` }}
                   >
@@ -385,7 +389,7 @@ const Player = () => {
                   <button
                     type="button"
                     aria-label="Next track"
-                    onClick={onPlayNext}
+                    onClick={(e) => { e.stopPropagation(); onPlayNext(); }}
                     className="rounded-full p-1.5 text-neutral-500 transition active:scale-90 hover:text-neutral-900"
                   >
                     <SkipForward size={17} fill="currentColor" />
@@ -394,7 +398,8 @@ const Player = () => {
                   <button
                     type="button"
                     aria-label="Toggle repeat"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       const newState = !isLooping;
                       setIsLooping(newState);
                       if (newState) setIsShuffle(false);
@@ -420,7 +425,7 @@ const Player = () => {
                 <button
                   type="button"
                   aria-label={isLiked ? "Remove from saved songs" : "Save song"}
-                  onClick={toggleLike}
+                  onClick={(e) => { e.stopPropagation(); toggleLike(); }}
                   className={`rounded-full p-2 transition ${
                     isLiked ? "text-accent" : "text-neutral-400 hover:text-accent"
                   }`}
@@ -430,7 +435,7 @@ const Player = () => {
                 <button
                   type="button"
                   aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
-                  onClick={toggleMute}
+                  onClick={(e) => { e.stopPropagation(); toggleMute(); }}
                   className="rounded-full p-2 text-neutral-400 transition hover:text-accent"
                 >
                   {isMuted || volume === 0 ? (
@@ -446,6 +451,7 @@ const Player = () => {
                   step="0.05"
                   value={isMuted ? 0 : volume}
                   aria-label="Volume"
+                  onClick={(e) => e.stopPropagation()}
                   onChange={(e) => {
                     const v = Number(e.target.value);
                     setVolume(v);
@@ -496,15 +502,15 @@ const Player = () => {
         </div>
       </div>
 
-      {/* Mobile full-screen player overlay */}
+      {/* Full-screen player overlay */}
       {showFullPlayer && (
-        <div className="fixed inset-0 z-[99999] flex flex-col md:hidden animate-fade-in">
+        <div className="fixed inset-0 z-[99999] flex flex-col animate-fade-in">
           {/* Full-bleed gradient background */}
           <div className="absolute inset-0" style={{ background: pastelGradient(song.title || "") }} />
           <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/60" />
 
           {/* Header */}
-          <div className="relative z-10 flex items-center justify-between px-5 pt-5 pb-2">
+          <div className="relative z-10 flex items-center justify-between px-5 pt-5 pb-2 md:px-8">
             <button
               type="button"
               aria-label="Close player"
@@ -512,7 +518,7 @@ const Player = () => {
                 setShowFullPlayer(false);
                 window.history.back();
               }}
-              className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-white/60"
+              className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-white/60 hover:text-white/80 transition"
             >
               <ChevronDown size={20} />
             </button>
@@ -531,21 +537,26 @@ const Player = () => {
             </button>
           </div>
 
-          {/* Artwork — large initial letter */}
-          <div className="relative z-10 flex flex-1 items-center justify-center px-8">
+          {/* Content area — mobile: stacked, desktop: side-by-side */}
+          <div className="relative z-10 flex flex-1 items-center justify-center px-6 md:px-12 lg:px-20">
+            {/* Artwork — large initial letter */}
             <div className="flex items-center justify-center">
-              <span className="text-[140px] font-bold leading-none text-white/90 drop-shadow-xl select-none">
+              <span className={`font-bold leading-none text-white/90 drop-shadow-xl select-none ${
+                initialLetter(song.title) === "M" || initialLetter(song.title) === "W"
+                  ? "text-[120px] md:text-[200px] lg:text-[260px]"
+                  : "text-[140px] md:text-[220px] lg:text-[280px]"
+              }`}>
                 {initialLetter(song.title)}
               </span>
             </div>
           </div>
 
           {/* Song info */}
-          <div className="relative z-10 px-6 pb-3">
-            <h2 className="text-xl font-bold tracking-tight text-white drop-shadow-sm">
+          <div className="relative z-10 px-6 pb-3 md:px-12 lg:px-20 md:text-center">
+            <h2 className="text-xl font-bold tracking-tight text-white drop-shadow-sm md:text-2xl">
               {song.title}
             </h2>
-            <p className="mt-1 text-sm font-medium text-white/70">
+            <p className="mt-1 text-sm font-medium text-white/70 md:text-base">
               {song.author}
             </p>
             {audioError && (
@@ -561,7 +572,7 @@ const Player = () => {
           </div>
 
           {/* Glass-morphism controls panel */}
-          <div className="relative z-10 rounded-t-3xl bg-white/10 backdrop-blur-2xl border-t border-white/20 px-5 pt-4 pb-8">
+          <div className="relative z-10 rounded-t-3xl bg-white/10 backdrop-blur-2xl border-t border-white/20 px-5 pt-4 pb-8 md:px-12 lg:px-20">
             {/* Seek bar */}
             <div className="mb-1">
               <input

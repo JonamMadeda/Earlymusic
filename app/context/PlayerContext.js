@@ -63,6 +63,8 @@ export const PlayerProvider = ({ children }) => {
       supabase
         .from("recently_played")
         .upsert(rows, { onConflict: "user_id, song_id", ignoreDuplicates: true })
+        .select()
+        .then(() => {})
         .catch((error) => console.error("Unable to seed recently played:", error));
     }).catch((error) => console.error("Unable to get user for seeding:", error));
   }, [allSongs, recentlyPlayed]);
@@ -93,6 +95,8 @@ export const PlayerProvider = ({ children }) => {
           { user_id: user.id, song_id: latest.id, created_at: new Date().toISOString() },
           { onConflict: "user_id, song_id" }
         )
+        .select()
+        .then(() => {})
         .catch((error) => console.error("Unable to sync recently played:", error));
 
       // Trim to max rows
@@ -108,6 +112,8 @@ export const PlayerProvider = ({ children }) => {
               .from("recently_played")
               .delete()
               .in("id", idsToDelete)
+              .select()
+              .then(() => {})
               .catch((error) => console.error("Unable to trim recently played:", error));
           }
         })

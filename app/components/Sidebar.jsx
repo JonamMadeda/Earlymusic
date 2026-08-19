@@ -117,20 +117,6 @@ const Sidebar = () => {
           </>
         )}
 
-        {/* Sign In (when logged out) */}
-        {!user && (
-          <>
-            <div className="my-4 border-t border-neutral-100" />
-            <Link
-              href="/auth"
-              className="group relative flex items-center gap-x-3 rounded-xl bg-accent/8 px-3 py-2.5 text-sm font-semibold tracking-tight text-accent transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2"
-            >
-              <LogIn size={17} />
-              <span>Sign In</span>
-            </Link>
-          </>
-        )}
-
         {/* Spacer */}
         <div className="flex-1" />
 
@@ -151,12 +137,12 @@ const Sidebar = () => {
           </div>
         )}
 
-        {/* User Profile / Sign In */}
-        {user && (
-          <div className="rounded-xl bg-neutral-50 p-1.5">
+        {/* Bottom — User Profile or Sign In */}
+        <div className="border-t border-neutral-100 pt-3">
+          {user ? (
             <Link
               href="/account"
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-200 hover:bg-white/60 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-200 hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
                 {profile?.first_name?.[0] || user.email?.[0]?.toUpperCase() || "U"}
@@ -171,8 +157,16 @@ const Sidebar = () => {
               </div>
               <ChevronRight size={12} className="text-neutral-300" />
             </Link>
-          </div>
-        )}
+          ) : (
+            <Link
+              href="/auth"
+              className="flex items-center gap-x-3 rounded-xl px-3 py-2.5 text-sm font-semibold tracking-tight text-neutral-500 transition-all duration-200 hover:bg-neutral-50 hover:text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+            >
+              <LogIn size={17} />
+              <span>Sign In</span>
+            </Link>
+          )}
+        </div>
       </div>
     </aside>
   );
