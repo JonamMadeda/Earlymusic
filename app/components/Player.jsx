@@ -18,7 +18,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { getCachedAudioUrl, cacheAudioFile } from "@/lib/cacheUtils";
-import SongAvatar, { pastelGradient, gradientFirstColor, initialLetter } from "./SongAvatar";
+import SongAvatar, { initialLetter } from "./SongAvatar";
 import { useAuth } from "../context/AuthContext";
 
 const Player = () => {
@@ -300,12 +300,9 @@ const Player = () => {
         className="fixed bottom-14 left-0 right-0 z-[900] hidden md:block md:bottom-0 cursor-pointer"
         onClick={() => setShowFullPlayer(true)}
       >
-        <div className="relative overflow-hidden border-t border-white/60 bg-white/80 backdrop-blur-2xl shadow-lg shadow-neutral-900/5">
-          {/* Song-tinted gradient overlay */}
-          <div className="absolute inset-0 opacity-[0.06]" style={{ background: pastelGradient(song?.title || "default") }} />
-
+        <div className="relative overflow-hidden border-t border-neutral-200 bg-white shadow-sm">
           {/* Progress bar */}
-          <div className="relative z-10 h-1 bg-neutral-100/60 group">
+          <div className="relative z-10 h-1 bg-neutral-100 group">
             <input
               type="range"
               min="0"
@@ -317,12 +314,12 @@ const Player = () => {
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
             />
             <div
-              className="h-full transition-all duration-150"
-              style={{ width: `${progress}%`, background: pastelGradient(song?.title || "default") }}
+              className="h-full transition-all duration-150 bg-accent"
+              style={{ width: `${progress}%` }}
             />
             <div
-              className="absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-30 pointer-events-none"
-              style={{ left: `${progress}%`, marginLeft: '-7px', background: pastelGradient(song?.title || "default") }}
+              className="absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-white bg-accent shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-30 pointer-events-none"
+              style={{ left: `${progress}%`, marginLeft: '-7px' }}
             />
           </div>
 
@@ -331,7 +328,7 @@ const Player = () => {
             <div className="flex items-center h-full max-w-screen-2xl mx-auto gap-x-4">
               {/* Left — song info */}
               <div className="flex items-center gap-3 w-[260px] shrink-0">
-                <SongAvatar title={song.title} size="sm" />
+                <SongAvatar title={song.title} size="sm" variant="mono" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
                     {song.title}
@@ -376,8 +373,7 @@ const Player = () => {
                     type="button"
                     aria-label={isPlaying ? "Pause" : "Play"}
                     onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-                    className="mx-1.5 flex h-10 w-10 items-center justify-center rounded-full text-white shadow-[0_0_14px_-2px] transition hover:brightness-110 active:scale-95"
-                    style={{ background: pastelGradient(song?.title || "default"), boxShadow: `0 0 14px -2px ${gradientFirstColor(song?.title || "default")}80` }}
+                    className="mx-1.5 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-sm transition hover:bg-accent/90 active:scale-95"
                   >
                     {isPlaying ? (
                       <Pause size={20} fill="currentColor" />
@@ -458,8 +454,7 @@ const Player = () => {
                     if (audioRef.current) audioRef.current.volume = v;
                     if (v > 0) setIsMuted(false);
                   }}
-                  className="h-1 w-20 lg:w-28 cursor-pointer appearance-none rounded-full bg-neutral-200"
-                  style={{ accentColor: gradientFirstColor(song?.title || "default") }}
+                  className="h-1 w-20 lg:w-28 cursor-pointer appearance-none rounded-full bg-neutral-200 accent-accent"
                 />
               </div>
             </div>
@@ -469,15 +464,15 @@ const Player = () => {
 
       {/* Mobile mini-bar */}
       <div
-        className="fixed bottom-14 left-0 right-0 z-[900] md:hidden cursor-pointer shadow-lg shadow-neutral-900/5"
+        className="fixed bottom-14 left-0 right-0 z-[900] md:hidden cursor-pointer shadow-sm border-t border-neutral-200"
         onClick={() => setShowFullPlayer(true)}
       >
         {/* Mini progress bar */}
         <div className="h-0.5 bg-neutral-100">
-          <div className="h-full transition-all duration-150" style={{ width: `${progress}%`, background: pastelGradient(song?.title || "default") }} />
+          <div className="h-full transition-all duration-150 bg-accent" style={{ width: `${progress}%` }} />
         </div>
-        <div className="flex items-center gap-3 border-t border-white/70 bg-white/95 backdrop-blur-2xl px-3 py-2.5 active:bg-neutral-50/50">
-          <SongAvatar title={song.title} size="avatar-mini" />
+        <div className="flex items-center gap-3 bg-white px-3 py-2.5 active:bg-neutral-50">
+          <SongAvatar title={song.title} size="avatar-mini" variant="mono" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold tracking-tight text-neutral-900">
               {song.title}
@@ -490,8 +485,7 @@ const Player = () => {
             type="button"
             aria-label={isPlaying ? "Pause" : "Play"}
             onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white shadow-md active:scale-90 transition hover:brightness-110"
-            style={{ background: pastelGradient(song?.title || "default"), boxShadow: `0 4px 6px -1px ${gradientFirstColor(song?.title || "default")}40` }}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-sm active:scale-90 transition hover:bg-accent/90"
           >
             {isPlaying ? (
               <Pause size={15} fill="currentColor" />
@@ -504,10 +498,8 @@ const Player = () => {
 
       {/* Full-screen player overlay */}
       {showFullPlayer && (
-        <div className="fixed inset-0 z-[99999] flex flex-col animate-fade-in">
-          {/* Full-bleed gradient background */}
-          <div className="absolute inset-0" style={{ background: pastelGradient(song.title || "") }} />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/60" />
+        <div className="fixed inset-0 z-[99999] flex flex-col animate-fade-in bg-accent">
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/40" />
 
           {/* Header */}
           <div className="relative z-10 flex items-center justify-between px-5 pt-5 pb-2 md:px-8">

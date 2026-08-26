@@ -455,7 +455,7 @@ export default function Home() {
                 onPlay={(song) => setActiveSong(song, newestSongs)}
                 activeSongId={activeSong?.id}
                 cta={{ href: "/songs" }}
-                cardType="featured"
+                cardType="spotify"
               />
             </LazySection>
 

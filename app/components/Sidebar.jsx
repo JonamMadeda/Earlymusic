@@ -117,12 +117,12 @@ const Sidebar = () => {
 
         {/* Active Song Indicator */}
         {activeSong && (
-          <div className="mb-3 rounded-xl bg-accent/5 px-3 py-2.5">
+          <div className="mb-3 rounded-xl border border-accent/10 bg-accent/[0.04] px-3 py-2.5">
             <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-accent mb-1.5">
               Now Playing
             </p>
             <div className="flex items-center gap-2.5">
-              <SongAvatar title={activeSong.title} size="xs" />
+              <SongAvatar title={activeSong.title} size="xs" variant="mono" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-semibold text-neutral-900">{activeSong.title}</p>
                 <p className="truncate text-[10px] text-neutral-400">{activeSong.author}</p>
