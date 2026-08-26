@@ -33,11 +33,11 @@ const Header = () => {
           <span className="flex items-center gap-2.5">
             <img
               src="/icons/icon-192x192.png"
-              alt="Early Music"
+              alt="Lumbo"
               className="h-9 w-9 rounded-xl object-cover shadow-sm shadow-accent/10"
             />
             <h1 className="text-[15px] font-black tracking-tight text-neutral-900 leading-none md:text-[17px]">
-              Early Music
+              Lumbo
             </h1>
           </span>
         </Link>

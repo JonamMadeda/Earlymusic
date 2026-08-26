@@ -118,7 +118,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
       if (dbError) throw dbError;
 
       // Clear cache so other pages see the new song
-      localStorage.removeItem("earlymusic_songs_cache");
+      localStorage.removeItem("lumbo_songs_cache");
       setUploadProgress(100);
       onSuccess();
       onClose();
@@ -164,7 +164,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
               placeholder="e.g., Ujazaye"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:ring-2 focus:ring-red-600/10 focus:border-red-600 focus:bg-white text-neutral-900 transition"
+              className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent focus:bg-white text-neutral-900 transition"
               required
             />
           </div>
@@ -178,7 +178,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
               placeholder="e.g., Pastor Marita Mbae"
               value={author}
               onChange={(e) => setAuthor(e.target.value)}
-              className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:ring-2 focus:ring-red-600/10 focus:border-red-600 focus:bg-white text-neutral-900 transition"
+              className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent focus:bg-white text-neutral-900 transition"
               required
             />
           </div>
@@ -191,7 +191,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
               <button
                 type="button"
                 onClick={handleAddOriginal}
-                className="text-red-600 hover:text-neutral-900 transition flex items-center gap-1 text-[11px] font-bold"
+                className="text-accent hover:text-neutral-900 transition flex items-center gap-1 text-[11px] font-bold"
               >
                 <Plus size={14} /> Add Song
               </button>
@@ -207,7 +207,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
                         placeholder="Original Title"
                         value={s.title}
                         onChange={(e) => handleOriginalChange(index, "title", e.target.value)}
-                        className="p-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-red-600 text-[13px] transition"
+                        className="p-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-accent text-[13px] transition"
                       />
                     </div>
                     <div className="flex flex-col gap-y-1">
@@ -216,7 +216,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
                         placeholder="Original Artist"
                         value={s.artist}
                         onChange={(e) => handleOriginalChange(index, "artist", e.target.value)}
-                        className="p-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-red-600 text-[13px] transition"
+                        className="p-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-accent text-[13px] transition"
                       />
                     </div>
                   </div>
@@ -247,7 +247,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
                   className={`
                     flex-1 py-2 rounded-lg text-sm font-semibold transition-all
                     ${category === item
-                      ? "bg-white text-red-600 shadow-sm border border-neutral-100"
+                      ? "bg-white text-accent shadow-sm border border-neutral-100"
                       : "text-neutral-400 hover:text-neutral-600"
                     }
                   `}
@@ -271,7 +271,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
                   className={`
                     flex-1 py-2 rounded-lg text-sm font-semibold transition-all
                     ${duration === item
-                      ? "bg-white text-red-600 shadow-sm border border-neutral-100"
+                      ? "bg-white text-accent shadow-sm border border-neutral-100"
                       : "text-neutral-400 hover:text-neutral-600"
                     }
                   `}
@@ -282,7 +282,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
           </div>
 
-          <div className="p-6 border-2 border-dashed border-neutral-200 rounded-xl bg-neutral-50 hover:border-red-300 transition cursor-pointer relative group">
+          <div className="p-6 border-2 border-dashed border-neutral-200 rounded-xl bg-neutral-50 hover:border-accent/30 transition cursor-pointer relative group">
             <input
               type="file"
               accept="audio/*"
@@ -301,8 +301,8 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
             <div className="text-center flex flex-col items-center">
               <UploadCloud
                 className={`mb-2 ${songFile
-                  ? "text-red-600"
-                  : "text-neutral-300 group-hover:text-red-400"
+                  ? "text-accent"
+                  : "text-neutral-300 group-hover:text-accent/70"
                   } transition-colors`}
                 size={32}
               />
@@ -315,7 +315,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
           {/* PROGRESS BAR SECTION */}
           {isLoading && (
             <div className="space-y-2 animate-fade-in">
-              <div className="flex justify-between items-center text-xs font-medium text-red-600">
+              <div className="flex justify-between items-center text-xs font-medium text-accent">
                 <span>
                   {uploadProgress === 100
                     ? "Finalizing..."
@@ -327,7 +327,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
               </div>
               <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
                 <div
-                  className={`h-full bg-red-600 transition-all duration-300 ease-out ${
+                  className={`h-full bg-accent transition-all duration-300 ease-out ${
                     uploadProgress === 0 ? "w-1/3 animate-pulse" : ""
                   }`}
                   style={uploadProgress === 0 ? {} : { width: `${uploadProgress}%` }}
@@ -339,7 +339,7 @@ const UploadModal = ({ isOpen, onClose, onSuccess }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="bg-red-600 py-3.5 rounded-xl text-white font-bold hover:bg-neutral-900 transition-all shadow-lg shadow-red-100 disabled:opacity-50 disabled:cursor-not-allowed mt-2 text-sm uppercase tracking-tight"
+            className="bg-accent py-3.5 rounded-xl text-white font-bold hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed mt-2 text-sm uppercase tracking-tight"
           >
             {isLoading ? `Publishing...` : "Publish Track"}
           </button>

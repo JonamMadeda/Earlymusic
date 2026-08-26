@@ -45,10 +45,10 @@ export default function SettingsPage() {
     setClearingAll(true);
     const keys = await caches.keys();
     await Promise.all(keys.map((key) => caches.delete(key)));
-    localStorage.removeItem("earlymusic_downloaded_songs");
-    localStorage.removeItem("earlymusic_songs_cache");
-    localStorage.removeItem("earlymusic_recently_played");
-    localStorage.removeItem("earlymusic_player_expanded");
+    localStorage.removeItem("lumbo_downloaded_songs");
+    localStorage.removeItem("lumbo_songs_cache");
+    localStorage.removeItem("lumbo_recently_played");
+    localStorage.removeItem("lumbo_player_expanded");
     window.location.reload();
   };
 
@@ -179,7 +179,7 @@ export default function SettingsPage() {
           {/* Version */}
           <div className="rounded-2xl bg-neutral-50/60 px-5 py-3 backdrop-blur-2xl hover:shadow-md">
             <p className="text-[11px] font-medium text-neutral-400 text-center">
-              Early Music v1.0.0
+              Lumbo v1.0.0
             </p>
           </div>
         </div>

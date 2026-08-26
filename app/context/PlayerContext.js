@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 const PlayerContext = createContext();
 
-const RECENT_KEY = "earlymusic_recently_played";
+const RECENT_KEY = "lumbo_recently_played";
 const MAX_RECENT = 10;
 const SEED_COUNT = 6;
 

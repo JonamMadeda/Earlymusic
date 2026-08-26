@@ -65,7 +65,7 @@ export default function UploadPage() {
       });
       if (error) throw error;
 
-      localStorage.removeItem("earlymusic_songs_cache");
+      localStorage.removeItem("lumbo_songs_cache");
       setFile(null);
       setTitle("");
       setStatus("Track uploaded successfully.");

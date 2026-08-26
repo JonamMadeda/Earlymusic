@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --color-accent: #FF2400;
+  --color-accent: #0f172a;
 }
 
 :root {
@@ -18,7 +18,7 @@ body {
 }
 
 ::selection {
-  background: rgba(220, 38, 38, 0.14);
+  background: rgba(15, 23, 42, 0.14);
   color: #111827;
 }
 

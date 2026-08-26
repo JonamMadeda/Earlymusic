@@ -67,7 +67,7 @@ export default function PlaylistDetailPage() {
       if (songsFetchedRef.current) return;
       songsFetchedRef.current = true;
 
-      const cached = localStorage.getItem("earlymusic_songs_cache");
+      const cached = localStorage.getItem("lumbo_songs_cache");
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
@@ -76,7 +76,7 @@ export default function PlaylistDetailPage() {
             return;
           }
         } catch {
-          localStorage.removeItem("earlymusic_songs_cache");
+          localStorage.removeItem("lumbo_songs_cache");
         }
       }
 
@@ -89,7 +89,7 @@ export default function PlaylistDetailPage() {
         if (data) {
           setAllSongs(data);
           if (data.length > 0) {
-            localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
+            localStorage.setItem("lumbo_songs_cache", JSON.stringify(data));
           }
         }
       } catch (error) {

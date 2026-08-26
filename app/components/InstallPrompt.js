@@ -52,11 +52,11 @@ export default function InstallPrompt() {
       <div className="bg-white border border-neutral-100 shadow-2xl rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 sm:gap-x-4">
         <div className="flex items-center gap-x-3 w-full sm:w-auto">
           <div className="w-10 h-10 sm:w-12 sm:h-12 bg-accent rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl shrink-0">
-            EM
+            LU
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-neutral-900">
-              Install Early Music
+              Install Lumbo
             </h3>
             <p className="text-xs text-neutral-500">
               Listen anywhere, anytime.
@@ -67,7 +67,7 @@ export default function InstallPrompt() {
         <div className="flex items-center gap-x-2 w-full sm:w-auto">
           <button
             onClick={handleInstallClick}
-            className="flex-1 sm:flex-none bg-neutral-900 text-white text-xs font-bold px-4 py-2.5 rounded-lg hover:bg-red-600 transition-colors inline-flex items-center justify-center gap-x-2"
+            className="flex-1 sm:flex-none bg-accent text-white text-xs font-bold px-4 py-2.5 rounded-lg hover:bg-accent/90 transition-colors inline-flex items-center justify-center gap-x-2"
           >
             <Download size={14} />
             Install

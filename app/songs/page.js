@@ -53,7 +53,7 @@ const Chip = ({ label, active, onClick }) => (
     onClick={onClick}
     className={`whitespace-nowrap rounded-full border px-3 py-2 md:px-4 md:py-2.5 text-[11px] md:text-xs font-medium transition ${
       active
-        ? "border-neutral-200/80 bg-neutral-900 text-white hover:bg-neutral-800"
+        ? "border-accent bg-accent text-white hover:bg-accent/90"
         : "border-neutral-200/80 bg-white text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
     }`}
   >
@@ -246,22 +246,17 @@ const SongRow = ({ song, onClick, isActive }) => {
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(e); } }}
       className={`group relative flex w-full items-center gap-2.5 md:gap-3.5 rounded-2xl p-2.5 md:p-3.5 text-left transition-all duration-300 shadow-sm ${
         isActive
-          ? "bg-neutral-100/80 shadow-inner"
-          : "bg-white border border-neutral-100 hover:shadow-md hover:border-neutral-200"
+          ? "bg-accent/[0.04] border border-accent/10 shadow-sm"
+          : "bg-white border border-neutral-200 hover:shadow-md hover:border-neutral-300"
       }`}
     >
       <div className="relative shrink-0">
-        <SongAvatar title={song.title} />
-        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/0 transition-all group-hover:bg-black/30">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-neutral-900 opacity-0 transition-all group-hover:opacity-100 shadow-sm translate-y-1 group-hover:translate-y-0">
-            <Play size={11} fill="currentColor" className="ml-0.5" />
-          </div>
-        </div>
+        <SongAvatar title={song.title} variant="mono" />
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+          <p className={`truncate text-sm font-semibold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
             {song.title}
           </p>
           {isActive && (
@@ -270,7 +265,7 @@ const SongRow = ({ song, onClick, isActive }) => {
             </div>
           )}
           {isNew && !isActive && (
-            <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
+            <span className="rounded bg-accent/[0.06] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
               New
             </span>
           )}
@@ -498,7 +493,7 @@ useEffect(() => {
       try {
         setIsLoading(true);
 
-        const cachedSongs = localStorage.getItem("earlymusic_songs_cache");
+        const cachedSongs = localStorage.getItem("lumbo_songs_cache");
         if (cachedSongs) {
           try {
             const parsedSongs = JSON.parse(cachedSongs);
@@ -508,7 +503,7 @@ useEffect(() => {
               setIsLoading(false);
             }
           } catch {
-            localStorage.removeItem("earlymusic_songs_cache");
+            localStorage.removeItem("lumbo_songs_cache");
           }
         }
 
@@ -524,7 +519,7 @@ useEffect(() => {
         if (data) {
           setAllSongs(data);
           if (data.length > 0) {
-            localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
+            localStorage.setItem("lumbo_songs_cache", JSON.stringify(data));
           }
         }
       } catch (error) {
@@ -621,7 +616,7 @@ useEffect(() => {
   }, []);
 
   return (
-    <main className="min-h-[90vh] bg-transparent pb-16 pt-2 md:pt-6">
+    <main className="min-h-[90vh] bg-neutral-50/60 pb-16 pt-2 md:pt-6">
       <div className="mx-auto max-w-5xl px-3 md:px-8">
         <section className="mb-6 md:mb-8">
           <div className="flex items-center gap-3">
@@ -794,7 +789,7 @@ useEffect(() => {
                     className="scroll-mt-28 flex flex-col gap-y-1 md:gap-y-2"
                   >
                     <div className="flex items-center gap-3 border-b border-neutral-100 pb-1.5 md:pb-2 px-1 md:px-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-neutral-100 text-sm font-bold text-neutral-500 md:h-8 md:w-8 md:text-base">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/[0.06] border border-accent/10 text-sm font-bold text-accent md:h-8 md:w-8 md:text-base">
                         {letter}
                       </div>
                       <span className="text-[11px] text-neutral-400">

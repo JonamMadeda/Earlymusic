@@ -184,7 +184,7 @@ function AuthForm() {
           <button
             type="submit"
             disabled={submitting}
-            className="bg-accent py-3.5 rounded-xl text-white font-bold hover:bg-neutral-900 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+            className="bg-accent py-3.5 rounded-xl text-white font-bold hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {submitting && <Loader size={16} className="animate-spin" />}
             {mode === "login" && "Sign In"}

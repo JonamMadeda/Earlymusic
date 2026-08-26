@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "./context/PlayerContext";
 import { PageSkeleton } from "./components/Skeleton";
-import SongAvatar, { pastelGradient, initialLetter, hashStr, avoidGreen } from "./components/SongAvatar";
+import SongAvatar, { initialLetter, hashStr } from "./components/SongAvatar";
 import { Disc, Music, ArrowRight, Play, Upload, Sparkles } from "lucide-react";
 import LazySection from "./components/LazySection";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
@@ -21,14 +21,6 @@ const verses = [
   { ref: "Psalm 96:1", text: "Oh sing to the Lord a new song; sing to the Lord, all the earth!" },
   { ref: "Ephesians 5:19", text: "Addressing one another in psalms and hymns and spiritual songs, singing and making melody to the Lord." },
 ];
-
-const cyclingGradient = (seed) => {
-  const h1 = avoidGreen(hashStr(seed || "s") % 360);
-  const h2 = avoidGreen((h1 + 40) % 360);
-  const h3 = avoidGreen((h1 + 80) % 360);
-  const h4 = avoidGreen((h1 + 120) % 360);
-  return `linear-gradient(135deg, hsl(${h1},70%,62%), hsl(${h2},65%,58%), hsl(${h3},60%,64%), hsl(${h4},68%,60%))`;
-};
 
 const mulberry32 = (seed) => {
   return () => {
@@ -64,18 +56,18 @@ const SongRailCard = ({ song, onClick, isActive }) => {
       type="button"
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
-      className={`group relative flex w-[76vw] flex-shrink-0 snap-start items-center gap-3.5 rounded-2xl p-3.5 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg md:w-[290px] ${
+      className={`group relative flex w-[76vw] flex-shrink-0 snap-start items-center gap-3.5 rounded-2xl p-3.5 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-md md:w-[290px] ${
         isActive
-          ? "bg-accent/8 border border-accent/20 shadow-md shadow-accent/5"
-          : "bg-white border border-neutral-100 shadow-sm hover:shadow-md hover:border-neutral-200"
+          ? "bg-accent/[0.04] border border-accent/10 shadow-sm"
+          : "bg-white border border-neutral-200 shadow-sm hover:border-neutral-300"
       }`}
     >
       {isActive && (
         <span className="absolute top-2.5 right-2.5 flex h-1.5 w-1.5 rounded-full bg-accent">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-40" />
         </span>
       )}
-      <SongAvatar title={song.title} size="lg" />
+      <SongAvatar title={song.title} size="lg" variant="mono" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <p className={`truncate text-sm font-semibold tracking-tight ${
@@ -84,7 +76,7 @@ const SongRailCard = ({ song, onClick, isActive }) => {
             {song.title}
           </p>
           {isNew && !isActive && (
-            <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
+            <span className="rounded bg-accent/[0.06] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
               New
             </span>
           )}
@@ -113,16 +105,16 @@ const FeaturedCard = ({ song, onClick }) => {
       type="button"
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
-      className="group relative flex w-[140px] flex-shrink-0 snap-start flex-col items-center gap-2.5 rounded-xl border border-neutral-100 bg-white p-3.5 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg md:w-[170px] md:gap-3 md:rounded-2xl md:p-4 shadow-sm"
+      className="group relative flex w-[140px] flex-shrink-0 snap-start flex-col items-center gap-2.5 rounded-xl border border-neutral-200 bg-white p-3.5 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md md:w-[170px] md:gap-3 md:rounded-2xl md:p-4 shadow-sm hover:border-neutral-300"
     >
-      <SongAvatar title={song.title} size="lg" />
+      <SongAvatar title={song.title} size="lg" variant="mono" />
       <div className="w-full min-w-0">
         <div className="flex items-center justify-center gap-1">
           <p className="truncate text-xs font-semibold tracking-tight text-neutral-900 md:text-sm">
             {song.title}
           </p>
           {isNew && (
-            <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-accent md:text-[8px]">
+            <span className="rounded bg-accent/[0.06] px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-accent md:text-[8px]">
               New
             </span>
           )}
@@ -144,16 +136,15 @@ const SpotifyCard = ({ song, onClick }) => {
       type="button"
       onClick={() => onClick(song)}
       onMouseEnter={() => prefetchSongAudio(song)}
-      className="group relative flex w-[170px] flex-shrink-0 snap-start flex-col rounded-2xl bg-white border border-neutral-100 p-3 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-lg shadow-sm"
+      className="group relative flex w-[170px] flex-shrink-0 snap-start flex-col rounded-2xl bg-white border border-neutral-200 p-3 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-md shadow-sm hover:border-neutral-300"
     >
       <div className="relative mb-3 overflow-hidden rounded-xl">
         <div
-          className="flex h-24 w-full items-center justify-center md:h-28"
-          style={{ background: pastelGradient(song.title || "default") }}
+          className="flex h-24 w-full items-center justify-center bg-neutral-100 md:h-28"
         >
-          <Music size={24} className="text-white/40" />
+          <Music size={24} className="text-neutral-400" />
         </div>
-        <div className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white shadow-lg opacity-0 translate-y-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
+        <div className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white shadow-md opacity-0 translate-y-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
           <Play size={13} fill="currentColor" className="ml-0.5" />
         </div>
       </div>
@@ -169,13 +160,13 @@ const RecommendationCard = ({ song, onClick, isActive }) => {
       type="button"
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
-      className={`group flex w-full items-center gap-3.5 rounded-2xl p-3.5 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm ${
+      className={`group flex w-full items-center gap-3.5 rounded-2xl p-3.5 text-left transition-all duration-300 hover:bg-white hover:shadow-sm hover:border hover:border-neutral-200 border border-transparent ${
         isActive
-          ? "bg-accent/8 border border-accent/20"
-          : "bg-transparent"
+          ? "bg-accent/[0.04] border border-accent/10"
+          : "bg-white border-neutral-200"
       }`}
     >
-      <SongAvatar title={song.title} size="md" />
+      <SongAvatar title={song.title} size="md" variant="mono" />
       <div className="min-w-0 flex-1">
         <p className={`truncate text-sm font-semibold tracking-tight ${
           isActive ? "text-accent" : "text-neutral-900"
@@ -203,7 +194,7 @@ const SectionBlock = ({ id, title, items, onPlay, cta, cardType, activeSongId })
     <section id={id} className="scroll-mt-24 py-2">
       <div className="mb-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-4 w-0.5 rounded-full bg-accent/50" />
+          <div className="h-4 w-0.5 rounded-full bg-accent" />
           <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">{title}</h2>
         </div>
         {cta && (
@@ -266,7 +257,7 @@ export default function Home() {
       try {
         setIsLoading(true);
 
-        const cachedSongs = localStorage.getItem("earlymusic_songs_cache");
+        const cachedSongs = localStorage.getItem("lumbo_songs_cache");
         if (cachedSongs) {
           try {
             const parsedSongs = JSON.parse(cachedSongs);
@@ -276,7 +267,7 @@ export default function Home() {
               setIsLoading(false);
             }
           } catch {
-            localStorage.removeItem("earlymusic_songs_cache");
+            localStorage.removeItem("lumbo_songs_cache");
           }
         }
 
@@ -292,7 +283,7 @@ export default function Home() {
         if (data) {
           setAllSongs(data);
           if (data.length > 0) {
-            localStorage.setItem("earlymusic_songs_cache", JSON.stringify(data));
+            localStorage.setItem("lumbo_songs_cache", JSON.stringify(data));
           }
         }
       } catch (error) {
@@ -355,33 +346,31 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-[90vh] bg-transparent px-3 pb-8 pt-2 md:px-8 md:pt-6">
+    <main className="min-h-[90vh] bg-neutral-50/60 px-3 pb-8 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-5xl">
 
         {/* Hero */}
-        <section className="relative mb-8 overflow-hidden rounded-2xl bg-gradient-to-br from-accent/20 via-accent/10 to-orange-400/10 px-5 py-10 md:rounded-3xl md:px-8 md:py-14">
-          <div className="absolute top-0 right-0 h-72 w-72 translate-x-1/4 -translate-y-1/4 rounded-full bg-accent/15 blur-3xl" />
-          <div className="absolute bottom-0 left-0 h-48 w-48 -translate-x-1/4 translate-y-1/4 rounded-full bg-orange-400/10 blur-3xl" />
+        <section className="relative mb-8 overflow-hidden rounded-2xl border border-neutral-200 bg-white px-5 py-10 md:rounded-3xl md:px-8 md:py-14">
           <div className="relative">
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
                 Worship in Song
               </h1>
-              <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200/60 bg-white/60 px-3 py-1 text-[11px] font-medium text-neutral-400 backdrop-blur-sm">
+              <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-400">
                 <span>{stats.total}</span>
                 <span className="h-1 w-1 rounded-full bg-neutral-300" />
-                <span className="text-accent">{stats.new} new</span>
+                <span className="text-neutral-500">{stats.new} new</span>
               </span>
             </div>
-            <div className="mt-3 md:hidden inline-flex items-center gap-2 rounded-full border border-neutral-200/60 bg-white/60 px-3 py-1 text-[11px] font-medium text-neutral-400 backdrop-blur-sm">
+            <div className="mt-3 md:hidden inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-400">
               <span>{stats.total} tracks</span>
               <span className="h-1 w-1 rounded-full bg-neutral-300" />
-              <span className="text-accent">{stats.new} new</span>
+              <span className="text-neutral-500">{stats.new} new</span>
             </div>
-            <div className="mt-4 flex items-center gap-3 rounded-xl bg-white/40 px-4 py-3 backdrop-blur-sm border border-white/60">
+            <div className="mt-4 flex items-center gap-3 rounded-xl bg-neutral-50 px-4 py-3 border border-neutral-100">
               {activeSong ? (
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <SongAvatar title={activeSong.title} size="sm" />
+                  <SongAvatar title={activeSong.title} size="sm" variant="mono" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{activeSong.title}</p>
                     <p className="truncate text-xs text-neutral-500">{activeSong.author}</p>
@@ -414,22 +403,20 @@ export default function Home() {
               <LazySection>
                 <section className="scroll-mt-24 py-2">
                   <div className="mb-5 flex items-center gap-3">
-                    <div className="h-4 w-0.5 rounded-full bg-accent/50" />
+                    <div className="h-4 w-0.5 rounded-full bg-accent" />
                     <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">Spotlight</h2>
                   </div>
                   <div
-                    className="relative overflow-hidden rounded-3xl md:rounded-[2rem] spotlight-gradient"
-                    style={{ background: cyclingGradient(spotifySong.title || "default") }}
+                    className="relative overflow-hidden rounded-3xl border border-accent/10 bg-accent md:rounded-[2rem]"
                     onMouseEnter={() => prefetchSongAudio(spotifySong)}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10" />
                     <div className="relative flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between md:p-7">
                       <div className="flex items-center gap-4">
-                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl font-bold text-white shadow-inner md:h-20 md:w-20 md:text-3xl backdrop-blur-sm">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-2xl font-bold text-white md:h-20 md:w-20 md:text-3xl">
                           {initialLetter(spotifySong.title)}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70 mb-1.5">Featured Track</p>
+                          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/60 mb-1.5">Featured Track</p>
                           <p className="truncate text-lg font-bold text-white md:text-xl">{spotifySong.title}</p>
                           <p className="truncate text-sm text-white/70 mt-1">{spotifySong.author}</p>
                         </div>
@@ -437,7 +424,7 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setActiveSong(spotifySong, sortedSongs)}
-                        className="flex items-center gap-2 self-start rounded-full bg-white/25 px-5 py-2.5 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/35 md:self-auto"
+                        className="flex items-center gap-2 self-start rounded-full bg-white px-5 py-2.5 text-sm font-bold text-accent transition hover:bg-white/90 md:self-auto"
                       >
                         <Play size={14} fill="currentColor" />
                         Play
@@ -488,7 +475,7 @@ export default function Home() {
               <LazySection delay={200}>
                 <section id="recommended" className="scroll-mt-24 py-2">
                   <div className="mb-4 flex items-center gap-3">
-                    <div className="h-4 w-0.5 rounded-full bg-accent/50" />
+                    <div className="h-4 w-0.5 rounded-full bg-accent" />
                     <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">Recommendation</h2>
                   </div>
                   <div className="flex flex-col gap-y-1">
@@ -507,7 +494,7 @@ export default function Home() {
 
             {sortedSongs.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/8">
+                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10">
                   <Sparkles className="text-accent" size={28} />
                 </div>
                 <p className="text-base font-bold tracking-tight text-neutral-900">
@@ -518,7 +505,7 @@ export default function Home() {
                 </p>
                 <Link
                   href="/admin"
-                  className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-accent/20 transition hover:bg-accent/90 hover:shadow-lg hover:shadow-accent/25"
+                  className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent/90"
                 >
                   <Upload size={14} />
                   Upload a Song

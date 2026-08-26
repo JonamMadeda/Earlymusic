@@ -83,15 +83,10 @@ const Sidebar = () => {
     <aside className="sticky top-0 hidden h-full w-[240px] flex-shrink-0 md:flex lg:w-[260px] bg-white border-r border-neutral-100 shadow-sm">
       <div className="flex h-full w-full flex-col p-5 pb-5">
 
-        {/* Brand Logo Header */}
-        <Link href="/" className="mb-6 flex items-center gap-3 px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg">
-          <img
-            src="/icons/icon-192x192.png"
-            alt="Early Music"
-            className="h-9 w-9 rounded-xl object-cover shadow-sm shadow-accent/10"
-          />
+        {/* Brand */}
+        <Link href="/" className="mb-6 flex items-center px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg">
           <h2 className="text-[15px] font-black tracking-tight text-neutral-900 leading-none md:text-[17px]">
-            Early Music
+            Lumbo
           </h2>
         </Link>
 

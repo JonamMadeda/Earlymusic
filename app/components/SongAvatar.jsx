@@ -39,9 +39,18 @@ const sizeMap = {
   lg: "h-12 w-12 text-sm md:h-14 md:w-14 md:text-base rounded-xl",
 };
 
-const SongAvatar = ({ title, size = "md" }) => {
+const SongAvatar = ({ title, size = "md", variant = "pastel" }) => {
   const classes = sizeMap[size] || sizeMap.md;
   const letter = initialLetter(title);
+  if (variant === "mono") {
+    return (
+      <div
+        className={`flex shrink-0 items-center justify-center font-bold text-accent shadow-sm ${classes} bg-accent/[0.08] border border-accent/10`}
+      >
+        {letter}
+      </div>
+    );
+  }
   return (
     <div
       className={`flex shrink-0 items-center justify-center font-bold text-white shadow-sm ${classes}`}

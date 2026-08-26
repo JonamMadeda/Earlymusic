@@ -1,7 +1,7 @@
 {
-  "name": "Early Music",
-  "short_name": "EarlyMusic",
-  "description": "Premium Early Music Streaming",
+  "name": "Lumbo",
+  "short_name": "Lumbo",
+  "description": "Premium Music Streaming",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

@@ -70,7 +70,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
       if (error) throw error;
 
       // Clear cache so other pages see the update
-      localStorage.removeItem("earlymusic_songs_cache");
+      localStorage.removeItem("lumbo_songs_cache");
       if (data && data[0]) onSuccess(data[0]);
       onClose();
     } catch (error) {
@@ -108,7 +108,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
               placeholder="e.g., Ujazaye"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:ring-2 focus:ring-red-600/10 focus:border-red-600 focus:bg-white text-neutral-900 transition"
+              className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent focus:bg-white text-neutral-900 transition"
               required
             />
           </div>
@@ -122,7 +122,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
               placeholder="e.g., Pastor Marita Mbae"
               value={author}
               onChange={(e) => setAuthor(e.target.value)}
-              className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:ring-2 focus:ring-red-600/10 focus:border-red-600 focus:bg-white text-neutral-900 transition"
+              className="p-3 bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent focus:bg-white text-neutral-900 transition"
               required
             />
           </div>
@@ -135,7 +135,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
               <button
                 type="button"
                 onClick={handleAddOriginal}
-                className="text-red-600 hover:text-neutral-900 transition flex items-center gap-1 text-[11px] font-bold"
+                className="text-accent hover:text-neutral-900 transition flex items-center gap-1 text-[11px] font-bold"
               >
                 <Plus size={14} /> Add Song
               </button>
@@ -151,7 +151,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
                         placeholder="Original Title"
                         value={s.title}
                         onChange={(e) => handleOriginalChange(index, "title", e.target.value)}
-                        className="p-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-red-600 text-[13px] transition"
+                        className="p-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-accent text-[13px] transition"
                       />
                     </div>
                     <div className="flex flex-col gap-y-1">
@@ -160,7 +160,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
                         placeholder="Original Artist"
                         value={s.artist}
                         onChange={(e) => handleOriginalChange(index, "artist", e.target.value)}
-                        className="p-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-red-600 text-[13px] transition"
+                        className="p-2 bg-white border border-neutral-200 rounded-lg outline-none focus:border-accent text-[13px] transition"
                       />
                     </div>
                   </div>
@@ -191,7 +191,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
                   className={`
                     flex-1 py-2 rounded-lg text-sm font-semibold transition-all
                     ${category === item
-                      ? "bg-white text-red-600 shadow-sm border border-neutral-100"
+                      ? "bg-white text-accent shadow-sm border border-neutral-100"
                       : "text-neutral-400 hover:text-neutral-600"
                     }
                   `}
@@ -215,7 +215,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
                   className={`
                     flex-1 py-2 rounded-lg text-sm font-semibold transition-all
                     ${duration === item
-                      ? "bg-white text-red-600 shadow-sm border border-neutral-100"
+                      ? "bg-white text-accent shadow-sm border border-neutral-100"
                       : "text-neutral-400 hover:text-neutral-600"
                     }
                   `}
@@ -229,7 +229,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="bg-red-600 py-3.5 rounded-xl text-white font-bold hover:bg-neutral-900 transition-all shadow-lg shadow-red-100 disabled:opacity-50 disabled:cursor-not-allowed mt-4 text-sm uppercase tracking-tight"
+            className="bg-accent py-3.5 rounded-xl text-white font-bold hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed mt-4 text-sm uppercase tracking-tight"
           >
             {isLoading ? `Saving...` : "Save Changes"}
           </button>

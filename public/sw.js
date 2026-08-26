@@ -1,5 +1,5 @@
-const CACHE_NAME = "earlymusic-app-v4";
-const AUDIO_CACHE = "earlymusic-audio-cache-v1";
+const CACHE_NAME = "lumbo-app-v4";
+const AUDIO_CACHE = "lumbo-audio-cache-v1";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

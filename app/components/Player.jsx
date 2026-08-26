@@ -169,7 +169,7 @@ const Player = () => {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: song.title,
       artist: song.author,
-      album: "Early Music",
+      album: "Lumbo",
       artwork: [
         { src: "/favicon.ico", sizes: "192x192", type: "image/png" },
       ],
