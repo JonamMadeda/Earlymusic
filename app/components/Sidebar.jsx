@@ -7,6 +7,9 @@ import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
 import { useState, useEffect } from "react";
 import SongAvatar from "@/app/components/SongAvatar";
+import { Playfair_Display } from "next/font/google";
+
+const brandFont = Playfair_Display({ subsets: ["latin"], weight: ["700", "800", "900"] });
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -85,7 +88,7 @@ const Sidebar = () => {
 
         {/* Brand */}
         <Link href="/" className="mb-6 flex items-center px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg">
-          <h2 className="text-[15px] font-black tracking-tight text-neutral-900 leading-none md:text-[17px]">
+          <h2 className={`${brandFont.className} text-[26px] font-extrabold italic tracking-tight text-neutral-900 leading-none md:text-[28px]`}>
             Lumbo
           </h2>
         </Link>

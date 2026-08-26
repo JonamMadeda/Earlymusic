@@ -198,7 +198,7 @@ const SongItem = ({ song, onClick, saved, onToggleSave }) => {
             {normalizedCategory}
           </span>
           {song.duration === "Short" && (
-            <span className="rounded bg-neutral-900/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-neutral-500">
+            <span className="rounded border border-neutral-900 bg-neutral-900 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
               Short
             </span>
           )}

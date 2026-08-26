@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import { CloudOff } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Playfair_Display } from "next/font/google";
+
+const brandFont = Playfair_Display({ subsets: ["latin"], weight: ["700", "800", "900"] });
 
 const Header = () => {
   const [isOnline, setIsOnline] = useState(true);
@@ -30,16 +33,9 @@ const Header = () => {
     <header className="sticky top-0 z-[200] border-b border-white/70 bg-white/70 px-4 py-2 backdrop-blur-xl md:px-6 md:py-3">
       <div className="flex items-center justify-between gap-3">
         <Link href="/" className="md:hidden">
-          <span className="flex items-center gap-2.5">
-            <img
-              src="/icons/icon-192x192.png"
-              alt="Lumbo"
-              className="h-9 w-9 rounded-xl object-cover shadow-sm shadow-accent/10"
-            />
-            <h1 className="text-[15px] font-black tracking-tight text-neutral-900 leading-none md:text-[17px]">
-              Lumbo
-            </h1>
-          </span>
+          <h1 className={`${brandFont.className} text-[26px] font-extrabold italic tracking-tight text-neutral-900 leading-none`}>
+            Lumbo
+          </h1>
         </Link>
 
         <div className="flex items-center gap-x-2">

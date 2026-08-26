@@ -9,6 +9,9 @@ import SongAvatar, { initialLetter, hashStr } from "./components/SongAvatar";
 import { Disc, Music, ArrowRight, Play, Upload, Sparkles } from "lucide-react";
 import LazySection from "./components/LazySection";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
+import { Playfair_Display } from "next/font/google";
+
+const brandFont = Playfair_Display({ subsets: ["latin"], weight: ["700", "800", "900"] });
 
 
 const timeWindowDays = 30;
@@ -348,6 +351,10 @@ export default function Home() {
   return (
     <main className="min-h-[90vh] bg-neutral-50/60 px-3 pb-8 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-5xl">
+        {/* Mobile brand — homepage only */}
+        <div className="md:hidden mb-3 flex items-center px-1">
+          <h2 className={`${brandFont.className} text-[26px] font-extrabold italic tracking-tight text-neutral-900 leading-none`}>Lumbo</h2>
+        </div>
 
         {/* Hero */}
         <section className="relative mb-8 overflow-hidden rounded-2xl border border-neutral-200 bg-white px-5 py-10 md:rounded-3xl md:px-8 md:py-14">

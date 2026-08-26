@@ -193,7 +193,7 @@ export default function LibraryPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
+      <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
         <div className="max-w-5xl mx-auto"><PageSkeleton /></div>
       </main>
     );
@@ -201,7 +201,7 @@ export default function LibraryPage() {
 
   if (!user) {
     return (
-      <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
+      <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
         <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-32 text-center">
           <Disc className="mb-4 text-neutral-300" size={32} />
           <p className="text-sm font-semibold text-neutral-900 mb-2">Sign in to see your library</p>
@@ -214,26 +214,26 @@ export default function LibraryPage() {
   }
 
   return (
-    <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
+    <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
       <div className="max-w-5xl mx-auto">
         <section className="mb-6 md:mb-8">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
               Library
             </h1>
-            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200/60 bg-white/60 px-3 py-1 text-[11px] font-medium text-neutral-400 backdrop-blur-sm">
+            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-400">
               {savedSongs.length} saved · {playlists.length} playlist{playlists.length !== 1 ? "s" : ""} · {downloadedSongs.length} downloaded
             </span>
           </div>
           <div className="mt-3 md:hidden flex items-center gap-2 text-xs text-neutral-500">
-            <span className="rounded-full bg-neutral-50/60 px-2.5 py-1 font-medium">{savedSongs.length} saved</span>
-            <span className="rounded-full bg-neutral-50/60 px-2.5 py-1 font-medium">{playlists.length} playlist{playlists.length !== 1 ? "s" : ""}</span>
-            <span className="rounded-full bg-neutral-50/60 px-2.5 py-1 font-medium">{downloadedSongs.length} downloaded</span>
+            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{savedSongs.length} saved</span>
+            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{playlists.length} playlist{playlists.length !== 1 ? "s" : ""}</span>
+            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{downloadedSongs.length} downloaded</span>
           </div>
         </section>
 
         {/* Tabs */}
-        <div className="mb-6 flex gap-1 rounded-2xl bg-neutral-50/60 p-1 backdrop-blur-2xl">
+        <div className="mb-6 flex gap-1 rounded-2xl border border-neutral-200 bg-white p-1 shadow-sm">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
@@ -241,7 +241,7 @@ export default function LibraryPage() {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold transition ${
-                  isActive ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-900"
+                  isActive ? "bg-accent text-white shadow-sm" : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50"
                 }`}
               >
                 <tab.icon size={14} />
@@ -259,7 +259,7 @@ export default function LibraryPage() {
                 {Object.keys(groupedSaved).sort().map((letter) => (
                     <div key={letter} className="flex flex-col gap-y-3">
                       <div className="flex items-center gap-3 border-b border-neutral-100 pb-2 px-1">
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/10 text-[10px] font-bold text-accent">{letter}</span>
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/[0.06] border border-accent/10 text-[10px] font-bold text-accent">{letter}</span>
                       </div>
                     <div className="flex flex-col gap-y-2">
                       {groupedSaved[letter].map((song) => (
@@ -299,20 +299,20 @@ export default function LibraryPage() {
             </div>
 
             {showCreate && (
-              <div className="mb-6 -mt-2 flex items-center gap-3 bg-neutral-50/60 rounded-2xl p-3.5 backdrop-blur-2xl">
+              <div className="mb-6 -mt-2 flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-3.5 shadow-sm">
                 <input
                   type="text"
                   placeholder="Playlist name..."
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && createPlaylist()}
-                  className="flex-1 rounded-full border border-neutral-200/80 bg-white px-3.5 py-2.5 text-xs font-medium outline-none transition placeholder:text-neutral-300 focus:border-neutral-300"
+                  className="flex-1 rounded-full border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-xs font-medium outline-none transition placeholder:text-neutral-300 focus:border-accent focus:bg-white"
                   autoFocus
                 />
                 <button
                   onClick={createPlaylist}
                   disabled={!newName.trim()}
-                  className="rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
+                  className="rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50 shadow-sm"
                 >
                   Create
                 </button>
@@ -331,10 +331,10 @@ export default function LibraryPage() {
                   <div
                     key={pl.id}
                     onClick={() => router.push(`/playlists/${pl.id}`)}
-                    className="group flex cursor-pointer flex-col gap-3 rounded-2xl bg-neutral-50/60 p-5 text-left transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 backdrop-blur-2xl"
+                    className="group flex cursor-pointer flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:border-neutral-300 hover:-translate-y-0.5"
                   >
                     <div className="flex items-start justify-between">
-                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-neutral-900/5 text-neutral-800">
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-accent/[0.06] border border-accent/10 text-accent">
                         <ListMusic size={22} />
                       </div>
                       <button
@@ -359,7 +359,7 @@ export default function LibraryPage() {
         {activeTab === "downloads" && (
           <div>
             {storage && storage.quota > 0 && (
-              <div className="mb-6 rounded-2xl bg-neutral-50/60 p-4 backdrop-blur-2xl">
+              <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
                     <HardDrive size={13} />
@@ -369,7 +369,7 @@ export default function LibraryPage() {
                     {formatBytes(storage.usage)} / {formatBytes(storage.quota)}
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-neutral-200 overflow-hidden">
+                <div className="h-2 rounded-full bg-neutral-100 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${(storage.usage / storage.quota) >= 0.95 ? "bg-red-500" : "bg-accent"}`}
                     style={{ width: `${Math.min((storage.usage / storage.quota) * 100, 100)}%` }}
@@ -398,9 +398,9 @@ export default function LibraryPage() {
                     tabIndex={0}
                     onClick={() => setActiveSong(song, downloadedSongs)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActiveSong(song, downloadedSongs); } }}
-                    className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl bg-neutral-50/60 p-3 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm backdrop-blur-2xl"
+                    className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300"
                   >
-                    <SongAvatar title={song.title} size="sm" />
+                    <SongAvatar title={song.title} size="sm" variant="mono" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
                       <p className="truncate text-[11px] font-medium text-neutral-400 mt-0.5">{song.author}</p>

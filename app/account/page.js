@@ -6,7 +6,7 @@ import { Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings, Download, L
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
 import Link from "next/link";
-import { pastelGradient } from "@/app/components/SongAvatar";
+
 
 export default function AccountPage() {
   const { user, profile, loading: authLoading, signOut, updateProfile } = useAuth();
@@ -65,7 +65,7 @@ export default function AccountPage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
+      <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
         <div className="mx-auto max-w-3xl flex items-center justify-center py-32">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
@@ -75,8 +75,8 @@ export default function AccountPage() {
 
   if (!user) {
     return (
-      <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
-        <div className="mx-auto max-w-md flex flex-col items-center justify-center text-center rounded-2xl bg-neutral-50/60 backdrop-blur-2xl px-8 py-16">
+      <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
+        <div className="mx-auto max-w-md flex flex-col items-center justify-center text-center rounded-2xl border border-neutral-200 bg-white px-8 py-16 shadow-sm">
           <Disc className="mb-4 text-neutral-300" size={32} />
           <p className="mb-2 text-sm font-semibold text-neutral-900">Sign in to view your account</p>
           <Link
@@ -105,7 +105,7 @@ export default function AccountPage() {
   ];
 
   return (
-    <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
+    <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-3xl">
         {/* Page header */}
         <div className="mb-8 flex items-center gap-3">
@@ -114,14 +114,11 @@ export default function AccountPage() {
 
         <div className="flex flex-col gap-6">
           {/* Profile card */}
-          <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl overflow-hidden">
-            <div className="h-20 bg-gradient-to-r from-accent/10 via-accent/5 to-transparent" />
+          <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
+            <div className="h-20 bg-accent/[0.04] border-b border-neutral-200" />
             <div className="px-5 pb-5">
               <div className="-mt-10 mb-4 flex items-end gap-4">
-                <div
-                  className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white shadow-md ring-4 ring-white"
-                  style={{ background: pastelGradient(user.email || "account") }}
-                >
+                <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.08] text-xl font-bold text-accent shadow-sm ring-4 ring-white">
                   {initials}
                 </div>
                 <div className="min-w-0 pb-1">
@@ -180,12 +177,12 @@ export default function AccountPage() {
 
           {/* Stats */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300">
               <Heart size={18} className="text-accent" />
               <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">{savedCount}</p>
               <p className="mt-0.5 text-[11px] font-medium text-neutral-400">Saved songs</p>
             </div>
-            <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+            <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300">
               <Disc size={18} className="text-accent" />
               <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">{playlistCount}</p>
               <p className="mt-0.5 text-[11px] font-medium text-neutral-400">Playlists</p>
@@ -193,18 +190,18 @@ export default function AccountPage() {
           </div>
 
           {/* Quick Links */}
-          <div className="rounded-2xl bg-neutral-50/60 backdrop-blur-2xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-neutral-100/80">
+          <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
+            <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50/60">
               <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Quick Links</p>
             </div>
-            <div className="divide-y divide-neutral-100/80">
+            <div className="divide-y divide-neutral-100">
               {quickLinks.map((link) => (
                 <Link
                   key={link.label}
                   href={link.href}
-                  className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-neutral-100/50 group"
+                  className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-neutral-50 group"
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/[0.08] border border-accent/10 text-accent">
                     <link.icon size={16} />
                   </div>
                   <div className="min-w-0 flex-1">

@@ -53,8 +53,8 @@ const Chip = ({ label, active, onClick }) => (
     onClick={onClick}
     className={`whitespace-nowrap rounded-full border px-3 py-2 md:px-4 md:py-2.5 text-[11px] md:text-xs font-medium transition ${
       active
-        ? "border-accent bg-accent text-white hover:bg-accent/90"
-        : "border-neutral-200/80 bg-white text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
+        ? "border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800"
+        : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 hover:border-neutral-300"
     }`}
   >
     {label}
@@ -62,8 +62,8 @@ const Chip = ({ label, active, onClick }) => (
 );
 
 const categoryColors = {
-  Worship: "bg-blue-50 text-blue-600",
-  Praise: "bg-purple-50 text-purple-600",
+  Worship: "bg-neutral-900 text-white border border-neutral-900",
+  Praise: "bg-neutral-800 text-white border border-neutral-800",
 };
 
 const SongRow = ({ song, onClick, isActive }) => {
@@ -270,7 +270,7 @@ const SongRow = ({ song, onClick, isActive }) => {
             </span>
           )}
           {song.category && (
-            <span className={`hidden md:inline-block rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider ${categoryColors[song.category] || "bg-neutral-100 text-neutral-500"}`}>
+            <span className={`hidden md:inline-block rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider border ${categoryColors[song.category] || "bg-white border-neutral-300 text-neutral-700"}`}>
               {song.category}
             </span>
           )}
