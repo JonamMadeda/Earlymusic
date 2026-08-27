@@ -2,128 +2,93 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Library, LogIn, User, ShieldCheck, Music, Settings, LogOut, ChevronRight } from "lucide-react";
+import { Home, Library, LogIn, ShieldCheck, Music, ChevronRight } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
 import { useState, useEffect } from "react";
 import SongAvatar from "@/app/components/SongAvatar";
-import { Playfair_Display } from "next/font/google";
-
-const brandFont = Playfair_Display({ subsets: ["latin"], weight: ["700", "800", "900"] });
 
 const Sidebar = () => {
   const pathname = usePathname();
-  const { user, isAdmin, profile, signOut } = useAuth();
-  const { activeSong } = usePlayer();
+  const { user, isAdmin, profile } = useAuth();
+  const { activeSong, recentlyPlayed, setActiveSong } = usePlayer();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
-  const mainRoutes = [
-    {
-      icon: Home,
-      label: "Home",
-      active: mounted && pathname === "/",
-      href: "/",
-    },
-    {
-      icon: Music,
-      label: "Songs",
-      active: mounted && pathname === "/songs",
-      href: "/songs",
-    },
-    {
-      icon: Library,
-      label: "Library",
-      active: mounted && (pathname === "/library" || pathname === "/playlists" || pathname.startsWith("/playlists/")),
-      href: "/library",
-    },
+  const navRoutes = [
+    { icon: Home, label: "Home", active: mounted && pathname === "/", href: "/" },
+    { icon: Music, label: "Songs", active: mounted && pathname === "/songs", href: "/songs" },
+    { icon: Library, label: "Library", active: mounted && (pathname === "/library" || pathname === "/playlists" || pathname.startsWith("/playlists/")), href: "/library" },
+    ...(isAdmin ? [{ icon: ShieldCheck, label: "Admin", active: mounted && pathname === "/admin", href: "/admin" }] : []),
   ];
-
-  const accountRoutes = [
-    ...(user
-      ? [{
-          icon: Settings,
-          label: "Settings",
-          active: mounted && pathname === "/settings",
-          href: "/settings",
-        }]
-      : []),
-    ...(user
-      ? [{
-          icon: User,
-          label: "Account",
-          active: mounted && pathname === "/account",
-          href: "/account",
-        }]
-      : []),
-    ...(isAdmin
-      ? [{
-          icon: ShieldCheck,
-          label: "Admin",
-          active: mounted && pathname === "/admin",
-          href: "/admin",
-        }]
-      : []),
-  ];
-
-  const NavItem = ({ item }) => (
-    <Link
-      href={item.href}
-      aria-current={item.active ? "page" : undefined}
-      className={`group relative flex items-center gap-x-3 rounded-xl px-3 py-2.5 text-sm font-semibold tracking-tight transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 ${
-        item.active
-          ? "bg-accent/8 text-neutral-900"
-          : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
-      }`}
-    >
-      <item.icon size={17} strokeWidth={item.active ? 2.5 : 2} />
-      <span>{item.label}</span>
-    </Link>
-  );
 
   return (
     <aside className="sticky top-0 hidden h-full w-[240px] flex-shrink-0 md:flex lg:w-[260px] bg-white border-r border-neutral-100 shadow-sm">
-      <div className="flex h-full w-full flex-col p-5 pb-5">
+      <div className="flex h-full w-full flex-col p-5 pb-20">
 
         {/* Brand */}
-        <Link href="/" className="mb-6 flex items-center px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg">
-          <h2 className={`${brandFont.className} text-[26px] font-extrabold italic tracking-tight text-neutral-900 leading-none md:text-[28px]`}>
+        <Link href="/" className="mb-5 flex items-center px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg">
+          <h2 className="text-[17px] font-bold tracking-tight text-neutral-900 leading-none md:text-[18px]">
             Lumbo
           </h2>
         </Link>
 
-        {/* Main Navigation */}
-        <nav aria-label="Main navigation" className="flex flex-col gap-y-0.5">
-          {mainRoutes.map((item) => (
-            <NavItem key={item.label} item={item} />
+        {/* Navigation */}
+        <nav aria-label="Navigation" className="flex flex-col gap-y-0.5">
+          {navRoutes.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              aria-current={item.active ? "page" : undefined}
+              className={`flex items-center gap-x-3 rounded-xl px-3 py-2 text-sm font-semibold tracking-tight transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+                item.active
+                  ? "bg-accent/8 text-neutral-900"
+                  : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
+              }`}
+            >
+              <item.icon size={16} strokeWidth={item.active ? 2.5 : 2} />
+              <span>{item.label}</span>
+            </Link>
           ))}
         </nav>
 
-        {/* Account Section */}
-        {accountRoutes.length > 0 && (
+        {/* Recently Played */}
+        {recentlyPlayed.length > 0 && (
           <>
-            <div className="my-4 border-t border-neutral-100" />
-            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-400">
-              Account
+            <div className="my-3 border-t border-neutral-100" />
+            <p className="mb-1.5 px-3 text-[9px] font-bold uppercase tracking-[0.15em] text-neutral-400">
+              Recent
             </p>
-            <nav aria-label="Account navigation" className="flex flex-col gap-y-0.5">
-              {accountRoutes.map((item) => (
-                <NavItem key={item.label} item={item} />
+            <div className="flex flex-col gap-y-0.5">
+              {recentlyPlayed.slice(0, 5).map((song) => (
+                <button
+                  key={song.id}
+                  type="button"
+                  onClick={() => setActiveSong(song, recentlyPlayed)}
+                  className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+                    activeSong?.id === song.id
+                      ? "bg-accent/8 text-neutral-900"
+                      : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
+                  }`}
+                >
+                  <SongAvatar title={song.title} size="xs" variant="mono" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold">{song.title}</p>
+                    <p className="truncate text-[10px] text-neutral-400">{song.author}</p>
+                  </div>
+                </button>
               ))}
-            </nav>
+            </div>
           </>
         )}
 
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Active Song Indicator */}
-        {activeSong && (
-          <div className="mb-3 rounded-xl border border-accent/10 bg-accent/[0.04] px-3 py-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-accent mb-1.5">
-              Now Playing
-            </p>
+        {/* Now Playing */}
+        <div className="mb-2.5 rounded-xl border border-accent/10 bg-accent/[0.04] px-3 py-2">
+          {activeSong ? (
             <div className="flex items-center gap-2.5">
               <SongAvatar title={activeSong.title} size="xs" variant="mono" />
               <div className="min-w-0 flex-1">
@@ -132,17 +97,19 @@ const Sidebar = () => {
               </div>
               <div className="waveform text-accent flex h-4 items-center"><span /><span /><span /><span /></div>
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-[11px] text-neutral-400">No song playing</p>
+          )}
+        </div>
 
         {/* Bottom — User Profile or Sign In */}
-        <div className="border-t border-neutral-100 pt-3">
+        <div className="border-t border-neutral-100 pt-2.5">
           {user ? (
             <Link
               href="/account"
               className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-200 hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[10px] font-bold text-accent">
                 {profile?.first_name?.[0] || user.email?.[0]?.toUpperCase() || "U"}
               </div>
               <div className="min-w-0 flex-1">
@@ -153,17 +120,18 @@ const Sidebar = () => {
                   {isAdmin ? "Admin" : "Member"}
                 </p>
               </div>
-              <ChevronRight size={12} className="text-neutral-300" />
+              <ChevronRight size={11} className="text-neutral-300" />
             </Link>
           ) : (
             <Link
               href="/auth"
-              className="flex items-center gap-x-3 rounded-xl px-3 py-2.5 text-sm font-semibold tracking-tight text-neutral-500 transition-all duration-200 hover:bg-neutral-50 hover:text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+              className="flex items-center gap-x-2.5 rounded-xl px-3 py-2 text-sm font-semibold tracking-tight text-neutral-500 transition-all duration-200 hover:bg-neutral-50 hover:text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             >
-              <LogIn size={17} />
+              <LogIn size={16} />
               <span>Sign In</span>
             </Link>
           )}
+          <p className="mt-1.5 px-2.5 text-[9px] text-neutral-300">Lumbo v1.0</p>
         </div>
       </div>
     </aside>

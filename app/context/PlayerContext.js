@@ -24,6 +24,7 @@ export const PlayerProvider = ({ children }) => {
   const [queue, setQueue] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [recentlyPlayed, setRecentlyPlayed] = useState([]);
+  const [playingSource, setPlayingSource] = useState("library");
   const seeded = useRef(false);
   const prevRecentRef = useRef(null);
 
@@ -124,15 +125,28 @@ export const PlayerProvider = ({ children }) => {
   const setActiveSong = useCallback(
     (song, customQueue = null) => {
       setActiveSongState(song);
-      setQueue(customQueue || allSongs);
+      const newQueue = customQueue || allSongs;
+      setQueue(newQueue);
       if (song) {
         setRecentlyPlayed((prev) => {
           const filtered = prev.filter((s) => s.id !== song.id);
           return [song, ...filtered].slice(0, MAX_RECENT);
         });
+        if (newQueue === allSongs) {
+          setPlayingSource("library");
+        } else if (customQueue && customQueue.length <= 10) {
+          const first = customQueue[0];
+          if (first && recentlyPlayed.some((s) => s.id === first.id)) {
+            setPlayingSource("recently played");
+          } else {
+            setPlayingSource("playlist");
+          }
+        } else {
+          setPlayingSource("collection");
+        }
       }
     },
-    [allSongs]
+    [allSongs, recentlyPlayed]
   );
 
   return (
@@ -146,6 +160,7 @@ export const PlayerProvider = ({ children }) => {
         isLoading,
         setIsLoading,
         recentlyPlayed,
+        playingSource,
       }}
     >
       {children}
