@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "./context/PlayerContext";
+import { useAuth } from "./context/AuthContext";
 import { PageSkeleton } from "./components/Skeleton";
 import SongAvatar, { initialLetter, hashStr } from "./components/SongAvatar";
-import { Disc, Music, ArrowRight, Play, Upload, Sparkles, Star, Clock, ListMusic, ChevronDown, ChevronUp } from "lucide-react";
+import { Disc, Music, ArrowRight, Play, Upload, Sparkles, Star, Clock, ListMusic, ChevronDown, ChevronUp, Copy, Check, Shuffle } from "lucide-react";
 import LazySection from "./components/LazySection";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
 
@@ -258,7 +259,7 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
       </div>
 
       {children || (
-        <div className="flex snap-x snap-mandatory gap-3.5 overflow-x-auto pb-3 scrollbar-thin [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent_100%)] md:[mask-image:none]">
+        <div className="flex snap-x snap-mandatory gap-3.5 overflow-x-auto pb-3 scrollbar-thin [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent_100%)]">
           {items.length > 0 ? (
             items.map((song) => (
               <Card
@@ -282,9 +283,11 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
 export default function Home() {
   const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed, activeSong, playingSource } =
     usePlayer();
+  const { user, profile } = useAuth();
   const [loadError, setLoadError] = useState(false);
   const [verseIndex, setVerseIndex] = useState(0);
   const [showAllRecs, setShowAllRecs] = useState(false);
+  const [verseCopied, setVerseCopied] = useState(false);
 
   useEffect(() => {
     if (activeSong) return;
@@ -397,6 +400,34 @@ export default function Home() {
 
   const playingSection = playingSource || "library";
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const userName = profile?.first_name || user?.email?.split("@")[0] || null;
+
+  const copyVerse = useCallback(async () => {
+    const verse = verses[verseIndex];
+    const text = `"${verse.text}" — ${verse.ref}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setVerseCopied(true);
+      setTimeout(() => setVerseCopied(false), 2000);
+    } catch {
+      // fallback
+    }
+  }, [verseIndex]);
+
+  const shuffleAll = useCallback(() => {
+    if (sortedSongs.length > 0) {
+      const shuffled = [...sortedSongs].sort(() => Math.random() - 0.5);
+      setActiveSong(shuffled[0], shuffled);
+    }
+  }, [sortedSongs, setActiveSong]);
+
   return (
     <main className="min-h-[90vh] bg-neutral-50/60 px-3 pb-8 pt-2 md:px-8 md:pt-6">
       <ScrollProgress />
@@ -407,41 +438,97 @@ export default function Home() {
         </div>
 
         {/* Hero */}
-        <section className="relative mb-6 overflow-hidden rounded-2xl border border-neutral-200 bg-white px-5 py-7 md:mb-8 md:rounded-3xl md:px-8 md:py-14">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-accent/[0.02] via-transparent to-transparent" />
-          <div className="relative">
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
-                Worship in Song
-              </h1>
-              <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-400">
-                <span>{stats.total}</span>
-                <span className="h-1 w-1 rounded-full bg-neutral-300" />
-                <span className="text-neutral-500">{stats.new} new</span>
-              </span>
-            </div>
-            <div className="mt-2 md:hidden inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-400">
-              <span>{stats.total} tracks</span>
-              <span className="h-1 w-1 rounded-full bg-neutral-300" />
-              <span className="text-neutral-500">{stats.new} new</span>
-            </div>
-            <div className="mt-3 flex items-center gap-3 rounded-xl bg-neutral-50 px-4 py-3 border border-neutral-100 md:mt-4">
-              {activeSong ? (
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <SongAvatar title={activeSong.title} size="sm" variant="mono" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{activeSong.title}</p>
-                    <p className="truncate text-[10px] text-neutral-400">Playing from {playingSection}</p>
-                  </div>
-                  <div className="waveform text-accent flex h-6 items-center"><span /><span /><span /><span /></div>
-                </div>
+        <section className="relative mb-6 overflow-hidden rounded-2xl border-l-[3px] border-l-accent border border-neutral-200 bg-white px-5 py-7 md:mb-8 md:rounded-3xl md:px-8 md:py-10">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-accent/[0.03] via-transparent to-transparent" />
+          <div className="absolute inset-0 opacity-[0.015]" style={{ backgroundImage: "radial-gradient(circle, #0f172a 1px, transparent 1px)", backgroundSize: "16px 16px" }} />
+          <div className="relative md:flex md:items-start md:justify-between md:gap-8">
+            {/* Left column — title & stats */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
+                  <span className="bg-gradient-to-br from-accent to-neutral-700 bg-clip-text text-transparent">Worship in Song</span>
+                </h1>
+              </div>
+              {userName ? (
+                <p className="text-sm text-neutral-500 mb-3 md:mb-4">
+                  {getGreeting()}, <span className="font-semibold text-neutral-700">{userName}</span>
+                </p>
               ) : (
-                <div className="flex items-center gap-3">
-                  <Music size={14} className="shrink-0 text-neutral-400" />
-                  <p className="text-xs leading-relaxed text-neutral-500 italic transition-opacity duration-500">
-                    {verses[verseIndex].text}
-                  </p>
-                </div>
+                <p className="text-sm text-neutral-400 mb-3 md:mb-4">
+                  {getGreeting()}
+                </p>
+              )}
+              <div className="flex items-center gap-2 flex-wrap mb-4 md:mb-5">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-[11px] font-medium text-neutral-500">
+                  <span className="font-bold text-neutral-700">{stats.total}</span> tracks
+                </span>
+                {stats.new > 0 && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/5 px-2.5 py-1 text-[11px] font-medium text-accent">
+                    <span className="font-bold">{stats.new}</span> new
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-[11px] font-medium text-neutral-500">
+                  <span className="font-bold text-neutral-700">{new Set(sortedSongs.map(s => s.author)).size}</span> artists
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={shuffleAll}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent/90"
+                >
+                  <Shuffle size={12} />
+                  Shuffle All
+                </button>
+                {recentlyPlayed.length > 0 && (
+                  <a
+                    href="#recently-played"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
+                  >
+                    <Clock size={12} />
+                    Recent
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Right column — verse / now playing */}
+            <div className="mt-4 md:mt-0 md:max-w-[320px] w-full">
+              <div className="flex items-center gap-3 rounded-xl bg-neutral-50 px-4 py-3 border border-neutral-100">
+                {activeSong ? (
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <SongAvatar title={activeSong.title} size="sm" variant="mono" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{activeSong.title}</p>
+                      <p className="truncate text-[10px] text-neutral-400">Playing from {playingSection}</p>
+                    </div>
+                    <div className="waveform text-accent flex h-6 items-center"><span /><span /><span /><span /></div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={copyVerse}
+                    className="flex items-center gap-3 flex-1 text-left group"
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/[0.06] border border-accent/10">
+                      <Music size={14} className="text-accent" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs leading-relaxed text-neutral-600 italic transition-opacity duration-500 line-clamp-2">
+                        {verses[verseIndex].text}
+                      </p>
+                      <p className="text-[9px] text-neutral-400 mt-1 font-medium">
+                        {verses[verseIndex].ref}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-neutral-300 group-hover:text-neutral-500 transition">
+                      {verseCopied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+                    </div>
+                  </button>
+                )}
+              </div>
+              {!activeSong && (
+                <p className="text-[9px] text-neutral-300 mt-1.5 px-1 italic">Tap verse to copy</p>
               )}
             </div>
           </div>
