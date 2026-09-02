@@ -1,12 +1,12 @@
 {
   "name": "Lumbo",
   "short_name": "Lumbo",
-  "description": "Premium Music Streaming",
+  "description": "Premium Music Streaming by Lumbo",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
