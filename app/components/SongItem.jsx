@@ -167,10 +167,10 @@ const SongItem = ({ song, onClick, saved, onToggleSave }) => {
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(e); } }}
-      className="group relative flex cursor-pointer items-center gap-3.5 rounded-2xl bg-neutral-50/60 p-3.5 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm backdrop-blur-2xl"
+      className="group relative flex cursor-pointer items-center gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3.5 text-left shadow-sm transition-all duration-300 hover:border-neutral-300 hover:shadow-md"
     >
       <div className="relative shrink-0">
-        <SongAvatar title={song.title} size="md" />
+        <SongAvatar title={song.title} size="md" variant="mono" />
         <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/30 opacity-0 transition-all duration-300 group-hover:opacity-100">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white shadow-md shadow-accent/20">
             <Play size={13} fill="currentColor" className="ml-0.5" />
@@ -184,7 +184,7 @@ const SongItem = ({ song, onClick, saved, onToggleSave }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="rounded bg-neutral-900/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-neutral-800">
+            <span className="rounded bg-accent/[0.06] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
               New
             </span>
           )}
