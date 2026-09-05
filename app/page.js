@@ -1,13 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { usePlayer } from "./context/PlayerContext";
 import { useAuth } from "./context/AuthContext";
 import { PageSkeleton } from "./components/Skeleton";
 import SongAvatar, { initialLetter, hashStr } from "./components/SongAvatar";
-import { Disc, Music, ArrowRight, Play, Upload, Sparkles, Star, Clock, ListMusic, ChevronDown, ChevronUp, Copy, Check, Shuffle } from "lucide-react";
+import {
+  Music,
+  ArrowRight,
+  Play,
+  Upload,
+  Sparkles,
+  Star,
+  Clock,
+  ListMusic,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Check,
+  Shuffle,
+  Sun,
+  Sunrise,
+  Moon,
+  Quote,
+  Compass,
+} from "lucide-react";
 import LazySection from "./components/LazySection";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
 
@@ -64,6 +83,9 @@ const ScrollProgress = () => {
   );
 };
 
+/* --- COMPACT, RETRO-LINED MONOCHROMATIC CARD COMPONENTS --- */
+
+// Horizontal pill card (Used in Jump Back In / Rails)
 const SongRailCard = ({ song, onClick, isActive }) => {
   const isNew =
     song.created_at &&
@@ -75,44 +97,49 @@ const SongRailCard = ({ song, onClick, isActive }) => {
       type="button"
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
-      className={`group relative flex w-[76vw] flex-shrink-0 snap-start items-center gap-3.5 rounded-2xl p-3.5 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-md md:w-[290px] ${
+      className={`group relative flex w-[74vw] sm:w-[260px] md:w-[275px] flex-shrink-0 snap-start items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 hover:-translate-y-0.5 ${
         isActive
-          ? "bg-accent/[0.04] border border-accent/10 shadow-sm"
-          : "bg-white border border-neutral-200 shadow-sm hover:border-neutral-300"
+          ? "border-2 border-accent bg-neutral-50 shadow-xs"
+          : "border border-neutral-200 bg-white hover:border-neutral-400/80 shadow-2xs"
       }`}
     >
-      {isActive && (
-        <span className="absolute top-2.5 right-2.5 flex h-1.5 w-1.5 rounded-full bg-accent">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-40" />
-        </span>
-      )}
-      <SongAvatar title={song.title} size="lg" variant="mono" />
+      <div className="relative shrink-0">
+        <SongAvatar title={song.title} size="md" variant="mono" />
+        {isActive && (
+          <span className="absolute -top-1 -right-1 flex h-2 w-2 rounded-full bg-accent">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-50" />
+          </span>
+        )}
+      </div>
+
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className={`truncate text-sm font-semibold tracking-tight ${
-            isActive ? "text-accent" : "text-neutral-900"
-          }`}>
+          <p className={`truncate text-xs sm:text-sm font-semibold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
             {song.title}
           </p>
-          {isNew && !isActive && (
-            <span className="rounded bg-accent/[0.06] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
+          {isNew && (
+            <span className="rounded bg-accent px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
               New
             </span>
           )}
         </div>
-        <p className="truncate text-[11px] font-medium text-neutral-400 mt-0.5">
+        <p className="truncate text-[11px] font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
       </div>
-      <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
-        isActive ? "bg-accent text-white" : "bg-neutral-100 text-neutral-600 group-hover:bg-accent group-hover:text-white"
+
+      <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${
+        isActive
+          ? "bg-accent text-white"
+          : "bg-neutral-100 text-neutral-600 group-hover:bg-accent group-hover:text-white"
       }`}>
-        <Play size={14} fill="currentColor" className="ml-0.5" />
+        <Play size={12} fill="currentColor" className="ml-0.5" />
       </div>
     </button>
   );
 };
 
+// Vertical card (Used in Fresh Releases)
 const FeaturedCard = ({ song, onClick, isActive }) => {
   const isNew =
     song.created_at &&
@@ -124,104 +151,154 @@ const FeaturedCard = ({ song, onClick, isActive }) => {
       type="button"
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
-      className={`group relative flex w-[140px] flex-shrink-0 snap-start flex-col items-center gap-2.5 rounded-xl border p-3.5 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md md:w-[170px] md:gap-3 md:rounded-2xl md:p-4 ${
+      className={`group relative flex w-[135px] md:w-[155px] flex-shrink-0 snap-start flex-col items-center gap-2.5 rounded-xl p-3 md:p-3.5 text-center transition-all duration-200 hover:-translate-y-0.5 ${
         isActive
-          ? "bg-accent/[0.04] border-accent/10 shadow-sm"
-          : "border-neutral-200 bg-white shadow-sm hover:border-neutral-300"
+          ? "border-2 border-accent bg-neutral-50 shadow-xs"
+          : "border border-neutral-200 bg-white hover:border-neutral-400/80 shadow-2xs"
       }`}
     >
       {isActive && (
-        <span className="absolute top-2.5 right-2.5 flex h-1.5 w-1.5 rounded-full bg-accent">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-40" />
+        <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-accent">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-50" />
         </span>
       )}
-      <SongAvatar title={song.title} size="lg" variant="mono" />
-      <div className="w-full min-w-0">
+
+      <div className="relative my-0.5">
+        <SongAvatar title={song.title} size="lg" variant="mono" />
+        <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-md bg-accent text-white shadow opacity-0 scale-75 transition-all duration-150 group-hover:opacity-100 group-hover:scale-100">
+          <Play size={10} fill="currentColor" className="ml-0.5" />
+        </div>
+      </div>
+
+      <div className="w-full min-w-0 px-0.5">
         <div className="flex items-center justify-center gap-1">
-          <p className={`truncate text-xs font-semibold tracking-tight md:text-sm ${
-            isActive ? "text-accent" : "text-neutral-900"
-          }`}>
+          <p className={`truncate text-xs font-semibold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
             {song.title}
           </p>
-          {isNew && !isActive && (
-            <span className="rounded bg-accent/[0.06] px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-accent md:text-[8px]">
+          {isNew && (
+            <span className="rounded bg-accent px-1 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
               New
             </span>
           )}
         </div>
-        <p className="truncate text-[10px] font-medium text-neutral-400 mt-0.5 md:text-[11px]">
+        <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
-      </div>
-      <div className={`flex h-7 w-7 items-center justify-center rounded-full transition-all duration-300 md:h-8 md:w-8 ${
-        isActive ? "bg-accent text-white" : "bg-neutral-100 text-neutral-500 group-hover:bg-accent group-hover:text-white"
-      }`}>
-        <Play size={11} fill="currentColor" className="ml-0.5 md:size-[13px]" />
       </div>
     </button>
   );
 };
 
+// Album-style showcase card (Used in Featured Anthems) with subtle retro grooves
 const SpotifyCard = ({ song, onClick, isActive }) => {
+  const letter = initialLetter(song.title);
+  const categoryTag = song.category || "Worship";
+
   return (
     <button
       type="button"
       onClick={() => onClick(song)}
       onMouseEnter={() => prefetchSongAudio(song)}
-      className={`group relative flex w-[170px] flex-shrink-0 snap-start flex-col rounded-2xl border p-3 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${
+      className={`group relative flex w-[155px] md:w-[172px] flex-shrink-0 snap-start flex-col rounded-xl p-3 text-left transition-all duration-200 hover:-translate-y-0.5 ${
         isActive
-          ? "bg-accent/[0.04] border-accent/10 shadow-sm"
-          : "bg-white border-neutral-200 shadow-sm hover:border-neutral-300"
+          ? "border-2 border-accent bg-neutral-50 shadow-xs"
+          : "border border-neutral-200 bg-white hover:border-neutral-400/80 shadow-2xs"
       }`}
     >
-      {isActive && (
-        <span className="absolute top-2 right-2 flex h-1.5 w-1.5 rounded-full bg-accent">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-40" />
-        </span>
-      )}
-      <div className="relative mb-3 overflow-hidden rounded-xl">
-        <div className="flex h-24 w-full items-center justify-center bg-neutral-100 md:h-28">
-          <Music size={24} className="text-neutral-400" />
+      {/* Retro Lined Cover Art with Concentric Grooves */}
+      <div
+        className="relative mb-2.5 aspect-square w-full overflow-hidden rounded-lg border border-neutral-800 flex flex-col justify-between p-2.5 retro-grooves shadow-inner"
+        style={{ backgroundColor: "#0f172a" }}
+      >
+        {/* Top Tag: Clean monochromatic badge */}
+        <div className="z-10 flex items-center justify-between">
+          <span className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
+            {categoryTag}
+          </span>
+          {isActive && (
+            <span className="flex h-2 w-2 rounded-full bg-white">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+            </span>
+          )}
         </div>
-        <div className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-accent text-white shadow-md opacity-0 translate-y-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
+
+        {/* Big Crisp Letter Centerpiece */}
+        <div className="z-10 flex items-center justify-center py-1">
+          <span className="text-3xl font-black text-white select-none drop-shadow-sm">
+            {letter}
+          </span>
+        </div>
+
+        {/* Hover play trigger */}
+        <div className="absolute bottom-2.5 right-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-accent shadow-md opacity-0 translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0">
           <Play size={13} fill="currentColor" className="ml-0.5" />
         </div>
       </div>
-      <p className={`truncate text-sm font-semibold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>{song.title}</p>
-      <p className="truncate text-xs text-neutral-400 mt-0.5">{song.author}</p>
+
+      {/* Track Info */}
+      <div className="px-0.5">
+        <p className={`truncate text-xs font-bold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
+          {song.title}
+        </p>
+        <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">
+          {song.author}
+        </p>
+      </div>
     </button>
   );
 };
 
-const RecommendationCard = ({ song, onClick, isActive }) => {
+// Tracklist item (Used in Curated Recommendations)
+const RecommendationCard = ({ song, index, onClick, isActive }) => {
   return (
     <button
       type="button"
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
-      className={`group flex w-full items-center gap-3.5 rounded-2xl p-3.5 text-left transition-all duration-300 hover:bg-white hover:shadow-sm hover:border hover:border-neutral-200 border border-transparent ${
+      className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-150 border ${
         isActive
-          ? "bg-accent/[0.04] border border-accent/10"
-          : "bg-white border-neutral-200"
+          ? "border-2 border-accent bg-neutral-50 shadow-2xs"
+          : "border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50/70 shadow-2xs"
       }`}
     >
-      <SongAvatar title={song.title} size="md" variant="mono" />
+      <div className="w-5 shrink-0 text-center">
+        {isActive ? (
+          <div className="waveform text-accent flex h-3.5 justify-center items-end">
+            <span /><span /><span /><span />
+          </div>
+        ) : (
+          <span className="text-[11px] font-bold text-neutral-400 group-hover:hidden">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+        )}
+        {!isActive && (
+          <Play size={11} fill="currentColor" className="hidden text-accent group-hover:inline ml-0.5" />
+        )}
+      </div>
+
+      <SongAvatar title={song.title} size="sm" variant="mono" />
+
       <div className="min-w-0 flex-1">
-        <p className={`truncate text-sm font-semibold tracking-tight ${
-          isActive ? "text-accent" : "text-neutral-900"
-        }`}>
+        <p className={`truncate text-xs font-bold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
           {song.title}
         </p>
-        <p className="truncate text-[11px] font-medium text-neutral-400 mt-0.5">
+        <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
       </div>
-      <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+
+      {song.category && (
+        <span className="hidden sm:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[9px] font-semibold text-neutral-600">
+          {song.category}
+        </span>
+      )}
+
+      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-150 ${
         isActive
           ? "bg-accent text-white"
-          : "bg-neutral-100 text-neutral-600 group-hover:bg-accent group-hover:text-white"
+          : "bg-neutral-100 text-neutral-500 group-hover:bg-accent group-hover:text-white"
       }`}>
-        <Play size={14} fill="currentColor" className="ml-0.5" />
+        <Play size={10} fill="currentColor" className="ml-0.5" />
       </div>
     </button>
   );
@@ -230,28 +307,34 @@ const RecommendationCard = ({ song, onClick, isActive }) => {
 const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, cardType, activeSongId, children }) => {
   const Card = cardType === "spotify" ? SpotifyCard : cardType === "featured" ? FeaturedCard : SongRailCard;
   return (
-    <section id={id} className="scroll-mt-24 py-1">
+    <section id={id} className="scroll-mt-24">
+      {/* Section Header */}
       <div className="mb-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2.5">
-          {Icon && <Icon size={14} className="text-accent" />}
-          <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">{title}</h2>
+        <div className="flex items-center gap-2">
+          {Icon && (
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/8 text-accent">
+              <Icon size={13} />
+            </div>
+          )}
+          <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">{title}</h2>
         </div>
         <div className="flex items-center gap-2">
           {onPlayAll && items.length > 0 && (
             <button
               type="button"
               onClick={() => onPlayAll(items[0])}
-              className="flex items-center gap-1 rounded-full bg-accent/8 px-2.5 py-1 text-[10px] font-bold text-accent transition hover:bg-accent/15"
+              className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
             >
               <Play size={10} fill="currentColor" />
-              Play
+              Play All
             </button>
           )}
           {cta && (
             <Link
               href={cta.href}
-              className="group flex items-center gap-1 text-[11px] font-medium text-neutral-400 transition hover:text-neutral-900"
+              className="group flex items-center gap-1 text-[11px] font-semibold text-neutral-500 transition hover:text-neutral-900"
             >
+              <span>View all</span>
               <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
             </Link>
           )}
@@ -259,7 +342,7 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
       </div>
 
       {children || (
-        <div className="flex snap-x snap-mandatory gap-3.5 overflow-x-auto pb-3 scrollbar-thin [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent_100%)]">
+        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 pt-0.5 scrollbar-thin [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent_100%)]">
           {items.length > 0 ? (
             items.map((song) => (
               <Card
@@ -270,7 +353,7 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
               />
             ))
           ) : (
-            <div className="w-full rounded-2xl border border-dashed border-neutral-100 bg-neutral-50/20 py-8 text-center text-xs text-neutral-400">
+            <div className="w-full rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 py-8 text-center text-xs font-medium text-neutral-400">
               No songs available in this section yet.
             </div>
           )}
@@ -281,21 +364,22 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
 };
 
 export default function Home() {
-  const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed, activeSong, playingSource } =
+  const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed, activeSong } =
     usePlayer();
   const { user, profile } = useAuth();
   const [loadError, setLoadError] = useState(false);
   const [verseIndex, setVerseIndex] = useState(0);
   const [showAllRecs, setShowAllRecs] = useState(false);
   const [verseCopied, setVerseCopied] = useState(false);
+  const [activeFilter, setActiveFilter] = useState("all");
 
+  // Rotate verse periodically when idle
   useEffect(() => {
-    if (activeSong) return;
     const interval = setInterval(() => {
       setVerseIndex((prev) => (prev + 1) % verses.length);
-    }, 8000);
+    }, 10000);
     return () => clearInterval(interval);
-  }, [activeSong]);
+  }, []);
 
   const [sessionSeed] = useState(() => Math.random().toString(36).slice(2));
 
@@ -388,25 +472,35 @@ export default function Home() {
 
   const recommendedSongs = useMemo(() => {
     if (sortedSongs.length === 0) return [];
-    return seededShuffle(sortedSongs, `recommend-${songIdsKey}-${sessionSeed}`).slice(0, 30);
-  }, [songIdsKey, sessionSeed, sortedSongs]);
+    let list = sortedSongs;
+    if (activeFilter === "praise") {
+      list = sortedSongs.filter(s => (s.category || "").toLowerCase().includes("praise"));
+    } else if (activeFilter === "worship") {
+      list = sortedSongs.filter(s => (s.category || "").toLowerCase().includes("worship"));
+    } else if (activeFilter === "hymns") {
+      list = sortedSongs.filter(s => (s.category || "").toLowerCase().includes("hymn"));
+    } else if (activeFilter === "new") {
+      list = newestSongs;
+    }
+    return seededShuffle(list, `recommend-${songIdsKey}-${sessionSeed}-${activeFilter}`).slice(0, 30);
+  }, [songIdsKey, sessionSeed, sortedSongs, activeFilter, newestSongs]);
 
   const visibleRecs = showAllRecs ? recommendedSongs : recommendedSongs.slice(0, 8);
 
   const stats = {
     total: allSongs?.length || 0,
     new: newestSongs.length,
+    artists: new Set(sortedSongs.map(s => s.author).filter(Boolean)).size,
   };
 
-  const playingSection = playingSource || "library";
-
-  const getGreeting = () => {
+  const getGreetingData = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
+    if (hour < 12) return { text: "Good morning", icon: Sunrise };
+    if (hour < 18) return { text: "Good afternoon", icon: Sun };
+    return { text: "Good evening", icon: Moon };
   };
 
+  const { text: greetingText, icon: GreetingIcon } = getGreetingData();
   const userName = profile?.first_name || user?.email?.split("@")[0] || null;
 
   const copyVerse = useCallback(async () => {
@@ -428,151 +522,212 @@ export default function Home() {
     }
   }, [sortedSongs, setActiveSong]);
 
-  return (
-    <main className="min-h-[90vh] bg-neutral-50/60 px-3 pb-8 pt-2 md:px-8 md:pt-6">
-      <ScrollProgress />
-      <div className="mx-auto max-w-5xl">
-        {/* Mobile brand — homepage only */}
-        <div className="md:hidden flex items-center px-1 pb-3 pt-1">
-          <h2 className="text-[18px] font-bold tracking-tight text-neutral-900 leading-none">Lumbo</h2>
-        </div>
+  const filterCategories = [
+    { id: "all", label: "All Songs" },
+    { id: "praise", label: "Praise" },
+    { id: "worship", label: "Worship" },
+    { id: "hymns", label: "Hymns" },
+    { id: "new", label: "New Releases" },
+  ];
 
-        {/* Hero */}
-        <section className="relative mb-6 overflow-hidden rounded-2xl border-l-[3px] border-l-accent border border-neutral-200 bg-white px-5 py-7 md:mb-8 md:rounded-3xl md:px-8 md:py-10">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-accent/[0.03] via-transparent to-transparent" />
-          <div className="absolute inset-0 opacity-[0.015]" style={{ backgroundImage: "radial-gradient(circle, #0f172a 1px, transparent 1px)", backgroundSize: "16px 16px" }} />
-          <div className="relative md:flex md:items-start md:justify-between md:gap-8">
-            {/* Left column — title & stats */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
-                  <span className="bg-gradient-to-br from-accent to-neutral-700 bg-clip-text text-transparent">Worship in Song</span>
-                </h1>
-              </div>
-              {userName ? (
-                <p className="text-sm text-neutral-500 mb-3 md:mb-4">
-                  {getGreeting()}, <span className="font-semibold text-neutral-700">{userName}</span>
-                </p>
-              ) : (
-                <p className="text-sm text-neutral-400 mb-3 md:mb-4">
-                  {getGreeting()}
-                </p>
-              )}
-              <div className="flex items-center gap-2 flex-wrap mb-4 md:mb-5">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-[11px] font-medium text-neutral-500">
-                  <span className="font-bold text-neutral-700">{stats.total}</span> tracks
-                </span>
-                {stats.new > 0 && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/5 px-2.5 py-1 text-[11px] font-medium text-accent">
-                    <span className="font-bold">{stats.new}</span> new
-                  </span>
-                )}
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-[11px] font-medium text-neutral-500">
-                  <span className="font-bold text-neutral-700">{new Set(sortedSongs.map(s => s.author)).size}</span> artists
-                </span>
-              </div>
+  return (
+    <main className="min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pb-12 pt-3 md:pt-5">
+      <ScrollProgress />
+      <div className="mx-auto max-w-5xl space-y-6 md:space-y-7">
+
+        {/* --- COMPACT HERO BANNER WITH SUBTLE RETRO BORDER --- */}
+        <section className="relative overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 sm:p-5 md:p-6 shadow-2xs">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            
+            {/* Left side: Greeting, Title, Action Buttons, Metrics */}
+            <div className="flex-1 min-w-0 space-y-2.5">
               <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
+                  <GreetingIcon size={12} className="text-accent" />
+                  <span>
+                    {greetingText}
+                    {userName && <>, <strong className="text-neutral-900 font-bold">{userName}</strong></>}
+                  </span>
+                </span>
+              </div>
+
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
+                  Worship in Song
+                </h1>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Sacred hymns, praise anthems, and uplifting worship melodies.
+                </p>
+              </div>
+
+              {/* Action Buttons & Library Counts */}
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
                 <button
                   type="button"
                   onClick={shuffleAll}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent/90"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
                 >
                   <Shuffle size={12} />
-                  Shuffle All
+                  <span>Shuffle All</span>
                 </button>
+
                 {recentlyPlayed.length > 0 && (
                   <a
                     href="#recently-played"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
+                    className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition"
                   >
-                    <Clock size={12} />
-                    Recent
+                    <Clock size={12} className="text-neutral-500" />
+                    <span>Recent ({recentlyPlayed.length})</span>
                   </a>
                 )}
+
+                <div className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50/70 px-2.5 py-1.5 text-[11px] font-medium text-neutral-500">
+                  <span className="font-bold text-neutral-800">{stats.total}</span> tracks
+                  <span className="text-neutral-300">•</span>
+                  <span className="font-bold text-neutral-800">{stats.artists}</span> artists
+                  {stats.new > 0 && (
+                    <>
+                      <span className="text-neutral-300">•</span>
+                      <span className="font-bold text-accent">{stats.new} new</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Right column — verse / now playing */}
-            <div className="mt-4 md:mt-0 md:max-w-[320px] w-full">
-              <div className="flex items-center gap-3 rounded-xl bg-neutral-50 px-4 py-3 border border-neutral-100">
-                {activeSong ? (
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <SongAvatar title={activeSong.title} size="sm" variant="mono" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{activeSong.title}</p>
-                      <p className="truncate text-[10px] text-neutral-400">Playing from {playingSection}</p>
-                    </div>
-                    <div className="waveform text-accent flex h-6 items-center"><span /><span /><span /><span /></div>
+            {/* Right side: Compact Live Playback or Scripture Capsule */}
+            <div className="w-full md:w-auto shrink-0 border-t md:border-t-0 md:border-l border-neutral-100 pt-3 md:pt-0 md:pl-5">
+              {activeSong ? (
+                <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-2.5 sm:w-64">
+                  <SongAvatar title={activeSong.title} size="sm" variant="mono" />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-accent">
+                      Now Playing
+                    </span>
+                    <p className="truncate text-xs font-bold text-neutral-900">
+                      {activeSong.title}
+                    </p>
+                    <p className="truncate text-[10px] text-neutral-500">
+                      {activeSong.author}
+                    </p>
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={copyVerse}
-                    className="flex items-center gap-3 flex-1 text-left group"
-                  >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/[0.06] border border-accent/10">
-                      <Music size={14} className="text-accent" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs leading-relaxed text-neutral-600 italic transition-opacity duration-500 line-clamp-2">
-                        {verses[verseIndex].text}
+                  <div className="waveform text-accent flex h-4 items-end">
+                    <span /><span /><span /><span />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-2.5 rounded-lg border border-neutral-200 bg-neutral-50 p-2.5 sm:max-w-xs text-left">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <Quote size={12} className="text-accent shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[11px] italic text-neutral-700 leading-snug line-clamp-2">
+                        “{verses[verseIndex].text}”
                       </p>
-                      <p className="text-[9px] text-neutral-400 mt-1 font-medium">
+                      <p className="text-[9px] font-bold text-accent mt-0.5">
                         {verses[verseIndex].ref}
                       </p>
                     </div>
-                    <div className="shrink-0 text-neutral-300 group-hover:text-neutral-500 transition">
-                      {verseCopied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={copyVerse}
+                    className="shrink-0 p-1 text-neutral-400 hover:text-neutral-700 transition"
+                    title="Copy verse"
+                  >
+                    {verseCopied ? <Check size={12} className="text-accent font-bold" /> : <Copy size={12} />}
                   </button>
-                )}
-              </div>
-              {!activeSong && (
-                <p className="text-[9px] text-neutral-300 mt-1.5 px-1 italic">Tap verse to copy</p>
+                </div>
               )}
             </div>
+
           </div>
         </section>
 
+        {/* --- COMPACT CATEGORY FILTER PILLS --- */}
+        <section className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+          <div className="flex items-center gap-1 shrink-0 text-[11px] font-bold text-neutral-400 pr-1">
+            <Compass size={13} />
+            <span>Filter:</span>
+          </div>
+          {filterCategories.map((cat) => {
+            const isSelected = activeFilter === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setActiveFilter(cat.id)}
+                className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold transition-all duration-150 ${
+                  isSelected
+                    ? "bg-accent text-white shadow-2xs"
+                    : "bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
+                }`}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
+        </section>
+
+        {/* --- MAIN CONTENT SECTIONS --- */}
         {isLoading ? (
           <PageSkeleton letterGroups={3} />
         ) : (
-          <div className="flex flex-col gap-5 md:gap-8">
+          <div className="space-y-6 md:space-y-7">
             {loadError && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs font-semibold text-neutral-800">
                 Songs could not be loaded. Check your connection or Supabase configuration and try again.
               </div>
             )}
 
+            {/* --- COMPACT PLAY SPOTLIGHT BANNER (Guaranteed Dark Background + 100% White Text Contrast) --- */}
             {spotifySong && (
               <LazySection>
-                <section className="scroll-mt-24 py-1">
-                  <div className="mb-4 flex items-center gap-2.5">
-                    <Star size={14} className="text-accent" />
-                    <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">Spotlight</h2>
-                  </div>
+                <section className="scroll-mt-24">
                   <div
-                    className="relative overflow-hidden rounded-2xl border border-accent/10 bg-accent md:rounded-3xl"
+                    className="relative overflow-hidden rounded-xl border border-neutral-800 p-4 md:p-5 text-white shadow-sm"
+                    style={{ backgroundColor: "#0f172a", color: "#ffffff" }}
                     onMouseEnter={() => prefetchSongAudio(spotifySong)}
                   >
-                    <div className="relative flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between md:gap-4 md:p-6">
-                      <div className="flex items-center gap-3.5 md:gap-4">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 text-xl font-bold text-white md:h-16 md:w-16 md:rounded-2xl md:text-2xl">
+                    <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        {/* Artwork container with retro grooves */}
+                        <div
+                          className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-white/20 text-2xl font-black text-white shadow-sm retro-grooves"
+                          style={{ backgroundColor: "#0f172a" }}
+                        >
                           {initialLetter(spotifySong.title)}
                         </div>
+
+                        {/* Metadata in pure, guaranteed white text */}
                         <div className="min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 mb-1">Featured Track</p>
-                          <p className="truncate text-base font-bold text-white md:text-lg">{spotifySong.title}</p>
-                          <p className="truncate text-xs text-white/70 mt-0.5">{spotifySong.author}</p>
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="inline-flex items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
+                              <Star size={9} fill="currentColor" />
+                              Spotlight
+                            </span>
+                            {spotifySong.category && (
+                              <span className="rounded border border-white/15 px-1.5 py-0.5 text-[8px] font-semibold text-neutral-300 uppercase tracking-wider">
+                                {spotifySong.category}
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="truncate text-sm sm:text-base font-bold text-white">
+                            {spotifySong.title}
+                          </h3>
+                          <p className="truncate text-xs text-neutral-300 mt-0.5">
+                            {spotifySong.author}
+                          </p>
                         </div>
                       </div>
+
+                      {/* Play Action: Pure white button with dark text */}
                       <button
                         type="button"
                         onClick={() => setActiveSong(spotifySong, sortedSongs)}
-                        className="flex items-center gap-2 self-start rounded-full bg-white px-4 py-2 text-xs font-bold text-accent transition hover:bg-white/90 md:self-auto md:px-5 md:py-2.5 md:text-sm"
+                        className="inline-flex items-center justify-center gap-1.5 self-start sm:self-auto rounded-lg bg-white px-4 py-2 text-xs font-bold text-[#0f172a] shadow-sm transition hover:bg-neutral-100 active:scale-95 shrink-0"
                       >
-                        <Play size={13} fill="currentColor" />
-                        Play
+                        <Play size={12} fill="currentColor" />
+                        <span>Play Spotlight</span>
                       </button>
                     </div>
                   </div>
@@ -580,10 +735,11 @@ export default function Home() {
               </LazySection>
             )}
 
+            {/* --- FEATURED ANTHEMS SECTION --- */}
             <LazySection delay={50}>
               <SectionBlock
                 id="featured-songs"
-                title="Featured"
+                title="Featured Anthems"
                 icon={Star}
                 items={featuredSongs}
                 onPlay={(song) => setActiveSong(song, featuredSongs)}
@@ -594,10 +750,11 @@ export default function Home() {
               />
             </LazySection>
 
+            {/* --- FRESH RELEASES SECTION --- */}
             <LazySection delay={100}>
               <SectionBlock
                 id="newest-songs"
-                title="New Additions"
+                title="Fresh Releases"
                 icon={Sparkles}
                 items={newestSongs}
                 onPlay={(song) => setActiveSong(song, newestSongs)}
@@ -608,11 +765,12 @@ export default function Home() {
               />
             </LazySection>
 
+            {/* --- JUMP BACK IN SECTION --- */}
             {recentlyPlayed.length > 0 && (
               <LazySection delay={150}>
                 <SectionBlock
                   id="recently-played"
-                  title="Recently Played"
+                  title="Jump Back In"
                   icon={Clock}
                   items={recentlyPlayed}
                   onPlay={(song) => setActiveSong(song, recentlyPlayed)}
@@ -621,30 +779,37 @@ export default function Home() {
               </LazySection>
             )}
 
+            {/* --- CURATED RECOMMENDATIONS LIST --- */}
             {recommendedSongs.length > 0 && (
               <LazySection delay={200}>
-                <section id="recommended" className="scroll-mt-24 py-1">
+                <section id="recommended" className="scroll-mt-24">
                   <div className="mb-3 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-2.5">
-                      <ListMusic size={14} className="text-accent" />
-                      <h2 className="text-sm font-bold tracking-tight text-neutral-900 md:text-base">Recommendations</h2>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/8 text-accent">
+                        <ListMusic size={13} />
+                      </div>
+                      <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">
+                        Curated for You
+                      </h2>
                     </div>
                     {recommendedSongs.length > 8 && (
                       <button
                         type="button"
                         onClick={() => setShowAllRecs(!showAllRecs)}
-                        className="flex items-center gap-1 text-[11px] font-medium text-neutral-400 transition hover:text-neutral-900"
+                        className="flex items-center gap-1 text-[11px] font-semibold text-neutral-500 transition hover:text-neutral-900"
                       >
-                        {showAllRecs ? "Show less" : `Show all (${recommendedSongs.length})`}
+                        <span>{showAllRecs ? "Show less" : `Show all (${recommendedSongs.length})`}</span>
                         {showAllRecs ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                       </button>
                     )}
                   </div>
-                  <div className="flex flex-col gap-y-1">
-                    {visibleRecs.map((song) => (
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {visibleRecs.map((song, idx) => (
                       <RecommendationCard
                         key={song.id}
                         song={song}
+                        index={idx}
                         isActive={song.id === activeSong?.id}
                         onClick={() => setActiveSong(song, recommendedSongs)}
                       />
@@ -654,22 +819,23 @@ export default function Home() {
               </LazySection>
             )}
 
+            {/* --- EMPTY STATE --- */}
             {sortedSongs.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10">
-                  <Sparkles className="text-accent" size={28} />
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200">
+                  <Sparkles className="text-accent" size={24} />
                 </div>
                 <p className="text-base font-bold tracking-tight text-neutral-900">
                   Your library is empty
                 </p>
-                <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-neutral-400">
+                <p className="mt-1 max-w-xs text-xs leading-relaxed text-neutral-500">
                   Upload your first worship song and start building your collection. Songs will appear here automatically.
                 </p>
                 <Link
                   href="/admin"
-                  className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent/90"
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
                 >
-                  <Upload size={14} />
+                  <Upload size={13} />
                   Upload a Song
                 </Link>
               </div>

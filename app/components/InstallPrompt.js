@@ -8,13 +8,6 @@ export default function InstallPrompt() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Unregister any leftover service workers from next-pwa
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.getRegistrations().then((regs) => {
-        regs.forEach((r) => r.unregister());
-      });
-    }
-
     const handler = (e) => {
       // Prevent Chrome 67 and earlier from automatically showing the prompt
       e.preventDefault();
@@ -51,12 +44,12 @@ export default function InstallPrompt() {
     <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[10000] w-[92%] max-w-md animate-fade-in">
       <div className="bg-white border border-neutral-100 shadow-2xl rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 sm:gap-x-4">
         <div className="flex items-center gap-x-3 w-full sm:w-auto">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-accent rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-xl shrink-0">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-accent rounded-xl flex items-center justify-center text-white font-bold text-base sm:text-lg shrink-0 shadow-sm">
             LU
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-neutral-900">
-              Install Lumbo
+              Install Luumbo
             </h3>
             <p className="text-xs text-neutral-500">
               Listen anywhere, anytime.

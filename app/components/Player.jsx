@@ -16,9 +16,10 @@ import {
   ChevronDown,
   Heart,
   AlertTriangle,
+  ListMusic,
 } from "lucide-react";
 import { getCachedAudioUrl, cacheAudioFile } from "@/lib/cacheUtils";
-import SongAvatar, { initialLetter } from "./SongAvatar";
+import SongAvatar, { initialLetter, VinylArtwork } from "./SongAvatar";
 import { useAuth } from "../context/AuthContext";
 
 const Player = () => {
@@ -39,6 +40,7 @@ const Player = () => {
   const [volume, setVolume] = useState(1);
   const [audioUrl, setAudioUrl] = useState(null);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
   const [audioError, setAudioError] = useState(false);
 
   const { user } = useAuth();
@@ -462,22 +464,22 @@ const Player = () => {
         </div>
       </div>
 
-      {/* Mobile mini-bar */}
+      {/* Mobile floating mini-player card */}
       <div
-        className="fixed bottom-14 left-0 right-0 z-[900] md:hidden cursor-pointer shadow-sm border-t border-neutral-200"
+        className="fixed left-3 right-3 bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))] z-[900] md:hidden cursor-pointer rounded-2xl border border-neutral-200/90 bg-white/95 shadow-xl backdrop-blur-2xl overflow-hidden transition-all active:scale-[0.99]"
         onClick={() => setShowFullPlayer(true)}
       >
         {/* Mini progress bar */}
-        <div className="h-0.5 bg-neutral-100">
-          <div className="h-full transition-all duration-150 bg-accent" style={{ width: `${progress}%` }} />
+        <div className="h-1 bg-neutral-100/90">
+          <div className="h-full transition-all duration-150 bg-accent rounded-r-full" style={{ width: `${progress}%` }} />
         </div>
-        <div className="flex items-center gap-3 bg-white px-3 py-2.5 active:bg-neutral-50">
+        <div className="flex items-center gap-3 px-3.5 py-2.5">
           <SongAvatar title={song.title} size="avatar-mini" variant="mono" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold tracking-tight text-neutral-900">
+            <p className="truncate text-sm font-semibold tracking-tight text-neutral-900 leading-tight">
               {song.title}
             </p>
-            <p className="truncate text-[10px] font-medium text-neutral-400">
+            <p className="truncate text-xs font-medium text-neutral-500">
               {song.author}
             </p>
           </div>
@@ -485,12 +487,12 @@ const Player = () => {
             type="button"
             aria-label={isPlaying ? "Pause" : "Play"}
             onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-sm active:scale-90 transition hover:bg-accent/90"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-md active:scale-90 transition hover:bg-accent/90"
           >
             {isPlaying ? (
-              <Pause size={15} fill="currentColor" />
+              <Pause size={18} fill="currentColor" />
             ) : (
-              <Play size={15} fill="currentColor" className="ml-0.5" />
+              <Play size={18} fill="currentColor" className="ml-0.5" />
             )}
           </button>
         </div>
@@ -498,8 +500,10 @@ const Player = () => {
 
       {/* Full-screen player overlay */}
       {showFullPlayer && (
-        <div className="fixed inset-0 z-[99999] flex flex-col animate-fade-in bg-accent">
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/40" />
+        <div className="fixed inset-0 z-[99999] flex flex-col animate-fade-in bg-[#0b1120] text-white">
+          {/* Atmospheric background glow */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-black opacity-95" />
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/20 rounded-full blur-[100px] pointer-events-none" />
 
           {/* Header */}
           <div className="relative z-10 flex items-center justify-between px-5 pt-5 pb-2 md:px-8">
@@ -510,41 +514,72 @@ const Player = () => {
                 setShowFullPlayer(false);
                 window.history.back();
               }}
-              className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-white/60 hover:text-white/80 transition"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
             >
-              <ChevronDown size={20} />
+              <ChevronDown size={22} />
             </button>
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
-              Now Playing
-            </span>
+            <div className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 border border-white/10">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">
+                {showQueue ? "Up Next" : "Now Playing"}
+              </span>
+            </div>
             <button
               type="button"
               aria-label={isLiked ? "Remove from saved songs" : "Save song"}
               onClick={toggleLike}
               className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
-                isLiked ? "text-white bg-white/15" : "text-white/50 hover:text-white hover:bg-white/10"
+                isLiked ? "text-white bg-white/20" : "text-white/60 hover:text-white hover:bg-white/10"
               }`}
             >
               <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
             </button>
           </div>
 
-          {/* Content area — mobile: stacked, desktop: side-by-side */}
-          <div className="relative z-10 flex flex-1 items-center justify-center px-6 md:px-12 lg:px-20">
-            {/* Artwork — large initial letter */}
-            <div className="flex items-center justify-center">
-              <span className={`font-bold leading-none text-white/90 drop-shadow-xl select-none ${
-                initialLetter(song.title) === "M" || initialLetter(song.title) === "W"
-                  ? "text-[120px] md:text-[200px] lg:text-[260px]"
-                  : "text-[140px] md:text-[220px] lg:text-[280px]"
-              }`}>
-                {initialLetter(song.title)}
-              </span>
+          {/* Center Content: Vinyl Artwork OR Up Next Queue */}
+          {showQueue ? (
+            <div className="relative z-10 flex flex-1 flex-col w-full max-w-lg mx-auto overflow-hidden px-5 py-2">
+              <div className="flex items-center justify-between pb-2.5 border-b border-white/10 mb-2">
+                <span className="text-xs font-bold tracking-wider text-white/80 uppercase">
+                  Queue ({songs?.length || 0})
+                </span>
+                <span className="text-[11px] text-white/40">Tap any song to play</span>
+              </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
+                {(songs || []).map((s, idx) => {
+                  const isCurrent = s.id === song?.id;
+                  return (
+                    <button
+                      key={s.id || idx}
+                      type="button"
+                      onClick={() => onSongSelect(s, songs)}
+                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition ${
+                        isCurrent
+                          ? "bg-white/15 text-white font-semibold border border-white/20 shadow-sm"
+                          : "hover:bg-white/10 text-white/80"
+                      }`}
+                    >
+                      <span className="text-xs text-white/40 w-5 text-center shrink-0">{idx + 1}</span>
+                      <SongAvatar title={s.title} size="sm" variant="mono" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-semibold text-white">{s.title}</p>
+                        <p className="truncate text-[11px] text-white/60">{s.author}</p>
+                      </div>
+                      {isCurrent && isPlaying && (
+                        <div className="waveform text-white flex h-3.5 items-center"><span /><span /><span /><span /></div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="relative z-10 flex flex-1 items-center justify-center px-6">
+              <VinylArtwork title={song.title} isPlaying={isPlaying} />
+            </div>
+          )}
 
           {/* Song info */}
-          <div className="relative z-10 px-6 pb-3 md:px-12 lg:px-20 md:text-center">
+          <div className="relative z-10 px-6 pb-2 md:px-12 lg:px-20 md:text-center">
             <h2 className="text-xl font-bold tracking-tight text-white drop-shadow-sm md:text-2xl">
               {song.title}
             </h2>
@@ -564,31 +599,33 @@ const Player = () => {
           </div>
 
           {/* Glass-morphism controls panel */}
-          <div className="relative z-10 rounded-t-3xl bg-white/10 backdrop-blur-2xl border-t border-white/20 px-5 pt-4 pb-8 md:px-12 lg:px-20">
+          <div className="relative z-10 rounded-t-3xl bg-white/[0.08] backdrop-blur-2xl border-t border-white/15 px-5 pt-4 pb-8 md:px-12 lg:px-20">
             {/* Seek bar */}
-            <div className="mb-1">
-              <input
-                type="range"
-                min="0"
-                max={duration || 0}
-                value={currentTime}
-                onPointerDown={() => { scrubbingRef.current = true; }}
-                onPointerUp={() => { scrubbingRef.current = false; }}
-                onChange={(e) => handleSeek(Number(e.target.value))}
-                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/20 accent-white [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
-              />
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-[10px] font-medium tabular-nums text-white/60">
+            <div className="mb-2">
+              <div className="relative flex items-center py-2">
+                <input
+                  type="range"
+                  min="0"
+                  max={duration || 0}
+                  value={currentTime}
+                  onPointerDown={() => { scrubbingRef.current = true; }}
+                  onPointerUp={() => { scrubbingRef.current = false; }}
+                  onChange={(e) => handleSeek(Number(e.target.value))}
+                  className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/20 accent-white [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium tabular-nums text-white/60">
                   {formatTime(currentTime)}
                 </span>
-                <span className="text-[10px] font-medium tabular-nums text-white/60">
+                <span className="text-xs font-medium tabular-nums text-white/60">
                   -{formatTime(Math.max(0, duration - currentTime))}
                 </span>
               </div>
             </div>
 
             {/* Controls */}
-            <div className="flex items-center justify-center gap-5 py-3">
+            <div className="flex items-center justify-center gap-5 sm:gap-7 py-2">
               <button
                 type="button"
                 aria-label="Toggle shuffle"
@@ -597,8 +634,8 @@ const Player = () => {
                   setIsShuffle(newState);
                   if (newState) setIsLooping(false);
                 }}
-                className={`rounded-full p-1.5 transition-colors ${
-                  isShuffle ? "text-white" : "text-white/50"
+                className={`rounded-full p-2.5 transition-colors ${
+                  isShuffle ? "text-white bg-white/20" : "text-white/50 hover:text-white"
                 }`}
               >
                 <Shuffle size={18} />
@@ -608,21 +645,21 @@ const Player = () => {
                 type="button"
                 aria-label="Previous track"
                 onClick={onPlayPrevious}
-                className="rounded-full p-1.5 text-white/70 transition active:scale-90"
+                className="rounded-full p-2 text-white/80 transition active:scale-90 hover:text-white"
               >
-                <SkipBack size={24} fill="currentColor" />
+                <SkipBack size={26} fill="currentColor" />
               </button>
 
               <button
                 type="button"
                 aria-label={isPlaying ? "Pause" : "Play"}
                 onClick={togglePlay}
-                className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-neutral-900 shadow-xl transition active:scale-95"
+                className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-neutral-900 shadow-xl transition active:scale-95 hover:scale-105"
               >
                 {isPlaying ? (
-                  <Pause size={26} fill="currentColor" />
+                  <Pause size={28} fill="currentColor" />
                 ) : (
-                  <Play size={26} fill="currentColor" className="ml-1" />
+                  <Play size={28} fill="currentColor" className="ml-1" />
                 )}
               </button>
 
@@ -630,9 +667,9 @@ const Player = () => {
                 type="button"
                 aria-label="Next track"
                 onClick={onPlayNext}
-                className="rounded-full p-1.5 text-white/70 transition active:scale-90"
+                className="rounded-full p-2 text-white/80 transition active:scale-90 hover:text-white"
               >
-                <SkipForward size={24} fill="currentColor" />
+                <SkipForward size={26} fill="currentColor" />
               </button>
 
               <button
@@ -643,43 +680,57 @@ const Player = () => {
                   setIsLooping(newState);
                   if (newState) setIsShuffle(false);
                 }}
-                className={`rounded-full p-1.5 transition-colors ${
-                  isLooping ? "text-white" : "text-white/50"
+                className={`rounded-full p-2.5 transition-colors ${
+                  isLooping ? "text-white bg-white/20" : "text-white/50 hover:text-white"
                 }`}
               >
                 <Repeat size={18} />
               </button>
             </div>
 
-            {/* Volume */}
-            <div className="flex items-center justify-center gap-3 pt-1">
+            {/* Bottom utilities: Volume & Queue toggle */}
+            <div className="flex items-center justify-between pt-2 max-w-sm mx-auto">
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
+                  onClick={toggleMute}
+                  className="rounded-full p-1.5 text-white/60 hover:text-white transition"
+                >
+                  {isMuted || volume === 0 ? (
+                    <VolumeX size={17} />
+                  ) : (
+                    <Volume size={17} />
+                  )}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={isMuted ? 0 : volume}
+                  aria-label="Volume"
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setVolume(v);
+                    if (audioRef.current) audioRef.current.volume = v;
+                    if (v > 0) setIsMuted(false);
+                  }}
+                  className="h-1.5 w-24 sm:w-28 cursor-pointer appearance-none rounded-full bg-white/20 accent-white"
+                />
+              </div>
+
               <button
                 type="button"
-                aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
-                onClick={toggleMute}
-                className="rounded-full p-1 text-white/50"
+                aria-label={showQueue ? "Show artwork" : "Show queue"}
+                onClick={() => setShowQueue(!showQueue)}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                  showQueue ? "bg-white text-neutral-900" : "bg-white/10 text-white/80 hover:bg-white/20"
+                }`}
               >
-                {isMuted || volume === 0 ? (
-                  <VolumeX size={16} />
-                ) : (
-                  <Volume size={16} />
-                )}
+                <ListMusic size={15} />
+                <span>{showQueue ? "Artwork" : "Queue"}</span>
               </button>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={isMuted ? 0 : volume}
-                aria-label="Volume"
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setVolume(v);
-                  if (audioRef.current) audioRef.current.volume = v;
-                  if (v > 0) setIsMuted(false);
-                }}
-                className="h-1 w-32 cursor-pointer appearance-none rounded-full bg-white/20 accent-white"
-              />
             </div>
           </div>
         </div>

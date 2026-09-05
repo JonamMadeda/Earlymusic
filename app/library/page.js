@@ -276,10 +276,15 @@ export default function LibraryPage() {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <Heart className="mb-4 text-neutral-300" size={32} />
-                <p className="text-sm font-semibold text-neutral-900">Your library is empty</p>
-                <p className="mt-1 max-w-sm text-xs text-neutral-450">Songs you heart will appear here.</p>
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-3xl border border-dashed border-neutral-200 bg-white shadow-sm">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
+                  <Heart size={26} />
+                </div>
+                <h3 className="text-sm md:text-base font-bold text-neutral-900">Your saved library is empty</h3>
+                <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">Tap the heart on any song while listening to collect your favorites here.</p>
+                <Link href="/songs" className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition">
+                  Discover Songs
+                </Link>
               </div>
             )}
           </div>
@@ -320,10 +325,19 @@ export default function LibraryPage() {
             )}
 
             {playlists.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <ListMusic className="mb-4 text-neutral-300" size={32} />
-                <p className="text-sm font-semibold text-neutral-900">No playlists yet</p>
-                <p className="mt-1 max-w-sm text-xs text-neutral-450">Create your first playlist to organize your songs.</p>
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-3xl border border-dashed border-neutral-200 bg-white shadow-sm">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
+                  <ListMusic size={26} />
+                </div>
+                <h3 className="text-sm md:text-base font-bold text-neutral-900">No playlists yet</h3>
+                <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">Create collections for praise, meditation, personal worship, or study.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowCreate(true)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition"
+                >
+                  <Plus size={14} /> Create Playlist
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -384,10 +398,18 @@ export default function LibraryPage() {
             )}
 
             {downloadedSongs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <Download className="mb-4 text-neutral-300" size={32} />
-                <p className="text-sm font-semibold text-neutral-900">No downloads yet</p>
-                <p className="mt-1 max-w-sm text-xs text-neutral-450">Download songs from the Songs page to listen offline.</p>
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-3xl border border-dashed border-neutral-200 bg-white shadow-sm">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
+                  <Download size={26} />
+                </div>
+                <h3 className="text-sm md:text-base font-bold text-neutral-900">No downloaded songs</h3>
+                <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">Save songs to your device for smooth listening without an internet connection.</p>
+                <Link
+                  href="/songs"
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition"
+                >
+                  Browse Songs to Download
+                </Link>
               </div>
             ) : (
               <div className="flex flex-col gap-y-2 md:gap-y-3">

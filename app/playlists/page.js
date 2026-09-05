@@ -144,14 +144,23 @@ export default function PlaylistsPage() {
         )}
 
         {playlists.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center rounded-2xl bg-neutral-50/60 backdrop-blur-2xl">
-            <Disc className="mb-4 text-neutral-300" size={32} />
-            <p className="text-sm font-semibold text-neutral-900">
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-3xl border border-dashed border-neutral-200 bg-white shadow-sm">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
+              <ListMusic size={26} />
+            </div>
+            <h3 className="text-sm md:text-base font-bold text-neutral-900">
               No playlists yet
+            </h3>
+            <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">
+              Create your first playlist to organize your songs into custom collections.
             </p>
-            <p className="mt-1 max-w-sm text-xs text-neutral-450">
-              Create your first playlist to organize your songs.
-            </p>
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition"
+            >
+              <Plus size={14} /> Create Playlist
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

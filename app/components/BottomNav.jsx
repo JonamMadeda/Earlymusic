@@ -22,7 +22,7 @@ const BottomNav = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-14 items-center justify-around border-t border-white/70 bg-white/85 px-4 backdrop-blur-xl md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] items-center justify-around border-t border-neutral-200/80 bg-white/95 px-4 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-xl md:hidden">
       {navItems.map((item) => {
         const isActive = isPathActive(item.href);
         return (
@@ -30,17 +30,17 @@ const BottomNav = () => {
             key={item.label}
             href={item.href}
             className={`relative flex w-full flex-col items-center gap-y-0.5 rounded-xl py-1 transition ${
-              isActive ? "text-accent" : "text-neutral-400"
+              isActive ? "text-accent" : "text-neutral-500 hover:text-neutral-900"
             }`}
           >
-            <div className={`rounded-xl px-3 py-1 transition-colors ${isActive ? "bg-accent/10" : ""}`}>
+            <div className={`rounded-xl px-3 py-0.5 transition-colors ${isActive ? "bg-accent/10" : ""}`}>
               <item.icon
                 size={20}
-                className={isActive ? "text-accent" : "text-neutral-400"}
-                strokeWidth={isActive ? 2.5 : 2}
+                className={isActive ? "text-accent" : "text-neutral-500"}
+                strokeWidth={isActive ? 2.5 : 1.75}
               />
             </div>
-            <span className={`text-[9px] font-bold ${isActive ? "text-accent" : "text-neutral-400"}`}>
+            <span className={`text-[10px] font-semibold tracking-tight ${isActive ? "text-accent font-bold" : "text-neutral-500"}`}>
               {item.label}
             </span>
             {isActive && (

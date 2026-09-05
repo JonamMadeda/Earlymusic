@@ -30,7 +30,7 @@ const Sidebar = () => {
         {/* Brand */}
         <Link href="/" className="mb-5 flex items-center px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg">
           <h2 className="text-[17px] font-bold tracking-tight text-neutral-900 leading-none md:text-[18px]">
-            Lumbo
+            Luumbo
           </h2>
         </Link>
 
@@ -57,7 +57,7 @@ const Sidebar = () => {
         {recentlyPlayed.length > 0 && (
           <>
             <div className="my-3 border-t border-neutral-100" />
-            <p className="mb-1.5 px-3 text-[9px] font-bold uppercase tracking-[0.15em] text-neutral-400">
+            <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-neutral-500">
               Recent
             </p>
             <div className="flex flex-col gap-y-0.5">
@@ -68,14 +68,14 @@ const Sidebar = () => {
                   onClick={() => setActiveSong(song, recentlyPlayed)}
                   className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                     activeSong?.id === song.id
-                      ? "bg-accent/8 text-neutral-900"
-                      : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
+                      ? "bg-accent/8 text-neutral-900 font-semibold"
+                      : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
                   }`}
                 >
                   <SongAvatar title={song.title} size="xs" variant="mono" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-semibold">{song.title}</p>
-                    <p className="truncate text-[10px] text-neutral-400">{song.author}</p>
+                    <p className="truncate text-[11px] text-neutral-500">{song.author}</p>
                   </div>
                 </button>
               ))}
@@ -86,22 +86,6 @@ const Sidebar = () => {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Now Playing */}
-        <div className="mb-2.5 rounded-xl border border-accent/10 bg-accent/[0.04] px-3 py-2">
-          {activeSong ? (
-            <div className="flex items-center gap-2.5">
-              <SongAvatar title={activeSong.title} size="xs" variant="mono" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold text-neutral-900">{activeSong.title}</p>
-                <p className="truncate text-[10px] text-neutral-400">{activeSong.author}</p>
-              </div>
-              <div className="waveform text-accent flex h-4 items-center"><span /><span /><span /><span /></div>
-            </div>
-          ) : (
-            <p className="text-[11px] text-neutral-400">No song playing</p>
-          )}
-        </div>
-
         {/* Bottom — User Profile or Sign In */}
         <div className="border-t border-neutral-100 pt-2.5">
           {user ? (
@@ -109,29 +93,29 @@ const Sidebar = () => {
               href="/account"
               className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-200 hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             >
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[10px] font-bold text-accent">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[11px] font-bold text-accent">
                 {profile?.first_name?.[0] || user.email?.[0]?.toUpperCase() || "U"}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-semibold text-neutral-900">
                   {profile?.first_name || user.email?.split("@")[0] || "User"}
                 </p>
-                <p className="truncate text-[10px] text-neutral-400">
+                <p className="truncate text-[11px] text-neutral-500 font-medium">
                   {isAdmin ? "Admin" : "Member"}
                 </p>
               </div>
-              <ChevronRight size={11} className="text-neutral-300" />
+              <ChevronRight size={13} className="text-neutral-400" />
             </Link>
           ) : (
             <Link
               href="/auth"
-              className="flex items-center gap-x-2.5 rounded-xl px-3 py-2 text-sm font-semibold tracking-tight text-neutral-500 transition-all duration-200 hover:bg-neutral-50 hover:text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+              className="flex items-center gap-x-2.5 rounded-xl px-3 py-2 text-sm font-semibold tracking-tight text-neutral-600 transition-all duration-200 hover:bg-neutral-50 hover:text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             >
               <LogIn size={16} />
               <span>Sign In</span>
             </Link>
           )}
-          <p className="mt-1.5 px-2.5 text-[9px] text-neutral-300">Lumbo v1.0</p>
+          <p className="mt-1.5 px-2.5 text-[11px] text-neutral-400 font-medium">Luumbo v1.0</p>
         </div>
       </div>
     </aside>
