@@ -53,10 +53,103 @@ const Player = () => {
   const skipWhilePausedRef = useRef(false);
   const scrubbingRef = useRef(false);
   const blobUrlRef = useRef(null);
+  const wakeLockRef = useRef(null);
+  const errorCountRef = useRef(0);
+  const autoAdvanceTimerRef = useRef(null);
+  const MAX_AUTO_RETRIES = 3;
+  const AUTO_ADVANCE_DELAY = 3000;
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
+
+  // --- Wake Lock: keep screen on during playback on mobile ---
+  const requestWakeLock = useCallback(async () => {
+    try {
+      if ("wakeLock" in navigator && !wakeLockRef.current) {
+        wakeLockRef.current = await navigator.wakeLock.request("screen");
+        wakeLockRef.current.addEventListener("release", () => {
+          wakeLockRef.current = null;
+        });
+      }
+    } catch {
+      // Wake Lock not supported or denied — silently ignore
+    }
+  }, []);
+
+  const releaseWakeLock = useCallback(async () => {
+    try {
+      if (wakeLockRef.current) {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Acquire/release wake lock based on play state
+  useEffect(() => {
+    if (isPlaying) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+  }, [isPlaying, requestWakeLock, releaseWakeLock]);
+
+  // Re-acquire wake lock when page becomes visible again (mobile browsers
+  // often release it when the tab is backgrounded)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && isPlayingRef.current) {
+        requestWakeLock();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [requestWakeLock]);
+
+  // --- Auto-advance on playback error ---
+  const clearAutoAdvanceTimer = useCallback(() => {
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+  }, []);
+
+  // Release wake lock & timers on unmount
+  useEffect(() => {
+    return () => {
+      releaseWakeLock();
+      clearAutoAdvanceTimer();
+    };
+  }, [releaseWakeLock, clearAutoAdvanceTimer]);
+
+  const handlePlaybackError = useCallback(() => {
+    clearAutoAdvanceTimer();
+    errorCountRef.current += 1;
+
+    if (errorCountRef.current <= MAX_AUTO_RETRIES) {
+      const retryDelay = 1000 * errorCountRef.current;
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        if (audioRef.current && errorCountRef.current <= MAX_AUTO_RETRIES) {
+          audioRef.current.load();
+        }
+      }, retryDelay);
+    } else {
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        clearAutoAdvanceTimer();
+        errorCountRef.current = 0;
+        onPlayNext();
+      }, AUTO_ADVANCE_DELAY);
+    }
+  }, [clearAutoAdvanceTimer, onPlayNext]);
+
+  // Reset error count when the song changes
+  useEffect(() => {
+    errorCountRef.current = 0;
+    clearAutoAdvanceTimer();
+  }, [song?.id, clearAutoAdvanceTimer]);
 
   useEffect(() => {
     if (!user || !song) {
@@ -177,6 +270,8 @@ const Player = () => {
       ],
     });
 
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+
     navigator.mediaSession.setActionHandler("play", () => setPlayState(true));
     navigator.mediaSession.setActionHandler("pause", () => setPlayState(false));
     navigator.mediaSession.setActionHandler("previoustrack", onPlayPrevious);
@@ -188,7 +283,7 @@ const Player = () => {
       navigator.mediaSession.setActionHandler("previoustrack", null);
       navigator.mediaSession.setActionHandler("nexttrack", null);
     };
-  }, [song, setPlayState, onPlayNext, onPlayPrevious]);
+  }, [song, isPlaying, setPlayState, onPlayNext, onPlayPrevious]);
 
   useEffect(() => {
     if (!song) return;
@@ -258,6 +353,8 @@ const Player = () => {
     if (!song) return;
     loadIdRef.current += 1;
     setAudioError(false);
+    errorCountRef.current = 0;
+    clearAutoAdvanceTimer();
     playRef.current = true;
     if (audioRef.current) {
       audioRef.current.load();
@@ -593,7 +690,9 @@ const Player = () => {
                 className="mt-3 flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm"
               >
                 <AlertTriangle size={14} />
-                Playback failed — Tap to retry
+                {errorCountRef.current > MAX_AUTO_RETRIES
+                  ? "Skipping to next track..."
+                  : "Playback failed — Tap to retry"}
               </button>
             )}
           </div>
@@ -750,6 +849,8 @@ const Player = () => {
             playRef.current = false;
             audioRef.current?.play().catch(() => setIsPlaying(false));
             setIsPlaying(true);
+            errorCountRef.current = 0;
+            clearAutoAdvanceTimer();
           }
         }}
         onLoadedMetadata={() => {
@@ -761,6 +862,7 @@ const Player = () => {
           playRef.current = false;
           setIsPlaying(false);
           setAudioError(true);
+          handlePlaybackError();
         }}
         onEnded={() => {
           playRef.current = false;
