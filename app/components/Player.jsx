@@ -125,26 +125,6 @@ const Player = () => {
     };
   }, [releaseWakeLock, clearAutoAdvanceTimer]);
 
-  const handlePlaybackError = useCallback(() => {
-    clearAutoAdvanceTimer();
-    errorCountRef.current += 1;
-
-    if (errorCountRef.current <= MAX_AUTO_RETRIES) {
-      const retryDelay = 1000 * errorCountRef.current;
-      autoAdvanceTimerRef.current = setTimeout(() => {
-        if (audioRef.current && errorCountRef.current <= MAX_AUTO_RETRIES) {
-          audioRef.current.load();
-        }
-      }, retryDelay);
-    } else {
-      autoAdvanceTimerRef.current = setTimeout(() => {
-        clearAutoAdvanceTimer();
-        errorCountRef.current = 0;
-        onPlayNext();
-      }, AUTO_ADVANCE_DELAY);
-    }
-  }, [clearAutoAdvanceTimer, onPlayNext]);
-
   // Reset error count when the song changes
   useEffect(() => {
     errorCountRef.current = 0;
@@ -257,6 +237,26 @@ const Player = () => {
   const togglePlay = useCallback(() => {
     setIsPlaying((prev) => !prev);
   }, []);
+
+  const handlePlaybackError = useCallback(() => {
+    clearAutoAdvanceTimer();
+    errorCountRef.current += 1;
+
+    if (errorCountRef.current <= MAX_AUTO_RETRIES) {
+      const retryDelay = 1000 * errorCountRef.current;
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        if (audioRef.current && errorCountRef.current <= MAX_AUTO_RETRIES) {
+          audioRef.current.load();
+        }
+      }, retryDelay);
+    } else {
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        clearAutoAdvanceTimer();
+        errorCountRef.current = 0;
+        onPlayNext();
+      }, AUTO_ADVANCE_DELAY);
+    }
+  }, [clearAutoAdvanceTimer, onPlayNext]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("mediaSession" in navigator) || !song) return;
