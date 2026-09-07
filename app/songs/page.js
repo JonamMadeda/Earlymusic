@@ -950,7 +950,7 @@ useEffect(() => {
             </div>
 
             {/* Alphabet Jump Bar - mobile floating (fixed, so placement inside flex is fine) */}
-            <div className="lg:hidden fixed right-1.5 top-[calc(50%+16px)] -translate-y-1/2 z-30 flex max-h-[calc(100dvh-300px)] flex-col items-center gap-0.5 overflow-y-auto rounded-full border border-neutral-200 bg-white/90 px-1 py-2 shadow-sm backdrop-blur-md no-scrollbar">
+            <div className="lg:hidden fixed right-1.5 top-28 bottom-28 z-30 flex flex-col items-center gap-px overflow-y-auto rounded-full border border-neutral-200 bg-white/90 px-0.5 shadow-sm backdrop-blur-md no-scrollbar">
               {alphabet.map((letter) => (
                 <button
                   key={letter}
