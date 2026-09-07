@@ -7,7 +7,6 @@ import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { PageSkeleton } from "../components/Skeleton";
 import SongAvatar from "../components/SongAvatar";
-import FeaturedCard from "../components/FeaturedCard";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
 
 import {
@@ -29,8 +28,6 @@ import {
   ArrowUpDown,
   X,
   ArrowUp,
-  Compass,
-  Sparkles,
   Loader as SpinnerIcon,
 } from "lucide-react";
 
@@ -692,17 +689,6 @@ useEffect(() => {
     };
   }, [allSongs]);
 
-  const newSongs = useMemo(() => {
-    const cutoff = Date.now() - timeWindowDays * 24 * 60 * 60 * 1000;
-    return (allSongs || [])
-      .filter((s) => s.created_at && new Date(s.created_at).getTime() >= cutoff)
-      .sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-      .slice(0, 12);
-  }, [allSongs]);
-
   const scrollToLetter = useCallback((letter) => {
     setJumpLetter(letter);
     clearTimeout(jumpTimeoutRef.current);
@@ -935,92 +921,6 @@ useEffect(() => {
                   ))}
                 </div>
               </div>
-            </div>
-          </section>
-        </div>
-      )}
-
-      {/* Inline quick filters (homepage pill pattern) */}
-      {!filtersOpen && !isLoading && (
-        <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8 pt-3">
-          <section className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
-            <div className="flex items-center gap-1 shrink-0 text-[11px] font-bold text-neutral-400 pr-1">
-              <Compass size={13} />
-              <span>Filter:</span>
-            </div>
-            {timeFilters.map((filter) => {
-              const isSelected = activeFilter === filter.label;
-              return (
-                <button
-                  key={filter.label}
-                  type="button"
-                  onClick={() => setActiveFilter(filter.label)}
-                  className={`shrink-0 rounded-lg px-2.5 py-0.5 text-[11px] font-semibold transition-all duration-150 ${
-                    isSelected
-                      ? "bg-accent text-white shadow-2xs"
-                      : "bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              );
-            })}
-            {categories
-              .filter((category) => category !== "All")
-              .map((category) => {
-                const isSelected = activeCategory === category;
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() =>
-                      setActiveCategory(isSelected ? "All" : category)
-                    }
-                    className={`shrink-0 rounded-lg px-2.5 py-0.5 text-[11px] font-semibold transition-all duration-150 ${
-                      isSelected
-                        ? "bg-accent text-white shadow-2xs"
-                        : "bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
-                    }`}
-                  >
-                    {category}
-                  </button>
-                );
-              })}
-          </section>
-        </div>
-      )}
-
-      {/* New This Month rail */}
-      {!isLoading && !hasFilters && newSongs.length > 0 && (
-        <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8 pt-3">
-          <section>
-            <div className="mb-3 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/8 text-accent">
-                  <Sparkles size={13} />
-                </div>
-                <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">
-                  New This Month
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveSong(newSongs[0], newSongs)}
-                className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
-              >
-                <Play size={10} fill="currentColor" />
-                Play All
-              </button>
-            </div>
-            <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 pt-0.5 scrollbar-thin [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent_100%)]">
-              {newSongs.map((song) => (
-                <FeaturedCard
-                  key={song.id}
-                  song={song}
-                  isActive={song.id === activeSong?.id}
-                  onClick={() => setActiveSong(song, newSongs)}
-                />
-              ))}
             </div>
           </section>
         </div>
