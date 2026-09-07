@@ -1027,7 +1027,7 @@ useEffect(() => {
       )}
 
       {/* Song List + Alphabet Jump */}
-      <div className="px-3 sm:px-6 md:px-8 relative pt-3">
+      <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8 relative pt-3">
         {isLoading ? (
           <PageSkeleton />
         ) : alphabet.length > 0 ? (
