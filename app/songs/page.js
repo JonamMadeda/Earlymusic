@@ -7,6 +7,8 @@ import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { PageSkeleton } from "../components/Skeleton";
 import SongAvatar from "../components/SongAvatar";
+import FeaturedCard from "../components/FeaturedCard";
+import { prefetchSongAudio } from "@/lib/prefetchAudio";
 
 import {
   ChevronDown,
@@ -27,6 +29,8 @@ import {
   ArrowUpDown,
   X,
   ArrowUp,
+  Compass,
+  Sparkles,
   Loader as SpinnerIcon,
 } from "lucide-react";
 
@@ -63,11 +67,6 @@ const Chip = ({ label, active, onClick }) => (
     {label}
   </button>
 );
-
-const categoryColors = {
-  Worship: "bg-neutral-900 text-white border border-neutral-900",
-  Praise: "bg-neutral-800 text-white border border-neutral-800",
-};
 
 const SongRow = ({ song, onClick, isActive, onCategoryClick, menuUp = false }) => {
   const menuPos = menuUp ? "bottom-0 mb-10" : "top-0 mt-10";
@@ -247,6 +246,7 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick, menuUp = false }) =
       role="button"
       tabIndex={0}
       onClick={onClick}
+      onMouseEnter={() => prefetchSongAudio(song)}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(e); } }}
       className={`group relative flex w-full items-center gap-3 md:gap-3.5 rounded-xl p-3 md:p-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 ${
         isActive
@@ -257,9 +257,7 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick, menuUp = false }) =
       <div className="relative shrink-0">
         <SongAvatar title={song.title} variant="mono" size="md" />
         {downloadStatus === "downloaded" && (
-          <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-accent text-white">
-            <Check size={8} strokeWidth={3} />
-          </span>
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white" />
         )}
       </div>
 
@@ -284,7 +282,7 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick, menuUp = false }) =
                 e.stopPropagation();
                 onCategoryClick?.(song.category);
               }}
-              className={`hidden md:inline-block rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider border transition hover:opacity-80 ${categoryColors[song.category] || "bg-white border-neutral-300 text-neutral-700"}`}
+              className="hidden md:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[9px] font-semibold text-neutral-600 transition hover:border-neutral-300"
             >
               {song.category}
             </button>
@@ -476,24 +474,31 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick, menuUp = false }) =
   );
 };
 
-const ScrollToTop = () => {
-  const [show, setShow] = useState(false);
+const ScrollProgress = ({ progress }) => {
+  if (progress < 0.01) return null;
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[600] h-[2px] bg-transparent">
+      <div
+        className="h-full bg-accent transition-[width] duration-150 ease-out"
+        style={{ width: `${progress * 100}%` }}
+      />
+    </div>
+  );
+};
+
+const ScrollToTop = ({ scrollY }) => {
   const { activeSong } = usePlayer();
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setShow(window.scrollY > 400);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  const scrollToTop = () => {
+    document.getElementById("app-scroll")?.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-  if (!show) return null;
+  if (scrollY < 400) return null;
 
   return (
     <button
       type="button"
-      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      onClick={scrollToTop}
       className={`fixed z-50 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-lg transition hover:bg-accent/90 left-4 lg:left-auto lg:right-8 ${
         activeSong ? "bottom-40 md:bottom-24" : "bottom-24 md:bottom-8"
       }`}
@@ -526,6 +531,8 @@ export default function SongsPage() {
   const searchInputRef = useRef(null);
   const headerRef = useRef(null);
   const [pastHeader, setPastHeader] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+  const [scrollProgress, setScrollProgress] = useState(0);
 
   // Show the floating A-Z bar only after the title header scrolls out of view,
   // so it never overlaps the title + search bar stack at rest.
@@ -538,6 +545,21 @@ export default function SongsPage() {
     );
     observer.observe(el);
     return () => observer.disconnect();
+  }, []);
+
+  // Track the app scroll container (layout scrolls in #app-scroll, not window)
+  // for the progress bar + scroll-to-top button.
+  useEffect(() => {
+    const scroller = document.getElementById("app-scroll");
+    if (!scroller) return;
+    const handleScroll = () => {
+      const max = scroller.scrollHeight - scroller.clientHeight;
+      setScrollY(scroller.scrollTop);
+      setScrollProgress(max > 0 ? Math.min(scroller.scrollTop / max, 1) : 0);
+    };
+    handleScroll();
+    scroller.addEventListener("scroll", handleScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", handleScroll);
   }, []);
 
 useEffect(() => {
@@ -658,6 +680,29 @@ useEffect(() => {
     activeDuration !== "All" ? activeDuration : null,
   ].filter(Boolean).length;
 
+  const stats = useMemo(() => {
+    const list = allSongs || [];
+    const cutoff = Date.now() - timeWindowDays * 24 * 60 * 60 * 1000;
+    return {
+      total: list.length,
+      artists: new Set(list.map((s) => s.author).filter(Boolean)).size,
+      new: list.filter(
+        (s) => s.created_at && new Date(s.created_at).getTime() >= cutoff
+      ).length,
+    };
+  }, [allSongs]);
+
+  const newSongs = useMemo(() => {
+    const cutoff = Date.now() - timeWindowDays * 24 * 60 * 60 * 1000;
+    return (allSongs || [])
+      .filter((s) => s.created_at && new Date(s.created_at).getTime() >= cutoff)
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+      .slice(0, 12);
+  }, [allSongs]);
+
   const scrollToLetter = useCallback((letter) => {
     setJumpLetter(letter);
     clearTimeout(jumpTimeoutRef.current);
@@ -706,30 +751,37 @@ useEffect(() => {
 
   return (
     <main className="min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pb-32 md:pb-28 pt-3 md:pt-5">
+      <ScrollProgress progress={scrollProgress} />
       <div className="mx-auto max-w-5xl space-y-6 md:space-y-7">
-        <section ref={headerRef}>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
-              Songs
-            </h1>
-            <span className="hidden md:inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-500">
-              {filteredSongs.length} / {allSongs?.length || 0}
-            </span>
-          </div>
-          <div className="mt-3 flex items-center gap-3 md:hidden">
-            <span className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-500">
-              {filteredSongs.length} tracks
-            </span>
+        <section ref={headerRef} className="rounded-xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-2xs">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
+            Songs
+          </h1>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Browse the full library, from A to Z.
+          </p>
+          <div className="flex flex-wrap items-center gap-2 pt-2.5">
             {filteredSongs.length > 0 && (
               <button
                 type="button"
                 onClick={playAll}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
               >
-                <Play size={10} fill="currentColor" />
-                Play All
+                <Play size={12} fill="currentColor" />
+                <span>Play All</span>
               </button>
             )}
+            <div className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50/70 px-2.5 py-1.5 text-[11px] font-medium text-neutral-500">
+              <span className="font-bold text-neutral-800">{stats.total}</span> tracks
+              <span className="text-neutral-300">•</span>
+              <span className="font-bold text-neutral-800">{stats.artists}</span> artists
+              {stats.new > 0 && (
+                <>
+                  <span className="text-neutral-300">•</span>
+                  <span className="font-bold text-accent">{stats.new} new</span>
+                </>
+              )}
+            </div>
           </div>
         </section>
       </div>
@@ -806,6 +858,9 @@ useEffect(() => {
 
           {hasFilters && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-medium text-neutral-500">
+                <span className="font-bold text-neutral-800">{filteredSongs.length}</span> of {allSongs?.length || 0} songs
+              </span>
               <span className="rounded-lg bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-500">
                 {activeFilterCount} active
               </span>
@@ -888,6 +943,92 @@ useEffect(() => {
         </div>
       )}
 
+      {/* Inline quick filters (homepage pill pattern) */}
+      {!filtersOpen && !isLoading && (
+        <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8 pt-4">
+          <section className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+            <div className="flex items-center gap-1 shrink-0 text-[11px] font-bold text-neutral-400 pr-1">
+              <Compass size={13} />
+              <span>Filter:</span>
+            </div>
+            {timeFilters.map((filter) => {
+              const isSelected = activeFilter === filter.label;
+              return (
+                <button
+                  key={filter.label}
+                  type="button"
+                  onClick={() => setActiveFilter(filter.label)}
+                  className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold transition-all duration-150 ${
+                    isSelected
+                      ? "bg-accent text-white shadow-2xs"
+                      : "bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
+            {categories
+              .filter((category) => category !== "All")
+              .map((category) => {
+                const isSelected = activeCategory === category;
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() =>
+                      setActiveCategory(isSelected ? "All" : category)
+                    }
+                    className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold transition-all duration-150 ${
+                      isSelected
+                        ? "bg-accent text-white shadow-2xs"
+                        : "bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                );
+              })}
+          </section>
+        </div>
+      )}
+
+      {/* New This Month rail */}
+      {!isLoading && !hasFilters && newSongs.length > 0 && (
+        <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8 pt-4">
+          <section>
+            <div className="mb-3 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/8 text-accent">
+                  <Sparkles size={13} />
+                </div>
+                <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">
+                  New This Month
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveSong(newSongs[0], newSongs)}
+                className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
+              >
+                <Play size={10} fill="currentColor" />
+                Play All
+              </button>
+            </div>
+            <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 pt-0.5 scrollbar-thin [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent_100%)]">
+              {newSongs.map((song) => (
+                <FeaturedCard
+                  key={song.id}
+                  song={song}
+                  isActive={song.id === activeSong?.id}
+                  onClick={() => setActiveSong(song, newSongs)}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
+
       {/* Song List + Alphabet Jump */}
       <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8 relative pt-4">
         {isLoading ? (
@@ -902,9 +1043,9 @@ useEffect(() => {
                   <button
                     type="button"
                     onClick={playAll}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
+                    className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
                   >
-                    <Play size={12} fill="currentColor" />
+                    <Play size={10} fill="currentColor" />
                     Play All ({filteredSongs.length})
                   </button>
                 </div>
@@ -918,7 +1059,7 @@ useEffect(() => {
                     className="scroll-mt-32 flex flex-col gap-y-3 md:gap-y-3"
                   >
                     <div className={`sticky ${hasFilters ? "top-[110px]" : "top-[70px]"} z-10 flex justify-start pb-1`}>
-                      <div className="flex items-center gap-2 rounded-full border border-neutral-200/70 bg-white/75 py-1 pl-1 pr-3 shadow-sm backdrop-blur-md">
+                      <div className="flex items-center gap-2 rounded-full border border-neutral-200/70 bg-white/75 py-1 pl-1 pr-3 shadow-2xs backdrop-blur-md">
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/[0.07] text-xs font-bold text-accent">
                           {letter}
                         </div>
@@ -967,7 +1108,7 @@ useEffect(() => {
             </div>
 
             {/* Alphabet Jump Bar - mobile floating (fixed, so placement inside flex is fine) */}
-            <div className={`lg:hidden fixed right-1.5 top-40 bottom-28 z-30 flex flex-col items-center gap-px overflow-y-auto rounded-full border border-neutral-200 bg-white/90 px-0.5 shadow-sm backdrop-blur-md no-scrollbar transition-opacity duration-300 ${pastHeader ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+            <div className={`lg:hidden fixed right-1.5 top-40 bottom-28 z-30 flex flex-col items-center gap-px overflow-y-auto rounded-full border border-neutral-200 bg-white/90 px-0.5 shadow-2xs backdrop-blur-md no-scrollbar transition-opacity duration-300 ${pastHeader ? "opacity-100" : "pointer-events-none opacity-0"}`}>
               {alphabet.map((letter) => (
                 <button
                   key={letter}
@@ -1029,7 +1170,7 @@ useEffect(() => {
         )}
       </div>
 
-      <ScrollToTop />
+      <ScrollToTop scrollY={scrollY} />
     </main>
   );
 }

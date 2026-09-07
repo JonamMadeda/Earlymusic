@@ -45,7 +45,7 @@ export default function RootLayout({ children }) {
 
               <main className="relative flex flex-1 flex-col overflow-hidden border-l border-neutral-200 bg-white">
                 <Header />
-                <div className="flex-1 overflow-y-auto no-scrollbar pb-44 md:pb-32">
+                <div id="app-scroll" className="flex-1 overflow-y-auto no-scrollbar pb-44 md:pb-32">
                   {children}
                 </div>
               </main>
