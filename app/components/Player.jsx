@@ -390,11 +390,48 @@ const Player = () => {
 
   const progress = duration ? (currentTime / duration) * 100 : 0;
 
-  if (!song || !audioUrl) return null;
-
   return (
     <>
-      {/* Desktop player — full-width bar */}
+      {/* Audio element lives outside the conditional UI below so no render-time
+          condition (page switch, loading flicker) can ever unmount it and kill
+          playback. UI only renders once a song + URL are ready. */}
+      <audio
+        ref={audioRef}
+        src={audioUrl || undefined}
+        loop={isLooping}
+        onTimeUpdate={() => {
+          if (audioRef.current && !scrubbingRef.current) {
+            setCurrentTime(audioRef.current.currentTime);
+          }
+        }}
+        onCanPlay={() => {
+          if (playRef.current) {
+            playRef.current = false;
+            audioRef.current?.play().catch(() => setIsPlaying(false));
+            setIsPlaying(true);
+            errorCountRef.current = 0;
+            clearAutoAdvanceTimer();
+          }
+        }}
+        onLoadedMetadata={() => {
+          if (audioRef.current && Number.isFinite(audioRef.current.duration)) {
+            setDuration(audioRef.current.duration);
+          }
+        }}
+        onError={() => {
+          playRef.current = false;
+          setIsPlaying(false);
+          setAudioError(true);
+          handlePlaybackError();
+        }}
+        onEnded={() => {
+          playRef.current = false;
+          onPlayNext();
+        }}
+      />
+      {song && audioUrl && (
+        <>
+          {/* Desktop player — full-width bar */}
       <div
         className="fixed bottom-14 left-0 right-0 z-[900] hidden md:block md:bottom-0 cursor-pointer"
         onClick={() => setShowFullPlayer(true)}
@@ -834,41 +871,8 @@ const Player = () => {
           </div>
         </div>
       )}
-
-      <audio
-        ref={audioRef}
-        src={audioUrl}
-        loop={isLooping}
-        onTimeUpdate={() => {
-          if (audioRef.current && !scrubbingRef.current) {
-            setCurrentTime(audioRef.current.currentTime);
-          }
-        }}
-        onCanPlay={() => {
-          if (playRef.current) {
-            playRef.current = false;
-            audioRef.current?.play().catch(() => setIsPlaying(false));
-            setIsPlaying(true);
-            errorCountRef.current = 0;
-            clearAutoAdvanceTimer();
-          }
-        }}
-        onLoadedMetadata={() => {
-          if (audioRef.current && Number.isFinite(audioRef.current.duration)) {
-            setDuration(audioRef.current.duration);
-          }
-        }}
-        onError={() => {
-          playRef.current = false;
-          setIsPlaying(false);
-          setAudioError(true);
-          handlePlaybackError();
-        }}
-        onEnded={() => {
-          playRef.current = false;
-          onPlayNext();
-        }}
-      />
+        </>
+      )}
     </>
   );
 };
