@@ -54,9 +54,9 @@ const Chip = ({ label, active, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`whitespace-nowrap rounded-full border px-3 py-2 md:px-4 md:py-2.5 text-[11px] md:text-xs font-medium transition ${
+    className={`whitespace-nowrap rounded-lg border px-3 py-1.5 md:px-3.5 md:py-2 text-[11px] md:text-xs font-semibold transition-all duration-150 ${
       active
-        ? "border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800"
+        ? "border-accent bg-accent text-white shadow-2xs"
         : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 hover:border-neutral-300"
     }`}
   >
@@ -69,7 +69,8 @@ const categoryColors = {
   Praise: "bg-neutral-800 text-white border border-neutral-800",
 };
 
-const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
+const SongRow = ({ song, onClick, isActive, onCategoryClick, menuUp = false }) => {
+  const menuPos = menuUp ? "bottom-0 mb-10" : "top-0 mt-10";
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -247,14 +248,14 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(e); } }}
-      className={`group relative flex w-full items-center gap-3 md:gap-3.5 rounded-2xl p-3 md:p-3.5 text-left transition-all duration-300 shadow-sm ${
+      className={`group relative flex w-full items-center gap-3 md:gap-3.5 rounded-xl p-3 md:p-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 ${
         isActive
-          ? "bg-accent/[0.04] border border-accent/10 shadow-sm"
-          : "bg-white border border-neutral-200 hover:shadow-md hover:border-neutral-300"
+          ? "border-2 border-accent bg-neutral-50 shadow-xs"
+          : "border border-neutral-200 bg-white hover:border-neutral-400/80 shadow-2xs"
       }`}
     >
       <div className="relative shrink-0">
-        <SongAvatar title={song.title} variant="mono" />
+        <SongAvatar title={song.title} variant="mono" size="md" />
         {downloadStatus === "downloaded" && (
           <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-accent text-white">
             <Check size={8} strokeWidth={3} />
@@ -264,7 +265,7 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className={`truncate text-sm font-semibold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
+          <p className={`truncate text-xs sm:text-sm font-semibold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
             {song.title}
           </p>
           {isActive && (
@@ -273,7 +274,7 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
             </div>
           )}
           {isNew && !isActive && (
-            <span className="rounded bg-accent/[0.06] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-accent">
+            <span className="rounded bg-accent px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
               New
             </span>
           )}
@@ -289,7 +290,7 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
             </button>
           )}
         </div>
-        <p className="truncate text-[11px] font-medium text-neutral-400 mt-0.5">
+        <p className="truncate text-[11px] font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
       </div>
@@ -302,7 +303,7 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
             setShowInfo(false);
             setShowPlaylists(false);
           }}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
           title="More"
         >
           <MoreHorizontal size={14} />
@@ -311,7 +312,7 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
         {showMenu && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute right-0 top-0 z-50 mt-12 min-w-[210px] rounded-2xl border border-neutral-100 bg-white p-2 shadow-lg"
+            className={`absolute right-0 z-50 min-w-[210px] rounded-xl border border-neutral-100 bg-white p-2 shadow-lg ${menuPos}`}
           >
             <button
               onClick={() => {
@@ -319,10 +320,10 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
                 setShowMenu(false);
                 setShowPlaylists(false);
               }}
-              className="flex w-full items-center gap-x-3 rounded-2xl px-3 py-3 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+              className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
             >
-              <Info size={16} className="text-neutral-400" />
-              <span className="text-[13px] font-semibold">Compilation Details</span>
+              <Info size={15} className="text-neutral-400" />
+              <span className="text-xs font-semibold">Compilation Details</span>
             </button>
             <button
               onClick={() => {
@@ -334,35 +335,35 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
                 setShowInfo(false);
                 setShowMenu(false);
               }}
-              className="flex w-full items-center gap-x-3 rounded-2xl px-3 py-3 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+              className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
             >
-              <ListPlus size={16} className="text-neutral-400" />
-              <span className="text-[13px] font-semibold">Add to Playlist</span>
+              <ListPlus size={15} className="text-neutral-400" />
+              <span className="text-xs font-semibold">Add to Playlist</span>
             </button>
             <button
               onClick={toggleDownload}
-              className="flex w-full items-center gap-x-3 rounded-2xl px-3 py-3 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+              className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
             >
               {downloadStatus === "downloading" ? (
-                <SpinnerIcon size={16} className="animate-spin text-neutral-400" />
+                <SpinnerIcon size={15} className="animate-spin text-neutral-400" />
               ) : downloadStatus === "downloaded" ? (
-                <Check size={16} className="text-green-500" strokeWidth={3} />
+                <Check size={15} className="text-green-500" strokeWidth={3} />
               ) : (
-                <Download size={16} className="text-neutral-400" />
+                <Download size={15} className="text-neutral-400" />
               )}
-              <span className={`text-[13px] font-semibold ${downloadStatus === "error" ? "text-red-500" : ""}`}>
+              <span className={`text-xs font-semibold ${downloadStatus === "error" ? "text-red-500" : ""}`}>
                 {downloadStatus === "downloading" ? "Downloading..." : downloadStatus === "downloaded" ? "Remove Download" : downloadStatus === "error" ? downloadError : "Download for offline"}
               </span>
             </button>
             <button
               onClick={toggleSave}
-              className="flex w-full items-center gap-x-3 rounded-2xl px-3 py-3 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+              className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
             >
               <Heart
-                size={16}
+                size={15}
                 className={isSaved ? "text-neutral-900 fill-neutral-900" : "text-neutral-400"}
               />
-              <span className="text-[13px] font-semibold">
+              <span className="text-xs font-semibold">
                 {isSaved ? "Remove from Library" : "Add to Library"}
               </span>
             </button>
@@ -373,7 +374,7 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
       {showInfo && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute right-0 top-0 z-50 mt-12 min-w-[260px] rounded-2xl border border-neutral-100 bg-white p-5 shadow-lg"
+          className={`absolute right-0 z-50 min-w-[260px] rounded-xl border border-neutral-100 bg-white p-5 shadow-lg ${menuPos}`}
         >
           <div className="flex flex-col gap-y-4">
             <div className="flex items-center justify-between border-b border-neutral-50 pb-2">
@@ -415,7 +416,7 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
       {showPlaylists && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute right-0 top-0 z-50 mt-12 min-w-[240px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-lg"
+          className={`absolute right-0 z-50 min-w-[240px] rounded-xl border border-neutral-100 bg-white p-4 shadow-lg ${menuPos}`}
         >
           <div className="mb-3 flex items-center justify-between border-b border-neutral-50 pb-2">
             <h4 className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
@@ -438,10 +439,10 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
                 <button
                   key={pl.id}
                   onClick={(e) => addToPlaylist(e, pl.id)}
-                  className="flex w-full items-center gap-x-3 rounded-2xl px-3 py-3 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+                  className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
                 >
-                  <ListMusic size={16} className="text-neutral-400" />
-                  <span className="flex-1 truncate text-[13px] font-semibold">
+                  <ListMusic size={15} className="text-neutral-400" />
+                  <span className="flex-1 truncate text-xs font-semibold">
                     {pl.name}
                   </span>
                 </button>
@@ -456,13 +457,13 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
                 value={newPlaylistName}
                 onChange={(e) => setNewPlaylistName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && createAndAdd(e)}
-                className="flex-1 rounded-full border border-neutral-200/80 bg-neutral-50/60 px-3.5 py-2.5 text-[12px] font-medium outline-none transition placeholder:text-neutral-300 focus:border-neutral-300 focus:bg-white"
+                className="flex-1 rounded-lg border border-neutral-200/80 bg-neutral-50/60 px-3 py-2 text-xs font-medium outline-none transition placeholder:text-neutral-300 focus:border-neutral-300 focus:bg-white"
                 onClick={(e) => e.stopPropagation()}
               />
               <button
                 onClick={createAndAdd}
                 disabled={!newPlaylistName.trim()}
-                className="flex-shrink-0 rounded-full bg-accent p-2.5 text-white transition hover:bg-accent/90 disabled:opacity-50"
+                className="flex-shrink-0 rounded-lg bg-accent p-2 text-white transition hover:bg-accent/90 disabled:opacity-50"
                 title="Create & Add"
               >
                 <Plus size={14} />
@@ -477,6 +478,7 @@ const SongRow = ({ song, onClick, isActive, onCategoryClick }) => {
 
 const ScrollToTop = () => {
   const [show, setShow] = useState(false);
+  const { activeSong } = usePlayer();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -492,7 +494,9 @@ const ScrollToTop = () => {
     <button
       type="button"
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-      className="fixed bottom-24 right-4 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-lg transition hover:bg-accent/90 md:bottom-8"
+      className={`fixed z-50 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-lg transition hover:bg-accent/90 left-4 lg:left-auto lg:right-8 ${
+        activeSong ? "bottom-40 md:bottom-24" : "bottom-24 md:bottom-8"
+      }`}
     >
       <ArrowUp size={18} />
     </button>
@@ -686,26 +690,26 @@ useEffect(() => {
   }, [filteredSongs, setActiveSong]);
 
   return (
-    <main className="min-h-[90vh] bg-neutral-50/60 pb-32 pt-2 md:pt-6">
-      <div className="mx-auto max-w-5xl px-3 md:px-8">
-        <section className="mb-6 md:mb-8">
+    <main className="min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pb-32 md:pb-28 pt-3 md:pt-5">
+      <div className="mx-auto max-w-5xl space-y-6 md:space-y-7">
+        <section>
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
               Songs
             </h1>
-            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] font-medium text-neutral-400 shadow-sm">
+            <span className="hidden md:inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-500">
               {filteredSongs.length} / {allSongs?.length || 0}
             </span>
           </div>
           <div className="mt-3 flex items-center gap-3 md:hidden">
-            <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] font-medium text-neutral-400 shadow-sm">
+            <span className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-500">
               {filteredSongs.length} tracks
             </span>
             {filteredSongs.length > 0 && (
               <button
                 type="button"
                 onClick={playAll}
-                className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1 text-[11px] font-bold text-white shadow-sm transition hover:bg-accent/90"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
               >
                 <Play size={10} fill="currentColor" />
                 Play All
@@ -717,16 +721,16 @@ useEffect(() => {
 
       {/* Sticky Search / Filter Bar */}
       <div className="sticky top-0 z-40 border-b border-neutral-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-5xl px-3 md:px-8 py-3.5">
+        <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8 py-3">
           <div className="flex flex-row flex-nowrap gap-2.5 md:min-w-[460px] md:justify-start">
-            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-neutral-200 bg-white px-3.5 py-2.5 text-neutral-500 shadow-sm transition focus-within:border-accent focus-within:shadow-sm">
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-neutral-500 shadow-sm transition focus-within:border-accent focus-within:shadow-sm">
               <Search size={14} className="shrink-0" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="Search songs...  /"
+                placeholder="Search...  /"
                 className="min-w-0 flex-1 bg-transparent text-xs font-medium text-neutral-900 outline-none placeholder:text-neutral-300"
               />
               {searchValue && (
@@ -754,7 +758,7 @@ useEffect(() => {
                   setSortAsc(true);
                 }
               }}
-              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-neutral-200/80 bg-white px-3.5 py-2 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900 md:gap-2 md:px-4 md:py-2.5"
+              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-neutral-200/80 bg-white px-3 py-2 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900 md:gap-2 md:px-3.5 md:py-2"
               title={`Sort by: ${sortOptions.find(o => o.value === sortBy)?.label}`}
             >
               <ArrowUpDown size={14} />
@@ -773,7 +777,7 @@ useEffect(() => {
             <button
               type="button"
               onClick={() => setFiltersOpen((prev) => !prev)}
-              className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-medium transition md:gap-2 md:px-4 md:py-2.5 ${
+              className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition md:gap-2 md:px-3.5 md:py-2 ${
                 activeFilterCount > 0
                   ? "border-accent bg-accent/8 text-accent hover:bg-accent/15"
                   : "border-neutral-200/80 bg-white text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
@@ -787,14 +791,14 @@ useEffect(() => {
 
           {hasFilters && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-[11px] font-semibold text-neutral-500">
+              <span className="rounded-lg bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-500">
                 {activeFilterCount} active
               </span>
               {searchValue.trim() && (
                 <button
                   type="button"
                   onClick={() => setSearchValue("")}
-                  className="rounded-full border border-neutral-200/80 bg-white px-3 py-1.5 text-[11px] font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+                  className="rounded-lg border border-neutral-200/80 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
                 >
                   Clear search
                 </button>
@@ -806,7 +810,7 @@ useEffect(() => {
                   setActiveCategory("All");
                   setActiveDuration("All");
                 }}
-                className="rounded-full border border-neutral-200/80 bg-white px-3 py-1.5 text-[11px] font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+                className="rounded-lg border border-neutral-200/80 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
               >
                 Reset
               </button>
@@ -816,8 +820,8 @@ useEffect(() => {
       </div>
 
       {filtersOpen && (
-        <div className="mx-auto max-w-5xl px-3 md:px-8">
-          <section className="mb-6 mt-4 md:mb-8 rounded-2xl border border-neutral-200 bg-white px-4 py-4 shadow-sm md:px-5 md:py-5">
+        <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8">
+          <section className="mb-6 mt-4 md:mb-8 rounded-xl border border-neutral-200 bg-white px-4 py-4 shadow-2xs md:px-5 md:py-5">
             <div className="flex flex-col gap-4 md:grid md:grid-cols-3 md:gap-6">
               <div>
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-neutral-400">
@@ -870,20 +874,20 @@ useEffect(() => {
       )}
 
       {/* Song List + Alphabet Jump */}
-      <div className="mx-auto max-w-5xl px-3 md:px-8 relative pt-4">
+      <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8 relative pt-4">
         {isLoading ? (
           <PageSkeleton />
         ) : alphabet.length > 0 ? (
           <div className="flex gap-4">
             {/* Songs */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 pr-6 lg:pr-0">
               {/* Play All for desktop */}
               {filteredSongs.length > 0 && (
                 <div className="hidden md:flex items-center gap-2 mb-4">
                   <button
                     type="button"
                     onClick={playAll}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent/90"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
                   >
                     <Play size={12} fill="currentColor" />
                     Play All ({filteredSongs.length})
@@ -892,13 +896,13 @@ useEffect(() => {
               )}
 
               <div className="flex flex-col gap-y-6 md:gap-y-8">
-                {alphabet.map((letter) => (
+                {alphabet.map((letter, letterIdx) => (
                   <div
                     key={letter}
                     ref={(el) => { letterRefs.current[letter] = el; }}
                     className="scroll-mt-32 flex flex-col gap-y-3 md:gap-y-3"
                   >
-                    <div className="sticky top-[73px] z-10 flex items-center gap-3 border-b border-neutral-200 bg-neutral-50/80 backdrop-blur-sm pb-2 md:pb-3 px-2 -mx-2 rounded-t-lg">
+                    <div className={`sticky ${hasFilters ? "top-[110px]" : "top-[70px]"} z-10 flex items-center gap-3 border-b border-neutral-200 bg-neutral-50/80 backdrop-blur-sm pb-2 md:pb-3 px-2 -mx-2 rounded-t-lg`}>
                       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/[0.06] border border-accent/10 text-sm font-bold text-accent md:h-8 md:w-8 md:text-base">
                         {letter}
                       </div>
@@ -907,22 +911,28 @@ useEffect(() => {
                       </span>
                     </div>
                     <div className="flex flex-col gap-y-2 md:gap-y-2.5">
-                      {groupedSongs[letter].map((song) => (
-                        <SongRow
-                          key={song.id}
-                          song={song}
-                          isActive={activeSong?.id === song.id}
-                          onClick={() => setActiveSong(song, filteredSongs)}
-                          onCategoryClick={handleCategoryClick}
-                        />
-                      ))}
+                      {groupedSongs[letter].map((song, idx) => {
+                        const menuUp =
+                          letterIdx === alphabet.length - 1 &&
+                          idx >= groupedSongs[letter].length - 2;
+                        return (
+                          <SongRow
+                            key={song.id}
+                            song={song}
+                            isActive={activeSong?.id === song.id}
+                            onClick={() => setActiveSong(song, filteredSongs)}
+                            onCategoryClick={handleCategoryClick}
+                            menuUp={menuUp}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Alphabet Jump Bar */}
+            {/* Alphabet Jump Bar - desktop */}
             <div className="hidden lg:flex flex-col items-center gap-1 sticky top-32 self-start pt-4">
               {alphabet.map((letter) => (
                 <button
@@ -938,26 +948,45 @@ useEffect(() => {
                 </button>
               ))}
             </div>
+
+            {/* Alphabet Jump Bar - mobile floating (fixed, so placement inside flex is fine) */}
+            <div className="lg:hidden fixed right-1.5 top-[calc(50%+16px)] -translate-y-1/2 z-30 flex max-h-[calc(100dvh-300px)] flex-col items-center gap-0.5 overflow-y-auto rounded-full border border-neutral-200 bg-white/90 px-1 py-2 shadow-sm backdrop-blur-md no-scrollbar">
+              {alphabet.map((letter) => (
+                <button
+                  key={letter}
+                  type="button"
+                  aria-label={`Jump to ${letter}`}
+                  onClick={() => scrollToLetter(letter)}
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-all duration-200 select-none ${
+                    jumpLetter === letter
+                      ? "bg-accent text-white scale-110"
+                      : "text-neutral-400 active:bg-neutral-100 active:text-neutral-700"
+                  }`}
+                >
+                  {letter}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10">
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200">
               {loadError ? (
-                <Download className="text-accent" size={28} />
+                <Download className="text-accent" size={24} />
               ) : hasFilters ? (
-                <Search className="text-accent" size={28} />
+                <Search className="text-accent" size={24} />
               ) : (
-                <Disc className="text-accent" size={28} />
+                <Disc className="text-accent" size={24} />
               )}
             </div>
-            <p className="text-sm font-semibold text-neutral-900">
+            <p className="text-base font-bold tracking-tight text-neutral-900">
               {loadError
                 ? "Songs could not be loaded"
                 : hasFilters
                   ? "No matching songs"
                   : "No songs yet"}
             </p>
-            <p className="mt-1.5 max-w-sm text-xs text-neutral-400 leading-relaxed">
+            <p className="mt-1 max-w-xs text-xs leading-relaxed text-neutral-500">
               {loadError
                 ? "Check your connection or Supabase configuration and try again."
                 : hasFilters
@@ -973,7 +1002,7 @@ useEffect(() => {
                   setActiveCategory("All");
                   setActiveDuration("All");
                 }}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
               >
                 <X size={12} />
                 Clear all filters
