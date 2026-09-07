@@ -738,7 +738,7 @@ useEffect(() => {
   return (
     <main className="min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pb-32 md:pb-28 pt-3 md:pt-5">
       <ScrollProgress progress={scrollProgress} />
-      <div className="mx-auto max-w-5xl space-y-6 md:space-y-7">
+      <div className="mx-auto max-w-5xl space-y-4 md:space-y-5">
         <section ref={headerRef} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-bold tracking-tight text-neutral-900">
@@ -763,25 +763,24 @@ useEffect(() => {
               className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
             >
               <Play size={11} fill="currentColor" />
-              <span>Play All</span>
+              <span>Play All ({filteredSongs.length})</span>
             </button>
           )}
         </section>
-      </div>
 
       {/* Sticky Search / Filter Bar */}
-      <div className="sticky top-0 z-40 border-b border-neutral-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8 py-2">
-          <div className="flex flex-row flex-nowrap gap-2.5 md:min-w-[460px] md:justify-start">
-            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-neutral-500 shadow-sm transition focus-within:border-accent focus-within:shadow-sm">
-              <Search size={14} className="shrink-0" />
+      <div className="sticky top-2 z-40 rounded-xl border border-neutral-200 bg-white/95 shadow-2xs backdrop-blur-md">
+        <div className="px-3 py-2.5">
+          <div className="flex flex-row flex-nowrap items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-transparent bg-neutral-100/80 px-3 py-2 text-neutral-500 transition focus-within:border-accent focus-within:bg-white focus-within:shadow-2xs">
+              <Search size={15} className="shrink-0 text-neutral-400" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="Search...  /"
-                className="min-w-0 flex-1 bg-transparent text-xs font-medium text-neutral-900 outline-none placeholder:text-neutral-300"
+                placeholder="Search songs or artists..."
+                className="min-w-0 flex-1 bg-transparent text-xs font-medium text-neutral-900 outline-none placeholder:text-neutral-400"
               />
               {searchValue && (
                 <button
@@ -808,7 +807,7 @@ useEffect(() => {
                   setSortAsc(true);
                 }
               }}
-              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-neutral-200/80 bg-white px-3 py-1.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900 md:gap-2 md:px-3.5 md:py-1.5"
+              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-neutral-200/80 bg-white px-3 py-2 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900 md:gap-2 md:px-3.5"
               title={`Sort by: ${sortOptions.find(o => o.value === sortBy)?.label}`}
             >
               <ArrowUpDown size={14} />
@@ -827,31 +826,31 @@ useEffect(() => {
             <button
               type="button"
               onClick={() => setFiltersOpen((prev) => !prev)}
-              className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition md:gap-2 md:px-3.5 md:py-1.5 ${
+              className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition md:gap-2 md:px-3.5 ${
                 activeFilterCount > 0
                   ? "border-accent bg-accent/8 text-accent hover:bg-accent/15"
                   : "border-neutral-200/80 bg-white text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
               }`}
             >
               <Filter size={14} />
-              <span>Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
+              <span className="hidden sm:inline">Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
               {filtersOpen ? <ChevronUp size={14} className="shrink-0" /> : <ChevronDown size={14} className="shrink-0" />}
             </button>
           </div>
 
           {hasFilters && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 px-1 pt-2.5">
               <span className="text-[11px] font-medium text-neutral-500">
                 <span className="font-bold text-neutral-800">{filteredSongs.length}</span> of {allSongs?.length || 0} songs
               </span>
-              <span className="rounded-lg bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-500">
+              <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-500">
                 {activeFilterCount} active
               </span>
               {searchValue.trim() && (
                 <button
                   type="button"
                   onClick={() => setSearchValue("")}
-                  className="rounded-lg border border-neutral-200/80 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+                  className="rounded-md border border-neutral-200/80 bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
                 >
                   Clear search
                 </button>
@@ -863,7 +862,7 @@ useEffect(() => {
                   setActiveCategory("All");
                   setActiveDuration("All");
                 }}
-                className="rounded-lg border border-neutral-200/80 bg-white px-2.5 py-1 text-[11px] font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+                className="rounded-md border border-neutral-200/80 bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
               >
                 Reset
               </button>
@@ -873,8 +872,7 @@ useEffect(() => {
       </div>
 
       {filtersOpen && (
-        <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8">
-          <section className="mb-6 mt-4 md:mb-8 rounded-xl border border-neutral-200 bg-white px-4 py-4 shadow-2xs md:px-5 md:py-5">
+          <section className="rounded-xl border border-neutral-200 bg-white px-4 py-4 shadow-2xs md:px-5 md:py-5">
             <div className="flex flex-col gap-4 md:grid md:grid-cols-3 md:gap-6">
               <div>
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-neutral-400">
@@ -923,39 +921,24 @@ useEffect(() => {
               </div>
             </div>
           </section>
-        </div>
       )}
 
       {/* Song List + Alphabet Jump */}
-      <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8 relative pt-3">
+      <div className="relative">
         {isLoading ? (
           <PageSkeleton />
         ) : alphabet.length > 0 ? (
           <div className="flex gap-4">
             {/* Songs */}
             <div className="flex-1 min-w-0 pr-6 lg:pr-0">
-              {/* Play All for desktop */}
-              {filteredSongs.length > 0 && (
-                <div className="hidden md:flex items-center gap-2 mb-4">
-                  <button
-                    type="button"
-                    onClick={playAll}
-                    className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
-                  >
-                    <Play size={10} fill="currentColor" />
-                    Play All ({filteredSongs.length})
-                  </button>
-                </div>
-              )}
-
               <div className="flex flex-col gap-y-5 md:gap-y-6">
                 {alphabet.map((letter, letterIdx) => (
                   <div
                     key={letter}
                     ref={(el) => { letterRefs.current[letter] = el; }}
-                    className="scroll-mt-32 flex flex-col gap-y-2.5"
+                    className="scroll-mt-36 flex flex-col gap-y-2.5"
                   >
-                    <div className={`sticky ${hasFilters ? "top-[100px]" : "top-[60px]"} z-10 flex justify-start pb-1`}>
+                    <div className={`sticky ${hasFilters ? "top-[120px]" : "top-[80px]"} z-10 flex justify-start pb-1`}>
                       <div className="flex items-center gap-2 rounded-full border border-neutral-200/70 bg-white/75 py-1 pl-1 pr-3 shadow-2xs backdrop-blur-md">
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/[0.07] text-xs font-bold text-accent">
                           {letter}
@@ -1065,6 +1048,8 @@ useEffect(() => {
             )}
           </div>
         )}
+      </div>
+
       </div>
 
       <ScrollToTop scrollY={scrollY} />
