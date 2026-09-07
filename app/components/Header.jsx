@@ -3,11 +3,16 @@
 import { useState, useEffect } from "react";
 import { CloudOff, Search } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import GlobalSearchModal from "./GlobalSearchModal";
 
 const Header = () => {
+  const pathname = usePathname();
   const [isOnline, setIsOnline] = useState(true);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  // Songs page has its own inline search — hide the header trigger there
+  // so only one search bar appears.
+  const isSongsPage = pathname === "/songs";
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -47,31 +52,35 @@ const Header = () => {
               </span>
             </Link>
 
-            {/* Desktop quick search button */}
-            <button
-              type="button"
-              onClick={() => setIsSearchOpen(true)}
-              className="hidden md:flex items-center gap-2.5 rounded-full border border-neutral-200 bg-neutral-50/80 px-3.5 py-1.5 text-xs text-neutral-400 hover:border-neutral-300 hover:bg-neutral-100/80 hover:text-neutral-700 transition shadow-sm w-64 lg:w-80"
-            >
-              <Search size={14} className="text-neutral-400" />
-              <span className="flex-1 text-left">Search songs, artists...</span>
-              <kbd className="rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-neutral-400">
-                ⌘K
-              </kbd>
-            </button>
+            {/* Desktop quick search button (hidden on songs page — it has its own) */}
+            {!isSongsPage && (
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(true)}
+                className="hidden md:flex items-center gap-2.5 rounded-full border border-neutral-200 bg-neutral-50/80 px-3.5 py-1.5 text-xs text-neutral-400 hover:border-neutral-300 hover:bg-neutral-100/80 hover:text-neutral-700 transition shadow-sm w-64 lg:w-80"
+              >
+                <Search size={14} className="text-neutral-400" />
+                <span className="flex-1 text-left">Search songs, artists...</span>
+                <kbd className="rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-neutral-400">
+                  ⌘K
+                </kbd>
+              </button>
+            )}
           </div>
 
           {/* Right side: Mobile search button + Offline indicator */}
           <div className="flex items-center gap-2">
-            {/* Mobile search button */}
-            <button
-              type="button"
-              aria-label="Search"
-              onClick={() => setIsSearchOpen(true)}
-              className="flex md:hidden h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 active:scale-95 transition"
-            >
-              <Search size={16} />
-            </button>
+            {/* Mobile search button (hidden on songs page — it has its own) */}
+            {!isSongsPage && (
+              <button
+                type="button"
+                aria-label="Search"
+                onClick={() => setIsSearchOpen(true)}
+                className="flex md:hidden h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 active:scale-95 transition"
+              >
+                <Search size={16} />
+              </button>
+            )}
 
             {!isOnline && (
               <div className="flex items-center gap-x-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 animate-pulse">
