@@ -524,6 +524,21 @@ export default function SongsPage() {
   const jumpTimeoutRef = useRef(null);
   const letterRefs = useRef({});
   const searchInputRef = useRef(null);
+  const headerRef = useRef(null);
+  const [pastHeader, setPastHeader] = useState(false);
+
+  // Show the floating A-Z bar only after the title header scrolls out of view,
+  // so it never overlaps the title + search bar stack at rest.
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setPastHeader(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
 useEffect(() => {
     const fetchedRef = { current: false };
@@ -692,7 +707,7 @@ useEffect(() => {
   return (
     <main className="min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pb-32 md:pb-28 pt-3 md:pt-5">
       <div className="mx-auto max-w-5xl space-y-6 md:space-y-7">
-        <section>
+        <section ref={headerRef}>
           <div className="flex items-center gap-3">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
               Songs
@@ -902,13 +917,15 @@ useEffect(() => {
                     ref={(el) => { letterRefs.current[letter] = el; }}
                     className="scroll-mt-32 flex flex-col gap-y-3 md:gap-y-3"
                   >
-                    <div className={`sticky ${hasFilters ? "top-[110px]" : "top-[70px]"} z-10 flex items-center gap-3 border-b border-neutral-200 bg-neutral-50/80 backdrop-blur-sm pb-2 md:pb-3 px-2 -mx-2 rounded-t-lg`}>
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/[0.06] border border-accent/10 text-sm font-bold text-accent md:h-8 md:w-8 md:text-base">
-                        {letter}
+                    <div className={`sticky ${hasFilters ? "top-[110px]" : "top-[70px]"} z-10 flex justify-start pb-1`}>
+                      <div className="flex items-center gap-2 rounded-full border border-neutral-200/70 bg-white/75 py-1 pl-1 pr-3 shadow-sm backdrop-blur-md">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/[0.07] text-xs font-bold text-accent">
+                          {letter}
+                        </div>
+                        <span className="text-[11px] font-medium text-neutral-500">
+                          {groupedSongs[letter].length} {groupedSongs[letter].length === 1 ? "song" : "songs"}
+                        </span>
                       </div>
-                      <span className="text-[11px] font-medium text-neutral-500">
-                        {groupedSongs[letter].length} {groupedSongs[letter].length === 1 ? "song" : "songs"}
-                      </span>
                     </div>
                     <div className="flex flex-col gap-y-2 md:gap-y-2.5">
                       {groupedSongs[letter].map((song, idx) => {
@@ -950,14 +967,14 @@ useEffect(() => {
             </div>
 
             {/* Alphabet Jump Bar - mobile floating (fixed, so placement inside flex is fine) */}
-            <div className="lg:hidden fixed right-1.5 top-28 bottom-28 z-30 flex flex-col items-center gap-px overflow-y-auto rounded-full border border-neutral-200 bg-white/90 px-0.5 shadow-sm backdrop-blur-md no-scrollbar">
+            <div className={`lg:hidden fixed right-1.5 top-40 bottom-28 z-30 flex flex-col items-center gap-px overflow-y-auto rounded-full border border-neutral-200 bg-white/90 px-0.5 shadow-sm backdrop-blur-md no-scrollbar transition-opacity duration-300 ${pastHeader ? "opacity-100" : "pointer-events-none opacity-0"}`}>
               {alphabet.map((letter) => (
                 <button
                   key={letter}
                   type="button"
                   aria-label={`Jump to ${letter}`}
                   onClick={() => scrollToLetter(letter)}
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-all duration-200 select-none ${
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-all duration-200 select-none first:mt-2 last:mb-2 ${
                     jumpLetter === letter
                       ? "bg-accent text-white scale-110"
                       : "text-neutral-400 active:bg-neutral-100 active:text-neutral-700"
