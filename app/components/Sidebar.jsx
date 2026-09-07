@@ -24,12 +24,12 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="sticky top-0 hidden h-full w-[240px] flex-shrink-0 md:flex lg:w-[260px] bg-white border-r border-neutral-100 shadow-sm">
+    <aside className="sticky top-0 hidden h-full w-[240px] flex-shrink-0 md:flex lg:w-[260px] bg-white border-r border-neutral-200">
       <div className="flex h-full w-full flex-col p-5 pb-20">
 
         {/* Brand */}
         <Link href="/" className="mb-5 flex items-center px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg">
-          <h2 className="text-[17px] font-bold tracking-tight text-neutral-900 leading-none md:text-[18px]">
+          <h2 className="text-[18px] font-bold tracking-tight text-neutral-900 leading-none">
             Luumbo
           </h2>
         </Link>
@@ -41,9 +41,9 @@ const Sidebar = () => {
               key={item.label}
               href={item.href}
               aria-current={item.active ? "page" : undefined}
-              className={`flex items-center gap-x-3 rounded-xl px-3 py-2 text-sm font-semibold tracking-tight transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+              className={`flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-semibold tracking-tight transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                 item.active
-                  ? "bg-accent/8 text-neutral-900"
+                  ? "bg-accent/8 text-accent"
                   : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
               }`}
             >
@@ -61,12 +61,12 @@ const Sidebar = () => {
               Recent
             </p>
             <div className="flex flex-col gap-y-0.5">
-              {recentlyPlayed.slice(0, 5).map((song) => (
+              {recentlyPlayed.slice(0, 4).map((song) => (
                 <button
                   key={song.id}
                   type="button"
                   onClick={() => setActiveSong(song, recentlyPlayed)}
-                  className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-1.5 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                     activeSong?.id === song.id
                       ? "bg-accent/8 text-neutral-900 font-semibold"
                       : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
@@ -109,13 +109,12 @@ const Sidebar = () => {
           ) : (
             <Link
               href="/auth"
-              className="flex items-center gap-x-2.5 rounded-xl px-3 py-2 text-sm font-semibold tracking-tight text-neutral-600 transition-all duration-200 hover:bg-neutral-50 hover:text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+              className="flex items-center gap-x-2.5 rounded-lg px-3 py-2 text-sm font-semibold tracking-tight text-neutral-600 transition-all duration-200 hover:bg-neutral-50 hover:text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             >
               <LogIn size={16} />
               <span>Sign In</span>
             </Link>
           )}
-          <p className="mt-1.5 px-2.5 text-[11px] text-neutral-400 font-medium">Luumbo v1.0</p>
         </div>
       </div>
     </aside>
