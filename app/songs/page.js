@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { PageSkeleton } from "../components/Skeleton";
 import SongAvatar from "../components/SongAvatar";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
+import { getNewestSongs } from "@/lib/newSongs";
 
 import {
   ChevronDown,
@@ -32,11 +33,10 @@ import {
 } from "lucide-react";
 
 
-const timeWindowDays = 30;
-
 const timeFilters = [
   { label: "All", days: null },
-  { label: "New", days: 14 },
+  // "New" is rank-based: the 15 most recently added songs (see lib/newSongs.js)
+  { label: "New", days: null, recent: true },
   { label: "1 Month", days: 30 },
   { label: "3 Months", days: 90 },
   { label: "1 Year", days: 365 },
@@ -65,16 +65,12 @@ const Chip = ({ label, active, onClick }) => (
   </button>
 );
 
-const SongRow = ({ song, onClick, isActive, onCategoryClick, menuUp = false }) => {
+const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menuUp = false }) => {
   const menuPos = menuUp ? "bottom-0 mb-10" : "top-0 mt-10";
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const rowRef = useRef(null);
-  const isNew =
-    song.created_at &&
-    Date.now() - new Date(song.created_at).getTime() <
-      timeWindowDays * 24 * 60 * 60 * 1000;
   const [isSaved, setIsSaved] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
@@ -610,6 +606,11 @@ useEffect(() => {
     fetchSongs();
   }, [setAllSongs, setIsLoading]);
 
+  const newSongIds = useMemo(
+    () => new Set(getNewestSongs(allSongs || []).map((s) => s.id)),
+    [allSongs]
+  );
+
   const filteredSongs = useMemo(() => {
     let songs = [...(allSongs || [])];
 
@@ -624,7 +625,10 @@ useEffect(() => {
 
     if (activeFilter !== "All") {
       const filterObj = timeFilters.find((f) => f.label === activeFilter);
-      if (filterObj?.days) {
+      if (filterObj?.recent) {
+        // "New" = 15 most recently added (rank-based, matches NEW badge).
+        songs = getNewestSongs(songs);
+      } else if (filterObj?.days) {
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - filterObj.days);
         songs = songs.filter((song) => new Date(song.created_at) >= cutoff);
@@ -679,13 +683,10 @@ useEffect(() => {
 
   const stats = useMemo(() => {
     const list = allSongs || [];
-    const cutoff = Date.now() - timeWindowDays * 24 * 60 * 60 * 1000;
     return {
       total: list.length,
       artists: new Set(list.map((s) => s.author).filter(Boolean)).size,
-      new: list.filter(
-        (s) => s.created_at && new Date(s.created_at).getTime() >= cutoff
-      ).length,
+      new: getNewestSongs(list).length,
     };
   }, [allSongs]);
 
@@ -958,6 +959,7 @@ useEffect(() => {
                             key={song.id}
                             song={song}
                             isActive={activeSong?.id === song.id}
+                            isNew={newSongIds.has(song.id)}
                             onClick={() => setActiveSong(song, filteredSongs)}
                             onCategoryClick={handleCategoryClick}
                             menuUp={menuUp}

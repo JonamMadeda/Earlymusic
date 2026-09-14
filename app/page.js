@@ -30,8 +30,7 @@ import {
 } from "lucide-react";
 import LazySection from "./components/LazySection";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
-
-const timeWindowDays = 30;
+import { getNewestSongs } from "@/lib/newSongs";
 
 const verses = [
   { ref: "Psalm 150:6", text: "Let everything that has breath praise the Lord." },
@@ -87,11 +86,8 @@ const ScrollProgress = () => {
 /* --- COMPACT, RETRO-LINED MONOCHROMATIC CARD COMPONENTS --- */
 
 // Horizontal pill card (Used in Jump Back In / Rails)
-const SongRailCard = ({ song, onClick, isActive }) => {
-  const isNew =
-    song.created_at &&
-    Date.now() - new Date(song.created_at).getTime() <
-      timeWindowDays * 24 * 60 * 60 * 1000;
+// "New" badge is rank-based (recent 15) — parent passes isNew explicitly.
+const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
 
   return (
     <button
@@ -143,7 +139,7 @@ const SongRailCard = ({ song, onClick, isActive }) => {
 // Vertical card shared with the songs page (see ./components/FeaturedCard)
 
 // Album-style showcase card (Used in Featured Anthems) with subtle retro grooves
-const SpotifyCard = ({ song, onClick, isActive }) => {
+const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
   const letter = initialLetter(song.title);
   const categoryTag = song.category || "Worship";
 
@@ -190,9 +186,16 @@ const SpotifyCard = ({ song, onClick, isActive }) => {
 
       {/* Track Info */}
       <div className="px-0.5">
-        <p className={`truncate text-xs font-bold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
-          {song.title}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className={`truncate text-xs font-bold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
+            {song.title}
+          </p>
+          {isNew && (
+            <span className="shrink-0 rounded bg-accent px-1 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
+              New
+            </span>
+          )}
+        </div>
         <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
@@ -257,7 +260,7 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
   );
 };
 
-const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, cardType, activeSongId, children }) => {
+const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, cardType, activeSongId, newSongIds, children }) => {
   const Card = cardType === "spotify" ? SpotifyCard : cardType === "featured" ? FeaturedCard : SongRailCard;
   return (
     <section id={id} className="scroll-mt-24">
@@ -302,6 +305,7 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
                 key={song.id}
                 song={song}
                 isActive={song.id === activeSongId}
+                isNew={newSongIds ? newSongIds.has(song.id) : false}
                 onClick={() => onPlay(song)}
               />
             ))
@@ -401,11 +405,15 @@ export default function Home() {
   );
 
   const newestSongs = useMemo(() => {
-    const cutoff = Date.now() - timeWindowDays * 24 * 60 * 60 * 1000;
-    return sortedSongs.filter(
-      (song) => song.created_at && new Date(song.created_at).getTime() >= cutoff
-    );
+    // "New" = 15 most recently added songs (rank-based, not a time window).
+    // This same list drives the NEW badge + Fresh Releases section.
+    return getNewestSongs(sortedSongs);
   }, [sortedSongs]);
+
+  const newSongIds = useMemo(
+    () => new Set(newestSongs.map((song) => song.id)),
+    [newestSongs]
+  );
 
   const featuredSongs = useMemo(() => {
     const praiseFirst = sortedSongs.filter(
@@ -698,6 +706,7 @@ export default function Home() {
                 onPlay={(song) => setActiveSong(song, featuredSongs)}
                 onPlayAll={(song) => setActiveSong(song, featuredSongs)}
                 activeSongId={activeSong?.id}
+                newSongIds={newSongIds}
                 cta={{ href: "/songs" }}
                 cardType="spotify"
               />
@@ -713,6 +722,7 @@ export default function Home() {
                 onPlay={(song) => setActiveSong(song, newestSongs)}
                 onPlayAll={(song) => setActiveSong(song, newestSongs)}
                 activeSongId={activeSong?.id}
+                newSongIds={newSongIds}
                 cta={{ href: "/songs" }}
                 cardType="featured"
               />
@@ -728,6 +738,7 @@ export default function Home() {
                   items={recentlyPlayed}
                   onPlay={(song) => setActiveSong(song, recentlyPlayed)}
                   activeSongId={activeSong?.id}
+                  newSongIds={newSongIds}
                 />
               </LazySection>
             )}

@@ -4,14 +4,10 @@ import { Play } from "lucide-react";
 import SongAvatar from "./SongAvatar";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
 
-const timeWindowDays = 30;
-
-// Vertical card (Used in Fresh Releases / New This Month rails)
-const FeaturedCard = ({ song, onClick, isActive }) => {
-  const isNew =
-    song.created_at &&
-    Date.now() - new Date(song.created_at).getTime() <
-      timeWindowDays * 24 * 60 * 60 * 1000;
+// Vertical card (Used in Fresh Releases / recent-15 rail)
+// "New" badge is rank-based: song must be in the 15 most recent.
+// Pass isNew explicitly from the parent (see lib/newSongs.js).
+const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
 
   return (
     <button
