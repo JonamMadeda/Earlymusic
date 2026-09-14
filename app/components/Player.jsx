@@ -18,7 +18,7 @@ import {
   AlertTriangle,
   ListMusic,
 } from "lucide-react";
-import { getCachedAudioUrl, cacheAudioFile } from "@/lib/cacheUtils";
+import { getCachedAudioUrl, cacheAudioFile, evictCachedAudio } from "@/lib/cacheUtils";
 import SongAvatar, { initialLetter, VinylArtwork } from "./SongAvatar";
 import { useAuth } from "../context/AuthContext";
 
@@ -53,6 +53,8 @@ const Player = () => {
   const skipWhilePausedRef = useRef(false);
   const scrubbingRef = useRef(false);
   const blobUrlRef = useRef(null);
+  const publicUrlRef = useRef(null);
+  const networkFallbackTriedRef = useRef(false);
   const wakeLockRef = useRef(null);
   const errorCountRef = useRef(0);
   const autoAdvanceTimerRef = useRef(null);
@@ -128,6 +130,8 @@ const Player = () => {
   // Reset error count when the song changes
   useEffect(() => {
     errorCountRef.current = 0;
+    networkFallbackTriedRef.current = false;
+    publicUrlRef.current = null;
     clearAutoAdvanceTimer();
   }, [song?.id, clearAutoAdvanceTimer]);
 
@@ -298,6 +302,7 @@ const Player = () => {
 
       try {
         const publicUrl = getAudioPublicUrl(song.song_path);
+        publicUrlRef.current = publicUrl;
 
         const cachedUrl = await getCachedAudioUrl(publicUrl);
         if (cancelled || loadId !== loadIdRef.current) {
@@ -351,6 +356,23 @@ const Player = () => {
 
   const retryPlayback = () => {
     if (!song) return;
+    // A manual retry also heals a bad cached copy: drop it and stream fresh.
+    if (audioUrl?.startsWith("blob:") && publicUrlRef.current && !networkFallbackTriedRef.current) {
+      networkFallbackTriedRef.current = true;
+      evictCachedAudio(publicUrlRef.current).finally(() => {
+        if (blobUrlRef.current) {
+          URL.revokeObjectURL(blobUrlRef.current);
+          blobUrlRef.current = null;
+        }
+        loadIdRef.current += 1;
+        setAudioError(false);
+        errorCountRef.current = 0;
+        clearAutoAdvanceTimer();
+        playRef.current = true;
+        setAudioUrl(publicUrlRef.current);
+      });
+      return;
+    }
     loadIdRef.current += 1;
     setAudioError(false);
     errorCountRef.current = 0;
@@ -419,6 +441,28 @@ const Player = () => {
           }
         }}
         onError={() => {
+          const mediaError = audioRef.current?.error;
+          console.error("Playback error:", {
+            songId: song?.id,
+            title: song?.title,
+            src: audioUrl?.startsWith("blob:") ? "(offline cached copy)" : audioUrl,
+            code: mediaError?.code,
+          });
+          // If the offline cached copy is unplayable, evict it once and fall
+          // back to streaming the network URL instead of failing every retry.
+          if (audioUrl?.startsWith("blob:") && publicUrlRef.current && !networkFallbackTriedRef.current) {
+            networkFallbackTriedRef.current = true;
+            evictCachedAudio(publicUrlRef.current).finally(() => {
+              if (blobUrlRef.current) {
+                URL.revokeObjectURL(blobUrlRef.current);
+                blobUrlRef.current = null;
+              }
+              playRef.current = true;
+              setAudioError(false);
+              setAudioUrl(publicUrlRef.current);
+            });
+            return;
+          }
           playRef.current = false;
           setIsPlaying(false);
           setAudioError(true);
