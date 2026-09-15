@@ -8,13 +8,12 @@ import { useRouter } from "next/navigation";
 import {
   Trash2,
   Upload,
-  ArrowLeft,
+  LogOut,
   ShieldCheck,
   Music,
   Search,
   Edit3,
   FileUp,
-  ChevronDown,
   Activity,
   Play,
   HardDrive,
@@ -38,6 +37,7 @@ export default function AdminDashboard() {
   const { user, loading: authLoading, isAdmin, roleLoading } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("tracks");
   const [adminEmail, setAdminEmail] = useState("");
   const [isGrantingAdmin, setIsGrantingAdmin] = useState(false);
   const [adminMessage, setAdminMessage] = useState("");
@@ -74,6 +74,7 @@ export default function AdminDashboard() {
     if (!authLoading && !roleLoading && isAdmin) {
       fetchSongs();
       fetchAdmins();
+      fetchStorage();
     }
   }, [authLoading, roleLoading, isAdmin]);
 
@@ -512,167 +513,249 @@ const response = await fetch("/api/admin/users", {
   return (
     <main className="min-h-[90vh] bg-neutral-50/60 px-3 pb-36 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-6xl">
-        {/* Header */}
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">Vault</h1>
-              <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-400">
-                {stats.total} tracks
+        {/* Sticky command bar */}
+        <div className="sticky top-2 z-40 mb-3 rounded-xl border border-neutral-200 bg-white/95 shadow-sm backdrop-blur-md">
+          <div className="flex flex-col gap-2 px-4 py-2.5 md:flex-row md:items-center md:gap-3">
+            <div className="flex items-center gap-2 px-1">
+              <h1 className="text-base font-bold tracking-tight text-neutral-900">Vault</h1>
+              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-bold text-neutral-500">
+                {stats.total}
               </span>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleLogout}
-              className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-neutral-200/80 bg-white px-3.5 py-2 text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-50"
-            >
-              <ArrowLeft size={12} /> Sign Out
-            </button>
-            <button
-              onClick={() => router.push("/upload")}
-              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent/90 active:scale-95"
-            >
-              <Upload size={15} strokeWidth={2.5} /> Upload
-            </button>
-          </div>
-        </div>
-
-        {/* Stats row */}
-        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-            <p className="text-2xl font-bold tracking-tight text-neutral-900">{stats.total}</p>
-            <p className="text-[11px] font-medium text-neutral-400">Tracks</p>
-          </div>
-          <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-            <p className="text-2xl font-bold tracking-tight text-neutral-900">{stats.artists}</p>
-            <p className="text-[11px] font-medium text-neutral-400">Artists</p>
-          </div>
-          <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-            <p className="text-2xl font-bold tracking-tight text-neutral-900">{stats.categories}</p>
-            <p className="text-[11px] font-medium text-neutral-400">Categories</p>
-          </div>
-          <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-            <p className="text-2xl font-bold tracking-tight text-neutral-900">{stats.recent}</p>
-            <p className="text-[11px] font-medium text-neutral-400">Added (30d)</p>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-300" size={14} />
+              <input
+                type="text"
+                placeholder="Search tracks or artists..."
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setActiveTab("tracks"); }}
+                className="w-full rounded-lg border border-transparent bg-neutral-100/80 py-2 pl-8 pr-3 text-[13px] font-medium text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-accent focus:bg-white"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleLogout}
+                title="Sign out"
+                aria-label="Sign out"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-900"
+              >
+                <LogOut size={15} />
+              </button>
+              <button
+                onClick={() => router.push("/upload")}
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-accent/90 active:scale-95 md:flex-none"
+              >
+                <Upload size={14} strokeWidth={2.5} /> Upload
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Toolbar */}
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-300" size={15} />
-            <input
-              type="text"
-              placeholder="Search tracks or artists..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-neutral-200 bg-white py-2.5 pl-9 pr-3 text-sm font-medium text-neutral-900 outline-none transition placeholder:text-neutral-300 focus:border-accent"
-            />
-          </div>
+        {/* KPI strip */}
+        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-xs shadow-sm">
+          <span className="font-medium text-neutral-500">
+            <span className="font-bold text-neutral-900">{stats.total}</span> tracks
+            <span className="text-neutral-300"> · </span>
+            <span className="font-bold text-neutral-900">{stats.artists}</span> artists
+          </span>
+          <span className="hidden text-neutral-200 sm:inline">|</span>
           <button
             type="button"
-            onClick={() => {
-              setBulkMessage("");
-              setSelectedIds(selectedIds.length > 0 ? [] : visibleIds);
-            }}
-            disabled={(allSongs || []).length === 0 || !!bulkOp}
-            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-xs font-bold text-neutral-600 shadow-sm transition hover:border-neutral-300 hover:text-neutral-900 disabled:opacity-50"
+            onClick={() => setActiveTab("storage")}
+            className="font-medium text-neutral-500 transition hover:text-neutral-900"
           >
-            <span>{selectedIds.length > 0 ? `Clear (${selectedIds.length})` : "Select"}</span>
+            {storage && typeof storage.totalBytes === "number"
+              ? <><span className="font-bold text-neutral-900">{formatBytes(storage.totalBytes)}</span> · {storage.fileCount} files</>
+              : "Storage…"}
           </button>
+          <span className="hidden text-neutral-200 sm:inline">|</span>
           <button
             type="button"
-            onClick={() => {
-              if (health?.checking) {
-                verifyCancelRef.current = true;
-              } else {
-                verifyAllAudio();
-              }
-            }}
-            disabled={(allSongs || []).length === 0}
-            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-xs font-bold text-neutral-600 shadow-sm transition hover:border-neutral-300 hover:text-neutral-900 disabled:opacity-50"
-            title="Check every track's audio file is reachable"
+            onClick={() => setActiveTab("tracks")}
+            className="inline-flex items-center gap-1.5 font-medium text-neutral-500 transition hover:text-neutral-900"
           >
-            <Activity size={14} className={health?.checking ? "animate-pulse text-accent" : "text-accent"} />
-            <span>
-              {health?.checking ? `Checking ${health.done}/${health.total}…` : "Verify audio"}
-            </span>
+            <span className={`h-2 w-2 rounded-full ${!health ? "bg-neutral-300" : health.checking ? "animate-pulse bg-accent" : healthSummary.broken > 0 ? "bg-red-500" : healthSummary.unknown > 0 ? "bg-amber-400" : "bg-green-500"}`} />
+            {!health ? "Audio unchecked" : health.checking ? "Checking…" : healthSummary.broken > 0 ? `${healthSummary.broken} broken` : healthSummary.unknown > 0 ? `${healthSummary.unknown} unsure` : "Audio OK"}
+          </button>
+          <span className="hidden text-neutral-200 sm:inline">|</span>
+          <button
+            type="button"
+            onClick={() => setActiveTab("team")}
+            className="font-medium text-neutral-500 transition hover:text-neutral-900"
+          >
+            <span className="font-bold text-neutral-900">{admins.length}</span> admins
           </button>
         </div>
 
-        {/* Category + sort */}
-        <div className="mb-6 flex flex-wrap items-center gap-2">
-          {["All", "Worship", "Praise"].map((cat) => (
+        {/* Tabs */}
+        <div className="mb-4 flex gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-white p-1 shadow-sm no-scrollbar">
+          {[
+            { id: "tracks", label: "Tracks" },
+            { id: "storage", label: "Storage", alert: (storage?.orphanCount || 0) > 0 },
+            { id: "team", label: "Team" },
+          ].map((tab) => (
             <button
-              key={cat}
+              key={tab.id}
               type="button"
-              onClick={() => setAdminCategory(cat)}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                adminCategory === cat
-                  ? "border-accent bg-accent text-white shadow-sm"
-                  : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-bold transition ${
+                activeTab === tab.id
+                  ? "bg-neutral-900 text-white shadow-sm"
+                  : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
               }`}
             >
-              {cat}
+              {tab.label}
+              {tab.alert && (
+                <span className={`h-1.5 w-1.5 rounded-full ${activeTab === tab.id ? "bg-amber-400" : "bg-amber-500"}`} />
+              )}
             </button>
           ))}
-          <select
-            value={adminSort}
-            onChange={(e) => setAdminSort(e.target.value)}
-            aria-label="Sort tracks"
-            className="ml-auto rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-600 outline-none transition focus:border-accent"
-          >
-            <option value="title-az">Title A–Z</option>
-            <option value="title-za">Title Z–A</option>
-            <option value="author-az">Artist A–Z</option>
-            <option value="newest">Newest first</option>
-          </select>
         </div>
 
-        {/* Verification summary */}
-        {health && (
-          <div className={`mb-6 rounded-xl border p-4 shadow-sm ${healthSummary.broken > 0 ? "border-red-200 bg-red-50/60" : "border-neutral-200 bg-white"}`}>
-            {health.checking ? (
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-neutral-700">
-                  Checking audio files… {health.done}/{health.total}
-                </p>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
-                  <div
-                    className="h-full bg-accent transition-all duration-200"
-                    style={{ width: `${health.total > 0 ? (health.done / health.total) * 100 : 0}%` }}
-                  />
+        {activeTab === "tracks" && (
+          <>
+            {/* Tracks toolbar — docks into the bulk bar on selection */}
+            {selectedIds.length > 0 || bulkOp ? (
+              <div className="mb-4 rounded-xl bg-neutral-900 px-4 py-2.5 text-white shadow-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-1 text-xs font-bold">
+                    {bulkOp ? `${bulkOp.action} ${bulkOp.done + 1}/${bulkOp.total}…` : `${selectedIds.length} selected`}
+                  </span>
+                  {bulkOp ? (
+                    <>
+                      {bulkOp.action === "Deleting" && (
+                        <button
+                          type="button"
+                          onClick={() => { bulkCancelRef.current = true; }}
+                          className="ml-auto rounded-lg bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20"
+                        >
+                          Stop
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <select
+                        value={bulkCategory}
+                        onChange={(e) => setBulkCategory(e.target.value)}
+                        aria-label="Bulk category"
+                        className="rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-xs font-semibold text-white outline-none transition focus:border-white/40 [&>option]:text-neutral-900"
+                      >
+                        <option value="">Category…</option>
+                        <option value="Worship">Worship</option>
+                        <option value="Praise">Praise</option>
+                      </select>
+                      <select
+                        value={bulkDuration}
+                        onChange={(e) => setBulkDuration(e.target.value)}
+                        aria-label="Bulk duration"
+                        className="rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-xs font-semibold text-white outline-none transition focus:border-white/40 [&>option]:text-neutral-900"
+                      >
+                        <option value="">Duration…</option>
+                        <option value="Long">Long</option>
+                        <option value="Short">Short</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={bulkApply}
+                        className="rounded-lg bg-white px-3.5 py-2 text-xs font-bold text-neutral-900 transition hover:bg-neutral-100 active:scale-95"
+                      >
+                        Apply
+                      </button>
+                      <button
+                        type="button"
+                        onClick={requestBulkDelete}
+                        className="rounded-lg bg-red-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-red-500 active:scale-95"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Clear selection"
+                        onClick={() => { setSelectedIds([]); setBulkMessage(""); }}
+                        className="ml-auto rounded-lg p-2 text-white/50 transition hover:bg-white/10 hover:text-white"
+                      >
+                        <X size={14} />
+                      </button>
+                    </>
+                  )}
                 </div>
+                {bulkOp && (
+                  <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/15">
+                    <div
+                      className="h-full bg-white transition-all duration-200"
+                      style={{ width: `${bulkOp.total > 0 ? (bulkOp.done / bulkOp.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                )}
+                {bulkMessage && !bulkOp && (
+                  <p className="mt-2 text-xs font-medium text-white/70">{bulkMessage}</p>
+                )}
               </div>
             ) : (
-              <div>
-                <p className="text-xs font-bold text-neutral-800">
-                  Audio check complete: {healthSummary.healthy} healthy
-                  {healthSummary.broken > 0 && <span className="text-red-600"> · {healthSummary.broken} broken</span>}
-                  {healthSummary.unknown > 0 && <span className="text-amber-600"> · {healthSummary.unknown} unreachable</span>}
-                </p>
-                {healthSummary.broken > 0 && (
-                  <p className="mt-1 text-xs text-neutral-500">
-                    Broken tracks are flagged inline below with their HTTP status — replace or re-upload those files.
-                  </p>
-                )}
-                {healthSummary.unknown > 0 && (
-                  <p className="mt-1 text-xs text-neutral-500">
-                    Unreachable means this browser couldn&apos;t contact storage (network or ad-blocker), not that the files are broken. Re-run on a stable connection if unsure.
-                  </p>
-                )}
-                {healthSummary.broken === 0 && healthSummary.unknown === 0 && (
-                  <p className="mt-1 text-xs text-neutral-500">Every track&apos;s audio file answered successfully.</p>
-                )}
+              <div className="mb-4 flex flex-wrap items-center gap-2 px-4">
+                {["All", "Worship", "Praise"].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setAdminCategory(cat)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                      adminCategory === cat
+                        ? "border-accent bg-accent text-white shadow-sm"
+                        : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+                <div className="ml-auto flex items-center gap-2">
+                  <select
+                    value={adminSort}
+                    onChange={(e) => setAdminSort(e.target.value)}
+                    aria-label="Sort tracks"
+                    className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-600 outline-none transition focus:border-accent"
+                  >
+                    <option value="title-az">Title A–Z</option>
+                    <option value="title-za">Title Z–A</option>
+                    <option value="author-az">Artist A–Z</option>
+                    <option value="newest">Newest first</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBulkMessage("");
+                      setSelectedIds(selectedIds.length > 0 ? [] : visibleIds);
+                    }}
+                    disabled={(allSongs || []).length === 0 || !!bulkOp}
+                    className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-bold text-neutral-600 shadow-sm transition hover:border-neutral-300 hover:text-neutral-900 disabled:opacity-50"
+                  >
+                    Select
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (health?.checking) {
+                        verifyCancelRef.current = true;
+                      } else {
+                        verifyAllAudio();
+                      }
+                    }}
+                    disabled={(allSongs || []).length === 0}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-bold text-neutral-600 shadow-sm transition hover:border-neutral-300 hover:text-neutral-900 disabled:opacity-50"
+                    title="Check every track's audio file is reachable"
+                  >
+                    <Activity size={13} className={health?.checking ? "animate-pulse text-accent" : "text-accent"} />
+                    <span>
+                      {health?.checking ? `${health.done}/${health.total}` : "Verify"}
+                    </span>
+                  </button>
+                </div>
               </div>
             )}
-          </div>
-        )}
 
         {/* Bulk result message (visible after the selection clears) */}
         {bulkMessage && selectedIds.length === 0 && !bulkOp && (
-          <div className="mb-6 flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-xs font-semibold text-neutral-600 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-xs font-semibold text-neutral-600 shadow-sm">
             <span className="flex-1">{bulkMessage}</span>
             <button
               type="button"
@@ -685,14 +768,17 @@ const response = await fetch("/api/admin/users", {
           </div>
         )}
 
-        {/* Admin access — collapsible */}
-        <details className="group mb-6">
-          <summary className="flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-xs font-semibold text-neutral-500 shadow-sm transition hover:text-neutral-900 hover:border-neutral-300 list-none [&::-webkit-details-marker]:hidden">
-            <ShieldCheck size={14} className="text-accent" />
-            <span>Administrator access</span>
-            <ChevronDown size={12} className="ml-auto transition-transform group-open:rotate-180" />
-          </summary>
-          <div className="mt-2 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+          </>
+        )}
+
+        {/* Team tab */}
+        {activeTab === "team" && (
+          <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-5">
+            <div className="mb-1 flex items-center gap-2">
+              <ShieldCheck size={14} className="text-accent" />
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Team</h2>
+            </div>
+            <div>
             <p className="mb-3 text-xs leading-relaxed text-neutral-500">Grant dashboard access to an account that has already signed up.</p>
             <form onSubmit={handleGrantAdmin} className="flex w-full gap-2">
               <input
@@ -755,21 +841,30 @@ const response = await fetch("/api/admin/users", {
               )}
             </div>
           </div>
-        </details>
+          </section>
+        )}
 
-        {/* Storage — collapsible */}
-        <details className="group mb-6" onToggle={(e) => { if (e.currentTarget.open && !storage && !cleaning) fetchStorage(); }}>
-          <summary className="flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-xs font-semibold text-neutral-500 shadow-sm transition hover:text-neutral-900 hover:border-neutral-300 list-none [&::-webkit-details-marker]:hidden">
-            <HardDrive size={14} className="text-accent" />
-            <span>Storage</span>
-            {storage && !storage.loading && typeof storage.totalBytes === "number" && (
-              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-bold text-neutral-500">
-                {formatBytes(storage.totalBytes)} · {storage.fileCount} files
-              </span>
-            )}
-            <ChevronDown size={12} className="ml-auto transition-transform group-open:rotate-180" />
-          </summary>
-          <div className="mt-2 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+        {/* Storage tab */}
+        {activeTab === "storage" && (
+          <>
+          <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <HardDrive size={14} className="text-accent" />
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Storage</h2>
+              {storage && !storage.loading && typeof storage.totalBytes === "number" && (
+                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-bold text-neutral-500">
+                  {formatBytes(storage.totalBytes)} · {storage.fileCount} files
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={fetchStorage}
+                className="ml-auto text-xs font-bold text-neutral-400 transition hover:text-neutral-900"
+              >
+                Refresh
+              </button>
+            </div>
+            <div>
             {storage?.loading ? (
               <p className="py-2 text-xs text-neutral-400">Reading storage…</p>
             ) : storage && typeof storage.totalBytes === "number" ? (
@@ -817,13 +912,63 @@ const response = await fetch("/api/admin/users", {
                 </button>
               </div>
             )}
-          </div>
-        </details>
+            </div>
 
-        {/* Song list */}
+            {/* Verification results */}
+            <div className="mt-4 border-t border-neutral-100 pt-4">
+              <div className="mb-2 flex items-center gap-2">
+                <Activity size={14} className="text-accent" />
+                <h3 className="text-xs font-bold text-neutral-900">Audio verification</h3>
+                <button
+                  type="button"
+                  onClick={() => { if (!health?.checking) verifyAllAudio(); }}
+                  disabled={(allSongs || []).length === 0 || health?.checking}
+                  className="ml-auto rounded-full bg-neutral-900 px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-neutral-700 disabled:opacity-50"
+                >
+                  {health?.checking ? `Checking ${health.done}/${health.total}…` : health ? "Run again" : "Run verification"}
+                </button>
+              </div>
+              {!health ? (
+                <p className="text-xs text-neutral-400">
+                  Check every track&apos;s audio file is reachable. Problem tracks get a red dot in the Tracks tab.
+                </p>
+              ) : health.checking ? (
+                <div className="space-y-2">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
+                    <div
+                      className="h-full bg-accent transition-all duration-200"
+                      style={{ width: `${health.total > 0 ? (health.done / health.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs font-bold text-neutral-800">
+                    {healthSummary.healthy} healthy
+                    {healthSummary.broken > 0 && <span className="text-red-600"> · {healthSummary.broken} broken</span>}
+                    {healthSummary.unknown > 0 && <span className="text-amber-600"> · {healthSummary.unknown} unreachable</span>}
+                  </p>
+                  {healthSummary.unknown > 0 && (
+                    <p className="mt-1 text-xs text-neutral-500">
+                      Unreachable means this browser couldn&apos;t contact storage (network or ad-blocker), not that the files are broken.
+                    </p>
+                  )}
+                  {healthSummary.broken === 0 && healthSummary.unknown === 0 && (
+                    <p className="mt-1 text-xs text-neutral-500">Every track&apos;s audio file answered successfully.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+          </>
+        )}
+
+        {activeTab === "tracks" && (
         <div className="flex flex-col">
+          {/* Song list */}
           {/* Column headers — desktop only */}
-          <div className="hidden md:grid md:grid-cols-[1fr_180px_120px_96px] gap-4 px-4 py-2 text-[11px] font-semibold uppercase tracking-widest text-neutral-300">
+          <div className="hidden md:grid md:grid-cols-[32px_minmax(0,1fr)_180px_110px_158px] gap-3 px-4 py-2 text-[11px] font-semibold uppercase tracking-widest text-neutral-300">
+            <span />
             <span>Track</span>
             <span>Artist</span>
             <span>Category</span>
@@ -838,24 +983,31 @@ const response = await fetch("/api/admin/users", {
           ) : (
             alphabet.map((letter) => (
               <div key={letter} className="mb-2">
-                <div className="sticky top-0 z-10 bg-neutral-50/60 backdrop-blur-sm pb-1 pt-3">
+                <div className="sticky top-0 z-10 bg-neutral-50/60 backdrop-blur-sm px-4 pb-1 pt-3">
                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-accent/10 bg-accent/[0.06] text-[10px] font-bold text-accent">{letter}</span>
                 </div>
                 <div className="flex flex-col gap-y-1">
-                  {groupedSongs[letter].map((song, idx) => {
+                  {groupedSongs[letter].map((song) => {
                     const audioResult = health?.results?.[song.id];
-                    const audioBad = !!audioResult && !audioResult.ok;
                     return (
                     <div
                       key={song.id}
-                      className={`group grid grid-cols-[1fr_auto] md:grid-cols-[1fr_180px_120px_96px] gap-4 items-center rounded-xl border px-2.5 py-2 shadow-sm transition hover:shadow-sm md:px-4 ${
+                      className={`group grid grid-cols-[1fr_auto] md:grid-cols-[32px_minmax(0,1fr)_180px_110px_158px] gap-3 items-center rounded-xl border px-4 py-2 md:py-1.5 shadow-sm transition hover:shadow-sm ${
                         selectedIds.includes(song.id)
                           ? "border-accent/50 bg-accent/[0.04] hover:border-accent/60"
-                          : audioBad
-                            ? "border-red-200 bg-red-50/50 hover:border-red-300"
-                            : "border-transparent bg-white hover:border-neutral-200"
+                          : "border-transparent bg-white hover:border-neutral-200"
                       }`}
                     >
+                      {/* Select — desktop grid column */}
+                      <span className="hidden w-8 items-center justify-center md:flex">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(song.id)}
+                          onChange={() => toggleSelect(song.id)}
+                          aria-label={`Select ${song.title}`}
+                          className="h-4 w-4 cursor-pointer accent-accent"
+                        />
+                      </span>
                       {/* Track */}
                       <div className="flex items-center gap-3 min-w-0">
                         <input
@@ -863,22 +1015,12 @@ const response = await fetch("/api/admin/users", {
                           checked={selectedIds.includes(song.id)}
                           onChange={() => toggleSelect(song.id)}
                           aria-label={`Select ${song.title}`}
-                          className="h-4 w-4 shrink-0 cursor-pointer accent-accent"
+                          className="h-4 w-4 shrink-0 cursor-pointer accent-accent md:hidden"
                         />
-                        <span className="hidden md:inline text-[12px] font-mono text-neutral-300 w-5 text-right shrink-0">{idx + 1}</span>
                         <SongAvatar title={song.title} size="xs" variant="mono" />
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-neutral-900 leading-tight">{song.title}</p>
                           <p className="truncate text-[12px] font-medium text-neutral-400 md:hidden">{song.author}</p>
-                          {audioBad && (
-                            <p className="mt-0.5 inline-block rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
-                              {audioResult.error === "http"
-                                ? `Audio broken (${audioResult.status})`
-                                : audioResult.error === "missing"
-                                  ? "Audio file missing"
-                                  : "Audio unreachable"}
-                            </p>
-                          )}
                         </div>
                       </div>
 
@@ -899,6 +1041,24 @@ const response = await fetch("/api/admin/users", {
 
                       {/* Actions */}
                       <div className="flex items-center justify-end gap-1">
+                        {audioResult && (
+                          <button
+                            type="button"
+                            title={
+                              audioResult.ok
+                                ? "Audio OK"
+                                : audioResult.error === "http"
+                                  ? `Audio broken (${audioResult.status}) — see Storage tab`
+                                  : audioResult.error === "missing"
+                                    ? "Audio file missing — see Storage tab"
+                                    : "Audio unreachable — see Storage tab"
+                            }
+                            onClick={() => setActiveTab("storage")}
+                            className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                              audioResult.ok ? "bg-green-500" : audioResult.error === "http" ? "bg-red-500" : "bg-amber-400"
+                            }`}
+                          />
+                        )}
                         <button
                           onClick={() => setActiveSong(song, allSongs)}
                           className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
@@ -940,90 +1100,6 @@ const response = await fetch("/api/admin/users", {
             ))
           )}
         </div>
-
-        {/* Floating bulk action bar */}
-        {selectedIds.length > 0 && (
-          <div className="pointer-events-none fixed inset-x-3 bottom-24 z-40 flex justify-center md:bottom-8">
-            <div className="pointer-events-auto w-full max-w-2xl rounded-2xl border border-neutral-800 bg-neutral-900 p-3 text-white shadow-xl">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-1 text-xs font-bold">
-                  {selectedIds.length} selected
-                </span>
-                {bulkOp ? (
-                  <>
-                    <span className="flex-1 text-xs font-medium text-white/70">
-                      {bulkOp.action} {bulkOp.done + 1}/{bulkOp.total}…
-                    </span>
-                    {bulkOp.action === "Deleting" && (
-                      <button
-                        type="button"
-                        onClick={() => { bulkCancelRef.current = true; }}
-                        className="rounded-lg bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20"
-                      >
-                        Stop
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <select
-                      value={bulkCategory}
-                      onChange={(e) => setBulkCategory(e.target.value)}
-                      aria-label="Bulk category"
-                      className="rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-xs font-semibold text-white outline-none transition focus:border-white/40 [&>option]:text-neutral-900"
-                    >
-                      <option value="">Category…</option>
-                      <option value="Worship">Worship</option>
-                      <option value="Praise">Praise</option>
-                    </select>
-                    <select
-                      value={bulkDuration}
-                      onChange={(e) => setBulkDuration(e.target.value)}
-                      aria-label="Bulk duration"
-                      className="rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-xs font-semibold text-white outline-none transition focus:border-white/40 [&>option]:text-neutral-900"
-                    >
-                      <option value="">Duration…</option>
-                      <option value="Long">Long</option>
-                      <option value="Short">Short</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={bulkApply}
-                      className="rounded-lg bg-white px-3.5 py-2 text-xs font-bold text-neutral-900 transition hover:bg-neutral-100 active:scale-95"
-                    >
-                      Apply
-                    </button>
-                    <button
-                      type="button"
-                      onClick={requestBulkDelete}
-                      className="rounded-lg bg-red-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-red-500 active:scale-95"
-                    >
-                      Delete
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Clear selection"
-                      onClick={() => { setSelectedIds([]); setBulkMessage(""); }}
-                      className="rounded-lg p-2 text-white/50 transition hover:bg-white/10 hover:text-white"
-                    >
-                      <X size={14} />
-                    </button>
-                  </>
-                )}
-              </div>
-              {bulkOp && (
-                <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/15">
-                  <div
-                    className="h-full bg-white transition-all duration-200"
-                    style={{ width: `${bulkOp.total > 0 ? (bulkOp.done / bulkOp.total) * 100 : 0}%` }}
-                  />
-                </div>
-              )}
-              {bulkMessage && !bulkOp && (
-                <p className="mt-2 text-xs font-medium text-white/70">{bulkMessage}</p>
-              )}
-            </div>
-          </div>
         )}
       </div>
 
