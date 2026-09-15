@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { apiFetch } from "@/lib/apiFetch";
 import { usePlayer } from "./context/PlayerContext";
 import { useAuth } from "./context/AuthContext";
 import { PageSkeleton } from "./components/Skeleton";
@@ -365,14 +365,7 @@ export default function Home() {
           }
         }
 
-        const { data, error } = await supabase
-          .from("songs")
-          .select("*")
-          .order("title", { ascending: true });
-
-        if (error) {
-          throw error;
-        }
+        const data = await apiFetch("/api/data/songs?order=title&ascending=true");
 
         if (data) {
           setAllSongs(data);
@@ -636,7 +629,7 @@ export default function Home() {
           <div className="space-y-6 md:space-y-7">
             {loadError && (
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs font-semibold text-neutral-800">
-                Songs could not be loaded. Check your connection or Supabase configuration and try again.
+                Songs could not be loaded. Check your connection and try again.
               </div>
             )}
 

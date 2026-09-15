@@ -1,33 +1,13 @@
-import { createClient, User } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getAdminFromRequest } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { db } from "@/lib/neon";
 
-const findUserByEmail = async (email: string) => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured.");
-  }
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  const normalizedEmail = email.trim().toLowerCase();
-
-  for (let page = 1; page <= 100; page += 1) {
-    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error) throw error;
-
-    const users = data.users as User[];
-    const user = users.find((candidate) => candidate.email?.toLowerCase() === normalizedEmail);
-    if (user) return { supabase, user };
-    if (users.length < 1000) break;
-  }
-
-  return { supabase, user: null };
-};
-
-export async function POST(request: NextRequest) {  try {
+export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(request, { name: "admin-grant", limit: 15, windowMs: 60_000 });
+  if (limited) return limited;
+  try {
     const admin = await getAdminFromRequest(request);
     if (!admin) {
       return NextResponse.json({ error: "Administrator access is required." }, { status: 403 });
@@ -42,67 +22,55 @@ export async function POST(request: NextRequest) {  try {
       return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
     }
 
-    const { supabase, user } = await findUserByEmail(normalizedEmail);
+    const { rows: users } = await db.query(
+      "SELECT id, email FROM public.users WHERE email = $1",
+      [normalizedEmail]
+    );
+    const user = users?.[0];
     if (!user) {
-      return NextResponse.json({ error: "No Supabase account exists for that email address." }, { status: 404 });
+      return NextResponse.json({ error: "No account exists for that email address." }, { status: 404 });
     }
 
-    const { error } = await supabase.from("user_roles").upsert({
-      user_id: user.id,
-      role: "admin",
+    await db.query(
+      `INSERT INTO public.user_roles (user_id, role) VALUES ($1, 'admin') ON CONFLICT DO NOTHING`,
+      [user.id]
+    );
+
+    await logAdminAction({
+      actorId: admin.user.id,
+      action: "admin.grant",
+      target: user.email || null,
+      detail: { granted_user_id: user.id },
     });
-    if (error) throw error;
 
     return NextResponse.json({ email: user.email, message: "Administrator access granted." });
   } catch (error) {
     console.error("Unable to grant administrator access:", error);
-    const message = error instanceof Error && error.message === "SUPABASE_SERVICE_ROLE_KEY is not configured."
-      ? "Server administrator configuration is incomplete."
-      : "Unable to grant administrator access.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to grant administrator access." }, { status: 500 });
   }
 }
 
-const getServiceClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured.");
-  }
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-};
-
 export async function GET(request: NextRequest) {
+  const limited = checkRateLimit(request, { name: "admin-list", limit: 120, windowMs: 60_000 });
+  if (limited) return limited;
   try {
     const admin = await getAdminFromRequest(request);
     if (!admin) {
       return NextResponse.json({ error: "Administrator access is required." }, { status: 403 });
     }
 
-    const supabase = getServiceClient();
-    const { data: roles, error: rolesError } = await supabase
-      .from("user_roles")
-      .select("user_id, created_at")
-      .eq("role", "admin")
-      .order("created_at", { ascending: true });
-    if (rolesError) throw rolesError;
-
-    const emailById = new Map<string, string>();
-    for (let page = 1; page <= 100; page += 1) {
-      const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
-      if (error) throw error;
-      for (const u of data.users as User[]) {
-        if (u.email) emailById.set(u.id, u.email);
-      }
-      if (data.users.length < 1000) break;
-    }
+    const { rows: roles } = await db.query(
+      `SELECT ur.user_id, ur.created_at, u.email
+       FROM public.user_roles ur
+       JOIN public.users u ON u.id = ur.user_id
+       WHERE ur.role = 'admin'
+       ORDER BY ur.created_at ASC`
+    );
 
     return NextResponse.json({
-      admins: (roles || []).map((r) => ({
+      admins: (roles || []).map((r: any) => ({
         user_id: r.user_id,
-        email: emailById.get(r.user_id) || "Unknown account",
+        email: r.email || "Unknown account",
         created_at: r.created_at,
       })),
     });
@@ -113,6 +81,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const limited = checkRateLimit(request, { name: "admin-revoke", limit: 15, windowMs: 60_000 });
+  if (limited) return limited;
   try {
     const admin = await getAdminFromRequest(request);
     if (!admin) {
@@ -132,25 +102,26 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "You cannot revoke your own administrator access." }, { status: 400 });
     }
 
-    const supabase = getServiceClient();
-    const { data: roles, error: countError } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "admin");
-    if (countError) throw countError;
+    const { rows: roles } = await db.query(
+      "SELECT user_id FROM public.user_roles WHERE role = 'admin'"
+    );
     if ((roles || []).length <= 1) {
       return NextResponse.json({ error: "Cannot remove the last administrator." }, { status: 400 });
     }
 
-    const { error: deleteError, count } = await supabase
-      .from("user_roles")
-      .delete({ count: "exact" })
-      .eq("user_id", userId)
-      .eq("role", "admin");
-    if (deleteError) throw deleteError;
-    if (!count) {
+    const { rowCount } = await db.query(
+      "DELETE FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
+      [userId]
+    );
+    if (!rowCount) {
       return NextResponse.json({ error: "Administrator not found." }, { status: 404 });
     }
+
+    await logAdminAction({
+      actorId: admin.user.id,
+      action: "admin.revoke",
+      target: userId,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

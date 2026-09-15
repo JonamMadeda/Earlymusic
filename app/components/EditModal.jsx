@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
+
 import { X, Plus, Trash2 } from "lucide-react";
 
 const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
@@ -55,23 +55,29 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
     try {
       setIsLoading(true);
 
-      const { data, error } = await supabase
-        .from("songs")
-        .update({
+      const token = localStorage.getItem("auth-token");
+      const res = await fetch("/api/data/songs", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          id: song.id,
           title: title,
           author: author,
           original_songs: originalSongs.filter(s => s.title || s.artist),
           category: category.trim(),
           duration: duration,
-        })
-        .eq("id", song.id)
-        .select();
+        }),
+      });
 
-      if (error) throw error;
+      if (!res.ok) throw new Error("Update failed");
+      const data = await res.json();
 
       // Clear cache so other pages see the update
       localStorage.removeItem("lumbo_songs_cache");
-      if (data && data[0]) onSuccess(data[0]);
+      if (data) onSuccess(data);
       onClose();
     } catch (error) {
       console.error("Update failed:", error);

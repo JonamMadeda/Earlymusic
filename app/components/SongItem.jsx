@@ -12,7 +12,7 @@ import {
   Play,
 } from "lucide-react";
 import SongAvatar from "@/app/components/SongAvatar";
-import { supabase } from "@/lib/supabaseClient";
+
 import { useAuth } from "@/app/context/AuthContext";
 
 /**
@@ -61,25 +61,23 @@ const SongItem = ({ song, onClick, saved, onToggleSave }) => {
       setInternalSaved(false);
       return;
     }
-
-    supabase
-      .from("saved_songs")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("song_id", song.id)
-      .maybeSingle()
-      .then(({ data }) => setInternalSaved(!!data))
+    const token = localStorage.getItem("auth-token");
+    fetch(`/api/data/saved-songs?user_id=${user.id}&song_id=${song.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setInternalSaved(Array.isArray(data) && data.length > 0))
       .catch((error) => console.error("Unable to check saved song:", error));
   }, [user, song.id, saved]);
 
   useEffect(() => {
     if (showPlaylists && user) {
-      supabase
-        .from("playlists")
-        .select("id, name")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .then(({ data }) => setPlaylists(data || []))
+      const token = localStorage.getItem("auth-token");
+      fetch(`/api/data/playlists?user_id=${user.id}&order_by=created_at&ascending=false`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => setPlaylists(Array.isArray(data) ? data : []))
         .catch((error) => console.error("Unable to load playlists:", error));
     }
   }, [showPlaylists, user]);
@@ -93,20 +91,24 @@ const SongItem = ({ song, onClick, saved, onToggleSave }) => {
       router.push(`/auth?redirectTo=${encodeURIComponent(pathname)}`);
       return;
     }
+    const token = localStorage.getItem("auth-token");
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
     try {
       if (internalSaved) {
-        const { error } = await supabase
-          .from("saved_songs")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("song_id", song.id);
-        if (error) throw error;
+        const res = await fetch("/api/data/saved-songs", {
+          method: "DELETE",
+          headers,
+          body: JSON.stringify({ filters: { user_id: user.id, song_id: song.id } }),
+        });
+        if (!res.ok) throw new Error("Failed to unlike");
         setInternalSaved(false);
       } else {
-        const { error } = await supabase
-          .from("saved_songs")
-          .insert({ user_id: user.id, song_id: song.id });
-        if (error) throw error;
+        const res = await fetch("/api/data/saved-songs", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ user_id: user.id, song_id: song.id }),
+        });
+        if (!res.ok) throw new Error("Failed to like");
         setInternalSaved(true);
       }
     } catch (error) {
@@ -116,19 +118,21 @@ const SongItem = ({ song, onClick, saved, onToggleSave }) => {
 
   const addToPlaylist = async (e, playlistId) => {
     e.stopPropagation();
+    const token = localStorage.getItem("auth-token");
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
     try {
-      const { data: existing, error: checkError } = await supabase
-        .from("playlist_songs")
-        .select("id")
-        .eq("playlist_id", playlistId)
-        .eq("song_id", song.id)
-        .maybeSingle();
-      if (checkError) throw checkError;
-      if (existing) return;
-      const { error } = await supabase
-        .from("playlist_songs")
-        .insert({ playlist_id: playlistId, song_id: song.id });
-      if (error) throw error;
+      const checkRes = await fetch(
+        `/api/data/playlist-songs?playlist_id=${playlistId}&song_id=${song.id}`,
+        { headers }
+      );
+      const existing = await checkRes.json();
+      if (Array.isArray(existing) && existing.length > 0) return;
+      const res = await fetch("/api/data/playlist-songs", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ playlist_id: playlistId, song_id: song.id }),
+      });
+      if (!res.ok) throw new Error("Failed to add to playlist");
     } catch (error) {
       console.error("Unable to add song to playlist:", error);
     }
@@ -138,20 +142,23 @@ const SongItem = ({ song, onClick, saved, onToggleSave }) => {
     e.stopPropagation();
     const name = newPlaylistName.trim();
     if (!name || !user) return;
-
+    const token = localStorage.getItem("auth-token");
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
     try {
-      const { data: pl, error: createError } = await supabase
-        .from("playlists")
-        .insert({ name, user_id: user.id })
-        .select()
-        .single();
-      if (createError) throw createError;
-
+      const createRes = await fetch("/api/data/playlists", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ name, user_id: user.id }),
+      });
+      if (!createRes.ok) throw new Error("Failed to create playlist");
+      const pl = await createRes.json();
       if (pl) {
-        const { error } = await supabase
-          .from("playlist_songs")
-          .insert({ playlist_id: pl.id, song_id: song.id });
-        if (error) throw error;
+        const res = await fetch("/api/data/playlist-songs", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ playlist_id: pl.id, song_id: song.id }),
+        });
+        if (!res.ok) throw new Error("Failed to add to playlist");
         setNewPlaylistName("");
         setShowPlaylists(false);
       }

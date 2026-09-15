@@ -24,7 +24,7 @@ self.addEventListener("message", (event) => {
   }
 });
 
-const SUPABASE_AUDIO_ORIGIN = "https://nrwjnbpypbchxrcyqbca.supabase.co";
+const R2_AUDIO_ORIGIN = "https://pub-689c88e5cea643f48059e6ea3c3f8923.r2.dev";
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
@@ -36,7 +36,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.origin === SUPABASE_AUDIO_ORIGIN && url.pathname.includes("/songs/")) {
+  if (url.origin === R2_AUDIO_ORIGIN && url.pathname.includes("/audio/")) {
     event.respondWith(
       fromCache(request, AUDIO_CACHE).then((res) => res || fetch(request).catch(() => new Response("", { status: 503 })))
     );

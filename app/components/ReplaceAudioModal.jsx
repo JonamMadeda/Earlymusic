@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
+
 import { X, FileUp, Trash2, UploadCloud } from "lucide-react";
 import { removeDownload, isSongDownloaded } from "@/lib/downloadManager";
 import { evictCachedAudio } from "@/lib/cacheUtils";
@@ -75,8 +75,7 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
       setProgress(0);
       setStatus("Preparing secure upload…");
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
+      const accessToken = localStorage.getItem("auth-token");
       if (!accessToken) throw new Error("Sign in again before replacing audio.");
 
       const signingResponse = await fetch("/api/upload", {
@@ -106,12 +105,16 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
 
       setStatus("Pointing track at the new file…");
       setProgress(75);
-      const { data, error } = await supabase
-        .from("songs")
-        .update({ song_path: uploadedStorageUrl })
-        .eq("id", song.id)
-        .select();
-      if (error) throw error;
+      const updateRes = await fetch("/api/data/songs", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ id: song.id, song_path: uploadedStorageUrl }),
+      });
+      if (!updateRes.ok) throw new Error("Failed to update song");
+      const data = await updateRes.json();
 
       // Old file is now unreferenced — remove it (best-effort).
       if (oldStorageUrl && oldStorageUrl !== uploadedStorageUrl) {
@@ -136,9 +139,9 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
       console.error("Replace audio failed:", error);
       // The new file never got linked — clean it up so it doesn't orphan.
       if (uploadedStorageUrl) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session?.access_token) {
-          await deleteR2Object(sessionData.session.access_token, uploadedStorageUrl);
+        const cleanupToken = localStorage.getItem("auth-token");
+        if (cleanupToken) {
+          await deleteR2Object(cleanupToken, uploadedStorageUrl);
         }
       }
       setIsError(true);

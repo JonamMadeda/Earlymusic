@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import { getAudioPublicUrl } from "@/lib/audioUrl";
 import { verifyAudioUrl, summarizeHealth } from "@/lib/audioHealth";
 import { useRouter } from "next/navigation";
@@ -17,16 +16,48 @@ import {
   Activity,
   Play,
   HardDrive,
+  History,
   X,
 } from "lucide-react";
 import EditModal from "../components/EditModal";
 import ReplaceAudioModal from "../components/ReplaceAudioModal";
 import ConfirmModal from "../components/ConfirmModal";
 
+const authHeaders = () => {
+  const token = localStorage.getItem("auth-token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const authedFetch = async (url, opts = {}) => {
+  const res = await fetch(url, {
+    ...opts,
+    headers: { "Content-Type": "application/json", ...authHeaders(), ...opts.headers },
+  });
+  return res;
+};
+
 const formatBytes = (bytes) => {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 MB";
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
   return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+};
+
+const timeAgo = (iso) => {
+  const ts = new Date(iso).getTime();
+  if (!Number.isFinite(ts)) return "—";
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  const d = Math.floor(s / 86400);
+  return d === 1 ? "yesterday" : `${d}d ago`;
+};
+
+const AUDIT_ACTIONS = {
+  "admin.grant": { label: "Granted admin", dot: "bg-green-500" },
+  "admin.revoke": { label: "Revoked admin", dot: "bg-red-500" },
+  "song.delete": { label: "Deleted track", dot: "bg-red-500" },
+  "storage.orphan_delete": { label: "Deleted orphan file", dot: "bg-amber-400" },
 };
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
@@ -56,6 +87,7 @@ export default function AdminDashboard() {
   const [cleaning, setCleaning] = useState(null);
   const [admins, setAdmins] = useState([]);
   const [adminsLoading, setAdminsLoading] = useState(false);
+  const [audit, setAudit] = useState(null);
   const toastTimerRef = useRef(null);
   const verifyRunningRef = useRef(false);
   const verifyCancelRef = useRef(false);
@@ -67,7 +99,7 @@ export default function AdminDashboard() {
 
   const router = useRouter();
   const handleLogout = () => {
-    supabase.auth.signOut().finally(() => router.replace("/"));
+    fetch("/api/auth/signout", { method: "POST" }).finally(() => router.replace("/"));
   };
 
   useEffect(() => {
@@ -78,15 +110,23 @@ export default function AdminDashboard() {
     }
   }, [authLoading, roleLoading, isAdmin]);
 
+  // Load the audit trail lazily on first visit to the Activity tab.
+  useEffect(() => {
+    if (activeTab === "activity" && !audit && !authLoading && !roleLoading && isAdmin) {
+      fetchAudit();
+    }
+  }, [activeTab, audit, authLoading, roleLoading, isAdmin]);
+
+  const adminEmailById = useMemo(() => {
+    const map = new Map();
+    for (const entry of admins || []) map.set(entry.user_id, entry.email);
+    return map;
+  }, [admins]);
+
   const fetchAdmins = async () => {
     try {
       setAdminsLoading(true);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      if (!accessToken) return;
-      const response = await fetch("/api/admin/users", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      const response = await authedFetch("/api/admin/users");
       if (!response.ok) throw new Error("Unable to list administrators.");
       const body = await response.json();
       setAdmins(body.admins || []);
@@ -97,6 +137,19 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchAudit = async () => {
+    try {
+      setAudit((prev) => ({ rows: [], ...(prev || {}), loading: true, error: "" }));
+      const response = await authedFetch("/api/admin/audit-log?limit=20");
+      if (!response.ok) throw new Error("Unable to load activity.");
+      const data = await response.json();
+      setAudit({ loading: false, rows: data.rows || data || [], missing: false, error: "" });
+    } catch (error) {
+      console.error("Unable to load activity:", error);
+      setAudit({ loading: false, rows: [], missing: false, error: error.message || "Unable to load activity." });
+    }
+  };
+
   const requestRevoke = (entry) => {
     setConfirmState({
       title: "Revoke administrator?",
@@ -104,15 +157,8 @@ export default function AdminDashboard() {
       confirmLabel: "Revoke",
       run: async () => {
         try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const accessToken = sessionData.session?.access_token;
-          if (!accessToken) throw new Error("Sign in again before changing administrator access.");
-          const response = await fetch("/api/admin/users", {
+          const response = await authedFetch("/api/admin/users", {
             method: "DELETE",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
             body: JSON.stringify({ user_id: entry.user_id }),
           });
           let body = {};
@@ -131,14 +177,11 @@ export default function AdminDashboard() {
 
   const fetchSongs = async () => {
     try {
-      const { data, error } = await supabase
-        .from("songs")
-        .select("*")
-        .order("title", { ascending: true });
-      if (error) throw error;
+      const response = await authedFetch("/api/admin/songs");
+      if (!response.ok) throw new Error("Unable to load songs.");
+      const data = await response.json();
       if (data) {
         setAllSongs(data);
-        // Fresh list invalidates any previous verification results.
         setHealth(null);
       }
     } catch (error) {
@@ -175,16 +218,8 @@ export default function AdminDashboard() {
       confirmLabel: "Delete",
       run: async () => {
         try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const accessToken = sessionData.session?.access_token;
-          if (!accessToken) throw new Error("Sign in again before deleting songs.");
-
-          const response = await fetch(`/api/admin/songs/${song.id}`, {
+          const response = await authedFetch(`/api/admin/songs/${song.id}`, {
             method: "DELETE",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
             body: JSON.stringify({ songPath: song.song_path }),
           });
           if (!response.ok) {
@@ -215,16 +250,8 @@ export default function AdminDashboard() {
     setIsGrantingAdmin(true);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      if (!accessToken) throw new Error("Sign in again before changing administrator access.");
-
-const response = await fetch("/api/admin/users", {
+      const response = await authedFetch("/api/admin/users", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
         body: JSON.stringify({ email: adminEmail }),
       });
       let body = {};
@@ -282,12 +309,7 @@ const response = await fetch("/api/admin/users", {
   const fetchStorage = async () => {
     try {
       setStorage((prev) => ({ ...(prev || {}), loading: true }));
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      if (!accessToken) throw new Error("Sign in again to view storage.");
-      const response = await fetch("/api/admin/storage/stats", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      const response = await authedFetch("/api/admin/storage/stats");
       let body = {};
       try {
         body = await response.json();
@@ -309,23 +331,13 @@ const response = await fetch("/api/admin/users", {
       message: "These audio files are stored on R2 but linked to no track. This cannot be undone.",
       confirmLabel: "Delete files",
       run: async () => {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData.session?.access_token;
-        if (!accessToken) {
-          showToast("Sign in again before cleaning storage.", "error");
-          return;
-        }
         const urls = [...(storage.orphans || [])];
         let removed = 0;
         for (let i = 0; i < urls.length; i++) {
           setCleaning({ done: i, total: urls.length });
           try {
-            const response = await fetch("/api/admin/storage", {
+            const response = await authedFetch("/api/admin/storage", {
               method: "DELETE",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${accessToken}`,
-              },
               body: JSON.stringify({ publicStorageUrl: urls[i] }),
             });
             if (response.ok) removed += 1;
@@ -358,13 +370,6 @@ const response = await fetch("/api/admin/users", {
 
   const runBulkDelete = async () => {
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData.session?.access_token;
-    if (!accessToken) {
-      setBulkMessage("Sign in again before deleting songs.");
-      return;
-    }
-
     const byId = new Map((allSongs || []).map((s) => [s.id, s]));
     const ids = [...selectedIds];
     const failed = [];
@@ -376,12 +381,8 @@ const response = await fetch("/api/admin/users", {
       setBulkOp({ action: "Deleting", done: i, total: ids.length });
       const song = byId.get(ids[i]);
       try {
-        const response = await fetch(`/api/admin/songs/${ids[i]}`, {
+        const response = await authedFetch(`/api/admin/songs/${ids[i]}`, {
           method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
           body: JSON.stringify({ songPath: song?.song_path }),
         });
         if (!response.ok) throw new Error("Deletion failed.");
@@ -421,8 +422,11 @@ const response = await fetch("/api/admin/users", {
 
     setBulkOp({ action: "Updating", done: 0, total: selectedIds.length });
     try {
-      const { error } = await supabase.from("songs").update(patch).in("id", selectedIds);
-      if (error) throw error;
+      const response = await authedFetch("/api/admin/songs/bulk-update", {
+        method: "PATCH",
+        body: JSON.stringify({ ids: selectedIds, patch }),
+      });
+      if (!response.ok) throw new Error("Bulk update failed.");
       setAllSongs((prev) =>
         prev.map((s) => (selectedIds.includes(s.id) ? { ...s, ...patch } : s))
       );
@@ -593,6 +597,7 @@ const response = await fetch("/api/admin/users", {
             { id: "tracks", label: "Tracks" },
             { id: "storage", label: "Storage", alert: (storage?.orphanCount || 0) > 0 },
             { id: "team", label: "Team" },
+            { id: "activity", label: "Activity" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -961,6 +966,59 @@ const response = await fetch("/api/admin/users", {
             </div>
           </section>
           </>
+        )}
+
+        {/* Activity tab */}
+        {activeTab === "activity" && (
+          <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <History size={14} className="text-accent" />
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Activity</h2>
+              <button
+                type="button"
+                onClick={fetchAudit}
+                className="ml-auto text-xs font-bold text-neutral-400 transition hover:text-neutral-900"
+              >
+                Refresh
+              </button>
+            </div>
+            {audit?.loading ? (
+              <p className="py-2 text-xs text-neutral-400">Loading activity…</p>
+            ) : audit?.missing ? (
+              <div className="rounded-xl bg-amber-50 px-4 py-3">
+                <p className="text-xs font-bold text-amber-800">Audit logging isn&apos;t enabled yet.</p>
+                <p className="mt-1 text-xs leading-relaxed text-amber-700">
+                  Run section 6 of <span className="font-mono">lib/migration.sql</span> in the Supabase SQL editor,
+                  then hit Refresh — new grants, revokes, deletions, and cleanups will appear here automatically.
+                </p>
+              </div>
+            ) : audit?.error ? (
+              <p className="py-2 text-xs font-medium text-red-600">{audit.error}</p>
+            ) : !audit || audit.rows.length === 0 ? (
+              <p className="py-2 text-xs text-neutral-400">No admin activity recorded yet.</p>
+            ) : (
+              <div className="flex flex-col">
+                {audit.rows.map((entry) => {
+                  const meta = AUDIT_ACTIONS[entry.action] || { label: entry.action, dot: "bg-neutral-300" };
+                  const actor = adminEmailById.get(entry.actor_id) || (entry.actor_id ? `Admin ${String(entry.actor_id).slice(0, 8)}…` : "System");
+                  return (
+                    <div key={entry.id} className="flex items-center gap-3 border-b border-neutral-50 py-2.5 last:border-0">
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${meta.dot}`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold text-neutral-800">
+                          {meta.label}
+                          {entry.target && <span className="font-medium text-neutral-500"> · {entry.target}</span>}
+                        </p>
+                        <p className="truncate text-[11px] text-neutral-400">
+                          {actor} · {timeAgo(entry.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         )}
 
         {activeTab === "tracks" && (

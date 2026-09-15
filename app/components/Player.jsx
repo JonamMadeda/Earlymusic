@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { supabase } from "@/lib/supabaseClient";
+
 import { getAudioPublicUrl } from "@/lib/audioUrl";
 import { usePlayer } from "../context/PlayerContext";
 import {
@@ -157,14 +157,13 @@ const Player = () => {
       return;
     }
     const songId = song.id;
-    supabase
-      .from("saved_songs")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("song_id", song.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (songId === song?.id) setIsLiked(!!data);
+    const token = localStorage.getItem("auth-token");
+    fetch(`/api/data/saved-songs?user_id=${user.id}&song_id=${song.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (songId === song?.id) setIsLiked(Array.isArray(data) && data.length > 0);
       })
       .catch((error) => console.error("Unable to check saved song:", error));
   }, [user, song?.id]);
@@ -172,20 +171,24 @@ const Player = () => {
   const toggleLike = async () => {
     if (!user || !song) return;
     const songId = song.id;
+    const token = localStorage.getItem("auth-token");
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
     try {
       if (isLiked) {
-        const { error } = await supabase
-          .from("saved_songs")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("song_id", song.id);
-        if (error) throw error;
+        const res = await fetch("/api/data/saved-songs", {
+          method: "DELETE",
+          headers,
+          body: JSON.stringify({ filters: { user_id: user.id, song_id: song.id } }),
+        });
+        if (!res.ok) throw new Error("Failed to unlike");
         if (songId === song?.id) setIsLiked(false);
       } else {
-        const { error } = await supabase
-          .from("saved_songs")
-          .insert({ user_id: user.id, song_id: song.id });
-        if (error) throw error;
+        const res = await fetch("/api/data/saved-songs", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ user_id: user.id, song_id: song.id }),
+        });
+        if (!res.ok) throw new Error("Failed to like");
         if (songId === song?.id) setIsLiked(true);
       }
     } catch (error) {

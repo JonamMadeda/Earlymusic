@@ -1,8 +1,10 @@
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getAdminFromRequest } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { getR2Client } from "@/lib/r2";
+import { db } from "@/lib/neon";
 
 const getR2ObjectKey = (songPath: string) => {
   const publicBaseUrl = process.env.R2PUBLICURL?.replace(/\/$/, "");
@@ -11,6 +13,9 @@ const getR2ObjectKey = (songPath: string) => {
 };
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const limited = checkRateLimit(request, { name: "song-delete", limit: 120, windowMs: 60_000 });
+  if (limited) return limited;
+
   try {
     const admin = await getAdminFromRequest(request);
     if (!admin) {
@@ -28,20 +33,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: "Invalid song deletion request." }, { status: 400 });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: `Bearer ${admin.accessToken}` } } }
+    const { rows: songs } = await db.query(
+      "SELECT id, song_path FROM public.songs WHERE id = $1",
+      [id]
     );
-
-    // Verify the song exists and that the provided path matches the stored record,
-    // so a caller can never delete an arbitrary R2 object.
-    const { data: song, error: fetchError } = await supabase
-      .from("songs")
-      .select("id, song_path")
-      .eq("id", id)
-      .maybeSingle();
-    if (fetchError) throw fetchError;
+    const song = songs?.[0];
     if (!song) {
       return NextResponse.json({ error: "Song not found." }, { status: 404 });
     }
@@ -49,8 +45,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: "Song path does not match the stored record." }, { status: 400 });
     }
 
-    // Delete the R2 object first. If this fails, the DB row stays intact and the
-    // operation can be retried without data loss.
     const objectKey = getR2ObjectKey(songPath);
     if (objectKey) {
       try {
@@ -64,15 +58,17 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       }
     }
 
-    // Only remove the DB row after the storage object is gone.
-    const { error: deleteError, count } = await supabase
-      .from("songs")
-      .delete({ count: "exact" })
-      .eq("id", id);
-    if (deleteError) throw deleteError;
-    if (!count) {
+    const { rowCount } = await db.query("DELETE FROM public.songs WHERE id = $1", [id]);
+    if (!rowCount) {
       return NextResponse.json({ error: "Song not found." }, { status: 404 });
     }
+
+    await logAdminAction({
+      actorId: admin.user.id,
+      action: "song.delete",
+      target: id,
+      detail: { song_path: songPath },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

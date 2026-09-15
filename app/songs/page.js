@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { apiFetch } from "@/lib/apiFetch";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { PageSkeleton } from "../components/Skeleton";
@@ -136,24 +136,15 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
       return;
     }
 
-    supabase
-      .from("saved_songs")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("song_id", song.id)
-      .maybeSingle()
-      .then(({ data }) => setIsSaved(!!data))
+    apiFetch(`/api/data/saved_songs?song_id=${song.id}`)
+      .then((data) => setIsSaved(data && data.length > 0))
       .catch((error) => console.error("Unable to check saved song:", error));
   }, [user, song.id]);
 
   useEffect(() => {
     if (showPlaylists && user) {
-      supabase
-        .from("playlists")
-        .select("id, name")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .then(({ data }) => setPlaylists(data || []))
+      apiFetch("/api/data/playlists?columns=id,name&order=created_at&ascending=false")
+        .then((data) => setPlaylists(data || []))
         .catch((error) => console.error("Unable to load playlists:", error));
     }
   }, [showPlaylists, user]);
@@ -161,18 +152,12 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
   const addToPlaylist = async (e, playlistId) => {
     e.stopPropagation();
     try {
-      const { data: existing, error: checkError } = await supabase
-        .from("playlist_songs")
-        .select("id")
-        .eq("playlist_id", playlistId)
-        .eq("song_id", song.id)
-        .maybeSingle();
-      if (checkError) throw checkError;
-      if (existing) return;
-      const { error } = await supabase
-        .from("playlist_songs")
-        .insert({ playlist_id: playlistId, song_id: song.id });
-      if (error) throw error;
+      const existing = await apiFetch(`/api/data/playlist_songs?playlist_id=${playlistId}&song_id=${song.id}`);
+      if (existing && existing.length > 0) return;
+      await apiFetch("/api/data/playlist_songs", {
+        method: "POST",
+        body: JSON.stringify({ playlist_id: playlistId, song_id: song.id }),
+      });
     } catch (error) {
       console.error("Unable to add song to playlist:", error);
     }
@@ -184,18 +169,16 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
     if (!name || !user) return;
 
     try {
-      const { data: pl, error: createError } = await supabase
-        .from("playlists")
-        .insert({ name, user_id: user.id })
-        .select()
-        .single();
-      if (createError) throw createError;
+      const pl = await apiFetch("/api/data/playlists", {
+        method: "POST",
+        body: JSON.stringify({ name, user_id: user.id }),
+      });
 
       if (pl) {
-        const { error } = await supabase
-          .from("playlist_songs")
-          .insert({ playlist_id: pl.id, song_id: song.id });
-        if (error) throw error;
+        await apiFetch("/api/data/playlist_songs", {
+          method: "POST",
+          body: JSON.stringify({ playlist_id: pl.id, song_id: song.id }),
+        });
         setNewPlaylistName("");
         setShowPlaylists(false);
       }
@@ -213,18 +196,13 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
 
     try {
       if (isSaved) {
-        const { error } = await supabase
-          .from("saved_songs")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("song_id", song.id);
-        if (error) throw error;
+        await apiFetch(`/api/data/saved_songs?song_id=${song.id}`, { method: "DELETE" });
         setIsSaved(false);
       } else {
-        const { error } = await supabase
-          .from("saved_songs")
-          .insert({ user_id: user.id, song_id: song.id });
-        if (error) throw error;
+        await apiFetch("/api/data/saved_songs", {
+          method: "POST",
+          body: JSON.stringify({ user_id: user.id, song_id: song.id }),
+        });
         setIsSaved(true);
       }
       setShowMenu(false);
@@ -580,14 +558,7 @@ useEffect(() => {
           }
         }
 
-        const { data, error } = await supabase
-          .from("songs")
-          .select("*")
-          .order("title", { ascending: true });
-
-        if (error) {
-          throw error;
-        }
+        const data = await apiFetch("/api/data/songs?order=title&ascending=true");
 
         if (data) {
           setAllSongs(data);
@@ -1028,7 +999,7 @@ useEffect(() => {
             </p>
             <p className="mt-1 max-w-xs text-xs leading-relaxed text-neutral-500">
               {loadError
-                ? "Check your connection or Supabase configuration and try again."
+                ? "Check your connection and try again."
                 : hasFilters
                   ? "Try adjusting your search or clearing the filters."
                   : "Upload your first worship song and it will appear here automatically."}

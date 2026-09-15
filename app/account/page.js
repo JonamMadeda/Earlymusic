@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings, Download, Library, ChevronRight } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+import { apiFetch } from "@/lib/apiFetch";
 import { useAuth } from "@/app/context/AuthContext";
 import Link from "next/link";
 
@@ -36,12 +36,10 @@ export default function AccountPage() {
     if (!user) { setLoading(false); return; }
 
     Promise.all([
-      supabase.from("saved_songs").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("playlists").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      apiFetch("/api/data/saved_songs?count=true&head=true"),
+      apiFetch("/api/data/playlists?count=true&head=true"),
     ])
       .then(([savedRes, plRes]) => {
-        if (savedRes.error) throw savedRes.error;
-        if (plRes.error) throw plRes.error;
         setSavedCount(savedRes.count || 0);
         setPlaylistCount(plRes.count || 0);
       })

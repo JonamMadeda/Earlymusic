@@ -2,6 +2,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFromRequest } from "@/lib/adminAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { getR2Client } from "@/lib/r2";
 
 const maxAudioSizeBytes = 100 * 1024 * 1024;
@@ -34,6 +35,9 @@ const requiredEnvironment = (name: "R2BUCKETNAME" | "R2PUBLICURL") => {
 };
 
 export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(request, { name: "upload-presign", limit: 120, windowMs: 60_000 });
+  if (limited) return limited;
+
   try {
     const admin = await getAdminFromRequest(request);
     if (!admin) {

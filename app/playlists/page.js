@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ListMusic, Plus, Trash2, LogIn, Disc } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+import { apiFetch } from "@/lib/apiFetch";
 import { useAuth } from "@/app/context/AuthContext";
 import Link from "next/link";
 
@@ -19,13 +19,8 @@ export default function PlaylistsPage() {
     if (authLoading) return;
     if (!user) { setLoading(false); return; }
 
-    supabase
-      .from("playlists")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) throw error;
+    apiFetch("/api/data/playlists?order=created_at&ascending=false")
+      .then((data) => {
         if (data) setPlaylists(data);
       })
       .catch((error) => console.error("Unable to load playlists:", error))
@@ -37,12 +32,10 @@ export default function PlaylistsPage() {
     if (!name) return;
 
     try {
-      const { data, error } = await supabase
-        .from("playlists")
-        .insert({ name, user_id: user.id })
-        .select()
-        .single();
-      if (error) throw error;
+      const data = await apiFetch("/api/data/playlists", {
+        method: "POST",
+        body: JSON.stringify({ name, user_id: user.id }),
+      });
 
       if (data) {
         setPlaylists((prev) => [data, ...prev]);
@@ -58,8 +51,7 @@ export default function PlaylistsPage() {
     e.stopPropagation();
     if (!confirm("Delete this playlist?")) return;
     try {
-      const { error } = await supabase.from("playlists").delete().eq("id", id);
-      if (error) throw error;
+      await apiFetch(`/api/data/playlists?id=${id}`, { method: "DELETE" });
       setPlaylists((prev) => prev.filter((p) => p.id !== id));
     } catch (error) {
       console.error("Unable to delete playlist:", error);

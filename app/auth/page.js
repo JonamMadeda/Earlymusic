@@ -2,9 +2,8 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/app/context/AuthContext";
-import { Mail, Lock, Loader, ArrowLeft, KeyRound } from "lucide-react";
+import { Mail, Lock, Loader, ArrowLeft, KeyRound, Eye, EyeOff } from "lucide-react";
 
 const getSafeRedirect = (value) => {
   if (!value) return "/";
@@ -27,11 +26,13 @@ function AuthForm() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [updated, setUpdated] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (isUpdatePassword) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session) router.push("/auth?mode=update-password");
+      fetch("/api/auth/me").then(async (res) => {
+        const data = await res.json();
+        if (!data.user) router.push("/auth?mode=update-password");
       });
     }
   }, [isUpdatePassword, router]);
@@ -54,7 +55,13 @@ function AuthForm() {
     }
 
     if (mode === "update-password") {
-      const { error: authError } = await supabase.auth.updateUser({ password });
+      const token = localStorage.getItem("auth-token");
+      const res = await fetch("/api/auth/update-password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password }),
+      });
+      const { error: authError } = await res.json();
       if (authError) {
         setError(authError.message);
       } else {
@@ -72,8 +79,9 @@ function AuthForm() {
       setError(authError.message);
       setSubmitting(false);
     } else if (mode === "signup") {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      const res = await fetch("/api/auth/me");
+      const { user } = await res.json();
+      if (user) {
         router.push(redirectTo);
       } else {
         setMessage("Check your email for a confirmation link.");
@@ -147,7 +155,7 @@ function AuthForm() {
               <div className="flex items-center gap-x-3 p-3 bg-neutral-50 border border-neutral-200 rounded-xl">
                 <Lock size={18} className="text-neutral-400" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -155,6 +163,14 @@ function AuthForm() {
                   required
                   minLength={6}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="text-neutral-400 hover:text-neutral-600 transition"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
           )}

@@ -1,15 +1,14 @@
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminFromRequest } from "@/lib/adminAuth";
+import { getAdminFromRequest } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { getR2Client } from "@/lib/r2";
+import { db } from "@/lib/neon";
 
-/**
- * Storage overview for the admin Vault: R2 usage plus orphaned audio files
- * (uploaded objects no track references), which can be removed with the
- * existing DELETE /api/admin/storage endpoint.
- */
 export async function GET(request: NextRequest) {
+  const limited = checkRateLimit(request, { name: "storage-stats", limit: 120, windowMs: 60_000 });
+  if (limited) return limited;
+
   try {
     const admin = await getAdminFromRequest(request);
     if (!admin) {
@@ -37,19 +36,12 @@ export async function GET(request: NextRequest) {
       continuationToken = res.IsTruncated ? res.NextContinuationToken : undefined;
     } while (continuationToken);
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    const { data: songs, error: songsError } = await supabase
-      .from("songs")
-      .select("song_path");
-    if (songsError) throw songsError;
+    const { rows: songs } = await db.query("SELECT song_path FROM public.songs");
 
     const referenced = new Set<string>();
     let legacyCount = 0;
     for (const s of songs || []) {
-      const p = (s as { song_path?: string }).song_path;
+      const p = (s as any).song_path;
       if (!p) continue;
       if (p.startsWith(`${publicBaseUrl}/`)) {
         referenced.add(decodeURIComponent(p.slice(publicBaseUrl.length + 1)));

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Music, Heart } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+
 import { useAuth } from "@/app/context/AuthContext";
 
 const LikedSongs = () => {
@@ -14,24 +14,22 @@ const LikedSongs = () => {
     if (!user) { setSongs([]); return; }
 
     let cancelled = false;
+    const token = localStorage.getItem("auth-token");
+    const headers = { Authorization: `Bearer ${token}` };
 
-    supabase
-      .from("saved_songs")
-      .select("song_id")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5)
-      .then(async ({ data, error }) => {
+    fetch(`/api/data/saved-songs?user_id=${user.id}&order_by=created_at&ascending=false&limit=5`, {
+      headers,
+    })
+      .then((res) => res.json())
+      .then(async (data) => {
         if (cancelled) return;
-        if (error) throw error;
         if (!data || data.length === 0) { setSongs([]); return; }
         const ids = data.map((s) => s.song_id);
 
-        const { data: allSongs, error: songsError } = await supabase
-          .from("songs")
-          .select("*")
-          .in("id", ids);
-        if (songsError) throw songsError;
+        const songsRes = await fetch(`/api/data/songs?columns=*&id=${ids.join(",")}`, {
+          headers,
+        });
+        const allSongs = await songsRes.json();
 
         // Preserve the order from saved_songs
         const ordered = ids

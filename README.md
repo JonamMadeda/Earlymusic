@@ -61,3 +61,11 @@ on conflict (user_id) do update set role = excluded.role;
 Sign out and back in after granting the role. Do not put administrative roles in `user_metadata`, since users can edit that data themselves.
 
 To grant roles later from the dashboard, set the server-only `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` or your deployment environment. Create the user through Supabase Auth first, then enter their email in the **Administrator access** panel on `/admin`. Never expose the service-role key in client-side environment variables.
+
+## Security operations
+
+- **Audit trail**: run the SQL in `lib/migration.sql` (section 6) to create `public.admin_audit_log`. Grants, revokes, song deletions, and orphan cleanups are logged there automatically with actor, target, and timestamp. Admins can read it; only the service-role key can write.
+- **Break-glass**: if administrator access is ever lost entirely, re-grant it with the SQL snippet above run as a database owner in the Supabase SQL editor.
+- **Rate limiting**: admin API routes throttle per IP (generous burst limits for bulk operations). Counts are per server instance — enforce hard limits at your host firewall/WAF as well.
+- **Legacy storage**: all audio now lives on Cloudflare R2. The old Supabase `songs` storage bucket has no policies in `migration.sql` — delete the bucket (or add explicit deny policies) once you confirm nothing references it. The unused `audio_tracks` table is dropped by section 6 of the migration.
+- **Accounts**: enable MFA and leaked-password protection for admin accounts in the Supabase Auth dashboard. R2 audio URLs are permanent public links — treat them as unlisted, not secret.

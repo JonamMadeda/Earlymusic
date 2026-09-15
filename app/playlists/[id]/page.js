@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ListMusic, Disc, Trash2, LogIn, Plus } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+import { apiFetch } from "@/lib/apiFetch";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
 import SongItem from "@/app/components/SongItem";
@@ -31,20 +31,20 @@ export default function PlaylistDetailPage() {
 
     let cancelled = false;
     Promise.all([
-      supabase.from("playlists").select("*").eq("id", params.id).single(),
-      supabase.from("playlist_songs").select("song_id").eq("playlist_id", params.id),
-      supabase.from("saved_songs").select("song_id").eq("user_id", user.id),
+      apiFetch(`/api/data/playlists?id=${params.id}`),
+      apiFetch(`/api/data/playlist_songs?playlist_id=${params.id}`),
+      apiFetch("/api/data/saved_songs"),
     ])
-      .then(([plRes, songsRes, savedRes]) => {
+      .then(([playlistsArr, playlistSongsArr, savedArr]) => {
         if (cancelled) return;
-        if (plRes.error) throw plRes.error;
-        if (!plRes.data || plRes.data.user_id !== user.id) {
+        const plData = playlistsArr?.[0];
+        if (!plData || plData.user_id !== user.id) {
           router.replace("/playlists");
           return;
         }
-        setPlaylist(plRes.data);
-        setSongIds((songsRes.data || []).map((s) => s.song_id));
-        setSavedSongIds(new Set((savedRes.data || []).map((s) => s.song_id)));
+        setPlaylist(plData);
+        setSongIds((playlistSongsArr || []).map((s) => s.song_id));
+        setSavedSongIds(new Set((savedArr || []).map((s) => s.song_id)));
       })
       .catch((error) => {
         if (cancelled) return;
@@ -81,11 +81,7 @@ export default function PlaylistDetailPage() {
       }
 
       try {
-        const { data, error } = await supabase
-          .from("songs")
-          .select("*")
-          .order("title", { ascending: true });
-        if (error) throw error;
+        const data = await apiFetch("/api/data/songs?order=title&ascending=true");
         if (data) {
           setAllSongs(data);
           if (data.length > 0) {
@@ -135,36 +131,30 @@ export default function PlaylistDetailPage() {
       playlist_id: params.id,
       song_id: songId,
     }));
-    const { error } = await supabase.from("playlist_songs").insert(inserts);
-    if (error) {
-      console.error("Unable to add songs:", error);
-    } else {
-      setSongIds((prev) => [...prev, ...newIds]);
-      setSelectedSongIds(new Set());
-      setSearchQuery("");
-    }
+    await apiFetch("/api/data/playlist_songs", {
+      method: "POST",
+      body: JSON.stringify(inserts),
+    });
+    setSongIds((prev) => [...prev, ...newIds]);
+    setSelectedSongIds(new Set());
+    setSearchQuery("");
     setAdding(false);
   };
 
   const handleToggleSaved = async (songId) => {
     try {
       if (savedSongIds.has(songId)) {
-        const { error } = await supabase
-          .from("saved_songs")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("song_id", songId);
-        if (error) throw error;
+        await apiFetch(`/api/data/saved_songs?song_id=${songId}`, { method: "DELETE" });
         setSavedSongIds((prev) => {
           const next = new Set(prev);
           next.delete(songId);
           return next;
         });
       } else {
-        const { error } = await supabase
-          .from("saved_songs")
-          .insert({ user_id: user.id, song_id: songId });
-        if (error) throw error;
+        await apiFetch("/api/data/saved_songs", {
+          method: "POST",
+          body: JSON.stringify({ user_id: user.id, song_id: songId }),
+        });
         setSavedSongIds((prev) => new Set(prev).add(songId));
       }
     } catch (error) {
@@ -174,25 +164,13 @@ export default function PlaylistDetailPage() {
 
   const removeSong = async (e, songId) => {
     e.stopPropagation();
-    const { error } = await supabase
-      .from("playlist_songs")
-      .delete()
-      .eq("playlist_id", params.id)
-      .eq("song_id", songId);
-    if (error) {
-      console.error("Unable to remove song:", error);
-      return;
-    }
+    await apiFetch(`/api/data/playlist_songs?playlist_id=${params.id}&song_id=${songId}`, { method: "DELETE" });
     setSongIds((prev) => prev.filter((sid) => sid !== songId));
   };
 
   const deletePlaylist = async () => {
     if (!confirm("Delete this playlist?")) return;
-    const { error } = await supabase.from("playlists").delete().eq("id", params.id);
-    if (error) {
-      console.error("Unable to delete playlist:", error);
-      return;
-    }
+    await apiFetch(`/api/data/playlists?id=${params.id}`, { method: "DELETE" });
     router.replace("/playlists");
   };
 

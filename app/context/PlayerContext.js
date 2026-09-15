@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabaseClient";
+
 
 const PlayerContext = createContext();
 
@@ -54,20 +54,18 @@ export const PlayerProvider = ({ children }) => {
     setRecentlyPlayed(seededSongs);
     localStorage.setItem(RECENT_KEY, JSON.stringify(seededSongs));
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      const rows = seededSongs.map((song, i) => ({
-        user_id: user.id,
-        song_id: song.id,
-        created_at: new Date(Date.now() - (SEED_COUNT - i) * 60000).toISOString(),
-      }));
-      supabase
-        .from("recently_played")
-        .upsert(rows, { onConflict: "user_id, song_id", ignoreDuplicates: true })
-        .select()
-        .then(() => {})
-        .catch((error) => console.error("Unable to seed recently played:", error));
-    }).catch((error) => console.error("Unable to get user for seeding:", error));
+    const token = localStorage.getItem("auth-token");
+    if (!token) return;
+    fetch("/api/data/recently_played", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(
+        seededSongs.map((song, i) => ({
+          song_id: song.id,
+          created_at: new Date(Date.now() - (SEED_COUNT - i) * 60000).toISOString(),
+        }))
+      ),
+    }).catch((error) => console.error("Unable to seed recently played:", error));
   }, [allSongs, recentlyPlayed]);
 
   // Sync recently played changes to Supabase (only the latest play)
@@ -84,42 +82,35 @@ export const PlayerProvider = ({ children }) => {
     if (prev === null) return;
     if (recentlyPlayed[0]?.id === prev[0]?.id) return;
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
+    const token = localStorage.getItem("auth-token");
+    if (!token) return;
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
-      const latest = recentlyPlayed[0];
-      if (!latest) return;
+    const latest = recentlyPlayed[0];
+    if (!latest) return;
 
-      supabase
-        .from("recently_played")
-        .upsert(
-          { user_id: user.id, song_id: latest.id, created_at: new Date().toISOString() },
-          { onConflict: "user_id, song_id" }
-        )
-        .select()
-        .then(() => {})
-        .catch((error) => console.error("Unable to sync recently played:", error));
+    fetch("/api/data/recently_played", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ song_id: latest.id, created_at: new Date().toISOString() }),
+    }).catch((error) => console.error("Unable to sync recently played:", error));
 
-      // Trim to max rows
-      supabase
-        .from("recently_played")
-        .select("id, created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .then(({ data: existing }) => {
-          if (existing && existing.length > MAX_RECENT) {
-            const idsToDelete = existing.slice(MAX_RECENT).map((r) => r.id);
-            supabase
-              .from("recently_played")
-              .delete()
-              .in("id", idsToDelete)
-              .select()
-              .then(() => {})
-              .catch((error) => console.error("Unable to trim recently played:", error));
-          }
-        })
-        .catch((error) => console.error("Unable to read recently played:", error));
-    }).catch((error) => console.error("Unable to get user for sync:", error));
+    // Trim to max rows
+    fetch(`/api/data/recently_played?order_by=created_at&ascending=false`, {
+      headers,
+    })
+      .then((res) => res.json())
+      .then((existing) => {
+        if (Array.isArray(existing) && existing.length > MAX_RECENT) {
+          const idsToDelete = existing.slice(MAX_RECENT).map((r) => r.id);
+          fetch("/api/data/recently_played", {
+            method: "DELETE",
+            headers,
+            body: JSON.stringify({ filters: { id: idsToDelete.join(",") } }),
+          }).catch((error) => console.error("Unable to trim recently played:", error));
+        }
+      })
+      .catch((error) => console.error("Unable to read recently played:", error));
   }, [recentlyPlayed]);
 
   const setActiveSong = useCallback(

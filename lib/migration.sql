@@ -197,3 +197,28 @@ DROP POLICY IF EXISTS "Users can add their own audio tracks" ON public.audio_tra
 CREATE POLICY "Users can add their own audio tracks"
   ON public.audio_tracks FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+
+-- 6. ADMIN AUDIT LOG (who did what, when — written by API routes only)
+CREATE TABLE IF NOT EXISTS public.admin_audit_log (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  actor_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  target TEXT,
+  detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.admin_audit_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can view the audit log" ON public.admin_audit_log;
+CREATE POLICY "Admins can view the audit log"
+  ON public.admin_audit_log FOR SELECT
+  TO authenticated
+  USING ((SELECT public.is_admin()));
+
+-- Writes use the service-role key inside API routes. There is deliberately no
+-- client INSERT policy, so audit entries can never be forged from the browser.
+
+-- Legacy cleanup: the pre-R2 audio_tracks table is unused (all audio lives on
+-- Cloudflare R2 and no code references this table).
+DROP TABLE IF EXISTS public.audio_tracks;

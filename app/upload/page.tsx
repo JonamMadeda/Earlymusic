@@ -3,7 +3,6 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import {
   ArrowLeft,
@@ -161,15 +160,25 @@ export default function UploadPage() {
       uploadedStorageUrl = publicStorageUrl;
 
       patchItem(item.key, { note: "Saving metadata…" });
-      const { error } = await supabase.from("songs").insert({
-        title: item.title.trim(),
-        author: shared.author,
-        original_songs: shared.originals,
-        category: shared.category,
-        duration: shared.duration,
-        song_path: publicStorageUrl,
+      const insertResponse = await fetch("/api/admin/songs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          title: item.title.trim(),
+          author: shared.author,
+          original_songs: shared.originals,
+          category: shared.category,
+          duration: shared.duration,
+          song_path: publicStorageUrl,
+        }),
       });
-      if (error) throw error;
+      if (!insertResponse.ok) {
+        const body = await insertResponse.json().catch(() => null);
+        throw new Error(body?.error || "Failed to save song metadata.");
+      }
 
       patchItem(item.key, { phase: "done", note: "Live" });
       return true;
@@ -209,8 +218,7 @@ export default function UploadPage() {
     setPublishTotal(pending.length);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
+      const accessToken = localStorage.getItem("auth-token");
       if (!accessToken) throw new Error("Sign in again before uploading tracks.");
 
       const shared = {

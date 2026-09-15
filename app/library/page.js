@@ -7,7 +7,7 @@ import SongAvatar from "@/app/components/SongAvatar";
 import { PageSkeleton } from "../components/Skeleton";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
-import { supabase } from "@/lib/supabaseClient";
+import { apiFetch } from "@/lib/apiFetch";
 import {
   Disc, LogIn, Heart, ListMusic, Download, Play, Trash2, Plus, HardDrive,
 } from "lucide-react";
@@ -67,15 +67,13 @@ export default function LibraryPage() {
 
     let cancelled = false;
     Promise.all([
-      supabase.from("saved_songs").select("song_id").eq("user_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("playlists").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+      apiFetch("/api/data/saved_songs?order=created_at&ascending=false"),
+      apiFetch("/api/data/playlists?order=created_at&ascending=false"),
     ])
-      .then(([savedRes, plRes]) => {
+      .then(([savedData, plData]) => {
         if (cancelled) return;
-        if (savedRes.error) throw savedRes.error;
-        if (plRes.error) throw plRes.error;
-        setSavedSongIds((savedRes.data || []).map((s) => s.song_id));
-        setPlaylists(plRes.data || []);
+        setSavedSongIds((savedData || []).map((s) => s.song_id));
+        setPlaylists(plData || []);
       })
       .catch((error) => console.error("Unable to load library:", error))
       .finally(() => {
@@ -107,8 +105,7 @@ export default function LibraryPage() {
       }
 
       try {
-        const { data, error } = await supabase.from("songs").select("*").order("title", { ascending: true });
-        if (error) throw error;
+        const data = await apiFetch("/api/data/songs?order=title&ascending=true");
         if (data) {
           setAllSongs(data);
           if (data.length > 0) {
@@ -142,8 +139,10 @@ export default function LibraryPage() {
     const name = newName.trim();
     if (!name) return;
     try {
-      const { data, error } = await supabase.from("playlists").insert({ name, user_id: user.id }).select().single();
-      if (error) throw error;
+      const data = await apiFetch("/api/data/playlists", {
+        method: "POST",
+        body: JSON.stringify({ name, user_id: user.id }),
+      });
       if (data) {
         setPlaylists((prev) => [data, ...prev]);
         setNewName("");
@@ -158,8 +157,7 @@ export default function LibraryPage() {
     e.stopPropagation();
     if (!confirm("Delete this playlist?")) return;
     try {
-      const { error } = await supabase.from("playlists").delete().eq("id", id);
-      if (error) throw error;
+      await apiFetch(`/api/data/playlists?id=${id}`, { method: "DELETE" });
       setPlaylists((prev) => prev.filter((p) => p.id !== id));
     } catch (error) {
       console.error("Unable to delete playlist:", error);
@@ -179,12 +177,7 @@ export default function LibraryPage() {
   const handleToggleSaved = async (songId) => {
     if (!user) return;
     try {
-      const { error } = await supabase
-        .from("saved_songs")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("song_id", songId);
-      if (error) throw error;
+      await apiFetch(`/api/data/saved_songs?song_id=${songId}`, { method: "DELETE" });
       setSavedSongIds((prev) => prev.filter((sid) => sid !== songId));
     } catch (error) {
       console.error("Unable to remove saved song:", error);
