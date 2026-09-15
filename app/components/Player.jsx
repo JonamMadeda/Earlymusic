@@ -39,11 +39,26 @@ const Player = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
   const [audioUrl, setAudioUrl] = useState(null);
+  const [audioSongId, setAudioSongId] = useState(null);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [audioError, setAudioError] = useState(false);
 
   const { user } = useAuth();
+
+  // "Opening…" — a song is selected but its playable URL isn't ready yet.
+  // "Buffering…" — the URL is set but the audio element is waiting on data.
+  const isPreparing = !!song && audioSongId !== song.id;
+  const isBusy = (isPreparing || isBuffering) && !audioError;
+
+  const BusySpinner = ({ size = 16 }) => (
+    <span
+      aria-label="Loading"
+      className="inline-block animate-spin rounded-full border-2 border-current border-t-transparent"
+      style={{ width: size, height: size }}
+    />
+  );
 
   const currentIndex = (songs || []).findIndex((s) => s.id === song?.id);
 
@@ -132,6 +147,7 @@ const Player = () => {
     errorCountRef.current = 0;
     networkFallbackTriedRef.current = false;
     publicUrlRef.current = null;
+    setIsBuffering(false);
     clearAutoAdvanceTimer();
   }, [song?.id, clearAutoAdvanceTimer]);
 
@@ -268,7 +284,7 @@ const Player = () => {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: song.title,
       artist: song.author,
-      album: "Lumbo",
+      album: "Luumbo",
       artwork: [
         { src: "/favicon.ico", sizes: "192x192", type: "image/png" },
       ],
@@ -299,6 +315,8 @@ const Player = () => {
       setAudioError(false);
       setDuration(0);
       setCurrentTime(0);
+      setIsBuffering(true);
+      const loadingSongId = song.id;
 
       try {
         const publicUrl = getAudioPublicUrl(song.song_path);
@@ -322,6 +340,7 @@ const Player = () => {
           setAudioUrl(publicUrl);
           cacheAudioFile(publicUrl, song.song_path);
         }
+        setAudioSongId(loadingSongId);
 
         playRef.current = !skipWhilePausedRef.current;
         skipWhilePausedRef.current = false;
@@ -329,6 +348,7 @@ const Player = () => {
         console.error("Unable to load audio:", error);
         if (!cancelled && loadId === loadIdRef.current) {
           setAudioError(true);
+          setIsBuffering(false);
           playRef.current = false;
         }
       }
@@ -347,15 +367,18 @@ const Player = () => {
 
     audioRef.current.play().then(() => {
       setIsPlaying(true);
+      setIsBuffering(false);
       playRef.current = false;
     }).catch(() => {
       playRef.current = false;
       setIsPlaying(false);
+      setIsBuffering(false);
     });
   }, [audioUrl]);
 
   const retryPlayback = () => {
     if (!song) return;
+    setIsBuffering(true);
     // A manual retry also heals a bad cached copy: drop it and stream fresh.
     if (audioUrl?.startsWith("blob:") && publicUrlRef.current && !networkFallbackTriedRef.current) {
       networkFallbackTriedRef.current = true;
@@ -416,7 +439,8 @@ const Player = () => {
     <>
       {/* Audio element lives outside the conditional UI below so no render-time
           condition (page switch, loading flicker) can ever unmount it and kill
-          playback. UI only renders once a song + URL are ready. */}
+          playback. The UI shell renders as soon as a song is picked so the
+          user sees Opening/Buffering states instead of a dead gap. */}
       <audio
         ref={audioRef}
         src={audioUrl || undefined}
@@ -426,7 +450,10 @@ const Player = () => {
             setCurrentTime(audioRef.current.currentTime);
           }
         }}
+        onWaiting={() => setIsBuffering(true)}
+        onPlaying={() => setIsBuffering(false)}
         onCanPlay={() => {
+          setIsBuffering(false);
           if (playRef.current) {
             playRef.current = false;
             audioRef.current?.play().catch(() => setIsPlaying(false));
@@ -452,6 +479,7 @@ const Player = () => {
           // back to streaming the network URL instead of failing every retry.
           if (audioUrl?.startsWith("blob:") && publicUrlRef.current && !networkFallbackTriedRef.current) {
             networkFallbackTriedRef.current = true;
+            setIsBuffering(true);
             evictCachedAudio(publicUrlRef.current).finally(() => {
               if (blobUrlRef.current) {
                 URL.revokeObjectURL(blobUrlRef.current);
@@ -465,6 +493,7 @@ const Player = () => {
           }
           playRef.current = false;
           setIsPlaying(false);
+          setIsBuffering(false);
           setAudioError(true);
           handlePlaybackError();
         }}
@@ -473,7 +502,7 @@ const Player = () => {
           onPlayNext();
         }}
       />
-      {song && audioUrl && (
+      {song && (
         <>
           {/* Desktop player — full-width bar */}
       <div
@@ -513,9 +542,15 @@ const Player = () => {
                   <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
                     {song.title}
                   </p>
-                  <p className="truncate text-[11px] font-medium text-neutral-400">
-                    {song.author}
-                  </p>
+                  {isBusy ? (
+                    <p className="truncate text-[11px] font-semibold text-accent">
+                      {isPreparing ? "Opening…" : "Buffering…"}
+                    </p>
+                  ) : (
+                    <p className="truncate text-[11px] font-medium text-neutral-400">
+                      {song.author}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -551,11 +586,13 @@ const Player = () => {
 
                   <button
                     type="button"
-                    aria-label={isPlaying ? "Pause" : "Play"}
+                    aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
                     onClick={(e) => { e.stopPropagation(); togglePlay(); }}
                     className="mx-1.5 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-sm transition hover:bg-accent/90 active:scale-95"
                   >
-                    {isPlaying ? (
+                    {isBusy ? (
+                      <BusySpinner size={18} />
+                    ) : isPlaying ? (
                       <Pause size={20} fill="currentColor" />
                     ) : (
                       <Play size={20} fill="currentColor" className="ml-0.5" />
@@ -657,17 +694,25 @@ const Player = () => {
             <p className="truncate text-sm font-semibold tracking-tight text-neutral-900 leading-tight">
               {song.title}
             </p>
-            <p className="truncate text-xs font-medium text-neutral-500">
-              {song.author}
-            </p>
+            {isBusy ? (
+              <p className="truncate text-xs font-semibold text-accent">
+                {isPreparing ? "Opening…" : "Buffering…"}
+              </p>
+            ) : (
+              <p className="truncate text-xs font-medium text-neutral-500">
+                {song.author}
+              </p>
+            )}
           </div>
           <button
             type="button"
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
             onClick={(e) => { e.stopPropagation(); togglePlay(); }}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-md active:scale-90 transition hover:bg-accent/90"
           >
-            {isPlaying ? (
+            {isBusy ? (
+              <BusySpinner size={16} />
+            ) : isPlaying ? (
               <Pause size={18} fill="currentColor" />
             ) : (
               <Play size={18} fill="currentColor" className="ml-0.5" />
@@ -764,6 +809,12 @@ const Player = () => {
             <p className="mt-1 text-sm font-medium text-white/70 md:text-base">
               {song.author}
             </p>
+            {isBusy && (
+              <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-white/80">
+                <BusySpinner size={12} />
+                {isPreparing ? "Opening…" : "Buffering…"}
+              </p>
+            )}
             {audioError && (
               <button
                 type="button"
@@ -832,11 +883,13 @@ const Player = () => {
 
               <button
                 type="button"
-                aria-label={isPlaying ? "Pause" : "Play"}
+                aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
                 onClick={togglePlay}
                 className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-neutral-900 shadow-xl transition active:scale-95 hover:scale-105"
               >
-                {isPlaying ? (
+                {isBusy ? (
+                  <BusySpinner size={26} />
+                ) : isPlaying ? (
                   <Pause size={28} fill="currentColor" />
                 ) : (
                   <Play size={28} fill="currentColor" className="ml-1" />
