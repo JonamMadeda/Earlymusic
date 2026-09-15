@@ -20,13 +20,13 @@ export const viewport = {
 };
 
 export const metadata = {
-  title: "Lumbo",
+  title: "Luumbo",
   description: "Music Streaming App",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Lumbo",
+    title: "Luumbo",
   },
   icons: {
     icon: "/icons/icon-192x192.png",

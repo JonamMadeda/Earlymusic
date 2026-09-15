@@ -5,7 +5,7 @@ const Loader = () => {
     <div className="flex flex-col items-center justify-center min-h-[60vh] w-full gap-y-6 bg-neutral-50/60">
       <div className="flex flex-col items-center gap-y-3">
         <p className="text-[14px] font-semibold tracking-tight text-accent">
-          lumbo
+          luumbo
         </p>
         <div className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-accent animate-bounce [animation-delay:-0.3s]" />

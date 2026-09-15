@@ -179,7 +179,7 @@ export default function SettingsPage() {
           {/* Version */}
           <div className="rounded-2xl bg-neutral-50/60 px-5 py-3 backdrop-blur-2xl hover:shadow-md">
             <p className="text-[11px] font-medium text-neutral-400 text-center">
-              Lumbo v1.0.0
+              Luumbo v1.0.0
             </p>
           </div>
         </div>

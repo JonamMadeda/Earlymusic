@@ -1,7 +1,7 @@
 {
-  "name": "Lumbo",
-  "short_name": "Lumbo",
-  "description": "Premium Music Streaming by Lumbo",
+  "name": "Luumbo",
+  "short_name": "Luumbo",
+  "description": "Premium Music Streaming by Luumbo",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

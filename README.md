@@ -1,4 +1,4 @@
-# Lumbo
+# Luumbo
 
 ## UI Direction
 
