@@ -131,7 +131,6 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
         );
       }
 
-      localStorage.removeItem("lumbo_songs_cache");
       setProgress(100);
       if (data?.[0]) onSuccess(data[0]);
       onClose();

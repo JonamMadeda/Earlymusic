@@ -67,26 +67,10 @@ export default function PlaylistDetailPage() {
       if (songsFetchedRef.current) return;
       songsFetchedRef.current = true;
 
-      const cached = localStorage.getItem("lumbo_songs_cache");
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setAllSongs(parsed);
-            return;
-          }
-        } catch {
-          localStorage.removeItem("lumbo_songs_cache");
-        }
-      }
-
       try {
         const data = await apiFetch("/api/data/songs?order=title&ascending=true");
         if (data) {
           setAllSongs(data);
-          if (data.length > 0) {
-            localStorage.setItem("lumbo_songs_cache", JSON.stringify(data));
-          }
         }
       } catch (error) {
         console.error("Unable to load songs:", error);

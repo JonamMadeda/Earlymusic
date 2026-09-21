@@ -75,8 +75,6 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
       if (!res.ok) throw new Error("Update failed");
       const data = await res.json();
 
-      // Clear cache so other pages see the update
-      localStorage.removeItem("lumbo_songs_cache");
       if (data) onSuccess(data);
       onClose();
     } catch (error) {

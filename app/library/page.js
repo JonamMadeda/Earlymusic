@@ -85,7 +85,7 @@ export default function LibraryPage() {
   const songsFetchedRef = useRef(false);
   useEffect(() => {
     // Public catalog: fetch regardless of auth so saved-song titles resolve
-    // for fresh sign-ins / new browsers with an empty cache.
+    // for fresh sign-ins / new browsers.
     if (authLoading) return;
     if (allSongs.length > 0) return;
 
@@ -93,26 +93,10 @@ export default function LibraryPage() {
       if (songsFetchedRef.current) return;
       songsFetchedRef.current = true;
 
-      const cached = localStorage.getItem("lumbo_songs_cache");
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setAllSongs(parsed);
-            return;
-          }
-        } catch {
-          localStorage.removeItem("lumbo_songs_cache");
-        }
-      }
-
       try {
         const data = await apiFetch("/api/data/songs?order=title&ascending=true");
         if (data) {
           setAllSongs(data);
-          if (data.length > 0) {
-            localStorage.setItem("lumbo_songs_cache", JSON.stringify(data));
-          }
         }
       } catch (error) {
         console.error("Unable to load songs:", error);

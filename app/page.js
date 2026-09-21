@@ -346,36 +346,17 @@ export default function Home() {
       if (fetchedRef.current) return;
       fetchedRef.current = true;
 
-      let hasCachedSongs = false;
-
       try {
         setIsLoading(true);
-
-        const cachedSongs = localStorage.getItem("lumbo_songs_cache");
-        if (cachedSongs) {
-          try {
-            const parsedSongs = JSON.parse(cachedSongs);
-            hasCachedSongs = Array.isArray(parsedSongs) && parsedSongs.length > 0;
-            if (hasCachedSongs) {
-              setAllSongs(parsedSongs);
-              setIsLoading(false);
-            }
-          } catch {
-            localStorage.removeItem("lumbo_songs_cache");
-          }
-        }
 
         const data = await apiFetch("/api/data/songs?order=title&ascending=true");
 
         if (data) {
           setAllSongs(data);
-          if (data.length > 0) {
-            localStorage.setItem("lumbo_songs_cache", JSON.stringify(data));
-          }
         }
       } catch (error) {
         console.error("Error:", error);
-        if (!hasCachedSongs) setLoadError(true);
+        setLoadError(true);
       } finally {
         setIsLoading(false);
       }

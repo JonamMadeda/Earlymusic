@@ -46,7 +46,6 @@ export default function SettingsPage() {
     const keys = await caches.keys();
     await Promise.all(keys.map((key) => caches.delete(key)));
     localStorage.removeItem("lumbo_downloaded_songs");
-    localStorage.removeItem("lumbo_songs_cache");
     localStorage.removeItem("lumbo_recently_played");
     localStorage.removeItem("lumbo_player_expanded");
     window.location.reload();

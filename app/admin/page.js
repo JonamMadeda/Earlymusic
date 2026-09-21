@@ -430,7 +430,6 @@ export default function AdminDashboard() {
       setAllSongs((prev) =>
         prev.map((s) => (selectedIds.includes(s.id) ? { ...s, ...patch } : s))
       );
-      localStorage.removeItem("lumbo_songs_cache");
       setBulkMessage(`Updated ${selectedIds.length} track${selectedIds.length === 1 ? "" : "s"}.`);
       setSelectedIds([]);
       setBulkCategory("");

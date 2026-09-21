@@ -235,7 +235,6 @@ export default function UploadPage() {
         setDoneCount((n) => n + 1);
       }
 
-      localStorage.removeItem("lumbo_songs_cache");
       const failed = pending.length - succeeded;
       setSummary(
         failed === 0
