@@ -84,7 +84,9 @@ export default function LibraryPage() {
 
   const songsFetchedRef = useRef(false);
   useEffect(() => {
-    if (authLoading || !user) return;
+    // Public catalog: fetch regardless of auth so saved-song titles resolve
+    // for fresh sign-ins / new browsers with an empty cache.
+    if (authLoading) return;
     if (allSongs.length > 0) return;
 
     const fetchSongs = async () => {
@@ -118,7 +120,7 @@ export default function LibraryPage() {
     };
 
     fetchSongs();
-  }, [allSongs.length, setAllSongs, authLoading, user]);
+  }, [allSongs.length, setAllSongs, authLoading]);
 
   const savedSongs = useMemo(() => {
     if (savedSongIds.length === 0 || allSongs.length === 0) return [];

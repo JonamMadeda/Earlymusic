@@ -30,7 +30,10 @@ function AuthForm() {
 
   useEffect(() => {
     if (isUpdatePassword) {
-      fetch("/api/auth/me").then(async (res) => {
+      const token = localStorage.getItem("auth-token");
+      fetch("/api/auth/me", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }).then(async (res) => {
         const data = await res.json();
         if (!data.user) router.push("/auth?mode=update-password");
       });
@@ -79,7 +82,10 @@ function AuthForm() {
       setError(authError.message);
       setSubmitting(false);
     } else if (mode === "signup") {
-      const res = await fetch("/api/auth/me");
+      const token = localStorage.getItem("auth-token");
+      const res = await fetch("/api/auth/me", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const { user } = await res.json();
       if (user) {
         router.push(redirectTo);
