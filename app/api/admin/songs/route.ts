@@ -36,10 +36,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Title and song_path are required." }, { status: 400 });
     }
 
+    // original_songs is a jsonb column: pass it as JSON with an explicit
+    // cast. Sending a plain string parameter without ::jsonb makes Postgres
+    // reject the INSERT ("column is of type jsonb but expression is of type
+    // text"), which surfaced as "Unable to create song." on every upload.
+    const originalSongsValue =
+      original_songs == null || (Array.isArray(original_songs) && original_songs.length === 0)
+        ? null
+        : typeof original_songs === "string"
+          ? original_songs
+          : JSON.stringify(original_songs);
+
     const { rows } = await db.query(
       `INSERT INTO public.songs (title, author, song_path, category, original_songs, duration)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [title, author || null, song_path, category || null, original_songs ? JSON.stringify(original_songs) : null, duration || null]
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6) RETURNING *`,
+      [title, author || null, song_path, category || null, originalSongsValue, duration || null]
     );
 
     return NextResponse.json({ song: rows[0] }, { status: 201 });
