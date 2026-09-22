@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const token = getToken();
-    if (!token) { setLoading(false); return; }
+    if (!token) { setLoading(false); setRoleLoading(false); return; }
 
     apiFetch("/api/auth/me")
       .then(async (res) => {
