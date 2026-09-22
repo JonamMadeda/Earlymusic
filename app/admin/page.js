@@ -129,7 +129,8 @@ export default function AdminDashboard() {
       const response = await authedFetch("/api/admin/users");
       if (!response.ok) throw new Error("Unable to list administrators.");
       const body = await response.json();
-      setAdmins(body.admins || []);
+      const list = Array.isArray(body) ? body : body.admins;
+      setAdmins(Array.isArray(list) ? list : []);
     } catch (error) {
       console.error("Unable to list administrators:", error);
     } finally {
@@ -143,7 +144,8 @@ export default function AdminDashboard() {
       const response = await authedFetch("/api/admin/audit-log?limit=20");
       if (!response.ok) throw new Error("Unable to load activity.");
       const data = await response.json();
-      setAudit({ loading: false, rows: data.rows || data || [], missing: false, error: "" });
+      const rows = Array.isArray(data) ? data : data.rows || data.logs || [];
+      setAudit({ loading: false, rows: Array.isArray(rows) ? rows : [], missing: false, error: "" });
     } catch (error) {
       console.error("Unable to load activity:", error);
       setAudit({ loading: false, rows: [], missing: false, error: error.message || "Unable to load activity." });
@@ -180,8 +182,9 @@ export default function AdminDashboard() {
       const response = await authedFetch("/api/admin/songs");
       if (!response.ok) throw new Error("Unable to load songs.");
       const data = await response.json();
-      if (data) {
-        setAllSongs(data);
+      const list = Array.isArray(data) ? data : data.songs;
+      if (Array.isArray(list)) {
+        setAllSongs(list);
         setHealth(null);
       }
     } catch (error) {
@@ -276,7 +279,7 @@ export default function AdminDashboard() {
   // "Unreachable" = this browser couldn't reach storage (network/CORS) —
   // not proof the file is bad.
   const verifyAllAudio = async () => {
-    const list = allSongs || [];
+    const list = Array.isArray(allSongs) ? allSongs : [];
     if (list.length === 0 || verifyRunningRef.current) return;
     verifyRunningRef.current = true;
     verifyCancelRef.current = false;
@@ -370,7 +373,7 @@ export default function AdminDashboard() {
 
   const runBulkDelete = async () => {
 
-    const byId = new Map((allSongs || []).map((s) => [s.id, s]));
+    const byId = new Map((Array.isArray(allSongs) ? allSongs : []).map((s) => [s.id, s]));
     const ids = [...selectedIds];
     const failed = [];
     const deleted = [];
@@ -443,7 +446,8 @@ export default function AdminDashboard() {
   };
 
   const groupedSongs = useMemo(() => {
-    const filtered = (allSongs || [])
+    const source = Array.isArray(allSongs) ? allSongs : [];
+    const filtered = source
       .filter(
         (s) =>
           (s.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -483,7 +487,7 @@ export default function AdminDashboard() {
 
   // Compute stats — placed before early returns to keep hook order consistent
   const stats = useMemo(() => {
-    const songs = allSongs || [];
+    const songs = Array.isArray(allSongs) ? allSongs : [];
     const artists = new Set(songs.map((s) => s.author?.toLowerCase().trim()).filter(Boolean));
     const categories = new Set(songs.map((s) => s.category || "Worship"));
     const recent = songs.filter((s) => s.created_at && Date.now() - new Date(s.created_at).getTime() < 30 * 24 * 60 * 60 * 1000);
@@ -730,7 +734,7 @@ export default function AdminDashboard() {
                       setBulkMessage("");
                       setSelectedIds(selectedIds.length > 0 ? [] : visibleIds);
                     }}
-                    disabled={(allSongs || []).length === 0 || !!bulkOp}
+                    disabled={(Array.isArray(allSongs) ? allSongs : []).length === 0 || !!bulkOp}
                     className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-bold text-neutral-600 shadow-sm transition hover:border-neutral-300 hover:text-neutral-900 disabled:opacity-50"
                   >
                     Select
@@ -744,7 +748,7 @@ export default function AdminDashboard() {
                         verifyAllAudio();
                       }
                     }}
-                    disabled={(allSongs || []).length === 0}
+                    disabled={(Array.isArray(allSongs) ? allSongs : []).length === 0}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-bold text-neutral-600 shadow-sm transition hover:border-neutral-300 hover:text-neutral-900 disabled:opacity-50"
                     title="Check every track's audio file is reachable"
                   >
@@ -926,7 +930,7 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => { if (!health?.checking) verifyAllAudio(); }}
-                  disabled={(allSongs || []).length === 0 || health?.checking}
+                  disabled={(Array.isArray(allSongs) ? allSongs : []).length === 0 || health?.checking}
                   className="ml-auto rounded-full bg-neutral-900 px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-neutral-700 disabled:opacity-50"
                 >
                   {health?.checking ? `Checking ${health.done}/${health.total}…` : health ? "Run again" : "Run verification"}
