@@ -58,8 +58,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       }
     }
 
-    const { rowCount } = await db.query("DELETE FROM public.songs WHERE id = $1", [id]);
-    if (!rowCount) {
+    // NOTE: the Neon HTTP driver returns only rows (no rowCount), so a
+    // bare DELETE yields no usable count — RETURNING makes the check real.
+    const { rows: deleted } = await db.query("DELETE FROM public.songs WHERE id = $1 RETURNING id", [id]);
+    if (!deleted?.length) {
       return NextResponse.json({ error: "Song not found." }, { status: 404 });
     }
 

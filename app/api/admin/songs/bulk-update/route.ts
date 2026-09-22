@@ -33,12 +33,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     values.push(ids);
-    const { rowCount } = await db.query(
-      `UPDATE public.songs SET ${fields.join(", ")} WHERE id = ANY($${idx})`,
+    // NOTE: the Neon HTTP driver returns only rows (no rowCount), so
+    // RETURNING is required to report how many tracks were updated.
+    const { rows: updatedRows } = await db.query(
+      `UPDATE public.songs SET ${fields.join(", ")} WHERE id = ANY($${idx}) RETURNING id`,
       values
     );
 
-    return NextResponse.json({ updated: rowCount });
+    return NextResponse.json({ updated: updatedRows?.length || 0 });
   } catch (error) {
     console.error("Unable to bulk update songs:", error);
     return NextResponse.json({ error: "Unable to update songs." }, { status: 500 });

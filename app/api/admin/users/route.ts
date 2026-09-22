@@ -109,11 +109,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Cannot remove the last administrator." }, { status: 400 });
     }
 
-    const { rowCount } = await db.query(
-      "DELETE FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
+    // NOTE: the Neon HTTP driver returns only rows (no rowCount), so a
+    // bare DELETE yields no usable count — RETURNING makes the check real.
+    const { rows: deleted } = await db.query(
+      "DELETE FROM public.user_roles WHERE user_id = $1 AND role = 'admin' RETURNING user_id",
       [userId]
     );
-    if (!rowCount) {
+    if (!deleted?.length) {
       return NextResponse.json({ error: "Administrator not found." }, { status: 404 });
     }
 

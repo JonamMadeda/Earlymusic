@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
@@ -63,6 +63,10 @@ export default function UploadPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
 
+  // Mirror of the queue for synchronous reads inside event handlers.
+  const queueRef = useRef<QueueItem[]>([]);
+  queueRef.current = queue;
+
   if (authLoading || roleLoading) {
     return (
       <main className="flex min-h-[90vh] items-center justify-center bg-neutral-50/60">
@@ -93,23 +97,36 @@ export default function UploadPage() {
     if (!files || isPublishing) return;
     setSummary(null);
     setFormError(null);
-    setQueue((prev) => {
-      const existing = new Set(prev.map((item) => item.key));
-      const additions: QueueItem[] = [];
-      for (const file of Array.from(files)) {
-        const key = `${file.name}-${file.size}-${file.lastModified}`;
-        if (existing.has(key)) continue;
-        existing.add(key);
-        additions.push({
-          key,
-          file,
-          title: titleFromFilename(file.name),
-          phase: "queued",
-          note: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
-        });
+    const picked = Array.from(files);
+    if (picked.length === 0) return;
+
+    // Drop already-published ("done") entries so the queue is fresh for the
+    // next batch — previously they lingered and silently blocked re-selecting
+    // files, forcing a page revisit to upload again. Failed ("error") entries
+    // are kept so they can be retried.
+    const kept = queueRef.current.filter((item) => item.phase !== "done");
+    const existing = new Set(kept.map((item) => item.key));
+    const additions: QueueItem[] = [];
+    let skipped = 0;
+    for (const file of picked) {
+      const key = `${file.name}-${file.size}-${file.lastModified}`;
+      if (existing.has(key)) {
+        skipped += 1;
+        continue;
       }
-      return [...prev, ...additions];
-    });
+      existing.add(key);
+      additions.push({
+        key,
+        file,
+        title: titleFromFilename(file.name),
+        phase: "queued",
+        note: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
+      });
+    }
+    setQueue([...kept, ...additions]);
+    if (additions.length === 0 && skipped > 0) {
+      setFormError("Those files are already in the queue.");
+    }
   };
 
   const handleAddOriginal = () => {
@@ -261,28 +278,28 @@ export default function UploadPage() {
   const pendingCount = queue.filter((item) => item.phase !== "done").length;
 
   return (
-    <main className="min-h-[90vh] bg-neutral-50/60 px-3 pb-36 pt-2 md:px-8 md:pt-6">
-      <div className="mx-auto max-w-2xl">
+    <main className="bg-neutral-50/60 px-3 pb-28 pt-3 md:px-8 md:pt-4">
+      <div className="mx-auto max-w-4xl">
         {/* Header */}
-        <div className="mb-6 flex items-start gap-3">
+        <div className="mb-3 flex items-center gap-3">
           <Link
             href="/admin"
             aria-label="Back to Vault"
-            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-500 shadow-sm transition hover:text-neutral-900"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-500 shadow-sm transition hover:text-neutral-900"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={15} />
           </Link>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">Upload Tracks</h1>
-            <p className="mt-1 text-sm text-neutral-500">
-              Queue one file or a whole batch — artist, category, and compilation details apply to every track.
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold tracking-tight text-neutral-900">Upload Tracks</h1>
+            <p className="truncate text-xs text-neutral-500">
+              Queue files or a batch — artist, category, and compilation details apply to every track.
             </p>
           </div>
         </div>
 
         {/* Summary banner */}
         {summary && !isPublishing && (
-          <div className="mb-5 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-3 shadow-sm">
             <CheckCircle2 size={20} className="shrink-0 text-green-600" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-green-900">{summary}</p>
@@ -298,14 +315,34 @@ export default function UploadPage() {
         )}
 
         {/* Form card */}
-        <form onSubmit={handleSubmit} className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm md:p-8">
-          {/* Queue */}
+        <form onSubmit={handleSubmit} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-5">
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            {/* Left: files */}
+            <div className="flex min-w-0 flex-col">
+              {/* Dropzone */}
+              <div className="relative cursor-pointer rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50 p-5 text-center transition hover:border-accent/30">
+                <input
+                  type="file"
+                  accept="audio/*"
+                  multiple
+                  onChange={(e) => {
+                    handleFilesSelect(e.target.files);
+                    e.target.value = "";
+                  }}
+                  disabled={isPublishing}
+                  className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                />
+                <UploadCloud size={24} className="mx-auto mb-1.5 text-neutral-300" />
+                <p className="text-sm font-bold text-neutral-700">Drop MP3s here, or tap to browse</p>
+                <p className="mt-0.5 text-xs text-neutral-400">Multiple files OK · MP3, M4A, WAV, OGG, FLAC up to 100 MB each</p>
+              </div>
+              {/* Queue */}
           {queue.length > 0 && (
-            <div className="mb-5 flex flex-col gap-y-2">
+            <div className="mt-3 flex flex-col gap-y-2">
               <p className="px-1 text-[11px] font-bold uppercase tracking-wider text-neutral-400">
                 Queue ({queue.length})
               </p>
-              <div className="flex max-h-[280px] flex-col gap-y-2 overflow-y-auto pr-1 custom-scrollbar">
+              <div className="flex max-h-[190px] flex-col gap-y-2 overflow-y-auto pr-1 custom-scrollbar">
                 {queue.map((item) => (
                   <div
                     key={item.key}
@@ -352,6 +389,9 @@ export default function UploadPage() {
             </div>
           )}
 
+            </div>
+            {/* Right: details */}
+            <div className="flex min-w-0 flex-col">
           <div className="flex flex-col gap-y-1.5">
             <label htmlFor="upload-author" className="text-xs font-semibold text-neutral-500">
               Artist Name (applies to all)
@@ -369,7 +409,7 @@ export default function UploadPage() {
           </div>
 
           {/* Category + Duration */}
-          <div className="mt-5 grid gap-5 md:grid-cols-2">
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
             <div className="flex flex-col gap-y-1.5">
               <span className="text-xs font-semibold text-neutral-500">Category</span>
               <div className="flex items-center gap-x-2 rounded-xl border border-neutral-200 bg-neutral-50 p-1">
@@ -413,8 +453,8 @@ export default function UploadPage() {
           </div>
 
           {/* Original songs */}
-          <div className="mt-6">
-            <div className="mb-3 flex items-center justify-between px-1">
+          <div className="mt-3">
+            <div className="mb-2 flex items-center justify-between px-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
                 Original Songs (Compilation)
               </span>
@@ -427,17 +467,17 @@ export default function UploadPage() {
                 <Plus size={14} /> Add Song
               </button>
             </div>
-            <div className="flex max-h-[240px] flex-col gap-y-3 overflow-y-auto pr-1 custom-scrollbar">
+            <div className="flex max-h-[150px] flex-col gap-y-2 overflow-y-auto pr-1 custom-scrollbar">
               {originalSongs.map((s, index) => (
-                <div key={index} className="group/item relative flex flex-col gap-y-2 rounded-xl border border-neutral-100 bg-neutral-50 p-3">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div key={index} className="group/item relative flex flex-col gap-y-2 rounded-xl border border-neutral-100 bg-neutral-50 p-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <input
                       type="text"
                       placeholder="Original Title"
                       value={s.title}
                       onChange={(e) => handleOriginalChange(index, "title", e.target.value)}
                       disabled={isPublishing}
-                      className="rounded-lg border border-neutral-200 bg-white p-2.5 text-[13px] outline-none transition focus:border-accent disabled:opacity-60"
+                      className="rounded-lg border border-neutral-200 bg-white p-2 text-[13px] outline-none transition focus:border-accent disabled:opacity-60"
                     />
                     <input
                       type="text"
@@ -445,7 +485,7 @@ export default function UploadPage() {
                       value={s.artist}
                       onChange={(e) => handleOriginalChange(index, "artist", e.target.value)}
                       disabled={isPublishing}
-                      className="rounded-lg border border-neutral-200 bg-white p-2.5 text-[13px] outline-none transition focus:border-accent disabled:opacity-60"
+                      className="rounded-lg border border-neutral-200 bg-white p-2 text-[13px] outline-none transition focus:border-accent disabled:opacity-60"
                     />
                   </div>
                   {originalSongs.length > 1 && (
@@ -464,27 +504,12 @@ export default function UploadPage() {
             </div>
           </div>
 
-          {/* Dropzone */}
-          <div className="relative mt-6 cursor-pointer rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50 p-8 text-center transition hover:border-accent/30 md:p-10">
-            <input
-              type="file"
-              accept="audio/*"
-              multiple
-              onChange={(e) => {
-                handleFilesSelect(e.target.files);
-                e.target.value = "";
-              }}
-              disabled={isPublishing}
-              className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
-            />
-            <UploadCloud size={32} className="mx-auto mb-2 text-neutral-300" />
-            <p className="text-sm font-bold text-neutral-700">Drop MP3s here, or tap to browse</p>
-            <p className="mt-1 text-xs text-neutral-400">Select multiple files at once · MP3, M4A, WAV, OGG, FLAC up to 100 MB each</p>
+            </div>
           </div>
 
           {/* Progress + status */}
           {isPublishing && (
-            <div className="mt-5 space-y-2">
+            <div className="mt-3 space-y-2">
               <p className="text-xs font-semibold text-accent">
                 Publishing {doneCount} of {publishTotal}…
               </p>
@@ -497,16 +522,16 @@ export default function UploadPage() {
             </div>
           )}
           {formError && !isPublishing && (
-            <p role="alert" className="mt-4 text-sm font-medium text-red-600">
+            <p role="alert" className="mt-2 text-sm font-medium text-red-600">
               {formError}
             </p>
           )}
 
-          <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <button
               type="submit"
               disabled={isPublishing || pendingCount === 0}
-              className="flex-1 rounded-xl bg-accent py-3.5 text-sm font-bold uppercase tracking-tight text-white shadow-sm transition-all hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 rounded-xl bg-accent py-3 text-sm font-bold uppercase tracking-tight text-white shadow-sm transition-all hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isPublishing
                 ? `Publishing… (${doneCount}/${publishTotal})`
@@ -518,7 +543,7 @@ export default function UploadPage() {
               <button
                 type="button"
                 onClick={resetAll}
-                className="rounded-xl border border-neutral-200 bg-white px-5 py-3.5 text-sm font-bold text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+                className="rounded-xl border border-neutral-200 bg-white px-5 py-3 text-sm font-bold text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
               >
                 Start over
               </button>
