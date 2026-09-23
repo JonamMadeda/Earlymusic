@@ -9,8 +9,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const { email, password } = await request.json();
-    if (typeof email !== "string" || !email.trim() || typeof password !== "string" || password.length < 6) {
-      return NextResponse.json({ error: "Email and password (min 6 chars) are required." }, { status: 400 });
+    if (typeof email !== "string" || !email.trim() || typeof password !== "string" || password.length < 8) {
+      return NextResponse.json({ error: "Email and password (min 8 chars) are required." }, { status: 400 });
     }
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
       return NextResponse.json({ error: "Invalid email address." }, { status: 400 });

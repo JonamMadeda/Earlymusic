@@ -167,7 +167,7 @@ function AuthForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="bg-transparent outline-none flex-1 text-sm font-medium text-neutral-900 placeholder:text-neutral-300"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
                 <button
                   type="button"

@@ -27,6 +27,16 @@ function isSafeIdentifier(key: string): boolean {
   return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key);
 }
 
+// playlist_songs has no user_id column: access is granted only through
+// ownership of the parent playlist. Central check, used by every method.
+async function playlistOwnedBy(playlistId: string, userId: string): Promise<boolean> {
+  const { rows } = await db.query(
+    "SELECT id FROM public.playlists WHERE id = $1 AND user_id = $2",
+    [playlistId, userId]
+  );
+  return (rows?.length || 0) > 0;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ table: string }> }
@@ -42,6 +52,41 @@ export async function GET(
       const user = await getUserFromRequest(request);
       if (!user) {
         return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+      }
+
+      // playlist_songs carries no user_id — scope strictly to playlists the
+      // caller owns (prevents cross-account reads AND fixes the broken
+      // user_id filter that 500'd every playlist-songs query).
+      if (table === "playlist_songs") {
+        const playlistId = searchParams.get("playlist_id");
+        if (!playlistId) {
+          return NextResponse.json({ error: "playlist_id required." }, { status: 400 });
+        }
+        if (!(await playlistOwnedBy(playlistId, user.id))) {
+          return NextResponse.json({ error: "Playlist not found." }, { status: 404 });
+        }
+        const columns = searchParams.get("columns");
+        const selectCols = columns ? sanitizeColumns(columns) : "*";
+        let query = `SELECT ${selectCols} FROM public.playlist_songs WHERE playlist_id = $1`;
+        const values: string[] = [playlistId];
+        for (const key of ["song_id", "id"]) {
+          const v = searchParams.get(key);
+          if (v !== null) {
+            values.push(v);
+            query += ` AND ${key} = $${values.length}`;
+          }
+        }
+        const orderCol = searchParams.get("order");
+        if (orderCol && isSafeIdentifier(orderCol)) {
+          const asc = searchParams.get("ascending") !== "false";
+          query += ` ORDER BY ${orderCol} ${asc ? "ASC" : "DESC"}`;
+        }
+        const limit = searchParams.get("limit");
+        if (limit && /^\d+$/.test(limit)) {
+          query += ` LIMIT ${parseInt(limit, 10)}`;
+        }
+        const result = await db.query(query, values);
+        return NextResponse.json(result.rows || []);
       }
 
       const columns = searchParams.get("columns");
@@ -152,12 +197,29 @@ export async function POST(
     const rows = Array.isArray(body) ? body : [body];
 
     const results = [];
+    const ownedPlaylists = new Set<string>();
     for (const row of rows) {
-      // Enforce user_id matches authenticated user
-      if (row.user_id && row.user_id !== user.id) {
-        return NextResponse.json({ error: "Cannot insert for another user." }, { status: 403 });
+      // playlist_songs has no user_id column: authorize through the parent
+      // playlist instead of stamping a column that doesn't exist.
+      if (table === "playlist_songs") {
+        const pid = row.playlist_id;
+        if (typeof pid !== "string" || !pid) {
+          return NextResponse.json({ error: "playlist_id required." }, { status: 400 });
+        }
+        if (!ownedPlaylists.has(pid)) {
+          if (!(await playlistOwnedBy(pid, user.id))) {
+            return NextResponse.json({ error: "Playlist not found." }, { status: 404 });
+          }
+          ownedPlaylists.add(pid);
+        }
+        delete row.user_id;
+      } else {
+        // Enforce user_id matches authenticated user
+        if (row.user_id && row.user_id !== user.id) {
+          return NextResponse.json({ error: "Cannot insert for another user." }, { status: 403 });
+        }
+        row.user_id = user.id;
       }
-      row.user_id = user.id;
 
       const keys = Object.keys(row).filter(
         (k) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(k)
@@ -236,9 +298,21 @@ export async function PATCH(
       return NextResponse.json({ error: "No fields to update." }, { status: 400 });
     }
 
-    // Always filter by user_id for user tables
+    // Scope writes to the caller's own rows. playlist_songs has no
+    // user_id column, so it is scoped through the owned parent playlist.
     const conditions: string[] = [];
-    if (USER_TABLES.has(table)) {
+    if (table === "playlist_songs") {
+      const playlistId = searchParams.get("playlist_id");
+      if (!playlistId) {
+        return NextResponse.json({ error: "playlist_id required." }, { status: 400 });
+      }
+      if (!(await playlistOwnedBy(playlistId, user.id))) {
+        return NextResponse.json({ error: "Playlist not found." }, { status: 404 });
+      }
+      conditions.push(`playlist_id = $${idx}`);
+      values.push(playlistId);
+      idx++;
+    } else if (USER_TABLES.has(table)) {
       conditions.push(`user_id = $${idx}`);
       values.push(user.id);
       idx++;
@@ -246,7 +320,7 @@ export async function PATCH(
 
     // Support additional filter params
     for (const [key, value] of searchParams.entries()) {
-      if (["limit", "order", "ascending"].includes(key)) continue;
+      if (["limit", "order", "ascending", "playlist_id"].includes(key)) continue;
       if (!isSafeIdentifier(key)) continue;
       conditions.push(`${key} = $${idx}`);
       values.push(value);
@@ -293,14 +367,28 @@ export async function DELETE(
     const conditions: string[] = [];
     let idx = 1;
 
-    // Always filter by user_id for user tables
-    conditions.push(`user_id = $${idx}`);
-    values.push(user.id);
-    idx++;
+    // Scope deletes to the caller's own rows. playlist_songs has no
+    // user_id column, so it is scoped through the owned parent playlist.
+    if (table === "playlist_songs") {
+      const playlistId = searchParams.get("playlist_id");
+      if (!playlistId) {
+        return NextResponse.json({ error: "playlist_id required." }, { status: 400 });
+      }
+      if (!(await playlistOwnedBy(playlistId, user.id))) {
+        return NextResponse.json({ error: "Playlist not found." }, { status: 404 });
+      }
+      conditions.push(`playlist_id = $${idx}`);
+      values.push(playlistId);
+      idx++;
+    } else {
+      conditions.push(`user_id = $${idx}`);
+      values.push(user.id);
+      idx++;
+    }
 
     // Support filter params (e.g., song_id, playlist_id, id)
     for (const [key, value] of searchParams.entries()) {
-      if (["limit", "order", "ascending"].includes(key)) continue;
+      if (["limit", "order", "ascending", "playlist_id"].includes(key)) continue;
       if (!isSafeIdentifier(key)) continue;
       conditions.push(`${key} = $${idx}`);
       values.push(value);
