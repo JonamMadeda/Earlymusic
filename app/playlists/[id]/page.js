@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ListMusic, Disc, Trash2, LogIn, Plus } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
+import { getNewSongIds } from "@/lib/newSongs";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
 import SongItem from "@/app/components/SongItem";
@@ -86,6 +87,8 @@ export default function PlaylistDetailPage() {
       .map((sid) => allSongs.find((s) => s.id === sid))
       .filter(Boolean);
   }, [songIds, allSongs]);
+
+  const newSongIds = useMemo(() => getNewSongIds(allSongs), [allSongs]);
 
   const availableSongs = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -284,6 +287,7 @@ export default function PlaylistDetailPage() {
                   onClick={() => setActiveSong(song, songs)}
                   saved={savedSongIds.has(song.id)}
                   onToggleSave={handleToggleSaved}
+                  isNew={newSongIds.has(song.id)}
                 />
                 <button
                   onClick={(e) => removeSong(e, song.id)}

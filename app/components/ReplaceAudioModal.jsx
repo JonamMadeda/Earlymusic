@@ -105,15 +105,18 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
 
       setStatus("Pointing track at the new file…");
       setProgress(75);
-      const updateRes = await fetch("/api/data/songs", {
+      const updateRes = await fetch(`/api/admin/songs/${song.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ id: song.id, song_path: uploadedStorageUrl }),
+        body: JSON.stringify({ song_path: uploadedStorageUrl }),
       });
-      if (!updateRes.ok) throw new Error("Failed to update song");
+      if (!updateRes.ok) {
+        const errBody = await updateRes.json().catch(() => null);
+        throw new Error(errBody?.error || "Failed to update song");
+      }
       const data = await updateRes.json();
 
       // Old file is now unreferenced — remove it (best-effort).
@@ -132,7 +135,8 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
       }
 
       setProgress(100);
-      if (data?.[0]) onSuccess(data[0]);
+      if (data?.song) onSuccess(data.song);
+      else if (data?.[0]) onSuccess(data[0]);
       onClose();
     } catch (error) {
       console.error("Replace audio failed:", error);

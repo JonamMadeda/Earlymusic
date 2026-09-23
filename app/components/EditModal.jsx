@@ -56,14 +56,13 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
       setIsLoading(true);
 
       const token = localStorage.getItem("auth-token");
-      const res = await fetch("/api/data/songs", {
+      const res = await fetch(`/api/admin/songs/${song.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          id: song.id,
           title: title,
           author: author,
           original_songs: originalSongs.filter(s => s.title || s.artist),
@@ -72,10 +71,14 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
         }),
       });
 
-      if (!res.ok) throw new Error("Update failed");
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error || "Update failed");
+      }
       const data = await res.json();
 
-      if (data) onSuccess(data);
+      if (data?.song) onSuccess(data.song);
+      else if (data) onSuccess(data);
       onClose();
     } catch (error) {
       console.error("Update failed:", error);

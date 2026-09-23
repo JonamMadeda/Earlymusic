@@ -43,8 +43,14 @@ export default function SettingsPage() {
 
   const clearAllData = async () => {
     setClearingAll(true);
-    const keys = await caches.keys();
-    await Promise.all(keys.map((key) => caches.delete(key)));
+    try {
+      if (typeof caches !== "undefined") {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      }
+    } catch (error) {
+      console.error("Unable to clear caches:", error);
+    }
     localStorage.removeItem("lumbo_downloaded_songs");
     localStorage.removeItem("lumbo_recently_played");
     localStorage.removeItem("lumbo_player_expanded");

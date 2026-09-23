@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20", 10);
     const { rows } = await db.query(
-      `SELECT a.*, u.email as actor_email
+      `SELECT a.*, a.target_id AS target, u.email as actor_email
        FROM public.admin_audit_log a
        LEFT JOIN public.users u ON u.id = a.actor_id
        ORDER BY a.created_at DESC

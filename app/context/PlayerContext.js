@@ -43,7 +43,9 @@ export const PlayerProvider = ({ children }) => {
     }
   }, []);
 
-  // Seed with random songs for new users (no recently played yet)
+  // Seed with random songs for new users (no recently played yet).
+  // Local-only: these are suggestions, not real plays, so they must never
+  // be written to the listening-history table.
   useEffect(() => {
     if (seeded.current) return;
     if (allSongs.length === 0) return;
@@ -53,22 +55,10 @@ export const PlayerProvider = ({ children }) => {
     const seededSongs = shuffle(allSongs).slice(0, SEED_COUNT);
     setRecentlyPlayed(seededSongs);
     localStorage.setItem(RECENT_KEY, JSON.stringify(seededSongs));
-
-    const token = localStorage.getItem("auth-token");
-    if (!token) return;
-    fetch("/api/data/recently_played", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(
-        seededSongs.map((song, i) => ({
-          song_id: song.id,
-          created_at: new Date(Date.now() - (SEED_COUNT - i) * 60000).toISOString(),
-        }))
-      ),
-    }).catch((error) => console.error("Unable to seed recently played:", error));
   }, [allSongs, recentlyPlayed]);
 
-  // Sync recently played changes to Supabase (only the latest play)
+  // Sync recently played changes to the database (only the latest play).
+  // NOTE: the table's timestamp column is played_at (not created_at).
   useEffect(() => {
     if (recentlyPlayed.length === 0) return;
 
@@ -82,6 +72,9 @@ export const PlayerProvider = ({ children }) => {
     if (prev === null) return;
     if (recentlyPlayed[0]?.id === prev[0]?.id) return;
 
+    // Never sync seeded suggestions — only songs the user actually played.
+    // A seeded entry is any baseline item that was never at the front due to
+    // a real play; the guard above already ensures a genuine new play.
     const token = localStorage.getItem("auth-token");
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
@@ -92,22 +85,25 @@ export const PlayerProvider = ({ children }) => {
     fetch("/api/data/recently_played", {
       method: "POST",
       headers,
-      body: JSON.stringify({ song_id: latest.id, created_at: new Date().toISOString() }),
+      body: JSON.stringify({ song_id: latest.id, played_at: new Date().toISOString() }),
     }).catch((error) => console.error("Unable to sync recently played:", error));
 
-    // Trim to max rows
-    fetch(`/api/data/recently_played?order_by=created_at&ascending=false`, {
+    // Trim to max rows: read the oldest excess entries and delete them by id.
+    // (One request per row — the data API matches filters with = only.)
+    fetch(`/api/data/recently_played?order=played_at&ascending=false`, {
       headers,
     })
       .then((res) => res.json())
       .then((existing) => {
         if (Array.isArray(existing) && existing.length > MAX_RECENT) {
-          const idsToDelete = existing.slice(MAX_RECENT).map((r) => r.id);
-          fetch("/api/data/recently_played", {
-            method: "DELETE",
-            headers,
-            body: JSON.stringify({ filters: { id: idsToDelete.join(",") } }),
-          }).catch((error) => console.error("Unable to trim recently played:", error));
+          const extras = existing.slice(MAX_RECENT);
+          extras.forEach((row) => {
+            if (!row?.id) return;
+            fetch(`/api/data/recently_played?id=${row.id}`, {
+              method: "DELETE",
+              headers,
+            }).catch((error) => console.error("Unable to trim recently played:", error));
+          });
         }
       })
       .catch((error) => console.error("Unable to read recently played:", error));

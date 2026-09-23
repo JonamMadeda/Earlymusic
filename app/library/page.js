@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import SongItem from "../components/SongItem";
 import SongAvatar from "@/app/components/SongAvatar";
 import { PageSkeleton } from "../components/Skeleton";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
+import { getNewSongIds } from "@/lib/newSongs";
 import {
   Disc, LogIn, Heart, ListMusic, Download, Play, Trash2, Plus, HardDrive,
 } from "lucide-react";
@@ -31,11 +32,15 @@ const tabs = [
   { key: "downloads", label: "Downloads", icon: Download },
 ];
 
-export default function LibraryPage() {
+function LibraryContent() {
   const { user, loading: authLoading } = useAuth();
   const { allSongs, setAllSongs, setActiveSong } = usePlayer();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("saved");
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get("tab");
+    return ["saved", "playlists", "downloads"].includes(tab) ? tab : "saved";
+  });
   const [loading, setLoading] = useState(true);
 
   // Saved songs
@@ -111,8 +116,9 @@ export default function LibraryPage() {
     return savedSongIds.map((sid) => allSongs.find((s) => s.id === sid)).filter(Boolean);
   }, [savedSongIds, allSongs]);
 
-  const groupedSaved = useMemo(() => {
-    const sorted = [...savedSongs].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+  const newSongIds = useMemo(() => getNewSongIds(allSongs), [allSongs]);
+
+  const groupedSaved = useMemo(() => {    const sorted = [...savedSongs].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
     return sorted.reduce((groups, song) => {
       const letter = song.title?.[0]?.toUpperCase() || "#";
       if (!groups[letter]) groups[letter] = [];
@@ -248,6 +254,7 @@ export default function LibraryPage() {
                           onClick={() => setActiveSong(song, savedSongs)}
                           saved={true}
                           onToggleSave={handleToggleSaved}
+                          isNew={newSongIds.has(song.id)}
                         />
                       ))}
                     </div>
@@ -427,5 +434,19 @@ export default function LibraryPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function LibraryPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
+          <div className="max-w-5xl mx-auto"><PageSkeleton /></div>
+        </main>
+      }
+    >
+      <LibraryContent />
+    </Suspense>
   );
 }

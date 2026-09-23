@@ -181,15 +181,8 @@ function AuthForm() {
             </div>
           )}
 
-          {mode === "login" && (
-            <button
-              type="button"
-              onClick={() => { setMode("reset"); setError(""); }}
-              className="text-xs font-medium text-neutral-400 hover:text-neutral-900 transition self-end -mt-2"
-            >
-              Forgot password?
-            </button>
-          )}
+          {/* Password reset is not available (no mail service configured).
+              Accounts are recovered by an administrator instead. */}
 
           {error && (
             <p className="text-[13px] font-medium text-red-600 text-center">

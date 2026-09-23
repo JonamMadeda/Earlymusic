@@ -21,6 +21,12 @@ function sanitizeColumns(columns: string): string {
     .join(", ");
 }
 
+// Query-param NAMES are interpolated into SQL — accept only plain
+// identifiers so crafted keys can't inject SQL (values stay parameterized).
+function isSafeIdentifier(key: string): boolean {
+  return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key);
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ table: string }> }
@@ -51,6 +57,7 @@ export async function GET(
       // Support additional filters (e.g., song_id, playlist_id)
       for (const [key, value] of searchParams.entries()) {
         if (["columns", "limit", "order", "ascending", "count"].includes(key)) continue;
+        if (!isSafeIdentifier(key)) continue;
         conditions.push(`${key} = $${values.length + 1}`);
         values.push(value);
       }
@@ -92,6 +99,7 @@ export async function GET(
     // Support optional filters on public tables
     for (const [key, value] of searchParams.entries()) {
       if (["columns", "limit", "order", "ascending", "count"].includes(key)) continue;
+      if (!isSafeIdentifier(key)) continue;
       conditions.push(`${key} = $${values.length + 1}`);
       values.push(value);
     }
@@ -101,7 +109,7 @@ export async function GET(
     }
 
     const orderCol = searchParams.get("order");
-    if (orderCol && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(orderCol)) {
+    if (orderCol && isSafeIdentifier(orderCol)) {
       const asc = searchParams.get("ascending") !== "false";
       query += ` ORDER BY ${orderCol} ${asc ? "ASC" : "DESC"}`;
     }
@@ -157,7 +165,24 @@ export async function POST(
       const values = keys.map((k) => row[k]);
       const placeholders = keys.map((_, i) => `$${i + 1}`);
 
-      const query = `INSERT INTO public.${table} (${keys.join(", ")}) VALUES (${placeholders.join(", ")}) RETURNING *`;
+      // Conflict handling per table (unique constraints exist — see schema):
+      // - recently_played: replaying bumps played_at instead of erroring.
+      // - saved_songs / playlist_songs: double-saves are harmless no-ops.
+      let conflict = "";
+      if (table === "recently_played") {
+        if (!keys.includes("played_at")) {
+          keys.push("played_at");
+          values.push(new Date().toISOString());
+          placeholders.push(`$${keys.length}`);
+        }
+        conflict = " ON CONFLICT (user_id, song_id) DO UPDATE SET played_at = EXCLUDED.played_at";
+      } else if (table === "saved_songs") {
+        conflict = " ON CONFLICT (user_id, song_id) DO NOTHING";
+      } else if (table === "playlist_songs") {
+        conflict = " ON CONFLICT (playlist_id, song_id) DO NOTHING";
+      }
+
+      const query = `INSERT INTO public.${table} (${keys.join(", ")}) VALUES (${placeholders.join(", ")})${conflict} RETURNING *`;
       const result = await db.query(query, values);
       if (result.rows?.[0]) {
         results.push(result.rows[0]);
@@ -222,6 +247,7 @@ export async function PATCH(
     // Support additional filter params
     for (const [key, value] of searchParams.entries()) {
       if (["limit", "order", "ascending"].includes(key)) continue;
+      if (!isSafeIdentifier(key)) continue;
       conditions.push(`${key} = $${idx}`);
       values.push(value);
       idx++;
@@ -275,6 +301,7 @@ export async function DELETE(
     // Support filter params (e.g., song_id, playlist_id, id)
     for (const [key, value] of searchParams.entries()) {
       if (["limit", "order", "ascending"].includes(key)) continue;
+      if (!isSafeIdentifier(key)) continue;
       conditions.push(`${key} = $${idx}`);
       values.push(value);
       idx++;

@@ -65,7 +65,7 @@ import SongAvatar from "@/app/components/SongAvatar";
 
 export default function AdminDashboard() {
   const { allSongs, setAllSongs, activeSong, setActiveSong } = usePlayer();
-  const { user, loading: authLoading, isAdmin, roleLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin, roleLoading, signOut } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("tracks");
@@ -99,7 +99,9 @@ export default function AdminDashboard() {
 
   const router = useRouter();
   const handleLogout = () => {
-    fetch("/api/auth/signout", { method: "POST" }).finally(() => router.replace("/"));
+    // signOut clears the stored token + auth state; without it the "logout"
+    // only navigated away and the session silently survived.
+    signOut().finally(() => router.replace("/"));
   };
 
   useEffect(() => {

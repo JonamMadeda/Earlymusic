@@ -17,7 +17,12 @@ const apiFetch = (url, opts = {}) => {
   if (opts.body && typeof opts.body === "string" && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
-  return fetch(url, { ...opts, headers });
+  return fetch(url, { ...opts, headers }).then((res) => {
+    if (res.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+    }
+    return res;
+  });
 };
 
 export const AuthProvider = ({ children }) => {
@@ -102,6 +107,20 @@ export const AuthProvider = ({ children }) => {
     setProfile(null);
     setIsAdmin(false);
   };
+
+  // Global 401 recovery: any API client that gets "Not authenticated" fires
+  // auth:unauthorized (e.g. expired 7-day token) — drop the dead session so
+  // the UI returns to a clean signed-out state instead of failing silently.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setToken(null);
+      setUser(null);
+      setProfile(null);
+      setIsAdmin(false);
+    };
+    window.addEventListener("auth:unauthorized", onUnauthorized);
+    return () => window.removeEventListener("auth:unauthorized", onUnauthorized);
+  }, []);
 
   const updateProfile = async ({ first_name, last_name }) => {
     if (!user) return { error: new Error("Not authenticated") };

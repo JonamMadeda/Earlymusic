@@ -12,6 +12,69 @@ const getR2ObjectKey = (songPath: string) => {
   return decodeURIComponent(songPath.slice(publicBaseUrl.length + 1));
 };
 
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const limited = checkRateLimit(request, { name: "song-update", limit: 60, windowMs: 60_000 });
+  if (limited) return limited;
+
+  try {
+    const admin = await getAdminFromRequest(request);
+    if (!admin) {
+      return NextResponse.json({ error: "Administrator access is required." }, { status: 403 });
+    }
+
+    const { id } = await params;
+    if (!/^\d+$/.test(id)) {
+      return NextResponse.json({ error: "Invalid song id." }, { status: 400 });
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
+    for (const key of ["title", "author", "song_path", "category", "duration"] as const) {
+      if (body[key] !== undefined) {
+        fields.push(`${key} = $${idx}`);
+        values.push(typeof body[key] === "string" && body[key].trim() === "" ? null : body[key]);
+        idx++;
+      }
+    }
+    if (body.original_songs !== undefined) {
+      // jsonb column: explicit cast so string params are accepted.
+      fields.push(`original_songs = $${idx}::jsonb`);
+      const v = body.original_songs;
+      values.push(
+        v == null || (Array.isArray(v) && v.length === 0)
+          ? null
+          : typeof v === "string" ? v : JSON.stringify(v)
+      );
+      idx++;
+    }
+    if (!fields.length) {
+      return NextResponse.json({ error: "No valid fields to update." }, { status: 400 });
+    }
+
+    values.push(id);
+    const { rows } = await db.query(
+      `UPDATE public.songs SET ${fields.join(", ")} WHERE id = $${idx} RETURNING *`,
+      values
+    );
+    if (!rows?.length) {
+      return NextResponse.json({ error: "Song not found." }, { status: 404 });
+    }
+
+    return NextResponse.json({ song: rows[0] });
+  } catch (error) {
+    console.error("Unable to update song:", error);
+    return NextResponse.json({ error: "Unable to update the song." }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const limited = checkRateLimit(request, { name: "song-delete", limit: 120, windowMs: 60_000 });
   if (limited) return limited;

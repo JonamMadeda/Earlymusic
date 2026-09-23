@@ -20,16 +20,22 @@ import { useAuth } from "@/app/context/AuthContext";
  * When `saved` and `onToggleSave` are provided (batched by the parent),
  * the per-row saved-state query is skipped entirely.
  */
-const SongItem = ({ song, onClick, saved, onToggleSave }) => {
+const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const rowRef = useRef(null);
   const normalizedCategory = (song.category || "Worship").trim();
+  // Rank-based "new" (top-15 by created_at) when the parent passes isNew;
+  // otherwise fall back to the 30-day window.
   const isNew =
-    song.created_at &&
-    Date.now() - new Date(song.created_at).getTime() <
-      30 * 24 * 60 * 60 * 1000;
+    isNewProp !== undefined
+      ? isNewProp
+      : !!(
+          song.created_at &&
+          Date.now() - new Date(song.created_at).getTime() <
+            30 * 24 * 60 * 60 * 1000
+        );
 
   const [internalSaved, setInternalSaved] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -73,7 +79,7 @@ const SongItem = ({ song, onClick, saved, onToggleSave }) => {
   useEffect(() => {
     if (showPlaylists && user) {
       const token = localStorage.getItem("auth-token");
-      fetch(`/api/data/playlists?user_id=${user.id}&order_by=created_at&ascending=false`, {
+      fetch(`/api/data/playlists?user_id=${user.id}&order=created_at&ascending=false`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => res.json())
@@ -95,10 +101,11 @@ const SongItem = ({ song, onClick, saved, onToggleSave }) => {
     const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
     try {
       if (internalSaved) {
-        const res = await fetch("/api/data/saved-songs", {
+        // Filters belong in the query string: the data API ignores bodies
+        // on DELETE, and a filterless call would remove ALL saved songs.
+        const res = await fetch(`/api/data/saved_songs?song_id=${song.id}`, {
           method: "DELETE",
           headers,
-          body: JSON.stringify({ filters: { user_id: user.id, song_id: song.id } }),
         });
         if (!res.ok) throw new Error("Failed to unlike");
         setInternalSaved(false);

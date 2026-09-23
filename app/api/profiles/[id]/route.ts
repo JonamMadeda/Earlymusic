@@ -4,6 +4,10 @@ import { getUserFromRequest } from "@/lib/auth";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await getUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+    }
     const { id } = await params;
     const result = await db.query(
       "SELECT first_name, last_name FROM public.profiles WHERE id = $1",
