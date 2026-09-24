@@ -61,7 +61,7 @@ const Sidebar = () => {
               Recent
             </p>
             <div className="flex flex-col gap-y-0.5">
-              {recentlyPlayed.slice(0, 5).map((song) => (
+              {recentlyPlayed.slice(0, 7).map((song) => (
                 <button
                   key={song.id}
                   type="button"
