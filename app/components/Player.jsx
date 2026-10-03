@@ -17,6 +17,8 @@ import {
   Heart,
   AlertTriangle,
   ListMusic,
+  Share2,
+  Check,
 } from "lucide-react";
 import { getCachedAudioUrl, cacheAudioFile, evictCachedAudio } from "@/lib/cacheUtils";
 import SongAvatar, { initialLetter, VinylArtwork } from "./SongAvatar";
@@ -44,6 +46,7 @@ const Player = () => {
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [audioError, setAudioError] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState("");
 
   const { user } = useAuth();
 
@@ -193,6 +196,24 @@ const Player = () => {
       }
     } catch (error) {
       console.error("Unable to update saved song:", error);
+    }
+  };
+
+  const handleShare = async (e) => {
+    e?.stopPropagation?.();
+    if (!song) return;
+    try {
+      const { shareSong } = await import("@/lib/share");
+      const result = await shareSong(song);
+      if (result === "copied") {
+        setShareFeedback("copied");
+        setTimeout(() => setShareFeedback(""), 2000);
+      } else if (result === "failed") {
+        setShareFeedback("failed");
+        setTimeout(() => setShareFeedback(""), 2000);
+      }
+    } catch (error) {
+      console.error("Unable to share song:", error);
     }
   };
 
@@ -650,6 +671,21 @@ const Player = () => {
                 </button>
                 <button
                   type="button"
+                  aria-label="Share this song"
+                  title={shareFeedback === "copied" ? "Link copied!" : "Share this song"}
+                  onClick={handleShare}
+                  className={`rounded-full p-2 transition ${
+                    shareFeedback === "copied" ? "text-green-600" : "text-neutral-400 hover:text-accent"
+                  }`}
+                >
+                  {shareFeedback === "copied" ? (
+                    <Check size={18} strokeWidth={3} />
+                  ) : (
+                    <Share2 size={18} />
+                  )}
+                </button>
+                <button
+                  type="button"
                   aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
                   onClick={(e) => { e.stopPropagation(); toggleMute(); }}
                   className="rounded-full p-2 text-neutral-400 transition hover:text-accent"
@@ -749,6 +785,20 @@ const Player = () => {
                 {showQueue ? "Up Next" : "Now Playing"}
               </span>
             </div>
+            <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Share this song"
+              title={shareFeedback === "copied" ? "Link copied!" : "Share this song"}
+              onClick={handleShare}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 transition hover:text-white hover:bg-white/10"
+            >
+              {shareFeedback === "copied" ? (
+                <Check size={18} strokeWidth={3} />
+              ) : (
+                <Share2 size={18} />
+              )}
+            </button>
             <button
               type="button"
               aria-label={isLiked ? "Remove from saved songs" : "Save song"}
@@ -759,6 +809,7 @@ const Player = () => {
             >
               <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
             </button>
+            </div>
           </div>
 
           {/* Center Content: Vinyl Artwork OR Up Next Queue */}

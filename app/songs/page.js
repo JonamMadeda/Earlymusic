@@ -29,6 +29,7 @@ import {
   ArrowUpDown,
   X,
   ArrowUp,
+  Share2,
   Loader as SpinnerIcon,
 } from "lucide-react";
 
@@ -79,7 +80,9 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [downloadStatus, setDownloadStatus] = useState("idle");
   const [downloadError, setDownloadError] = useState("");
+  const [shareFeedback, setShareFeedback] = useState("");
   const dlTimeoutRef = useRef(null);
+  const shareTimeoutRef = useRef(null);
 
   useEffect(() => {
     import("@/lib/downloadManager").then(({ isSongDownloaded }) => {
@@ -90,6 +93,31 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
   useEffect(() => {
     return () => clearTimeout(dlTimeoutRef.current);
   }, []);
+
+  useEffect(() => {
+    return () => clearTimeout(shareTimeoutRef.current);
+  }, []);
+
+  const handleShare = async (e) => {
+    e.stopPropagation();
+    try {
+      const { shareSong } = await import("@/lib/share");
+      const result = await shareSong(song);
+      if (result === "copied") {
+        setShareFeedback("Link copied!");
+        clearTimeout(shareTimeoutRef.current);
+        shareTimeoutRef.current = setTimeout(() => setShareFeedback(""), 2000);
+      } else if (result === "failed") {
+        setShareFeedback("Share failed");
+        clearTimeout(shareTimeoutRef.current);
+        shareTimeoutRef.current = setTimeout(() => setShareFeedback(""), 2000);
+      } else {
+        setShowMenu(false);
+      }
+    } catch (error) {
+      console.error("Unable to share song:", error);
+    }
+  };
 
   const toggleDownload = async (e) => {
     e.stopPropagation();
@@ -322,6 +350,19 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
               )}
               <span className={`text-xs font-semibold ${downloadStatus === "error" ? "text-red-500" : ""}`}>
                 {downloadStatus === "downloading" ? "Downloading..." : downloadStatus === "downloaded" ? "Remove Download" : downloadStatus === "error" ? downloadError : "Download for offline"}
+              </span>
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+            >
+              {shareFeedback ? (
+                <Check size={15} className="text-green-500" strokeWidth={3} />
+              ) : (
+                <Share2 size={15} className="text-neutral-400" />
+              )}
+              <span className="text-xs font-semibold">
+                {shareFeedback || "Share song"}
               </span>
             </button>
             <button

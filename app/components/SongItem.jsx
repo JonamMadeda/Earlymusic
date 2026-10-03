@@ -10,6 +10,8 @@ import {
   Plus,
   MoreHorizontal,
   Play,
+  Share2,
+  Check,
 } from "lucide-react";
 import SongAvatar from "@/app/components/SongAvatar";
 
@@ -43,6 +45,7 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
   const [showPlaylists, setShowPlaylists] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [shareFeedback, setShareFeedback] = useState("");
 
   const isSaved = saved !== undefined ? saved : internalSaved;
 
@@ -87,6 +90,25 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
         .catch((error) => console.error("Unable to load playlists:", error));
     }
   }, [showPlaylists, user]);
+
+  const handleShare = async (e) => {
+    e.stopPropagation();
+    try {
+      const { shareSong } = await import("@/lib/share");
+      const result = await shareSong(song);
+      if (result === "copied") {
+        setShareFeedback("Link copied!");
+        setTimeout(() => setShareFeedback(""), 2000);
+      } else if (result === "failed") {
+        setShareFeedback("Share failed");
+        setTimeout(() => setShareFeedback(""), 2000);
+      } else {
+        setShowMenu(false);
+      }
+    } catch (error) {
+      console.error("Unable to share song:", error);
+    }
+  };
 
   const handleToggleSave = async () => {
     if (onToggleSave) {
@@ -263,6 +285,19 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
             >
               <ListPlus size={16} className="text-neutral-400" />
               <span className="text-[13px] font-semibold">Add to Playlist</span>
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex w-full items-center gap-x-3 rounded-2xl px-3 py-3 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+            >
+              {shareFeedback ? (
+                <Check size={16} className="text-green-500" strokeWidth={3} />
+              ) : (
+                <Share2 size={16} className="text-neutral-400" />
+              )}
+              <span className="text-[13px] font-semibold">
+                {shareFeedback || "Share song"}
+              </span>
             </button>
             <button
               onClick={(e) => {
