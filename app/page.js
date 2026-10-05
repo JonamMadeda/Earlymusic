@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/apiFetch";
 import { usePlayer } from "./context/PlayerContext";
@@ -11,14 +11,15 @@ import FeaturedCard from "./components/FeaturedCard";
 import {
   Music,
   ArrowRight,
+  ArrowUp,
   Play,
   Upload,
   Sparkles,
   Star,
   Clock,
   ListMusic,
-  ChevronDown,
-  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   Check,
   Shuffle,
@@ -61,17 +62,12 @@ const seededShuffle = (arr, seedStr) => {
   return a;
 };
 
-const ScrollProgress = () => {
-  const [progress, setProgress] = useState(0);
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      setProgress(docHeight > 0 ? Math.min(scrollTop / docHeight, 1) : 0);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+// Rail sizes shrink with small libraries so Featured / Fresh / Explore
+// don't just repeat the same handful of songs at each other.
+const railSize = (total, base) =>
+  total >= base * 2 ? base : Math.max(4, Math.ceil(total / 3));
+
+const ScrollProgress = ({ progress }) => {
   if (progress < 0.01) return null;
   return (
     <div className="fixed top-0 left-0 right-0 z-[600] h-[2px] bg-transparent">
@@ -80,6 +76,27 @@ const ScrollProgress = () => {
         style={{ width: `${progress * 100}%` }}
       />
     </div>
+  );
+};
+
+const ScrollToTop = ({ visible }) => {
+  if (!visible) return null;
+  return (
+    <button
+      type="button"
+      aria-label="Back to top"
+      onClick={() => {
+        const scroller = document.getElementById("app-scroll");
+        if (scroller) {
+          scroller.scrollTo({ top: 0, behavior: "smooth" });
+        } else {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }}
+      className="fixed left-4 bottom-40 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-lg transition hover:bg-accent/90 active:scale-95 md:bottom-24 lg:left-auto lg:right-8"
+    >
+      <ArrowUp size={18} />
+    </button>
   );
 };
 
@@ -260,8 +277,75 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
   );
 };
 
+// History row (Used in Jump Back In) — vertical timeline list, distinct from rails
+const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory = true }) => {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => prefetchSongAudio(song)}
+      className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-all duration-150 ${
+        isActive
+          ? "border-accent bg-accent/[0.04]"
+          : "border-neutral-200 bg-neutral-50/60 hover:border-accent/40 hover:bg-neutral-50"
+      }`}
+    >
+      <div className="w-7 shrink-0 text-center">
+        {isActive ? (
+          <div className="waveform text-accent flex h-3.5 justify-center items-end">
+            <span /><span /><span /><span />
+          </div>
+        ) : (
+          <span className="text-[11px] font-black tabular-nums text-neutral-300 group-hover:hidden">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+        )}
+        {!isActive && (
+          <Play size={11} fill="currentColor" className="hidden text-accent group-hover:inline ml-1.5" />
+        )}
+      </div>
+
+      <SongAvatar title={song.title} size="sm" variant="mono" />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <p className={`truncate text-xs font-bold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
+            {song.title}
+          </p>
+          {index === 0 && isHistory && !isActive && (
+            <span className="shrink-0 rounded-full bg-neutral-900 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
+              Last played
+            </span>
+          )}
+          {isNew && (
+            <span className="shrink-0 rounded bg-accent px-1 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
+              New
+            </span>
+          )}
+        </div>
+        <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">
+          {song.author}
+        </p>
+      </div>
+
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-150 ${
+        isActive
+          ? "bg-accent text-white"
+          : "bg-white text-neutral-500 border border-neutral-200 group-hover:bg-accent group-hover:border-accent group-hover:text-white"
+      }`}>
+        <Play size={11} fill="currentColor" className="ml-0.5" />
+      </div>
+    </button>
+  );
+};
+
 const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, cardType, activeSongId, newSongIds, children }) => {
   const Card = cardType === "spotify" ? SpotifyCard : cardType === "featured" ? FeaturedCard : SongRailCard;
+  const scrollRef = useRef(null);
+  const scrollRail = (dir) => {
+    scrollRef.current?.scrollBy({ left: dir * 480, behavior: "smooth" });
+  };
+  const showArrows = !children && items.length > 3;
   return (
     <section id={id} className="scroll-mt-24">
       {/* Section Header */}
@@ -298,21 +382,52 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
       </div>
 
       {children || (
-        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 pt-0.5 scrollbar-thin [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent_100%)]">
-          {items.length > 0 ? (
-            items.map((song) => (
-              <Card
-                key={song.id}
-                song={song}
-                isActive={song.id === activeSongId}
-                isNew={newSongIds ? newSongIds.has(song.id) : false}
-                onClick={() => onPlay(song)}
-              />
-            ))
-          ) : (
-            <div className="w-full rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 py-8 text-center text-xs font-medium text-neutral-400">
-              No songs available in this section yet.
-            </div>
+        <div className="group/rail relative">
+          <div
+            ref={scrollRef}
+            role="region"
+            aria-label={`${title} — scrollable songs`}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight") scrollRail(1);
+              else if (e.key === "ArrowLeft") scrollRail(-1);
+            }}
+            className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 pt-0.5 no-scrollbar [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent_100%)]">
+            {items.length > 0 ? (
+              items.map((song) => (
+                <Card
+                  key={song.id}
+                  song={song}
+                  isActive={song.id === activeSongId}
+                  isNew={newSongIds ? newSongIds.has(song.id) : false}
+                  onClick={() => onPlay(song)}
+                />
+              ))
+            ) : (
+              <div className="w-full rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 py-8 text-center text-xs font-medium text-neutral-400">
+                No songs available in this section yet.
+              </div>
+            )}
+          </div>
+          {showArrows && (
+            <>
+              <button
+                type="button"
+                onClick={() => scrollRail(-1)}
+                aria-label={`Scroll ${title} left`}
+                className="absolute left-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollRail(1)}
+                aria-label={`Scroll ${title} right`}
+                className="absolute right-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </>
           )}
         </div>
       )}
@@ -321,14 +436,31 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
 };
 
 export default function Home() {
-  const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed, activeSong } =
+  const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed, activeSong, hasRealHistory } =
     usePlayer();
   const { user, profile } = useAuth();
   const [loadError, setLoadError] = useState(false);
   const [verseIndex, setVerseIndex] = useState(0);
-  const [showAllRecs, setShowAllRecs] = useState(false);
   const [verseCopied, setVerseCopied] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
+  const jumpRailRef = useRef(null);
+  const [scrollY, setScrollY] = useState(0);
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  // The app scrolls inside #app-scroll (see layout), not window —
+  // track it for the progress bar + floating back-to-top button.
+  useEffect(() => {
+    const scroller = document.getElementById("app-scroll");
+    if (!scroller) return;
+    const handleScroll = () => {
+      const max = scroller.scrollHeight - scroller.clientHeight;
+      setScrollY(scroller.scrollTop);
+      setScrollProgress(max > 0 ? Math.min(scroller.scrollTop / max, 1) : 0);
+    };
+    handleScroll();
+    scroller.addEventListener("scroll", handleScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Rotate verse periodically when idle
   useEffect(() => {
@@ -396,13 +528,22 @@ export default function Home() {
     const mixed = [...praiseFirst, ...sortedSongs].filter(
       (song, index, list) => list.findIndex((item) => item.id === song.id) === index
     );
-    return seededShuffle(mixed, `featured-${songIdsKey}-${sessionSeed}`).slice(0, 15);
+    return seededShuffle(mixed, `featured-${songIdsKey}-${sessionSeed}`).slice(0, railSize(sortedSongs.length, 15));
   }, [songIdsKey, sessionSeed, sortedSongs]);
+
+  const keepExploring = useMemo(() => {
+    const exclude = new Set([
+      ...featuredSongs.map((s) => s.id),
+      ...newestSongs.map((s) => s.id),
+    ]);
+    const rest = sortedSongs.filter((s) => !exclude.has(s.id));
+    return seededShuffle(rest, `explore-${songIdsKey}-${sessionSeed}`).slice(0, railSize(sortedSongs.length, 12));
+  }, [sortedSongs, featuredSongs, newestSongs, songIdsKey, sessionSeed]);
 
   const spotifySong = useMemo(() => {
     if (sortedSongs.length === 0) return null;
     const rng = mulberry32(hashStr(`spotlight-${songIdsKey}-${sessionSeed}`));
-    return sortedSongs[Math.floor(rng() * Math.min(sortedSongs.length, 5))];
+    return sortedSongs[Math.floor(rng() * Math.min(sortedSongs.length, 10))];
   }, [songIdsKey, sessionSeed, sortedSongs]);
 
   const recommendedSongs = useMemo(() => {
@@ -412,15 +553,13 @@ export default function Home() {
       list = sortedSongs.filter(s => (s.category || "").toLowerCase().includes("praise"));
     } else if (activeFilter === "worship") {
       list = sortedSongs.filter(s => (s.category || "").toLowerCase().includes("worship"));
-    } else if (activeFilter === "hymns") {
-      list = sortedSongs.filter(s => (s.category || "").toLowerCase().includes("hymn"));
+    } else if (activeFilter === "short") {
+      list = sortedSongs.filter((s) => (s.duration || "Long") === "Short");
     } else if (activeFilter === "new") {
       list = newestSongs;
     }
-    return seededShuffle(list, `recommend-${songIdsKey}-${sessionSeed}-${activeFilter}`).slice(0, 30);
+    return seededShuffle(list, `recommend-${songIdsKey}-${sessionSeed}-${activeFilter}`).slice(0, 15);
   }, [songIdsKey, sessionSeed, sortedSongs, activeFilter, newestSongs]);
-
-  const visibleRecs = showAllRecs ? recommendedSongs : recommendedSongs.slice(0, 8);
 
   const stats = {
     total: allSongs?.length || 0,
@@ -461,13 +600,14 @@ export default function Home() {
     { id: "all", label: "All Songs" },
     { id: "praise", label: "Praise" },
     { id: "worship", label: "Worship" },
-    { id: "hymns", label: "Hymns" },
+    { id: "short", label: "Short" },
     { id: "new", label: "New Releases" },
   ];
 
   return (
     <main className="min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pb-12 pt-3 md:pt-5">
-      <ScrollProgress />
+      <ScrollProgress progress={scrollProgress} />
+      <ScrollToTop visible={scrollY > 400} />
       <div className="mx-auto max-w-5xl space-y-6 md:space-y-7">
 
         {/* --- COMPACT HERO BANNER WITH SUBTLE RETRO BORDER --- */}
@@ -578,11 +718,11 @@ export default function Home() {
           </div>
         </section>
 
-        {/* --- COMPACT CATEGORY FILTER PILLS --- */}
-        <section className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
-          <div className="flex items-center gap-1 shrink-0 text-[11px] font-bold text-neutral-400 pr-1">
+        {/* --- COMPACT CATEGORY FILTER PILLS (drive Curated for You below) --- */}
+        <section aria-label="Filter Curated for You" className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+          <div className="flex items-center gap-1 shrink-0 pr-1 text-[11px] font-bold text-neutral-400">
             <Compass size={13} />
-            <span>Filter:</span>
+            <span>Filter Curated:</span>
           </div>
           {filterCategories.map((cat) => {
             const isSelected = activeFilter === cat.id;
@@ -590,7 +730,18 @@ export default function Home() {
               <button
                 key={cat.id}
                 type="button"
-                onClick={() => setActiveFilter(cat.id)}
+                aria-pressed={isSelected}
+                onClick={(e) => {
+                  if (cat.id === activeFilter) return;
+                  setActiveFilter(cat.id);
+                  // Keep the tapped pill visible on small screens…
+                  e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+                  // …then jump to the Curated rail the pills drive,
+                  // so the tap has visible feedback.
+                  setTimeout(() => {
+                    document.getElementById("recommended")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 50);
+                }}
                 className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold transition-all duration-150 ${
                   isSelected
                     ? "bg-accent text-white shadow-2xs"
@@ -686,6 +837,23 @@ export default function Home() {
               />
             </LazySection>
 
+            {/* --- KEEP EXPLORING SECTION --- */}
+            {keepExploring.length > 0 && (
+              <LazySection delay={75}>
+                <SectionBlock
+                  id="keep-exploring"
+                  title="Keep Exploring"
+                  icon={Shuffle}
+                  items={keepExploring}
+                  onPlay={(song) => setActiveSong(song, keepExploring)}
+                  onPlayAll={(song) => setActiveSong(song, keepExploring)}
+                  activeSongId={activeSong?.id}
+                  newSongIds={newSongIds}
+                  cta={{ href: "/songs" }}
+                />
+              </LazySection>
+            )}
+
             {/* --- FRESH RELEASES SECTION --- */}
             <LazySection delay={100}>
               <SectionBlock
@@ -702,23 +870,83 @@ export default function Home() {
               />
             </LazySection>
 
-            {/* --- JUMP BACK IN SECTION --- */}
+            {/* --- JUMP BACK IN SECTION (history list) --- */}
             {recentlyPlayed.length > 0 && (
               <LazySection delay={150}>
-                <SectionBlock
-                  id="recently-played"
-                  title="Jump Back In"
-                  icon={Clock}
-                  items={recentlyPlayed}
-                  onPlay={(song) => setActiveSong(song, recentlyPlayed)}
-                  activeSongId={activeSong?.id}
-                  newSongIds={newSongIds}
-                />
+                <section id="recently-played" className="scroll-mt-24">
+                  <div className="mb-3 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/8 text-accent">
+                        {hasRealHistory ? <Clock size={13} /> : <Compass size={13} />}
+                      </div>
+                      <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">
+                        {hasRealHistory ? "Jump Back In" : "Suggested Starters"}
+                      </h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSong(recentlyPlayed[0], recentlyPlayed)}
+                      className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
+                    >
+                      <Play size={10} fill="currentColor" />
+                      {hasRealHistory ? "Resume" : "Play All"}
+                    </button>
+                  </div>
+
+                  <div className="group/rail relative">
+                    <div
+                      ref={jumpRailRef}
+                      role="region"
+                      aria-label={hasRealHistory ? "Jump Back In — scrollable songs" : "Suggested Starters — scrollable songs"}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "ArrowRight") jumpRailRef.current?.scrollBy({ left: 480, behavior: "smooth" });
+                        else if (e.key === "ArrowLeft") jumpRailRef.current?.scrollBy({ left: -480, behavior: "smooth" });
+                      }}
+                      className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 pt-0.5 no-scrollbar [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent_100%)]">
+                      {recentlyPlayed.map((song, idx) => (
+                        <div
+                          key={song.id}
+                          className="w-[85vw] sm:w-[320px] flex-shrink-0 snap-start"
+                        >
+                          <HistoryCard
+                            song={song}
+                            index={idx}
+                            isActive={song.id === activeSong?.id}
+                            isNew={newSongIds ? newSongIds.has(song.id) : false}
+                            isHistory={hasRealHistory}
+                            onClick={() => setActiveSong(song, recentlyPlayed)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    {recentlyPlayed.length > 3 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => jumpRailRef.current?.scrollBy({ left: -480, behavior: "smooth" })}
+                          aria-label="Scroll Jump Back In left"
+                          className="absolute left-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => jumpRailRef.current?.scrollBy({ left: 480, behavior: "smooth" })}
+                          aria-label="Scroll Jump Back In right"
+                          className="absolute right-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </section>
               </LazySection>
             )}
 
-            {/* --- CURATED RECOMMENDATIONS LIST --- */}
-            {recommendedSongs.length > 0 && (
+            {/* --- CURATED RECOMMENDATIONS LIST (driven by the filter pills above) --- */}
+            {(recommendedSongs.length > 0 || activeFilter !== "all") && (
               <LazySection delay={200}>
                 <section id="recommended" className="scroll-mt-24">
                   <div className="mb-3 flex items-center justify-between gap-4">
@@ -730,28 +958,51 @@ export default function Home() {
                         Curated for You
                       </h2>
                     </div>
-                    {recommendedSongs.length > 8 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAllRecs(!showAllRecs)}
-                        className="flex items-center gap-1 text-[11px] font-semibold text-neutral-500 transition hover:text-neutral-900"
+                    <div className="flex items-center gap-2">
+                      {recommendedSongs.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveSong(recommendedSongs[0], recommendedSongs)}
+                          className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
+                        >
+                          <Play size={10} fill="currentColor" />
+                          Play All
+                        </button>
+                      )}
+                      <Link
+                        href="/songs"
+                        className="group flex items-center gap-1 text-[11px] font-semibold text-neutral-500 transition hover:text-neutral-900"
                       >
-                        <span>{showAllRecs ? "Show less" : `Show all (${recommendedSongs.length})`}</span>
-                        {showAllRecs ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                      </button>
-                    )}
+                        <span>View all</span>
+                        <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+                      </Link>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {visibleRecs.map((song, idx) => (
-                      <RecommendationCard
-                        key={song.id}
-                        song={song}
-                        index={idx}
-                        isActive={song.id === activeSong?.id}
-                        onClick={() => setActiveSong(song, recommendedSongs)}
-                      />
-                    ))}
+                  <div className="flex flex-col gap-8">
+                    {recommendedSongs.length > 0 ? (
+                      [0, 1, 2, 3, 4].map((group) => {
+                        const chunk = recommendedSongs.slice(group * 5, group * 5 + 5);
+                        if (chunk.length === 0) return null;
+                        return (
+                          <div key={group} className="flex flex-col gap-2">
+                            {chunk.map((song, idx) => (
+                              <RecommendationCard
+                                key={song.id}
+                                song={song}
+                                index={group * 5 + idx}
+                                isActive={song.id === activeSong?.id}
+                                onClick={() => setActiveSong(song, recommendedSongs)}
+                              />
+                            ))}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="w-full rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 py-8 text-center text-xs font-medium text-neutral-400">
+                        No songs match this filter yet — try another one.
+                      </div>
+                    )}
                   </div>
                 </section>
               </LazySection>
@@ -776,6 +1027,42 @@ export default function Home() {
                   <Upload size={13} />
                   Upload a Song
                 </Link>
+              </div>
+            )}
+
+            {/* --- END OF FEED --- */}
+            {sortedSongs.length > 0 && (
+              <div className="flex flex-col items-center gap-2.5 pt-2 pb-1 text-center">
+                <div className="flex w-full items-center gap-3">
+                  <div className="h-px flex-1 bg-neutral-200" />
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 text-neutral-400">
+                    <Music size={12} />
+                  </div>
+                  <div className="h-px flex-1 bg-neutral-200" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold tracking-tight text-neutral-900">
+                    You&apos;ve reached the end
+                  </p>
+                  <p className="mt-0.5 text-[11px] font-medium text-neutral-500">
+                    Thanks for worshipping with us today.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const scroller = document.getElementById("app-scroll");
+                    if (scroller) {
+                      scroller.scrollTo({ top: 0, behavior: "smooth" });
+                    } else {
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }
+                  }}
+                  className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-xs font-bold text-neutral-700 shadow-2xs transition hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 active:scale-95"
+                >
+                  <ArrowUp size={13} />
+                  <span>Back to top</span>
+                </button>
               </div>
             )}
           </div>

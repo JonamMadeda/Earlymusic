@@ -4,25 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminFromRequest } from "@/lib/adminAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getR2Client } from "@/lib/r2";
+import { ALLOWED_AUDIO_MIME, MAX_AUDIO_BYTES } from "@/lib/audioVerify";
 
-const maxAudioSizeBytes = 100 * 1024 * 1024;
-
-const ALLOWED_AUDIO_MIME = new Set([
-  "audio/mpeg",
-  "audio/mp3",
-  "audio/mp4",
-  "audio/m4a",
-  "audio/x-m4a",
-  "audio/aac",
-  "audio/wav",
-  "audio/x-wav",
-  "audio/wave",
-  "audio/ogg",
-  "audio/opus",
-  "audio/flac",
-  "audio/webm",
-  "audio/x-ms-wma",
-]);
+const maxAudioSizeBytes = MAX_AUDIO_BYTES;
 
 const ALLOWED_EXTENSIONS = /\.(mp3|m4a|aac|wav|ogg|opus|flac|webm|wma)$/i;
 

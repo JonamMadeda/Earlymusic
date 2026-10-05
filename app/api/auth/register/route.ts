@@ -20,7 +20,14 @@ export async function POST(request: NextRequest) {
 
     const existing = await db.query("SELECT id FROM public.users WHERE email = $1", [normalizedEmail]);
     if (existing.rows?.length) {
-      return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 });
+      // Generic 200 (same status as success) so the endpoint can't be used
+      // to probe which emails have accounts. The dummy hash keeps response
+      // timing close to the real creation path.
+      await hashPassword(`timing-noise-${normalizedEmail}-${Date.now()}`);
+      return NextResponse.json({
+        exists: true,
+        message: "An account with this email already exists. Try signing in instead.",
+      });
     }
 
     const passwordHash = await hashPassword(password);
@@ -32,12 +39,12 @@ export async function POST(request: NextRequest) {
 
     await db.query("INSERT INTO public.profiles (id) VALUES ($1)", [user.id]);
 
-    const token = await signToken({ sub: user.id, email: user.email });
+    const token = await signToken({ sub: user.id, email: user.email, tv: 1 });
 
     return NextResponse.json({
       user: { id: user.id, email: user.email },
       token,
-    }, { status: 201 });
+    });
   } catch (error) {
     console.error("Registration error:", error);
     return NextResponse.json({ error: "Unable to register." }, { status: 500 });

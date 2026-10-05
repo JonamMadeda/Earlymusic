@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyPassword, signToken } from "@/lib/auth";
+import { verifyPassword, signToken, getTokenVersion } from "@/lib/auth";
 import { db } from "@/lib/neon";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
-  const limited = checkRateLimit(request, { name: "auth-login", limit: 20, windowMs: 60_000 });
+  const limited = checkRateLimit(request, { name: "auth-login", limit: 10, windowMs: 60_000 });
   if (limited) return limited;
 
   try {
@@ -27,7 +27,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 
-    const token = await signToken({ sub: user.id, email: user.email });
+    const token = await signToken({
+      sub: user.id,
+      email: user.email,
+      tv: await getTokenVersion(user.id),
+    });
 
     return NextResponse.json({
       user: { id: user.id, email: user.email },

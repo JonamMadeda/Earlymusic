@@ -228,24 +228,40 @@ export async function POST(
       const placeholders = keys.map((_, i) => `$${i + 1}`);
 
       // Conflict handling per table (unique constraints exist — see schema):
-      // - recently_played: replaying bumps played_at instead of erroring.
+      // - recently_played: replaying bumps played_at instead of erroring,
+      //   and increments play_count (the Library Top tab ranks by it).
+      //   The play_count bump is retried without the column on databases
+      //   where lib/migration-play-count.sql hasn't run yet.
       // - saved_songs / playlist_songs: double-saves are harmless no-ops.
       let conflict = "";
+      let conflictFallback = "";
       if (table === "recently_played") {
         if (!keys.includes("played_at")) {
           keys.push("played_at");
           values.push(new Date().toISOString());
           placeholders.push(`$${keys.length}`);
         }
-        conflict = " ON CONFLICT (user_id, song_id) DO UPDATE SET played_at = EXCLUDED.played_at";
+        conflict =
+          " ON CONFLICT (user_id, song_id) DO UPDATE SET played_at = EXCLUDED.played_at, play_count = COALESCE(public.recently_played.play_count, 0) + 1";
+        conflictFallback =
+          " ON CONFLICT (user_id, song_id) DO UPDATE SET played_at = EXCLUDED.played_at";
       } else if (table === "saved_songs") {
         conflict = " ON CONFLICT (user_id, song_id) DO NOTHING";
       } else if (table === "playlist_songs") {
         conflict = " ON CONFLICT (playlist_id, song_id) DO NOTHING";
       }
 
-      const query = `INSERT INTO public.${table} (${keys.join(", ")}) VALUES (${placeholders.join(", ")})${conflict} RETURNING *`;
-      const result = await db.query(query, values);
+      const base = `INSERT INTO public.${table} (${keys.join(", ")}) VALUES (${placeholders.join(", ")})`;
+      let result;
+      try {
+        result = await db.query(`${base}${conflict} RETURNING *`, values);
+      } catch (error: any) {
+        if (conflictFallback && /play_count/i.test(error?.message || "")) {
+          result = await db.query(`${base}${conflictFallback} RETURNING *`, values);
+        } else {
+          throw error;
+        }
+      }
       if (result.rows?.[0]) {
         results.push(result.rows[0]);
       }

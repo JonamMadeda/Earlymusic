@@ -10,7 +10,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { getNewSongIds } from "@/lib/newSongs";
 import {
-  Disc, LogIn, Heart, ListMusic, Download, Play, Trash2, Plus, HardDrive,
+  Disc, LogIn, Heart, ListMusic, Download, Play, Trash2, Plus, HardDrive, Trophy,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -28,6 +28,7 @@ const formatBytes = (bytes) => {
 
 const tabs = [
   { key: "saved", label: "Saved", icon: Heart },
+  { key: "top", label: "Top", icon: Trophy },
   { key: "playlists", label: "Playlists", icon: ListMusic },
   { key: "downloads", label: "Downloads", icon: Download },
 ];
@@ -39,12 +40,15 @@ function LibraryContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
     const tab = searchParams.get("tab");
-    return ["saved", "playlists", "downloads"].includes(tab) ? tab : "saved";
+    return ["saved", "top", "playlists", "downloads"].includes(tab) ? tab : "saved";
   });
   const [loading, setLoading] = useState(true);
 
   // Saved songs
   const [savedSongIds, setSavedSongIds] = useState([]);
+
+  // Most listened (this user's play counts from recently_played)
+  const [topPlays, setTopPlays] = useState([]);
 
   // Playlists
   const [playlists, setPlaylists] = useState([]);
@@ -71,14 +75,25 @@ function LibraryContent() {
     if (!user) { setLoading(false); return; }
 
     let cancelled = false;
+    // Play counts need lib/migration-play-count.sql; on databases without
+    // the column, fall back to recency order so the tab still works.
+    const fetchTop = async () => {
+      try {
+        return await apiFetch("/api/data/recently_played?order=play_count&ascending=false");
+      } catch {
+        return await apiFetch("/api/data/recently_played?order=played_at&ascending=false");
+      }
+    };
     Promise.all([
       apiFetch("/api/data/saved_songs?order=created_at&ascending=false"),
       apiFetch("/api/data/playlists?order=created_at&ascending=false"),
+      fetchTop(),
     ])
-      .then(([savedData, plData]) => {
+      .then(([savedData, plData, topData]) => {
         if (cancelled) return;
         setSavedSongIds((savedData || []).map((s) => s.song_id));
         setPlaylists(plData || []);
+        setTopPlays(Array.isArray(topData) ? topData : []);
       })
       .catch((error) => console.error("Unable to load library:", error))
       .finally(() => {
@@ -117,6 +132,21 @@ function LibraryContent() {
   }, [savedSongIds, allSongs]);
 
   const newSongIds = useMemo(() => getNewSongIds(allSongs), [allSongs]);
+
+  const topSongs = useMemo(() => {
+    if (topPlays.length === 0 || allSongs.length === 0) return [];
+    return topPlays
+      .map((row) => {
+        const song = allSongs.find((s) => s.id === row.song_id);
+        return song ? { ...song, playCount: row.play_count || 0 } : null;
+      })
+      .filter(Boolean)
+      .sort(
+        (a, b) =>
+          (b.playCount || 0) - (a.playCount || 0)
+      )
+      .slice(0, 10);
+  }, [topPlays, allSongs]);
 
   const groupedSaved = useMemo(() => {    const sorted = [...savedSongs].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
     return sorted.reduce((groups, song) => {
@@ -268,6 +298,69 @@ function LibraryContent() {
                 </div>
                 <h3 className="text-sm md:text-base font-bold text-neutral-900">Your saved library is empty</h3>
                 <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">Tap the heart on any song while listening to collect your favorites here.</p>
+                <Link href="/songs" className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition">
+                  Discover Songs
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Most listened — this user's top 10 by play count */}
+        {activeTab === "top" && (
+          <div>
+            {topSongs.length > 0 ? (
+              <>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-medium text-neutral-500">
+                    Your most played tracks
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSong(topSongs[0], topSongs)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-[11px] font-bold text-white shadow-2xs transition hover:bg-accent/90"
+                  >
+                    <Play size={11} fill="currentColor" />
+                    Play Top 10
+                  </button>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {topSongs.map((song, idx) => (
+                    <div
+                      key={song.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setActiveSong(song, topSongs)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActiveSong(song, topSongs); } }}
+                      className="group flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-left shadow-2xs transition-all duration-150 hover:border-neutral-300 hover:bg-neutral-50/70"
+                    >
+                      <span className="w-5 shrink-0 text-center text-[11px] font-bold tabular-nums text-neutral-400">
+                        {String(idx + 1).padStart(2, "0")}
+                      </span>
+                      <SongAvatar title={song.title} size="sm" variant="mono" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold tracking-tight text-neutral-900">{song.title}</p>
+                        <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">{song.author}</p>
+                      </div>
+                      {song.playCount > 0 && (
+                        <span className="shrink-0 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-bold text-neutral-600">
+                          {song.playCount} {song.playCount === 1 ? "play" : "plays"}
+                        </span>
+                      )}
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500 transition-all group-hover:bg-accent group-hover:text-white">
+                        <Play size={12} fill="currentColor" className="ml-0.5" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-3xl border border-dashed border-neutral-200 bg-white shadow-sm">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
+                  <Trophy size={26} />
+                </div>
+                <h3 className="text-sm md:text-base font-bold text-neutral-900">No plays counted yet</h3>
+                <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">Listen to songs while signed in and your personal top 10 will build up here.</p>
                 <Link href="/songs" className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition">
                   Discover Songs
                 </Link>

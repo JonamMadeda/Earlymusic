@@ -90,6 +90,7 @@ export const AuthProvider = ({ children }) => {
     });
     const data = await res.json();
     if (!res.ok) return { error: { message: data.error } };
+    if (data.exists) return { error: { message: data.message }, exists: true };
     setToken(data.token);
     setUser(data.user);
     setRoleLoading(false);

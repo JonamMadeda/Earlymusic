@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFromRequest } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { verifyStoredAudio } from "@/lib/audioVerify";
 import { db } from "@/lib/neon";
 
 export async function GET(request: NextRequest) {
@@ -34,6 +35,16 @@ export async function POST(request: NextRequest) {
     const { title, author, song_path, category, original_songs, duration } = await request.json();
     if (!title || !song_path) {
       return NextResponse.json({ error: "Title and song_path are required." }, { status: 400 });
+    }
+
+    // Enforce what actually landed in R2 — the presign step only sees
+    // client-declared metadata, so verify size/type before referencing it.
+    if (typeof song_path !== "string") {
+      return NextResponse.json({ error: "Title and song_path are required." }, { status: 400 });
+    }
+    const stored = await verifyStoredAudio(song_path);
+    if (!stored.ok) {
+      return NextResponse.json({ error: stored.error || "Audio verification failed." }, { status: 400 });
     }
 
     // original_songs is a jsonb column: pass it as JSON with an explicit

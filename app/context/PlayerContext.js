@@ -25,6 +25,15 @@ export const PlayerProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [recentlyPlayed, setRecentlyPlayed] = useState([]);
   const [playingSource, setPlayingSource] = useState("library");
+  // True once the user has genuinely played something (seeded suggestions
+  // for new users don't count — see the seed effect below).
+  const [hasRealHistory, setHasRealHistory] = useState(() => {
+    try {
+      return localStorage.getItem("lumbo_has_played") === "1";
+    } catch {
+      return false;
+    }
+  });
   const seeded = useRef(false);
   const prevRecentRef = useRef(null);
 
@@ -115,6 +124,10 @@ export const PlayerProvider = ({ children }) => {
       const newQueue = customQueue || allSongs;
       setQueue(newQueue);
       if (song) {
+        setHasRealHistory(true);
+        try {
+          localStorage.setItem("lumbo_has_played", "1");
+        } catch {}
         setRecentlyPlayed((prev) => {
           const filtered = prev.filter((s) => s.id !== song.id);
           return [song, ...filtered].slice(0, MAX_RECENT);
@@ -148,6 +161,7 @@ export const PlayerProvider = ({ children }) => {
         setIsLoading,
         recentlyPlayed,
         playingSource,
+        hasRealHistory,
       }}
     >
       {children}

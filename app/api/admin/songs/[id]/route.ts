@@ -4,6 +4,7 @@ import { getAdminFromRequest } from "@/lib/auth";
 import { logAdminAction } from "@/lib/adminAudit";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getR2Client } from "@/lib/r2";
+import { verifyStoredAudio } from "@/lib/audioVerify";
 import { db } from "@/lib/neon";
 
 const getR2ObjectKey = (songPath: string) => {
@@ -57,6 +58,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
     if (!fields.length) {
       return NextResponse.json({ error: "No valid fields to update." }, { status: 400 });
+    }
+
+    // Replace-audio flow swaps the referenced file — verify the new object
+    // the same way creation does. Metadata-only updates skip the HEAD call.
+    if (typeof body.song_path === "string") {
+      const stored = await verifyStoredAudio(body.song_path);
+      if (!stored.ok) {
+        return NextResponse.json({ error: stored.error || "Audio verification failed." }, { status: 400 });
+      }
     }
 
     values.push(id);

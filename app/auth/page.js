@@ -76,7 +76,15 @@ function AuthForm() {
     }
 
     const fn = mode === "login" ? signIn : signUp;
-    const { error: authError } = await fn(email, password);
+    const { error: authError, exists } = await fn(email, password);
+
+    if (exists) {
+      // Email is already registered — guide to sign-in instead of an error.
+      setMessage("An account with this email already exists. Signing you in instead — enter your password.");
+      setMode("login");
+      setSubmitting(false);
+      return;
+    }
 
     if (authError) {
       setError(authError.message);

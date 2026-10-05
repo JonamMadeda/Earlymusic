@@ -17,6 +17,7 @@ import {
   Play,
   HardDrive,
   History,
+  BarChart3,
   X,
 } from "lucide-react";
 import EditModal from "../components/EditModal";
@@ -88,6 +89,7 @@ export default function AdminDashboard() {
   const [admins, setAdmins] = useState([]);
   const [adminsLoading, setAdminsLoading] = useState(false);
   const [audit, setAudit] = useState(null);
+  const [metrics, setMetrics] = useState(null);
   const toastTimerRef = useRef(null);
   const verifyRunningRef = useRef(false);
   const verifyCancelRef = useRef(false);
@@ -118,6 +120,13 @@ export default function AdminDashboard() {
       fetchAudit();
     }
   }, [activeTab, audit, authLoading, roleLoading, isAdmin]);
+
+  // Load user metrics lazily on first visit to the Insights tab.
+  useEffect(() => {
+    if (activeTab === "insights" && !metrics && !authLoading && !roleLoading && isAdmin) {
+      fetchMetrics();
+    }
+  }, [activeTab, metrics, authLoading, roleLoading, isAdmin]);
 
   const adminEmailById = useMemo(() => {
     const map = new Map();
@@ -151,6 +160,19 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Unable to load activity:", error);
       setAudit({ loading: false, rows: [], missing: false, error: error.message || "Unable to load activity." });
+    }
+  };
+
+  const fetchMetrics = async () => {
+    try {
+      setMetrics((prev) => ({ ...(prev || {}), loading: true, error: "" }));
+      const response = await authedFetch("/api/admin/metrics");
+      if (!response.ok) throw new Error("Unable to load insights.");
+      const data = await response.json();
+      setMetrics({ loading: false, error: "", ...data });
+    } catch (error) {
+      console.error("Unable to load insights:", error);
+      setMetrics({ loading: false, error: error.message || "Unable to load insights." });
     }
   };
 
@@ -600,6 +622,7 @@ export default function AdminDashboard() {
         <div className="mb-4 flex gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-white p-1 shadow-sm no-scrollbar">
           {[
             { id: "tracks", label: "Tracks" },
+            { id: "insights", label: "Insights" },
             { id: "storage", label: "Storage", alert: (storage?.orphanCount || 0) > 0 },
             { id: "team", label: "Team" },
             { id: "activity", label: "Activity" },
@@ -1021,6 +1044,132 @@ export default function AdminDashboard() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Insights tab — aggregate-only user metrics (no per-user rows) */}
+        {activeTab === "insights" && (
+          <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <BarChart3 size={14} className="text-accent" />
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Insights</h2>
+              <button
+                type="button"
+                onClick={fetchMetrics}
+                className="ml-auto text-xs font-bold text-neutral-400 transition hover:text-neutral-900"
+              >
+                Refresh
+              </button>
+            </div>
+            {metrics?.loading ? (
+              <p className="py-2 text-xs text-neutral-400">Loading insights…</p>
+            ) : metrics?.error ? (
+              <p className="py-2 text-xs font-medium text-red-600">{metrics.error}</p>
+            ) : !metrics?.users ? (
+              <p className="py-2 text-xs text-neutral-400">No metrics yet.</p>
+            ) : (
+              <div className="space-y-5">
+                {/* KPI cards */}
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                  {[
+                    { label: "Total users", value: metrics.users.total },
+                    { label: "New · 7d", value: metrics.users.d7 },
+                    { label: "Active · today", value: metrics.active.dau },
+                    { label: "Active · 7d", value: metrics.active.wau },
+                    { label: "Active · 30d", value: metrics.active.mau },
+                    { label: "Saves", value: metrics.totals.saved },
+                  ].map((kpi) => (
+                    <div key={kpi.label} className="rounded-xl border border-neutral-100 bg-neutral-50/60 px-3 py-2.5">
+                      <p className="text-lg font-bold tracking-tight text-neutral-900">{kpi.value ?? 0}</p>
+                      <p className="text-[11px] font-medium text-neutral-500">{kpi.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Listening activity + signups */}
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div>
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+                      Listening days · last 14d
+                    </p>
+                    {metrics.playsPerDay.length === 0 ? (
+                      <p className="text-xs text-neutral-400">No listening activity in the last 14 days.</p>
+                    ) : (
+                      <div className="flex h-24 items-end gap-1">
+                        {(() => {
+                          const max = Math.max(...metrics.playsPerDay.map((d) => d.count), 1);
+                          return metrics.playsPerDay.map((d) => (
+                            <div key={d.day} title={`${d.day}: ${d.count}`} className="flex flex-1 flex-col items-center gap-1">
+                              <div
+                                className="w-full rounded-sm bg-accent/80"
+                                style={{ height: `${Math.max((d.count / max) * 100, 4)}%`, minHeight: 3 }}
+                              />
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    )}
+                    <p className="mt-1 text-[11px] text-neutral-400">
+                      {metrics.active.totalListeners} listener{metrics.active.totalListeners === 1 ? "" : "s"} all-time · {metrics.totals.playlists} playlist{metrics.totals.playlists === 1 ? "" : "s"} created
+                    </p>
+                  </div>
+                  <div>
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+                      Signups · last 14d
+                    </p>
+                    {metrics.users.perDay.length === 0 ? (
+                      <p className="text-xs text-neutral-400">No new signups in the last 14 days.</p>
+                    ) : (
+                      <div className="flex h-24 items-end gap-1">
+                        {(() => {
+                          const max = Math.max(...metrics.users.perDay.map((d) => d.count), 1);
+                          return metrics.users.perDay.map((d) => (
+                            <div key={d.day} title={`${d.day}: ${d.count}`} className="flex flex-1 flex-col items-center gap-1">
+                              <div
+                                className="w-full rounded-sm bg-neutral-300"
+                                style={{ height: `${Math.max((d.count / max) * 100, 4)}%`, minHeight: 3 }}
+                              />
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    )}
+                    <p className="mt-1 text-[11px] text-neutral-400">
+                      {metrics.users.d30} new in the last 30 days
+                    </p>
+                  </div>
+                </div>
+
+                {/* Top tracks */}
+                <div>
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+                    Top tracks · by listeners
+                  </p>
+                  {metrics.topSongs.length === 0 ? (
+                    <p className="py-2 text-xs text-neutral-400">No listening data yet.</p>
+                  ) : (
+                    metrics.topSongs.map((song, idx) => (
+                      <div key={song.song_id} className="flex items-center gap-3 border-b border-neutral-50 py-2 last:border-0">
+                        <span className="w-6 shrink-0 text-center text-[11px] font-black tabular-nums text-neutral-300">
+                          {String(idx + 1).padStart(2, "0")}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-bold text-neutral-800">{song.title}</p>
+                          <p className="truncate text-[11px] text-neutral-400">{song.author}</p>
+                        </div>
+                        <span className="shrink-0 text-[11px] font-semibold text-neutral-500">
+                          {song.listeners} listener{song.listeners === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <p className="text-[11px] leading-relaxed text-neutral-400">
+                  Activity counts listeners with synced plays (signed-in plays only). Replays update the last-played stamp rather than adding new rows, so these measure reach, not raw play counts.
+                </p>
               </div>
             )}
           </section>

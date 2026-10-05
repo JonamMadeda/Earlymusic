@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hashPassword, getUserFromRequest } from "@/lib/auth";
+import { hashPassword, getUserFromRequest, bumpTokenVersion } from "@/lib/auth";
 import { db } from "@/lib/neon";
 import { checkRateLimit } from "@/lib/rateLimit";
 
@@ -20,6 +20,10 @@ export async function PATCH(request: NextRequest) {
 
     const passwordHash = await hashPassword(password);
     await db.query("UPDATE public.users SET password_hash = $1 WHERE id = $2", [passwordHash, user.id]);
+    // Sign out everywhere: previously issued tokens carry the old version
+    // and stop authenticating. No-op on DBs predating the token_version
+    // column (password is still changed).
+    await bumpTokenVersion(user.id);
 
     return NextResponse.json({ success: true });
   } catch (error) {
