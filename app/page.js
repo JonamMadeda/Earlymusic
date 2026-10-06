@@ -228,7 +228,7 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
       type="button"
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
-      className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-150 border ${
+      className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-150 border ${
         isActive
           ? "border-2 border-accent bg-neutral-50 shadow-2xs"
           : "border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50/70 shadow-2xs"
@@ -284,7 +284,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
       type="button"
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
-      className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-all duration-150 ${
+      className={`group flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-all duration-150 ${
         isActive
           ? "border-accent bg-accent/[0.04]"
           : "border-neutral-200 bg-neutral-50/60 hover:border-accent/40 hover:bg-neutral-50"
@@ -313,7 +313,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
             {song.title}
           </p>
           {index === 0 && isHistory && !isActive && (
-            <span className="shrink-0 rounded-full bg-neutral-900 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
+            <span className="shrink-0 rounded-md bg-neutral-900 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
               Last played
             </span>
           )}
@@ -328,7 +328,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
         </p>
       </div>
 
-      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-150 ${
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-150 ${
         isActive
           ? "bg-accent text-white"
           : "bg-white text-neutral-500 border border-neutral-200 group-hover:bg-accent group-hover:border-accent group-hover:text-white"
@@ -415,7 +415,7 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
                 type="button"
                 onClick={() => scrollRail(-1)}
                 aria-label={`Scroll ${title} left`}
-                className="absolute left-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
+                className="absolute left-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -423,7 +423,7 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
                 type="button"
                 onClick={() => scrollRail(1)}
                 aria-label={`Scroll ${title} right`}
-                className="absolute right-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
+                className="absolute right-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
               >
                 <ChevronRight size={16} />
               </button>
@@ -926,7 +926,7 @@ export default function Home() {
                           type="button"
                           onClick={() => jumpRailRef.current?.scrollBy({ left: -480, behavior: "smooth" })}
                           aria-label="Scroll Jump Back In left"
-                          className="absolute left-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
+                          className="absolute left-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
                         >
                           <ChevronLeft size={16} />
                         </button>
@@ -934,7 +934,7 @@ export default function Home() {
                           type="button"
                           onClick={() => jumpRailRef.current?.scrollBy({ left: 480, behavior: "smooth" })}
                           aria-label="Scroll Jump Back In right"
-                          className="absolute right-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
+                          className="absolute right-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
                         >
                           <ChevronRight size={16} />
                         </button>

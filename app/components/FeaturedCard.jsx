@@ -47,7 +47,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
       {/* circular artwork */}
       <span className="relative block">
         <span
-          className={`flex h-16 w-16 items-center justify-center rounded-full border text-2xl font-black select-none transition-colors duration-200 md:h-[72px] md:w-[72px] ${
+          className={`flex h-16 w-16 items-center justify-center rounded-md border text-2xl font-black select-none transition-colors duration-200 md:h-[72px] md:w-[72px] ${
             isActive
               ? "border-accent bg-accent text-white"
               : "border-accent/15 bg-accent/[0.06] text-accent group-hover:border-accent/30"
@@ -56,18 +56,18 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
           {letter}
         </span>
         {isNew && !isActive && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-neutral-900 px-1 text-[7px] font-black uppercase tracking-wider text-white ring-2 ring-white">
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-md bg-neutral-900 px-1 text-[7px] font-black uppercase tracking-wider text-white ring-2 ring-white">
             N
           </span>
         )}
         {isActive && (
-          <span className="absolute -right-1 -top-1 flex h-4 w-4 rounded-full bg-accent ring-2 ring-white">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-50" />
+          <span className="absolute -right-1 -top-1 flex h-4 w-4 rounded-md bg-accent ring-2 ring-white">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-md bg-accent opacity-50" />
           </span>
         )}
         {/* play trigger overlapping the circle */}
         <span
-          className={`absolute -bottom-1.5 left-1/2 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-full text-white shadow-md ring-2 ring-white transition-all duration-200 ${
+          className={`absolute -bottom-1.5 left-1/2 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-lg text-white shadow-md ring-2 ring-white transition-all duration-200 ${
             isActive
               ? "bg-accent"
               : "bg-neutral-900 opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100"

@@ -39,10 +39,10 @@ export const brandGradient = (seed) => {
 
 const sizeMap = {
   xs: "h-6 w-6 text-[10px] rounded-md",
-  sm: "h-7 w-7 text-xs rounded-xl",
-  "avatar-mini": "h-8 w-8 text-xs rounded-xl",
-  md: "h-10 w-10 text-sm md:h-12 md:w-12 md:text-base rounded-xl",
-  lg: "h-12 w-12 text-sm md:h-14 md:w-14 md:text-base rounded-xl",
+  sm: "h-7 w-7 text-xs rounded-md",
+  "avatar-mini": "h-8 w-8 text-xs rounded-md",
+  md: "h-10 w-10 text-sm md:h-12 md:w-12 md:text-base rounded-md",
+  lg: "h-12 w-12 text-sm md:h-14 md:w-14 md:text-base rounded-md",
 };
 
 export const VinylArtwork = ({ title, isPlaying = false }) => {
