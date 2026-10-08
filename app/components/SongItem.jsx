@@ -71,7 +71,7 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
       return;
     }
     const token = localStorage.getItem("auth-token");
-    fetch(`/api/data/saved-songs?user_id=${user.id}&song_id=${song.id}`, {
+    fetch(`/api/data/saved_songs?song_id=${song.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -132,10 +132,10 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
         if (!res.ok) throw new Error("Failed to unlike");
         setInternalSaved(false);
       } else {
-        const res = await fetch("/api/data/saved-songs", {
+        const res = await fetch("/api/data/saved_songs", {
           method: "POST",
           headers,
-          body: JSON.stringify({ user_id: user.id, song_id: song.id }),
+          body: JSON.stringify({ song_id: song.id }),
         });
         if (!res.ok) throw new Error("Failed to like");
         setInternalSaved(true);

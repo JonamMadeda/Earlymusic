@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
 
+import { apiFetch } from "@/lib/apiFetch";
 import { getAudioPublicUrl } from "@/lib/audioUrl";
 import { usePlayer } from "../context/PlayerContext";
 import {
@@ -37,6 +39,7 @@ const Player = () => {
   const [isShuffle, setIsShuffle] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const [isLikePending, setIsLikePending] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -49,6 +52,15 @@ const Player = () => {
   const [shareFeedback, setShareFeedback] = useState("");
 
   const { user } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Latest active song id — async handlers compare against this so a
+  // response for a previously played song can't overwrite current state.
+  const activeSongIdRef = useRef(null);
+  useEffect(() => {
+    activeSongIdRef.current = song?.id ?? null;
+  }, [song?.id]);
 
   // "Opening…" — a song is selected but its playable URL isn't ready yet.
   // "Buffering…" — the URL is set but the audio element is waiting on data.
@@ -155,47 +167,45 @@ const Player = () => {
   }, [song?.id, clearAutoAdvanceTimer]);
 
   useEffect(() => {
-    if (!user || !song) {
-      setIsLiked(false);
-      return;
-    }
+    setIsLiked(false);
+    if (!user || !song) return;
     const songId = song.id;
-    const token = localStorage.getItem("auth-token");
-    fetch(`/api/data/saved-songs?user_id=${user.id}&song_id=${song.id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
+    apiFetch(`/api/data/saved_songs?song_id=${songId}`)
       .then((data) => {
-        if (songId === song?.id) setIsLiked(Array.isArray(data) && data.length > 0);
+        if (activeSongIdRef.current === songId) setIsLiked(Array.isArray(data) && data.length > 0);
       })
       .catch((error) => console.error("Unable to check saved song:", error));
   }, [user, song?.id]);
 
   const toggleLike = async () => {
-    if (!user || !song) return;
+    if (!song) return;
+    if (!user) {
+      router.push(`/auth?redirectTo=${encodeURIComponent(pathname)}`);
+      return;
+    }
+    if (isLikePending) return;
+
     const songId = song.id;
-    const token = localStorage.getItem("auth-token");
-    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+    const next = !isLiked;
+    // Optimistic: the heart reacts instantly, and reverts if the request fails.
+    setIsLiked(next);
+    setIsLikePending(true);
     try {
-      if (isLiked) {
-        const res = await fetch("/api/data/saved-songs", {
-          method: "DELETE",
-          headers,
-          body: JSON.stringify({ filters: { user_id: user.id, song_id: song.id } }),
-        });
-        if (!res.ok) throw new Error("Failed to unlike");
-        if (songId === song?.id) setIsLiked(false);
-      } else {
-        const res = await fetch("/api/data/saved-songs", {
+      if (next) {
+        await apiFetch("/api/data/saved_songs", {
           method: "POST",
-          headers,
-          body: JSON.stringify({ user_id: user.id, song_id: song.id }),
+          body: JSON.stringify({ song_id: songId }),
         });
-        if (!res.ok) throw new Error("Failed to like");
-        if (songId === song?.id) setIsLiked(true);
+      } else {
+        // Filters must live in the query string: the data API ignores
+        // DELETE bodies, so a filterless call would wipe every saved song.
+        await apiFetch(`/api/data/saved_songs?song_id=${songId}`, { method: "DELETE" });
       }
     } catch (error) {
       console.error("Unable to update saved song:", error);
+      if (activeSongIdRef.current === songId) setIsLiked(!next);
+    } finally {
+      setIsLikePending(false);
     }
   };
 
@@ -836,7 +846,7 @@ const Player = () => {
                       }`}
                     >
                       <span className="text-xs text-white/40 w-5 text-center shrink-0">{idx + 1}</span>
-                      <SongAvatar title={s.title} size="sm" variant="mono" />
+                      <SongAvatar title={s.title} size="sm" variant="mono" dark />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-semibold text-white">{s.title}</p>
                         <p className="truncate text-[11px] text-white/60">{s.author}</p>

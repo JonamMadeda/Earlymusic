@@ -82,13 +82,17 @@ export const VinylArtwork = ({ title, isPlaying = false }) => {
   );
 };
 
-const SongAvatar = ({ title, size = "md", variant = "brand" }) => {
+const SongAvatar = ({ title, size = "md", variant = "brand", dark = false }) => {
   const classes = sizeMap[size] || sizeMap.md;
   const letter = initialLetter(title);
   if (variant === "mono") {
     return (
       <div
-        className={`flex shrink-0 items-center justify-center font-bold text-accent shadow-sm ${classes} bg-accent/[0.08] border border-accent/10`}
+        className={`flex shrink-0 items-center justify-center font-bold shadow-sm ${classes} ${
+          dark
+            ? "text-white bg-white/10 border border-white/20"
+            : "text-accent bg-accent/[0.08] border border-accent/10"
+        }`}
       >
         {letter}
       </div>

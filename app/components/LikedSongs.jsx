@@ -17,7 +17,7 @@ const LikedSongs = () => {
     const token = localStorage.getItem("auth-token");
     const headers = { Authorization: `Bearer ${token}` };
 
-    fetch(`/api/data/saved-songs?user_id=${user.id}&order_by=created_at&ascending=false&limit=5`, {
+    fetch(`/api/data/saved_songs?order=created_at&ascending=false&limit=5`, {
       headers,
     })
       .then((res) => res.json())
@@ -26,15 +26,16 @@ const LikedSongs = () => {
         if (!data || data.length === 0) { setSongs([]); return; }
         const ids = data.map((s) => s.song_id);
 
-        const songsRes = await fetch(`/api/data/songs?columns=*&id=${ids.join(",")}`, {
-          headers,
-        });
-        const allSongs = await songsRes.json();
-
-        // Preserve the order from saved_songs
-        const ordered = ids
-          .map((id) => allSongs?.find((s) => s.id === id))
-          .filter(Boolean);
+        // The data API filters with equality only, so `id=a,b,c` can't work —
+        // fetch each song and re-assemble in saved order.
+        const rows = await Promise.all(
+          ids.map((id) =>
+            fetch(`/api/data/songs?id=${id}`, { headers })
+              .then((r) => (r.ok ? r.json() : []))
+              .then((list) => (Array.isArray(list) ? list[0] : null))
+          )
+        );
+        const ordered = rows.filter(Boolean);
         if (!cancelled) setSongs(ordered);
       })
       .catch((error) => console.error("Unable to load liked songs:", error));
