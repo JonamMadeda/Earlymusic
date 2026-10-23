@@ -88,8 +88,10 @@ const Player = () => {
   const wakeLockRef = useRef(null);
   const errorCountRef = useRef(0);
   const autoAdvanceTimerRef = useRef(null);
+  const lastPrevPressRef = useRef(0);
   const MAX_AUTO_RETRIES = 3;
   const AUTO_ADVANCE_DELAY = 3000;
+  const PREV_DOUBLE_PRESS_WINDOW = 2000;
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
@@ -163,6 +165,7 @@ const Player = () => {
     networkFallbackTriedRef.current = false;
     publicUrlRef.current = null;
     setIsBuffering(false);
+    lastPrevPressRef.current = 0;
     clearAutoAdvanceTimer();
   }, [song?.id, clearAutoAdvanceTimer]);
 
@@ -278,11 +281,26 @@ const Player = () => {
   }, [selectNextSong, songs, onSongSelect]);
 
   const onPlayPrevious = useCallback(() => {
+    if (!song) return;
+
+    const now = Date.now();
+    const isDoublePress = now - lastPrevPressRef.current < PREV_DOUBLE_PRESS_WINDOW;
+    lastPrevPressRef.current = now;
+
+    // First press restarts the current song; a second press within the
+    // window skips to the previous track.
+    if (!isDoublePress) {
+      if (audioRef.current) audioRef.current.currentTime = 0;
+      setCurrentTime(0);
+      return;
+    }
+
+    lastPrevPressRef.current = 0;
     if (!songs || songs.length === 0) return;
     skipWhilePausedRef.current = !isPlayingRef.current;
     const prevIndex = currentIndex <= 0 ? songs.length - 1 : currentIndex - 1;
     onSongSelect(songs[prevIndex], songs);
-  }, [songs, currentIndex, onSongSelect]);
+  }, [song, songs, currentIndex, onSongSelect]);
 
   const setPlayState = useCallback((playing) => {
     setIsPlaying(playing);
