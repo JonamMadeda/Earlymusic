@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { getCachedAudioUrl, cacheAudioFile, evictCachedAudio } from "@/lib/cacheUtils";
 import SongAvatar, { initialLetter, VinylArtwork } from "./SongAvatar";
+import { SleepTimerControl } from "./SleepTimer";
 import { useAuth } from "../context/AuthContext";
 
 const Player = () => {
@@ -32,6 +33,7 @@ const Player = () => {
     activeSong: song,
     queue: songs,
     setActiveSong: onSongSelect,
+    sleepTimerStopSignal,
   } = usePlayer();
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -85,8 +87,8 @@ const Player = () => {
   const blobUrlRef = useRef(null);
   const publicUrlRef = useRef(null);
   const networkFallbackTriedRef = useRef(false);
-  const wakeLockRef = useRef(null);
   const errorCountRef = useRef(0);
+  const handledSleepStopRef = useRef(sleepTimerStopSignal);
   const autoAdvanceTimerRef = useRef(null);
   const lastPrevPressRef = useRef(0);
   const MAX_AUTO_RETRIES = 3;
@@ -97,52 +99,6 @@ const Player = () => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
-  // --- Wake Lock: keep screen on during playback on mobile ---
-  const requestWakeLock = useCallback(async () => {
-    try {
-      if ("wakeLock" in navigator && !wakeLockRef.current) {
-        wakeLockRef.current = await navigator.wakeLock.request("screen");
-        wakeLockRef.current.addEventListener("release", () => {
-          wakeLockRef.current = null;
-        });
-      }
-    } catch {
-      // Wake Lock not supported or denied — silently ignore
-    }
-  }, []);
-
-  const releaseWakeLock = useCallback(async () => {
-    try {
-      if (wakeLockRef.current) {
-        await wakeLockRef.current.release();
-        wakeLockRef.current = null;
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  // Acquire/release wake lock based on play state
-  useEffect(() => {
-    if (isPlaying) {
-      requestWakeLock();
-    } else {
-      releaseWakeLock();
-    }
-  }, [isPlaying, requestWakeLock, releaseWakeLock]);
-
-  // Re-acquire wake lock when page becomes visible again (mobile browsers
-  // often release it when the tab is backgrounded)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && isPlayingRef.current) {
-        requestWakeLock();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [requestWakeLock]);
-
   // --- Auto-advance on playback error ---
   const clearAutoAdvanceTimer = useCallback(() => {
     if (autoAdvanceTimerRef.current) {
@@ -151,13 +107,31 @@ const Player = () => {
     }
   }, []);
 
-  // Release wake lock & timers on unmount
+  // Clear pending retry/auto-advance timers on unmount
   useEffect(() => {
     return () => {
-      releaseWakeLock();
       clearAutoAdvanceTimer();
     };
-  }, [releaseWakeLock, clearAutoAdvanceTimer]);
+  }, [clearAutoAdvanceTimer]);
+
+  // Sleep timer expired — stop playback and release media resources.
+  useEffect(() => {
+    if (sleepTimerStopSignal === handledSleepStopRef.current) return;
+    handledSleepStopRef.current = sleepTimerStopSignal;
+
+    playRef.current = false;
+    setIsPlaying(false);
+    setIsBuffering(false);
+    clearAutoAdvanceTimer();
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+
+    if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
+      navigator.mediaSession.playbackState = "none";
+    }
+  }, [sleepTimerStopSignal, clearAutoAdvanceTimer]);
 
   // Reset error count when the song changes
   useEffect(() => {
@@ -346,12 +320,14 @@ const Player = () => {
 
     navigator.mediaSession.setActionHandler("play", () => setPlayState(true));
     navigator.mediaSession.setActionHandler("pause", () => setPlayState(false));
+    navigator.mediaSession.setActionHandler("stop", () => setPlayState(false));
     navigator.mediaSession.setActionHandler("previoustrack", onPlayPrevious);
     navigator.mediaSession.setActionHandler("nexttrack", onPlayNext);
 
     return () => {
       navigator.mediaSession.setActionHandler("play", null);
       navigator.mediaSession.setActionHandler("pause", null);
+      navigator.mediaSession.setActionHandler("stop", null);
       navigator.mediaSession.setActionHandler("previoustrack", null);
       navigator.mediaSession.setActionHandler("nexttrack", null);
     };
@@ -496,6 +472,8 @@ const Player = () => {
       <audio
         ref={audioRef}
         src={audioUrl || undefined}
+        preload="auto"
+        playsInline
         loop={isLooping}
         onTimeUpdate={() => {
           if (audioRef.current && !scrubbingRef.current) {
@@ -1003,7 +981,7 @@ const Player = () => {
               </button>
             </div>
 
-            {/* Bottom utilities: Volume & Queue toggle */}
+            {/* Bottom utilities: Volume, sleep timer & queue toggle */}
             <div className="flex items-center justify-between pt-2 max-w-sm mx-auto">
               <div className="flex items-center gap-2.5">
                 <button
@@ -1035,17 +1013,20 @@ const Player = () => {
                 />
               </div>
 
-              <button
-                type="button"
-                aria-label={showQueue ? "Show artwork" : "Show queue"}
-                onClick={() => setShowQueue(!showQueue)}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                  showQueue ? "bg-white text-neutral-900" : "bg-white/10 text-white/80 hover:bg-white/20"
-                }`}
-              >
-                <ListMusic size={15} />
-                <span>{showQueue ? "Artwork" : "Queue"}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <SleepTimerControl dark />
+                <button
+                  type="button"
+                  aria-label={showQueue ? "Show artwork" : "Show queue"}
+                  onClick={() => setShowQueue(!showQueue)}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    showQueue ? "bg-white text-neutral-900" : "bg-white/10 text-white/80 hover:bg-white/20"
+                  }`}
+                >
+                  <ListMusic size={15} />
+                  <span>{showQueue ? "Artwork" : "Queue"}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

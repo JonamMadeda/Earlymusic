@@ -6,6 +6,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef } f
 const PlayerContext = createContext();
 
 const RECENT_KEY = "lumbo_recently_played";
+const SLEEP_TIMER_KEY = "lumbo_sleep_timer";
 const MAX_RECENT = 10;
 const SEED_COUNT = 6;
 
@@ -25,6 +26,10 @@ export const PlayerProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [recentlyPlayed, setRecentlyPlayed] = useState([]);
   const [playingSource, setPlayingSource] = useState("library");
+  const [sleepTimerEnd, setSleepTimerEnd] = useState(null);
+  const [sleepTimerDuration, setSleepTimerDuration] = useState(0);
+  const [sleepTimerRemaining, setSleepTimerRemaining] = useState(0);
+  const [sleepTimerStopSignal, setSleepTimerStopSignal] = useState(0);
   // True once the user has genuinely played something (seeded suggestions
   // for new users don't count — see the seed effect below).
   const [hasRealHistory, setHasRealHistory] = useState(() => {
@@ -50,6 +55,105 @@ export const PlayerProvider = ({ children }) => {
         localStorage.removeItem(RECENT_KEY);
       }
     }
+  }, []);
+
+  // Restore a sleep timer that was set before the app was closed/reloaded.
+  // Deferred a tick so hydration isn't immediately followed by a state flush.
+  useEffect(() => {
+    const restore = () => {
+      try {
+        const stored = localStorage.getItem(SLEEP_TIMER_KEY);
+        if (!stored) return;
+
+        const parsed = JSON.parse(stored);
+        const end = Number(parsed?.end);
+        const minutes = Number(parsed?.minutes);
+
+        if (end > Date.now() && minutes > 0) {
+          setSleepTimerEnd(end);
+          setSleepTimerDuration(minutes);
+          setSleepTimerRemaining(end - Date.now());
+        } else {
+          localStorage.removeItem(SLEEP_TIMER_KEY);
+        }
+      } catch {
+        localStorage.removeItem(SLEEP_TIMER_KEY);
+      }
+    };
+
+    const timeoutId = setTimeout(restore, 0);
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  // Tick the sleep timer down and fire a stop signal when it expires.
+  useEffect(() => {
+    if (!sleepTimerEnd) return;
+
+    let intervalId = null;
+
+    const expire = () => {
+      if (intervalId) clearInterval(intervalId);
+      setSleepTimerEnd(null);
+      setSleepTimerDuration(0);
+      setSleepTimerRemaining(0);
+      try {
+        localStorage.removeItem(SLEEP_TIMER_KEY);
+      } catch {}
+      setSleepTimerStopSignal((count) => count + 1);
+    };
+
+    const tick = () => {
+      const remaining = sleepTimerEnd - Date.now();
+      if (remaining <= 0) {
+        expire();
+        return;
+      }
+      setSleepTimerRemaining(remaining);
+    };
+
+    tick();
+    intervalId = setInterval(tick, 1000);
+
+    // Background timers can be throttled. Re-check as soon as the app is
+    // visible again so an overdue timer stops playback immediately.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [sleepTimerEnd]);
+
+  const setSleepTimer = useCallback((minutes) => {
+    if (!minutes || minutes <= 0) {
+      setSleepTimerEnd(null);
+      setSleepTimerDuration(0);
+      setSleepTimerRemaining(0);
+      try {
+        localStorage.removeItem(SLEEP_TIMER_KEY);
+      } catch {}
+      return;
+    }
+
+    const end = Date.now() + minutes * 60 * 1000;
+    setSleepTimerEnd(end);
+    setSleepTimerDuration(minutes);
+    setSleepTimerRemaining(minutes * 60 * 1000);
+    try {
+      localStorage.setItem(SLEEP_TIMER_KEY, JSON.stringify({ end, minutes }));
+    } catch {}
+  }, []);
+
+  const cancelSleepTimer = useCallback(() => {
+    setSleepTimerEnd(null);
+    setSleepTimerDuration(0);
+    setSleepTimerRemaining(0);
+    try {
+      localStorage.removeItem(SLEEP_TIMER_KEY);
+    } catch {}
   }, []);
 
   // Seed with random songs for new users (no recently played yet).
@@ -162,6 +266,12 @@ export const PlayerProvider = ({ children }) => {
         recentlyPlayed,
         playingSource,
         hasRealHistory,
+        sleepTimerEnd,
+        sleepTimerDuration,
+        sleepTimerRemaining,
+        sleepTimerStopSignal,
+        setSleepTimer,
+        cancelSleepTimer,
       }}
     >
       {children}

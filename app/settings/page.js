@@ -8,8 +8,10 @@ import {
   RotateCcw,
   Download,
   RefreshCw,
+  Timer,
 } from "lucide-react";
 import { getDownloadedSongs, removeDownload, getStorageEstimate } from "@/lib/downloadManager";
+import { SleepTimerSettings } from "../components/SleepTimer";
 
 const formatBytes = (bytes) => {
   if (!bytes || bytes === 0) return "0 B";
@@ -122,6 +124,18 @@ export default function SettingsPage() {
               <Download size={12} />
               <span>{downloadedSongs.length} downloaded songs</span>
             </div>
+          </div>
+
+          {/* Sleep Timer */}
+          <div className="rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl hover:shadow-md">
+            <div className="flex items-center gap-2 mb-2">
+              <Timer size={15} className="text-neutral-400" />
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Sleep Timer</h2>
+            </div>
+            <p className="text-xs text-neutral-500 mb-4">
+              Automatically stop playback after a set time. Leave it off to play continuously.
+            </p>
+            <SleepTimerSettings />
           </div>
 
           {/* Clear Downloads */}
