@@ -110,7 +110,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Global 401 recovery: any API client that gets "Not authenticated" fires
-  // auth:unauthorized (e.g. expired 7-day token) — drop the dead session so
+  // auth:unauthorized (e.g. revoked token) — drop the dead session so
   // the UI returns to a clean signed-out state instead of failing silently.
   useEffect(() => {
     const onUnauthorized = () => {
