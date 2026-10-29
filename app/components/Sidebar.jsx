@@ -7,6 +7,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
 import { useState, useEffect } from "react";
 import SongAvatar from "@/app/components/SongAvatar";
+import BrandMark from "@/app/components/BrandMark";
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -28,7 +29,8 @@ const Sidebar = () => {
       <div className="flex h-full w-full flex-col p-5 pb-20">
 
         {/* Brand */}
-        <Link href="/" className="mb-5 flex items-center px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg">
+        <Link href="/" className="mb-5 flex items-center gap-2 px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg">
+          <BrandMark className="h-7 w-7" />
           <h2 className="text-[18px] font-bold tracking-tight text-neutral-900 leading-none">
             Luumbo
           </h2>

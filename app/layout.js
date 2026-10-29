@@ -22,15 +22,22 @@ export const viewport = {
 export const metadata = {
   title: "Luumbo",
   description: "Music Streaming App",
-  manifest: "/manifest.json",
+  manifest: "/manifest.json?v=2",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Luumbo",
   },
   icons: {
-    icon: "/icons/icon-192x192.png",
-    apple: "/icons/icon-192x192.png",
+    icon: [
+      { url: "/icons/favicon-16x16.png?v=2", sizes: "16x16", type: "image/png" },
+      { url: "/icons/favicon-32x32.png?v=2", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192x192.png?v=2", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png?v=2", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon.png?v=2", sizes: "180x180", type: "image/png" },
+    ],
   },
 };
 

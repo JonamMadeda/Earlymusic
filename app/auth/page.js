@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
+import BrandMark from "@/app/components/BrandMark";
 import { Mail, Lock, Loader, ArrowLeft, KeyRound, Eye, EyeOff } from "lucide-react";
 
 const getSafeRedirect = (value) => {
@@ -124,6 +125,12 @@ function AuthForm() {
     <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
+          <div className="mb-5 flex items-center justify-center gap-2">
+            <BrandMark className="h-7 w-7" />
+            <span className="text-[15px] font-bold tracking-tight text-neutral-900">
+              Luumbo
+            </span>
+          </div>
           <div className="flex items-center gap-2 justify-center">
             <div className="h-6 w-1 rounded-full bg-accent" />
             <h1 className="text-xl font-bold tracking-tight text-neutral-900 uppercase">

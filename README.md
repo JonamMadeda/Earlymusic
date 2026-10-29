@@ -28,6 +28,16 @@ The app now follows a warmer, more branded visual system with a soft ivory backg
 - Add stronger loading states and micro-interactions.
 - Refine playlist detail interactions and overall accessibility.
 
+## App icons
+
+Icon sources are SVGs in `scripts/assets/` (`icon.svg`, `mark.svg`, `maskable.svg`). Regenerate the PNG sizes, maskable icons, Apple touch icon, and favicon with:
+
+```bash
+npm run icons
+```
+
+This uses `sharp` from the existing install plus Pillow (`python`) to bundle the ICO.
+
 ## Cloudflare R2 uploads
 
 Audio uploads use a short-lived presigned URL from `POST /api/upload`; R2 credentials stay on the server. Set `R2BUCKETNAME` in `.env.local` to the real bucket name before uploading.

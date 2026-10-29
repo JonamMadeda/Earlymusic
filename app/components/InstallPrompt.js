@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Download, X, Share, MoreVertical } from "lucide-react";
+import BrandMark from "@/app/components/BrandMark";
 
 const DISMISS_KEY = "luumbo-install-dismissed";
 const DISMISS_DAYS = 7;
@@ -105,9 +106,7 @@ export default function InstallPrompt() {
     <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[10000] w-[92%] max-w-md animate-fade-in">
       <div className="bg-white border border-neutral-100 shadow-2xl rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 sm:gap-x-4">
         <div className="flex items-center gap-x-3 w-full sm:w-auto">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-accent rounded-xl flex items-center justify-center text-white font-bold text-base sm:text-lg shrink-0 shadow-sm">
-            LU
-          </div>
+          <BrandMark className="h-10 w-10 sm:h-12 sm:w-12" />
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-neutral-900">
               Install Luumbo
