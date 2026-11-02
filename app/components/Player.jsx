@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
 import { apiFetch } from "@/lib/apiFetch";
@@ -31,10 +31,19 @@ const Player = () => {
   const audioRef = useRef(null);
   const {
     activeSong: song,
-    queue: songs,
+    queue,
     setActiveSong: onSongSelect,
+    allSongs,
     sleepTimerStopSignal,
   } = usePlayer();
+
+  // Skip/auto-advance queue. Pages normally pass the visible list as the
+  // queue; fall back to the full library so next/previous still work when a
+  // song was started without one (share links, single-song deep links).
+  const songs = useMemo(
+    () => (queue && queue.length > 0 ? queue : allSongs || []),
+    [queue, allSongs]
+  );
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
@@ -77,8 +86,6 @@ const Player = () => {
     />
   );
 
-  const currentIndex = (songs || []).findIndex((s) => s.id === song?.id);
-
   const playRef = useRef(false);
   const loadIdRef = useRef(0);
   const isPlayingRef = useRef(false);
@@ -88,11 +95,17 @@ const Player = () => {
   const publicUrlRef = useRef(null);
   const networkFallbackTriedRef = useRef(false);
   const errorCountRef = useRef(0);
+  // Songs that failed since the last manual pick — auto-advance skips them so
+  // one broken track can't trap playback in a retry loop.
+  const failedSongIdsRef = useRef(new Set());
+  // Song id we auto-advanced to, so the song-change effect can tell an
+  // automatic move apart from the user picking something new.
+  const autoTargetRef = useRef(null);
   const handledSleepStopRef = useRef(sleepTimerStopSignal);
   const autoAdvanceTimerRef = useRef(null);
   const lastPrevPressRef = useRef(0);
-  const MAX_AUTO_RETRIES = 3;
-  const AUTO_ADVANCE_DELAY = 3000;
+  const MAX_AUTO_RETRIES = 1;
+  const AUTO_ADVANCE_DELAY = 1200;
   const PREV_DOUBLE_PRESS_WINDOW = 2000;
 
   useEffect(() => {
@@ -135,6 +148,13 @@ const Player = () => {
 
   // Reset error count when the song changes
   useEffect(() => {
+    // A manual pick starts a fresh failure cycle; an automatic move keeps the
+    // list of dead tracks so auto-advance doesn't bounce back to them.
+    const isAutoAdvance =
+      autoTargetRef.current && autoTargetRef.current === song?.id;
+    autoTargetRef.current = null;
+    if (!isAutoAdvance) failedSongIdsRef.current.clear();
+
     errorCountRef.current = 0;
     networkFallbackTriedRef.current = false;
     publicUrlRef.current = null;
@@ -231,28 +251,72 @@ const Player = () => {
     }
   }, [isPlaying]);
 
-  const selectNextSong = useCallback(() => {
-    if (!songs || songs.length === 0) return null;
-    skipWhilePausedRef.current = !isPlayingRef.current;
+  const selectNextSong = useCallback(
+    (skipIds) => {
+      if (songs.length === 0) return null;
 
-    let nextIndex;
-    if (isShuffle) {
-      nextIndex = currentIndex;
-      if (songs.length > 1) {
-        while (nextIndex === currentIndex) {
-          nextIndex = Math.floor(Math.random() * songs.length);
-        }
+      // Shuffle: pick from every track except the current one and anything
+      // already known to be broken.
+      if (isShuffle) {
+        const pool = songs.filter(
+          (s) => s.id !== song?.id && !skipIds?.has(s.id)
+        );
+        if (pool.length === 0) return null;
+        return pool[Math.floor(Math.random() * pool.length)];
       }
-    } else {
-      nextIndex = (currentIndex + 1) % songs.length;
-    }
-    return songs[nextIndex];
-  }, [songs, isShuffle, currentIndex]);
+
+      // Sequential: walk the queue from the current track and stop at the
+      // first playable one. start === -1 (song not in this queue) maps to 0.
+      const start = songs.findIndex((s) => s.id === song?.id);
+      for (let step = 1; step <= songs.length; step += 1) {
+        const index = (start + step + songs.length) % songs.length;
+        const candidate = songs[index];
+        if (!candidate) continue;
+        if (candidate.id === song?.id) continue;
+        if (skipIds?.has(candidate.id)) continue;
+        return candidate;
+      }
+      return null;
+    },
+    [songs, song?.id, isShuffle]
+  );
 
   const onPlayNext = useCallback(() => {
     const nextSong = selectNextSong();
-    if (nextSong) onSongSelect(nextSong, songs);
+    if (!nextSong) return;
+    skipWhilePausedRef.current = !isPlayingRef.current;
+    onSongSelect(nextSong, songs);
   }, [selectNextSong, songs, onSongSelect]);
+
+  // Auto-advance (track ended or unplayable): always resume playback, and
+  // keep moving past tracks that fail so one dead URL can't stall the queue.
+  const advanceToNext = useCallback(
+    ({ reason }) => {
+      if (!song) return;
+
+      if (reason === "error") failedSongIdsRef.current.add(song.id);
+      const nextSong = selectNextSong(failedSongIdsRef.current);
+
+      if (!nextSong) {
+        // Everything in the queue failed. Stop instead of looping the same
+        // broken track forever; a manual pick or retry starts a fresh cycle.
+        failedSongIdsRef.current.clear();
+        setIsPlaying(false);
+        setIsBuffering(false);
+        return;
+      }
+
+      autoTargetRef.current = nextSong.id;
+      skipWhilePausedRef.current = false;
+      onSongSelect(nextSong, songs);
+    },
+    [song, selectNextSong, songs, onSongSelect]
+  );
+
+  const advanceToNextRef = useRef(null);
+  useEffect(() => {
+    advanceToNextRef.current = advanceToNext;
+  }, [advanceToNext]);
 
   const onPlayPrevious = useCallback(() => {
     if (!song) return;
@@ -270,11 +334,12 @@ const Player = () => {
     }
 
     lastPrevPressRef.current = 0;
-    if (!songs || songs.length === 0) return;
+    if (songs.length === 0) return;
     skipWhilePausedRef.current = !isPlayingRef.current;
-    const prevIndex = currentIndex <= 0 ? songs.length - 1 : currentIndex - 1;
+    const index = songs.findIndex((s) => s.id === song.id);
+    const prevIndex = index <= 0 ? songs.length - 1 : index - 1;
     onSongSelect(songs[prevIndex], songs);
-  }, [song, songs, currentIndex, onSongSelect]);
+  }, [song, songs, onSongSelect]);
 
   const setPlayState = useCallback((playing) => {
     setIsPlaying(playing);
@@ -289,20 +354,21 @@ const Player = () => {
     errorCountRef.current += 1;
 
     if (errorCountRef.current <= MAX_AUTO_RETRIES) {
-      const retryDelay = 1000 * errorCountRef.current;
+      // One quick reload in case the stream hiccuped.
       autoAdvanceTimerRef.current = setTimeout(() => {
         if (audioRef.current && errorCountRef.current <= MAX_AUTO_RETRIES) {
           audioRef.current.load();
         }
-      }, retryDelay);
+      }, 800);
     } else {
+      // Still failing: mark it as broken and try the next playable track.
       autoAdvanceTimerRef.current = setTimeout(() => {
-        clearAutoAdvanceTimer();
+        autoAdvanceTimerRef.current = null;
         errorCountRef.current = 0;
-        onPlayNext();
+        advanceToNext({ reason: "error" });
       }, AUTO_ADVANCE_DELAY);
     }
-  }, [clearAutoAdvanceTimer, onPlayNext]);
+  }, [clearAutoAdvanceTimer, advanceToNext]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("mediaSession" in navigator) || !song) return;
@@ -348,6 +414,11 @@ const Player = () => {
 
       try {
         const publicUrl = getAudioPublicUrl(song.song_path);
+        if (!publicUrl) {
+          // No playable source (missing file/URL): fail fast so auto-advance
+          // can move on instead of leaving the player stuck buffering.
+          throw new Error("Song has no playable audio URL");
+        }
         publicUrlRef.current = publicUrl;
 
         const cachedUrl = await getCachedAudioUrl(publicUrl);
@@ -375,9 +446,15 @@ const Player = () => {
       } catch (error) {
         console.error("Unable to load audio:", error);
         if (!cancelled && loadId === loadIdRef.current) {
+          playRef.current = false;
           setAudioError(true);
           setIsBuffering(false);
-          playRef.current = false;
+          // Unloadable song (missing file/URL or cache failure): skip straight
+          // ahead instead of retrying a source that will never play.
+          autoAdvanceTimerRef.current = setTimeout(() => {
+            autoAdvanceTimerRef.current = null;
+            advanceToNextRef.current?.({ reason: "error" });
+          }, AUTO_ADVANCE_DELAY);
         }
       }
     };
@@ -407,6 +484,8 @@ const Player = () => {
   const retryPlayback = () => {
     if (!song) return;
     setIsBuffering(true);
+    // A manual retry starts a fresh cycle: forget which tracks were skipped.
+    failedSongIdsRef.current.clear();
     // A manual retry also heals a bad cached copy: drop it and stream fresh.
     if (audioUrl?.startsWith("blob:") && publicUrlRef.current && !networkFallbackTriedRef.current) {
       networkFallbackTriedRef.current = true;
@@ -529,7 +608,7 @@ const Player = () => {
         }}
         onEnded={() => {
           playRef.current = false;
-          onPlayNext();
+          advanceToNext({ reason: "ended" });
         }}
       />
       {song && (

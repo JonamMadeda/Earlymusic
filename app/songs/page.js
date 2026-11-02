@@ -27,6 +27,7 @@ import {
   Check,
   Play,
   ArrowUpDown,
+  ArrowDown,
   X,
   ArrowUp,
   Share2,
@@ -541,23 +542,26 @@ export default function SongsPage() {
   const jumpTimeoutRef = useRef(null);
   const letterRefs = useRef({});
   const searchInputRef = useRef(null);
-  const headerRef = useRef(null);
-  const [pastHeader, setPastHeader] = useState(false);
+  const toolbarRef = useRef(null);
+  const [toolbarHeight, setToolbarHeight] = useState(0);
   const [scrollY, setScrollY] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
 
-  // Show the floating A-Z bar only after the title header scrolls out of view,
-  // so it never overlaps the title + search bar stack at rest.
+  // The toolbar is sticky below the app header, so the alphabet rail and the
+  // sticky letter chips need its real height to sit flush under it (the bar
+  // grows when active filters are shown).
   useEffect(() => {
-    const el = headerRef.current;
+    const el = toolbarRef.current;
     if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setPastHeader(!entry.isIntersecting),
-      { threshold: 0 }
-    );
+    const measure = () => setToolbarHeight(el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  const TOOLBAR_GAP = 8; // toolbar sticks at `top-2`
+  const letterStickyTop = toolbarHeight + TOOLBAR_GAP + 6;
 
   // Track the app scroll container (layout scrolls in #app-scroll, not window)
   // for the progress bar + scroll-to-top button.
@@ -730,22 +734,37 @@ useEffect(() => {
   }, [filteredSongs, setActiveSong]);
 
   return (
-    <main className="min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pb-32 md:pb-28 pt-3 md:pt-5">
+    <main
+      className={`min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pt-3 md:pt-5 ${
+        activeSong
+          ? "pb-[calc(11rem+env(safe-area-inset-bottom,0px))] md:pb-32"
+          : "pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-16"
+      }`}
+    >
       <ScrollProgress progress={scrollProgress} />
       <div className="mx-auto max-w-5xl space-y-4 md:space-y-5">
-        <section ref={headerRef} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-bold tracking-tight text-neutral-900">
               Songs
             </h1>
             <p className="mt-0.5 text-[11px] font-medium text-neutral-500">
-              <span className="font-bold text-neutral-800">{stats.total}</span> tracks
-              <span className="text-neutral-300"> • </span>
-              <span className="font-bold text-neutral-800">{stats.artists}</span> artists
-              {stats.new > 0 && (
+              {isLoading ? (
+                <span className="inline-flex items-center gap-1.5 text-neutral-400">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+                  Loading library…
+                </span>
+              ) : (
                 <>
+                  <span className="font-bold text-neutral-800">{stats.total}</span> tracks
                   <span className="text-neutral-300"> • </span>
-                  <span className="font-bold text-accent">{stats.new} new</span>
+                  <span className="font-bold text-neutral-800">{stats.artists}</span> artists
+                  {stats.new > 0 && (
+                    <>
+                      <span className="text-neutral-300"> • </span>
+                      <span className="font-bold text-accent">{stats.new} new</span>
+                    </>
+                  )}
                 </>
               )}
             </p>
@@ -763,7 +782,7 @@ useEffect(() => {
         </section>
 
       {/* Sticky Search / Filter Bar */}
-      <div className="sticky top-2 z-40 rounded-xl border border-neutral-200 bg-white/95 shadow-2xs backdrop-blur-md">
+      <div ref={toolbarRef} className="sticky top-2 z-40 rounded-xl border border-neutral-200 bg-white/95 shadow-2xs backdrop-blur-md">
         <div className="px-3 py-2.5">
           <div className="flex flex-row flex-nowrap items-center gap-2">
             <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-transparent bg-neutral-100/80 px-3 py-2 text-neutral-500 transition focus-within:border-accent focus-within:bg-white focus-within:shadow-2xs">
@@ -787,35 +806,40 @@ useEffect(() => {
               )}
             </div>
 
-            {/* Sort Button */}
-            <button
-              type="button"
-              onClick={() => {
-                if (sortBy === "title") {
-                  setSortBy("author");
-                } else if (sortBy === "author") {
-                  setSortBy("created_at");
-                  setSortAsc(false);
-                } else {
-                  setSortBy("title");
-                  setSortAsc(true);
-                }
-              }}
-              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-neutral-200/80 bg-white px-3 py-2 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900 md:gap-2 md:px-3.5"
-              title={`Sort by: ${sortOptions.find(o => o.value === sortBy)?.label}`}
-            >
-              <ArrowUpDown size={14} />
-              <span className="hidden md:inline">{sortOptions.find(o => o.value === sortBy)?.label}</span>
-              <span
-                className="cursor-pointer text-neutral-400 hover:text-neutral-700"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSortAsc(!sortAsc);
+            {/* Sort: field toggle + direction toggle as one compact control */}
+            <div className="flex shrink-0 items-stretch overflow-hidden rounded-lg border border-neutral-200/80 bg-white">
+              <button
+                type="button"
+                onClick={() => {
+                  if (sortBy === "title") {
+                    setSortBy("author");
+                  } else if (sortBy === "author") {
+                    setSortBy("created_at");
+                    setSortAsc(false);
+                  } else {
+                    setSortBy("title");
+                    setSortAsc(true);
+                  }
                 }}
+                className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900 md:px-3"
+                title={`Sort by: ${sortOptions.find((o) => o.value === sortBy)?.label}`}
               >
-                {sortAsc ? "A-Z" : "Z-A"}
-              </span>
-            </button>
+                <ArrowUpDown size={14} />
+                <span className="hidden md:inline">
+                  {sortOptions.find((o) => o.value === sortBy)?.label}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortAsc((prev) => !prev)}
+                aria-label={sortAsc ? "Sorted A to Z, tap for Z to A" : "Sorted Z to A, tap for A to Z"}
+                title={sortAsc ? "Ascending" : "Descending"}
+                className="flex items-center gap-1 border-l border-neutral-200/80 px-2 text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+              >
+                {sortAsc ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
+                <span className="hidden sm:inline">{sortAsc ? "A-Z" : "Z-A"}</span>
+              </button>
+            </div>
 
             <button
               type="button"
@@ -922,18 +946,22 @@ useEffect(() => {
         {isLoading ? (
           <PageSkeleton />
         ) : alphabet.length > 0 ? (
-          <div className="flex gap-4">
+          <div className="flex gap-3 sm:gap-4">
             {/* Songs */}
-            <div className="flex-1 min-w-0 pr-6 lg:pr-0">
+            <div className="min-w-0 flex-1">
               <div className="flex flex-col gap-y-5 md:gap-y-6">
                 {alphabet.map((letter, letterIdx) => (
                   <div
                     key={letter}
                     ref={(el) => { letterRefs.current[letter] = el; }}
-                    className="scroll-mt-36 flex flex-col gap-y-2.5"
+                    style={{ scrollMarginTop: letterStickyTop + 34 }}
+                    className="flex flex-col gap-y-2.5"
                   >
-                    <div className={`sticky ${hasFilters ? "top-[120px]" : "top-[80px]"} z-10 flex justify-start pb-1`}>
-                      <div className="flex items-center gap-2 rounded-full border border-neutral-200/70 bg-white/75 py-1 pl-1 pr-3 shadow-2xs backdrop-blur-md">
+                    <div
+                      style={{ top: letterStickyTop }}
+                      className="sticky z-10 flex justify-start pb-1"
+                    >
+                      <div className="flex items-center gap-2 rounded-full border border-neutral-200/70 bg-white/80 py-1 pl-1 pr-3 shadow-2xs backdrop-blur-md">
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/[0.07] text-xs font-bold text-accent">
                           {letter}
                         </div>
@@ -965,35 +993,26 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* Alphabet Jump Bar - desktop */}
-            <div className="hidden lg:flex flex-col items-center gap-1 sticky top-32 self-start pt-4">
-              {alphabet.map((letter) => (
-                <button
-                  key={letter}
-                  onClick={() => scrollToLetter(letter)}
-                  className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-all duration-200 ${
-                    jumpLetter === letter
-                      ? "bg-accent text-white scale-125"
-                      : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-                  }`}
-                >
-                  {letter}
-                </button>
-              ))}
-            </div>
-
-            {/* Alphabet Jump Bar - mobile floating (fixed, so placement inside flex is fine) */}
-            <div className={`lg:hidden fixed right-1.5 top-40 bottom-28 z-30 flex flex-col items-center gap-px overflow-y-auto rounded-full border border-neutral-200 bg-white/90 px-0.5 shadow-2xs backdrop-blur-md no-scrollbar transition-opacity duration-300 ${pastHeader ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+            {/* Alphabet Jump Bar — always visible beside the list, and sticky
+                under the toolbar while scrolling. */}
+            <div
+              style={{
+                top: letterStickyTop,
+                maxHeight: `calc(100dvh - ${letterStickyTop + 150}px)`,
+              }}
+              aria-label="Alphabet index"
+              className="no-scrollbar sticky flex shrink-0 flex-col items-center gap-px self-start overflow-y-auto rounded-xl border border-neutral-200 bg-white/90 px-0.5 py-1 shadow-2xs backdrop-blur-md lg:gap-0.5 lg:rounded-none lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:pt-4 lg:shadow-none lg:backdrop-blur-none"
+            >
               {alphabet.map((letter) => (
                 <button
                   key={letter}
                   type="button"
                   aria-label={`Jump to ${letter}`}
                   onClick={() => scrollToLetter(letter)}
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-all duration-200 select-none first:mt-2 last:mb-2 ${
+                  className={`flex h-4 w-5 shrink-0 items-center justify-center rounded-full text-[8.5px] font-bold leading-none transition-all duration-200 select-none sm:h-[17px] sm:text-[9px] lg:h-[18px] lg:w-5 lg:text-[10px] ${
                     jumpLetter === letter
                       ? "bg-accent text-white scale-110"
-                      : "text-neutral-400 active:bg-neutral-100 active:text-neutral-700"
+                      : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 active:bg-neutral-100 active:text-neutral-700"
                   }`}
                 >
                   {letter}
