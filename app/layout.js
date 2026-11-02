@@ -21,7 +21,7 @@ export const viewport = {
 
 export const metadata = {
   title: "Luumbo",
-  description: "Music Streaming App",
+  description: "Stream worship sessions and praise sessions from the Luumbo library.",
   manifest: "/manifest.json?v=2",
   appleWebApp: {
     capable: true,

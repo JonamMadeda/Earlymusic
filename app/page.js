@@ -155,7 +155,7 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
 
 // Vertical card shared with the songs page (see ./components/FeaturedCard)
 
-// Album-style showcase card (Used in Featured Anthems) with subtle retro grooves
+// Album-style showcase card (used in Featured Worship Sessions) with subtle retro grooves
 const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
   const letter = initialLetter(song.title);
   const categoryTag = song.category || "Worship";
@@ -339,7 +339,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
   );
 };
 
-const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, cardType, activeSongId, newSongIds, children }) => {
+const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, onPlayAll, cta, cardType, activeSongId, newSongIds, children }) => {
   const Card = cardType === "spotify" ? SpotifyCard : cardType === "featured" ? FeaturedCard : SongRailCard;
   const scrollRef = useRef(null);
   const scrollRail = (dir) => {
@@ -349,21 +349,26 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
   return (
     <section id={id} className="scroll-mt-24">
       {/* Section Header */}
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          {Icon && (
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/8 text-accent">
-              <Icon size={13} />
-            </div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            {Icon && (
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent/8 text-accent">
+                <Icon size={13} />
+              </div>
+            )}
+            <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">{title}</h2>
+          </div>
+          {subtitle && (
+            <p className="mt-0.5 text-[11px] font-medium text-neutral-500">{subtitle}</p>
           )}
-          <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">{title}</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {onPlayAll && items.length > 0 && (
             <button
               type="button"
               onClick={() => onPlayAll(items[0])}
-              className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
+              className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
             >
               <Play size={10} fill="currentColor" />
               Play All
@@ -372,7 +377,7 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
           {cta && (
             <Link
               href={cta.href}
-              className="group flex items-center gap-1 text-[11px] font-semibold text-neutral-500 transition hover:text-neutral-900"
+              className="group flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-neutral-500 transition hover:text-neutral-900"
             >
               <span>View all</span>
               <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
@@ -598,8 +603,8 @@ export default function Home() {
 
   const filterCategories = [
     { id: "all", label: "All Songs" },
-    { id: "praise", label: "Praise" },
-    { id: "worship", label: "Worship" },
+    { id: "praise", label: "Praise Sessions" },
+    { id: "worship", label: "Worship Sessions" },
     { id: "short", label: "Short" },
     { id: "new", label: "New Releases" },
   ];
@@ -628,10 +633,10 @@ export default function Home() {
 
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
-                  Worship in Song
+                  Worship Sessions
                 </h1>
                 <p className="text-xs text-neutral-500 mt-0.5">
-                  Sacred hymns, praise anthems, and uplifting worship melodies.
+                  Praise sessions and worship sessions to sing along with, any time of day.
                 </p>
               </div>
 
@@ -722,7 +727,7 @@ export default function Home() {
         <section aria-label="Filter Curated for You" className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
           <div className="flex items-center gap-1 shrink-0 pr-1 text-[11px] font-bold text-neutral-400">
             <Compass size={13} />
-            <span>Filter Curated:</span>
+            <span className="hidden sm:inline">Filter Curated:</span>
           </div>
           {filterCategories.map((cat) => {
             const isSelected = activeFilter === cat.id;
@@ -821,11 +826,12 @@ export default function Home() {
               </LazySection>
             )}
 
-            {/* --- FEATURED ANTHEMS SECTION --- */}
+            {/* --- FEATURED WORSHIP SESSIONS --- */}
             <LazySection delay={50}>
               <SectionBlock
                 id="featured-songs"
-                title="Featured Anthems"
+                title="Featured Worship Sessions"
+                subtitle="Praise and worship sessions picked from the library."
                 icon={Star}
                 items={featuredSongs}
                 onPlay={(song) => setActiveSong(song, featuredSongs)}
