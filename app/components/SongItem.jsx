@@ -70,9 +70,8 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
       setInternalSaved(false);
       return;
     }
-    const token = localStorage.getItem("auth-token");
     fetch(`/api/data/saved_songs?song_id=${song.id}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "same-origin",
     })
       .then((res) => res.json())
       .then((data) => setInternalSaved(Array.isArray(data) && data.length > 0))
@@ -81,9 +80,8 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
 
   useEffect(() => {
     if (showPlaylists && user) {
-      const token = localStorage.getItem("auth-token");
       fetch(`/api/data/playlists?user_id=${user.id}&order=created_at&ascending=false`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "same-origin",
       })
         .then((res) => res.json())
         .then((data) => setPlaylists(Array.isArray(data) ? data : []))
@@ -119,14 +117,14 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
       router.push(`/auth?redirectTo=${encodeURIComponent(pathname)}`);
       return;
     }
-    const token = localStorage.getItem("auth-token");
-    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+    const headers = { "Content-Type": "application/json" };
     try {
       if (internalSaved) {
         // Filters belong in the query string: the data API ignores bodies
         // on DELETE, and a filterless call would remove ALL saved songs.
         const res = await fetch(`/api/data/saved_songs?song_id=${song.id}`, {
           method: "DELETE",
+          credentials: "same-origin",
           headers,
         });
         if (!res.ok) throw new Error("Failed to unlike");
@@ -134,6 +132,7 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
       } else {
         const res = await fetch("/api/data/saved_songs", {
           method: "POST",
+          credentials: "same-origin",
           headers,
           body: JSON.stringify({ song_id: song.id }),
         });
@@ -147,17 +146,17 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
 
   const addToPlaylist = async (e, playlistId) => {
     e.stopPropagation();
-    const token = localStorage.getItem("auth-token");
-    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+    const headers = { "Content-Type": "application/json" };
     try {
       const checkRes = await fetch(
-        `/api/data/playlist-songs?playlist_id=${playlistId}&song_id=${song.id}`,
-        { headers }
+        `/api/data/playlist_songs?playlist_id=${playlistId}&song_id=${song.id}`,
+        { credentials: "same-origin", headers }
       );
       const existing = await checkRes.json();
       if (Array.isArray(existing) && existing.length > 0) return;
-      const res = await fetch("/api/data/playlist-songs", {
+      const res = await fetch("/api/data/playlist_songs", {
         method: "POST",
+        credentials: "same-origin",
         headers,
         body: JSON.stringify({ playlist_id: playlistId, song_id: song.id }),
       });
@@ -171,19 +170,20 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
     e.stopPropagation();
     const name = newPlaylistName.trim();
     if (!name || !user) return;
-    const token = localStorage.getItem("auth-token");
-    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+    const headers = { "Content-Type": "application/json" };
     try {
       const createRes = await fetch("/api/data/playlists", {
         method: "POST",
+        credentials: "same-origin",
         headers,
         body: JSON.stringify({ name, user_id: user.id }),
       });
       if (!createRes.ok) throw new Error("Failed to create playlist");
       const pl = await createRes.json();
       if (pl) {
-        const res = await fetch("/api/data/playlist-songs", {
+        const res = await fetch("/api/data/playlist_songs", {
           method: "POST",
+          credentials: "same-origin",
           headers,
           body: JSON.stringify({ playlist_id: pl.id, song_id: song.id }),
         });

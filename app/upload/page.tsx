@@ -30,14 +30,12 @@ type QueueItem = {
   note: string;
 };
 
-const cleanupOrphanedUpload = async (accessToken: string, publicStorageUrl: string) => {
+const cleanupOrphanedUpload = async (publicStorageUrl: string) => {
   try {
     await fetch("/api/admin/storage", {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ publicStorageUrl }),
     });
   } catch (error) {
@@ -145,7 +143,6 @@ export default function UploadPage() {
 
   const publishOne = async (
     item: QueueItem,
-    accessToken: string,
     shared: { author: string; originals: OriginalSong[]; category: string; duration: string }
   ) => {
     let uploadedStorageUrl: string | null = null;
@@ -153,10 +150,8 @@ export default function UploadPage() {
       patchItem(item.key, { phase: "working", note: "Preparing secure upload…" });
       const signingResponse = await fetch("/api/upload", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           filename: item.file.name,
           contentType: item.file.type,
@@ -179,10 +174,8 @@ export default function UploadPage() {
       patchItem(item.key, { note: "Saving metadata…" });
       const insertResponse = await fetch("/api/admin/songs", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: item.title.trim(),
           author: shared.author,
@@ -201,7 +194,7 @@ export default function UploadPage() {
       return true;
     } catch (error) {
       if (uploadedStorageUrl) {
-        await cleanupOrphanedUpload(accessToken, uploadedStorageUrl);
+        await cleanupOrphanedUpload(uploadedStorageUrl);
       }
       patchItem(item.key, {
         phase: "error",
@@ -235,9 +228,6 @@ export default function UploadPage() {
     setPublishTotal(pending.length);
 
     try {
-      const accessToken = localStorage.getItem("auth-token");
-      if (!accessToken) throw new Error("Sign in again before uploading tracks.");
-
       const shared = {
         author: author.trim(),
         originals: originalSongs.filter((s) => s.title || s.artist),
@@ -247,7 +237,7 @@ export default function UploadPage() {
 
       let succeeded = 0;
       for (const item of pending) {
-        const ok = await publishOne(item, accessToken, shared);
+        const ok = await publishOne(item, shared);
         if (ok) succeeded += 1;
         setDoneCount((n) => n + 1);
       }

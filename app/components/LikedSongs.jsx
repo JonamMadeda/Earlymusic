@@ -14,11 +14,9 @@ const LikedSongs = () => {
     if (!user) { setSongs([]); return; }
 
     let cancelled = false;
-    const token = localStorage.getItem("auth-token");
-    const headers = { Authorization: `Bearer ${token}` };
 
     fetch(`/api/data/saved_songs?order=created_at&ascending=false&limit=5`, {
-      headers,
+      credentials: "same-origin",
     })
       .then((res) => res.json())
       .then(async (data) => {
@@ -30,7 +28,7 @@ const LikedSongs = () => {
         // fetch each song and re-assemble in saved order.
         const rows = await Promise.all(
           ids.map((id) =>
-            fetch(`/api/data/songs?id=${id}`, { headers })
+            fetch(`/api/data/songs?id=${id}`)
               .then((r) => (r.ok ? r.json() : []))
               .then((list) => (Array.isArray(list) ? list[0] : null))
           )

@@ -24,15 +24,11 @@ import EditModal from "../components/EditModal";
 import ReplaceAudioModal from "../components/ReplaceAudioModal";
 import ConfirmModal from "../components/ConfirmModal";
 
-const authHeaders = () => {
-  const token = localStorage.getItem("auth-token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
 const authedFetch = async (url, opts = {}) => {
   const res = await fetch(url, {
     ...opts,
-    headers: { "Content-Type": "application/json", ...authHeaders(), ...opts.headers },
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", ...opts.headers },
   });
   return res;
 };

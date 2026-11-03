@@ -4,7 +4,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { db } from "@/lib/neon";
 
 export async function PATCH(request: NextRequest) {
-  const limited = checkRateLimit(request, { name: "songs-bulk-update", limit: 30, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "songs-bulk-update", limit: 30, windowMs: 60_000 });
   if (limited) return limited;
 
   try {

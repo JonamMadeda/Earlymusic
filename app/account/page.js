@@ -6,6 +6,7 @@ import { Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings, Download, L
 import { apiFetch } from "@/lib/apiFetch";
 import { useAuth } from "@/app/context/AuthContext";
 import Link from "next/link";
+import { KeyRound, ShieldCheck, MonitorSmartphone, Trash2 } from "lucide-react";
 
 
 export default function AccountPage() {
@@ -19,9 +20,17 @@ export default function AccountPage() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
   const saveMsgTimeoutRef = useRef(null);
+  const [sessions, setSessions] = useState(null);
+  const [sessionsError, setSessionsError] = useState("");
+  const [signingOutEverywhere, setSigningOutEverywhere] = useState(false);
+  const [confirmEverywhere, setConfirmEverywhere] = useState(false);
+  const confirmEverywhereTimeoutRef = useRef(null);
 
   useEffect(() => {
-    return () => clearTimeout(saveMsgTimeoutRef.current);
+    return () => {
+      clearTimeout(saveMsgTimeoutRef.current);
+      clearTimeout(confirmEverywhereTimeoutRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -46,6 +55,78 @@ export default function AccountPage() {
       .catch((error) => console.error("Unable to load account stats:", error))
       .finally(() => setLoading(false));
   }, [user, authLoading]);
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+    (async () => {
+      try {
+        const data = await apiFetch("/api/auth/sessions");
+        setSessions(data.sessions || []);
+        setSessionsError("");
+      } catch (error) {
+        console.error("Unable to load sessions:", error);
+        setSessionsError("Unable to load active sessions.");
+      }
+    })();
+  }, [authLoading, user]);
+
+  const handleRevokeSession = async (sessionId) => {
+    try {
+      const data = await apiFetch(`/api/auth/sessions/${sessionId}`, { method: "DELETE" });
+      if (data.current) {
+        // Endpoint already cleared the cookie and revoked the session;
+        // reset local state so the UI matches reality.
+        await signOut();
+        router.push("/auth");
+        return;
+      }
+      setSessions((prev) => (prev || []).filter((s) => s.id !== sessionId));
+    } catch (error) {
+      console.error("Unable to revoke session:", error);
+      setSessionsError("Unable to revoke that session.");
+    }
+  };
+
+  const handleSignOutEverywhere = async () => {
+    if (!confirmEverywhere) {
+      setConfirmEverywhere(true);
+      clearTimeout(confirmEverywhereTimeoutRef.current);
+      confirmEverywhereTimeoutRef.current = setTimeout(() => setConfirmEverywhere(false), 4000);
+      return;
+    }
+    setConfirmEverywhere(false);
+    setSigningOutEverywhere(true);
+    await signOut({ everywhere: true });
+    router.push("/");
+  };
+
+  const describeDevice = (ua = "") => {
+    if (/iPhone|iPad/i.test(ua)) return "iPhone / iPad";
+    if (/Android/i.test(ua)) return "Android";
+    if (/Windows/i.test(ua)) return "Windows";
+    if (/Macintosh|Mac OS X/i.test(ua)) return "macOS";
+    if (/Linux/i.test(ua)) return "Linux";
+    return "Unknown device";
+  };
+
+  const describeBrowser = (ua = "") => {
+    if (/Edg\//.test(ua)) return "Edge";
+    if (/Firefox\//.test(ua)) return "Firefox";
+    if (/Chrome\//.test(ua)) return "Chrome";
+    if (/Safari\//.test(ua)) return "Safari";
+    return "";
+  };
+
+  const formatTimestamp = (iso) => {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "unknown";
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
 
   const handleSaveProfile = async () => {
     setSaving(true);
@@ -184,6 +265,96 @@ export default function AccountPage() {
               <Disc size={18} className="text-accent" />
               <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">{playlistCount}</p>
               <p className="mt-0.5 text-[11px] font-medium text-neutral-400">Playlists</p>
+            </div>
+          </div>
+
+          {/* Security */}
+          <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
+            <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50/60 flex items-center justify-between">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Security</p>
+              <ShieldCheck size={14} className="text-neutral-400" aria-hidden="true" />
+            </div>
+            <div className="divide-y divide-neutral-100">
+              <Link
+                href="/auth?mode=update-password&redirectTo=/account"
+                className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-neutral-50 group"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/[0.08] border border-accent/10 text-accent">
+                  <KeyRound size={16} aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold tracking-tight text-neutral-900">Change password</p>
+                  <p className="text-[11px] font-medium text-neutral-400">Update it with your current password</p>
+                </div>
+                <ChevronRight size={15} className="text-neutral-300 transition group-hover:text-neutral-500" aria-hidden="true" />
+              </Link>
+
+              <div className="px-5 py-3.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/[0.08] border border-accent/10 text-accent">
+                      <MonitorSmartphone size={16} aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold tracking-tight text-neutral-900">Active sessions</p>
+                      <p className="text-[11px] font-medium text-neutral-400">Where you&rsquo;re signed in</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSignOutEverywhere}
+                    disabled={signingOutEverywhere}
+                    className="shrink-0 rounded-full border border-red-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {signingOutEverywhere ? "Signing out…" : confirmEverywhere ? "Tap to confirm" : "Sign out everywhere"}
+                  </button>
+                </div>
+
+                {sessionsError && (
+                  <p role="alert" className="mt-3 text-[11px] font-medium text-red-600">{sessionsError}</p>
+                )}
+
+                <div className="mt-3 flex flex-col gap-2">
+                  {sessions === null && !sessionsError && (
+                    <p className="text-[11px] text-neutral-400">Loading sessions…</p>
+                  )}
+                  {Array.isArray(sessions) && sessions.length === 0 && (
+                    <p className="text-[11px] text-neutral-400">No active sessions.</p>
+                  )}
+                  {Array.isArray(sessions) && sessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="flex items-center gap-3 rounded-xl border border-neutral-100 bg-neutral-50/60 px-3 py-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] font-semibold text-neutral-900 truncate">
+                          {describeDevice(session.user_agent)}{" "}
+                          {describeBrowser(session.user_agent) && (
+                            <span className="font-medium text-neutral-400">· {describeBrowser(session.user_agent)}</span>
+                          )}
+                          {session.current && (
+                            <span className="ml-2 rounded-full bg-accent/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent align-middle">
+                              This device
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-[10px] font-medium text-neutral-400">
+                          Last active {formatTimestamp(session.last_seen_at)}
+                        </p>
+                      </div>
+                      {!session.current && (
+                        <button
+                          onClick={() => handleRevokeSession(session.id)}
+                          aria-label="Revoke session"
+                          title="Revoke session"
+                          className="shrink-0 rounded-lg p-2 text-neutral-400 transition hover:bg-red-50 hover:text-red-500"
+                        >
+                          <Trash2 size={15} aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 

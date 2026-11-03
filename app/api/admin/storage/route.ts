@@ -7,7 +7,7 @@ import { getR2Client } from "@/lib/r2";
 import { db } from "@/lib/neon";
 
 export async function DELETE(request: NextRequest) {
-  const limited = checkRateLimit(request, { name: "storage-delete", limit: 120, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "storage-delete", limit: 120, windowMs: 60_000 });
   if (limited) return limited;
 
   try {

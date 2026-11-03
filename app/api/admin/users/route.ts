@@ -5,7 +5,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { db } from "@/lib/neon";
 
 export async function POST(request: NextRequest) {
-  const limited = checkRateLimit(request, { name: "admin-grant", limit: 15, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "admin-grant", limit: 15, windowMs: 60_000 });
   if (limited) return limited;
   try {
     const admin = await getAdminFromRequest(request);
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const limited = checkRateLimit(request, { name: "admin-list", limit: 120, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "admin-list", limit: 120, windowMs: 60_000 });
   if (limited) return limited;
   try {
     const admin = await getAdminFromRequest(request);
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const limited = checkRateLimit(request, { name: "admin-revoke", limit: 15, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "admin-revoke", limit: 15, windowMs: 60_000 });
   if (limited) return limited;
   try {
     const admin = await getAdminFromRequest(request);

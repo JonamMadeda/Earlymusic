@@ -6,12 +6,12 @@ import { X, FileUp, Trash2, UploadCloud } from "lucide-react";
 import { removeDownload, isSongDownloaded } from "@/lib/downloadManager";
 import { evictCachedAudio } from "@/lib/cacheUtils";
 
-const deleteR2Object = async (accessToken, publicStorageUrl) => {
+const deleteR2Object = async (publicStorageUrl) => {
   await fetch("/api/admin/storage", {
     method: "DELETE",
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify({ publicStorageUrl }),
   }).catch((error) => console.error("Unable to delete old audio file:", error));
@@ -75,14 +75,11 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
       setProgress(0);
       setStatus("Preparing secure upload…");
 
-      const accessToken = localStorage.getItem("auth-token");
-      if (!accessToken) throw new Error("Sign in again before replacing audio.");
-
       const signingResponse = await fetch("/api/upload", {
         method: "POST",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           filename: newFile.name,
@@ -107,9 +104,9 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
       setProgress(75);
       const updateRes = await fetch(`/api/admin/songs/${song.id}`, {
         method: "PATCH",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ song_path: uploadedStorageUrl }),
       });
@@ -122,7 +119,7 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
       // Old file is now unreferenced — remove it (best-effort).
       if (oldStorageUrl && oldStorageUrl !== uploadedStorageUrl) {
         setStatus("Removing the old file…");
-        await deleteR2Object(accessToken, oldStorageUrl);
+        await deleteR2Object(oldStorageUrl);
         await evictCachedAudio(oldStorageUrl);
       }
 
@@ -142,10 +139,7 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
       console.error("Replace audio failed:", error);
       // The new file never got linked — clean it up so it doesn't orphan.
       if (uploadedStorageUrl) {
-        const cleanupToken = localStorage.getItem("auth-token");
-        if (cleanupToken) {
-          await deleteR2Object(cleanupToken, uploadedStorageUrl);
-        }
+        await deleteR2Object(uploadedStorageUrl);
       }
       setIsError(true);
       setStatus(error.message || "Error replacing audio.");

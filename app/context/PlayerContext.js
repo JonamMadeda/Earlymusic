@@ -57,6 +57,20 @@ export const PlayerProvider = ({ children }) => {
     }
   }, []);
 
+  // Signing out must drop the previous listener's history in this tab too.
+  useEffect(() => {
+    const onSignedOut = () => {
+      setRecentlyPlayed([]);
+      setHasRealHistory(false);
+      try {
+        localStorage.removeItem(RECENT_KEY);
+        localStorage.removeItem("lumbo_has_played");
+      } catch {}
+    };
+    window.addEventListener("auth:signed-out", onSignedOut);
+    return () => window.removeEventListener("auth:signed-out", onSignedOut);
+  }, []);
+
   // Restore a sleep timer that was set before the app was closed/reloaded.
   // Deferred a tick so hydration isn't immediately followed by a state flush.
   useEffect(() => {
@@ -188,15 +202,14 @@ export const PlayerProvider = ({ children }) => {
     // Never sync seeded suggestions — only songs the user actually played.
     // A seeded entry is any baseline item that was never at the front due to
     // a real play; the guard above already ensures a genuine new play.
-    const token = localStorage.getItem("auth-token");
-    if (!token) return;
-    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+    const headers = { "Content-Type": "application/json" };
 
     const latest = recentlyPlayed[0];
     if (!latest) return;
 
     fetch("/api/data/recently_played", {
       method: "POST",
+      credentials: "same-origin",
       headers,
       body: JSON.stringify({ song_id: latest.id, played_at: new Date().toISOString() }),
     }).catch((error) => console.error("Unable to sync recently played:", error));
@@ -204,9 +217,10 @@ export const PlayerProvider = ({ children }) => {
     // Trim to max rows: read the oldest excess entries and delete them by id.
     // (One request per row — the data API matches filters with = only.)
     fetch(`/api/data/recently_played?order=played_at&ascending=false`, {
+      credentials: "same-origin",
       headers,
     })
-      .then((res) => res.json())
+      .then((res) => (res.ok ? res.json() : null))
       .then((existing) => {
         if (Array.isArray(existing) && existing.length > MAX_RECENT) {
           const extras = existing.slice(MAX_RECENT);
@@ -214,6 +228,7 @@ export const PlayerProvider = ({ children }) => {
             if (!row?.id) return;
             fetch(`/api/data/recently_played?id=${row.id}`, {
               method: "DELETE",
+              credentials: "same-origin",
               headers,
             }).catch((error) => console.error("Unable to trim recently played:", error));
           });

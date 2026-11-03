@@ -19,7 +19,7 @@ const requiredEnvironment = (name: "R2BUCKETNAME" | "R2PUBLICURL") => {
 };
 
 export async function POST(request: NextRequest) {
-  const limited = checkRateLimit(request, { name: "upload-presign", limit: 120, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "upload-presign", limit: 120, windowMs: 60_000 });
   if (limited) return limited;
 
   try {

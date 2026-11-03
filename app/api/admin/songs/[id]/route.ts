@@ -14,7 +14,7 @@ const getR2ObjectKey = (songPath: string) => {
 };
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const limited = checkRateLimit(request, { name: "song-update", limit: 60, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "song-update", limit: 60, windowMs: 60_000 });
   if (limited) return limited;
 
   try {
@@ -86,7 +86,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const limited = checkRateLimit(request, { name: "song-delete", limit: 120, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "song-delete", limit: 120, windowMs: 60_000 });
   if (limited) return limited;
 
   try {

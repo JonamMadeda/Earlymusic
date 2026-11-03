@@ -1,4 +1,4 @@
-const CACHE_NAME = "lumbo-app-v5";
+const CACHE_NAME = "lumbo-app-v6";
 const AUDIO_CACHE = "lumbo-audio-cache-v1";
 
 self.addEventListener("install", (event) => {
@@ -22,7 +22,27 @@ self.addEventListener("message", (event) => {
   if (event.data === "SKIP_WAITING") {
     self.skipWaiting();
   }
+  if (event.data === "CLEAR_PRIVATE_CACHES") {
+    event.waitUntil(clearPrivateCaches());
+  }
 });
+
+// Remove every cached API response (auth state, library, playlists,
+// profiles) so signing out cannot leave another account's data behind.
+const clearPrivateCaches = async () => {
+  const names = await caches.keys();
+  await Promise.all(
+    names.map(async (name) => {
+      const cache = await caches.open(name);
+      const requests = await cache.keys();
+      await Promise.all(
+        requests
+          .filter((request) => new URL(request.url).pathname.startsWith("/api/"))
+          .map((request) => cache.delete(request))
+      );
+    })
+  );
+};
 
 const R2_AUDIO_ORIGIN = "https://pub-689c88e5cea643f48059e6ea3c3f8923.r2.dev";
 
@@ -35,6 +55,11 @@ self.addEventListener("fetch", (event) => {
   if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
     return;
   }
+
+  // Never cache API responses. They are authenticated (cookie or bearer)
+  // and Cache Storage is plaintext, origin-readable, and survives logout.
+  if (url.pathname.startsWith("/api/")) return;
+  if (request.headers.has("authorization")) return;
 
   if (url.origin === R2_AUDIO_ORIGIN && url.pathname.includes("/audio/")) {
     event.respondWith(

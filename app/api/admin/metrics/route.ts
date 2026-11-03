@@ -6,7 +6,7 @@ import { db } from "@/lib/neon";
 // Aggregate-only user metrics for the admin Insights tab.
 // No per-user rows ever leave this endpoint (counts and tops only).
 export async function GET(request: NextRequest) {
-  const limited = checkRateLimit(request, { name: "admin-metrics", limit: 60, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "admin-metrics", limit: 60, windowMs: 60_000 });
   if (limited) return limited;
 
   try {

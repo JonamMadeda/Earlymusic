@@ -26,11 +26,12 @@ const nextConfig = {
       "default-src 'self'",
       `script-src ${scriptSrc}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https:",
+      "img-src 'self' data: blob: https://*.r2.dev",
       // Audio streams from R2/public hosts + offline blob playback.
-      "media-src 'self' blob: https:",
-      // API calls, R2 presigned PUTs, analytics beacons.
-      "connect-src 'self' blob: https:",
+      "media-src 'self' blob: https://*.r2.dev",
+      // API calls, R2 presigned PUTs, analytics beacons. Keep this narrow:
+      // a wildcard https: lets injected script exfiltrate session data.
+      "connect-src 'self' blob: https://*.r2.dev https://va.vercel-scripts.com https://vitals.vercel-insights.com",
       "font-src 'self' data:",
       "manifest-src 'self'",
       "object-src 'none'",
@@ -47,9 +48,23 @@ const nextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=(), payment=()",
           },
+        ],
+      },
+      {
+        // Authenticated responses must never be stored by the browser,
+        // a proxy, or the service worker.
+        source: "/api/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Vary", value: "Authorization, Cookie" },
         ],
       },
       {

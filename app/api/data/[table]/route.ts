@@ -6,6 +6,16 @@ const USER_TABLES = new Set(["saved_songs", "playlists", "playlist_songs", "rece
 
 const ALLOWED_TABLES = new Set(["songs", "saved_songs", "playlists", "playlist_songs", "recently_played"]);
 
+// Columns a client may change through PATCH. Ownership columns, primary
+// keys, and foreign keys are never writable: accepting them let a user
+// move rows into another account or another user's playlist.
+const PATCHABLE_COLUMNS: Record<string, Set<string>> = {
+  playlists: new Set(["name"]),
+  playlist_songs: new Set<string>(),
+  saved_songs: new Set<string>(),
+  recently_played: new Set(["played_at", "play_count"]),
+};
+
 function sanitizeTable(table: string): string {
   if (!ALLOWED_TABLES.has(table)) {
     throw new Error("Invalid table");
@@ -14,11 +24,14 @@ function sanitizeTable(table: string): string {
 }
 
 function sanitizeColumns(columns: string): string {
-  return columns
+  const safe = columns
     .split(",")
     .map((c) => c.trim())
     .filter((c) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(c))
     .join(", ");
+  // An all-invalid `columns` value used to produce `SELECT  FROM ...`
+  // and a 500; fall back to * instead.
+  return safe || "*";
 }
 
 // Query-param NAMES are interpolated into SQL — accept only plain
@@ -300,15 +313,34 @@ export async function PATCH(
 
     const setClauses: string[] = [];
     const values: string[] = [];
-    let idx = 1;
+    const allowedColumns = PATCHABLE_COLUMNS[table] || new Set<string>();
 
     for (const [key, value] of Object.entries(body)) {
-      if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
-        setClauses.push(`${key} = $${idx}`);
-        values.push(value as string);
-        idx++;
+      if (!allowedColumns.has(key)) continue;
+
+      let normalized: string | null = null;
+      if (key === "name") {
+        if (typeof value !== "string") continue;
+        const name = value.trim();
+        if (!name || name.length > 200) continue;
+        normalized = name;
+      } else if (key === "play_count") {
+        if (!Number.isInteger(value) || (value as number) < 0) continue;
+        normalized = String(value);
+      } else if (key === "played_at") {
+        if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
+          continue;
+        }
+        normalized = value;
       }
+
+      if (normalized === null) continue;
+      setClauses.push(`${key} = $${values.length + 1}`);
+      values.push(normalized);
     }
+
+    // `idx` continues from the SET placeholders for the WHERE clause.
+    let idx = values.length + 1;
 
     if (setClauses.length === 0) {
       return NextResponse.json({ error: "No fields to update." }, { status: 400 });

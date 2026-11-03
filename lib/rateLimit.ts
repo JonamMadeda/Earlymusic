@@ -1,51 +1,83 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "./neon";
+import { getClientIp } from "./requestIp";
 
-type Bucket = { count: number; resetAt: number };
-
-const buckets = new Map<string, Bucket>();
-
-const getClientIp = (request: NextRequest) => {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return request.headers.get("x-real-ip") || "unknown";
+type Options = {
+  name: string;
+  limit: number;
+  windowMs: number;
+  /**
+   * Optional bucket key. Omit for a per-IP bucket (e.g. login-by-IP);
+   * pass a normalised email or user id for a per-account bucket.
+   */
+  key?: string;
 };
 
 /**
- * Best-effort in-memory rate limiter for admin API routes.
+ * Durable rate limiter shared by every server instance.
  *
- * NOTE: counts live per server instance, so on multi-instance hosting this
- * slows abuse rather than strictly capping it. For hard limits, enforce at
- * the edge (host firewall / WAF) as well.
+ * The previous implementation kept counters in a process-local Map, so
+ * serverless instances each had their own quota and a deploy reset every
+ * counter. Counters now live in public.auth_rate_limits.
  *
- * Returns null when allowed, or a 429 JSON response when the quota is spent.
+ * A database failure fails open (auth still works) but is logged loudly;
+ * the edge/WAF should remain the hard backstop.
  */
-export const checkRateLimit = (
+export const checkRateLimit = async (
   request: NextRequest,
-  opts: { name: string; limit: number; windowMs: number }
-): NextResponse | null => {
-  const now = Date.now();
-  const key = `${opts.name}:${getClientIp(request)}`;
+  opts: Options
+): Promise<NextResponse | null> => {
+  const bucket = opts.key ?? getClientIp(request);
+  const key = `${opts.name}:${bucket}`;
+  const windowSeconds = opts.windowMs / 1000;
 
-  // Opportunistic cleanup so the map can't grow without bound.
-  if (buckets.size > 5000) {
-    for (const [k, b] of buckets) {
-      if (b.resetAt <= now) buckets.delete(k);
+  try {
+    const { rows } = await db.query(
+      `INSERT INTO public.auth_rate_limits AS rl (key, count, reset_at)
+       VALUES ($1, 1, now() + make_interval(secs => $2::double precision))
+       ON CONFLICT (key) DO UPDATE SET
+         count = CASE WHEN rl.reset_at <= now() THEN 1 ELSE rl.count + 1 END,
+         reset_at = CASE
+           WHEN rl.reset_at <= now()
+           THEN now() + make_interval(secs => $2::double precision)
+           ELSE rl.reset_at
+         END
+       RETURNING rl.count, rl.reset_at`,
+      [key, windowSeconds]
+    );
+
+    // Opportunistic cleanup so the table cannot grow without bound.
+    if (Math.random() < 0.02) {
+      void db
+        .query(
+          "DELETE FROM public.auth_rate_limits WHERE reset_at < now() - interval '1 day'"
+        )
+        .catch(() => {});
     }
-  }
 
-  const current = buckets.get(key);
-  if (!current || current.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + opts.windowMs });
+    const row = rows?.[0];
+    if (!row || row.count <= opts.limit) return null;
+
+    const retryAfter = Math.max(
+      1,
+      Math.ceil((new Date(row.reset_at).getTime() - Date.now()) / 1000)
+    );
+    return NextResponse.json(
+      {
+        error: `Too many attempts. Try again in ${retryAfter} second${
+          retryAfter === 1 ? "" : "s"
+        }.`,
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(retryAfter),
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Rate limiter unavailable:", error);
     return null;
   }
-  if (current.count < opts.limit) {
-    current.count += 1;
-    return null;
-  }
-
-  const retryAfter = Math.max(1, Math.ceil((current.resetAt - now) / 1000));
-  return NextResponse.json(
-    { error: "Too many requests. Please slow down and try again." },
-    { status: 429, headers: { "Retry-After": String(retryAfter) } }
-  );
 };

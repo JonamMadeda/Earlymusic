@@ -5,7 +5,7 @@ import { verifyStoredAudio } from "@/lib/audioVerify";
 import { db } from "@/lib/neon";
 
 export async function GET(request: NextRequest) {
-  const limited = checkRateLimit(request, { name: "admin-songs", limit: 120, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "admin-songs", limit: 120, windowMs: 60_000 });
   if (limited) return limited;
 
   try {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const limited = checkRateLimit(request, { name: "admin-songs-create", limit: 30, windowMs: 60_000 });
+  const limited = await checkRateLimit(request, { name: "admin-songs-create", limit: 30, windowMs: 60_000 });
   if (limited) return limited;
 
   try {

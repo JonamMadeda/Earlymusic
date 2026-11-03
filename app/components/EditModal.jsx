@@ -55,12 +55,11 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
     try {
       setIsLoading(true);
 
-      const token = localStorage.getItem("auth-token");
       const res = await fetch(`/api/admin/songs/${song.id}`, {
         method: "PATCH",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           title: title,
