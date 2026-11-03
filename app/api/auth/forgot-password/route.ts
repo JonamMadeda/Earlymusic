@@ -3,9 +3,10 @@ import { db } from "@/lib/neon";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { logAuthEvent } from "@/lib/authAudit";
 import { normalizeEmail, validateEmail } from "@/lib/authValidation";
-import { issueResetToken, purgeResetTokens } from "@/lib/passwordReset";
-import { isEmailConfigured, passwordResetEmail, sendEmail } from "@/lib/email";
-import { resolveAuthOrigin } from "@/lib/neonAuth";
+import {
+  requestPasswordResetWithNeonAuth,
+  resolveAuthOrigin,
+} from "@/lib/neonAuth";
 
 const GENERIC_RESPONSE = {
   message:
@@ -13,6 +14,8 @@ const GENERIC_RESPONSE = {
 };
 
 export async function POST(request: NextRequest) {
+  // Neon's shared sender is rate-limited, so the limit that matters most is
+  // the one applied before its endpoint is ever reached.
   const ipLimited = await checkRateLimit(request, {
     name: "auth-forgot-ip",
     limit: 5,
@@ -39,45 +42,34 @@ export async function POST(request: NextRequest) {
     if (emailLimited) return emailLimited;
 
     const { rows } = await db.query(
-      `SELECT id, name, email FROM neon_auth."user" WHERE lower(email) = $1`,
+      `SELECT id, email FROM neon_auth."user" WHERE lower(email) = $1`,
       [normalizedEmail]
     );
     const account = rows?.[0];
 
-    if (account) {
-      const issued = await issueResetToken(account.id);
-      if (!issued) {
-        await logAuthEvent(request, "password_reset_requested", {
-          userId: account.id,
-          email: account.email,
-          detail: { issue_failed: true },
-        });
-      } else {
-        const link = `${resolveAuthOrigin(request)}/auth?mode=reset&token=${encodeURIComponent(issued.token)}`;
-        const sent = await sendEmail(
-          passwordResetEmail({
-            to: account.email,
-            name: account.name || null,
-            link,
-          })
-        );
+    if (!account) return NextResponse.json(GENERIC_RESPONSE);
 
-        await logAuthEvent(request, "password_reset_requested", {
-          userId: account.id,
-          email: account.email,
-          detail: sent ? null : { delivery_failed: true },
-        });
+    const origin = resolveAuthOrigin(request);
+    const result = await requestPasswordResetWithNeonAuth({
+      email: account.email,
+      redirectTo: `${origin}/reset-password`,
+      origin,
+    });
 
-        // Local runs have no email provider, so surface the link rather
-        // than leaving the developer guessing. Never in production.
-        if (!isEmailConfigured() && process.env.NODE_ENV !== "production") {
-          if (Math.random() < 0.05) void purgeResetTokens();
-          return NextResponse.json({ ...GENERIC_RESPONSE, devLink: link });
-        }
-      }
+    await logAuthEvent(request, "password_reset_requested", {
+      userId: account.id,
+      email: account.email,
+      detail: result.ok ? null : { send_failed: `${result.status} ${result.code}` },
+    });
+
+    if (!result.ok && process.env.NODE_ENV !== "production") {
+      // A 404 here means "Sign-up with Email" is still off in the Neon
+      // console, which is invisible in production and maddening to debug.
+      return NextResponse.json(
+        { error: `Neon Auth refused the reset: ${result.status} ${result.code} ${result.message}` },
+        { status: 502 }
+      );
     }
-
-    if (Math.random() < 0.05) void purgeResetTokens();
 
     return NextResponse.json(GENERIC_RESPONSE);
   } catch (error) {

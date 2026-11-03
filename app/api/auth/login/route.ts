@@ -11,6 +11,7 @@ import {
 import {
   burnPasswordCompare,
   findLegacyCredentialByEmail,
+  getCredentialAccount,
   markLegacyUpgraded,
   verifyLegacyPassword,
   writeCredentialAccount,
@@ -96,7 +97,14 @@ export async function POST(request: NextRequest) {
       // Accounts that predate Neon Auth still hold a bcrypt hash. Verify it
       // once, write the Neon Auth credential, and sign them in for real.
       const legacy = await findLegacyCredentialByEmail(normalizedEmail);
-      if (!legacy) {
+      // Once Neon Auth has a credential row for the account, that hash is the
+      // only one allowed to open it. Password resets are completed inside
+      // Neon now, and Neon does not touch legacy_credentials.upgraded_at, so
+      // without this check the pre-reset password would keep signing the
+      // account in through this fallback.
+      const neonOwnedCredential =
+        legacy && (await getCredentialAccount(legacy.user_id));
+      if (!legacy || neonOwnedCredential) {
         await burnPasswordCompare(password);
         await logAuthEvent(request, "login_failed", { email: normalizedEmail });
         return NextResponse.json(

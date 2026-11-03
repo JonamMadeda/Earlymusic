@@ -241,6 +241,49 @@ export const signOutWithNeonAuth = async ({
 }): Promise<NeonAuthResult<{ success: boolean }>> =>
   neonAuthFetch("sign-out", { method: "POST", origin, session });
 
+/**
+ * Asks Neon Auth to email a password-reset link. The managed instance
+ * exposes this as `request-password-reset`, not the `forget-password` path
+ * in Better Auth's docs — the latter answers 404 here. Neon owns the token
+ * (a `reset-password:<token>` row in neon_auth.verification), its hour-long
+ * expiry and the delivery; the link it sends is `${baseURL}/reset-password?token=…`.
+ * It works for accounts that have no credential row yet, which is every
+ * account migrated from the legacy bcrypt hashes.
+ */
+export const requestPasswordResetWithNeonAuth = async ({
+  email,
+  redirectTo,
+  origin,
+}: {
+  email: string;
+  redirectTo: string;
+  origin: string;
+}): Promise<NeonAuthResult<{ status?: boolean; message?: string }>> =>
+  neonAuthFetch("request-password-reset", {
+    method: "POST",
+    origin,
+    body: { email, redirectTo },
+  });
+
+/**
+ * Completes a reset. Better Auth names the field newPassword, hashes it into
+ * neon_auth.account, and revokes the account's other sessions itself.
+ */
+export const resetPasswordWithNeonAuth = async ({
+  token,
+  newPassword,
+  origin,
+}: {
+  token: string;
+  newPassword: string;
+  origin: string;
+}): Promise<NeonAuthResult<{ status?: boolean }>> =>
+  neonAuthFetch("reset-password", {
+    method: "POST",
+    origin,
+    body: { token, newPassword },
+  });
+
 export const listSessionsWithNeonAuth = async ({
   session,
   origin,
