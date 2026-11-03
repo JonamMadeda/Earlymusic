@@ -6,6 +6,18 @@ const USER_TABLES = new Set(["saved_songs", "playlists", "playlist_songs", "rece
 
 const ALLOWED_TABLES = new Set(["songs", "saved_songs", "playlists", "playlist_songs", "recently_played"]);
 
+// Query params that steer the query rather than filter a column. They must
+// be stripped before the filter loop, otherwise "head" (a count-only flag)
+// becomes a WHERE clause on a column that does not exist.
+const CONTROL_PARAMS = new Set([
+  "columns",
+  "limit",
+  "order",
+  "ascending",
+  "count",
+  "head",
+]);
+
 // Columns a client may change through PATCH. Ownership columns, primary
 // keys, and foreign keys are never writable: accepting them let a user
 // move rows into another account or another user's playlist.
@@ -105,6 +117,18 @@ export async function GET(
       const columns = searchParams.get("columns");
       const selectCols = columns ? sanitizeColumns(columns) : "*";
 
+      // "head" only ever means "count only" — it is a control flag, not a
+      // column filter, and must never reach the WHERE clause.
+      if (searchParams.get("count") === "true" && searchParams.get("head") === "true") {
+        const countResult = await db.query(
+          `SELECT COUNT(*) FROM public.${table} WHERE user_id = $1`,
+          [user.id]
+        );
+        return NextResponse.json({
+          count: parseInt(countResult.rows?.[0]?.count || "0", 10),
+        });
+      }
+
       let query = `SELECT ${selectCols} FROM public.${table}`;
       const values: string[] = [];
       const conditions: string[] = [];
@@ -114,7 +138,7 @@ export async function GET(
 
       // Support additional filters (e.g., song_id, playlist_id)
       for (const [key, value] of searchParams.entries()) {
-        if (["columns", "limit", "order", "ascending", "count"].includes(key)) continue;
+        if (CONTROL_PARAMS.has(key)) continue;
         if (!isSafeIdentifier(key)) continue;
         conditions.push(`${key} = $${values.length + 1}`);
         values.push(value);
@@ -137,12 +161,6 @@ export async function GET(
 
       const result = await db.query(query, values);
 
-      if (searchParams.get("count") === "true" && searchParams.get("head") === "true") {
-        const countQuery = `SELECT COUNT(*) FROM public.${table} WHERE user_id = $1`;
-        const countResult = await db.query(countQuery, [user.id]);
-        return NextResponse.json({ count: parseInt(countResult.rows?.[0]?.count || "0", 10) });
-      }
-
       return NextResponse.json(result.rows || []);
     }
 
@@ -156,7 +174,7 @@ export async function GET(
 
     // Support optional filters on public tables
     for (const [key, value] of searchParams.entries()) {
-      if (["columns", "limit", "order", "ascending", "count"].includes(key)) continue;
+      if (CONTROL_PARAMS.has(key)) continue;
       if (!isSafeIdentifier(key)) continue;
       conditions.push(`${key} = $${values.length + 1}`);
       values.push(value);
@@ -368,7 +386,7 @@ export async function PATCH(
 
     // Support additional filter params
     for (const [key, value] of searchParams.entries()) {
-      if (["limit", "order", "ascending", "playlist_id"].includes(key)) continue;
+      if (CONTROL_PARAMS.has(key) || key === "playlist_id") continue;
       if (!isSafeIdentifier(key)) continue;
       conditions.push(`${key} = $${idx}`);
       values.push(value);
@@ -436,7 +454,7 @@ export async function DELETE(
 
     // Support filter params (e.g., song_id, playlist_id, id)
     for (const [key, value] of searchParams.entries()) {
-      if (["limit", "order", "ascending", "playlist_id"].includes(key)) continue;
+      if (CONTROL_PARAMS.has(key) || key === "playlist_id") continue;
       if (!isSafeIdentifier(key)) continue;
       conditions.push(`${key} = $${idx}`);
       values.push(value);
