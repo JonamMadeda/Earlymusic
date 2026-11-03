@@ -93,21 +93,33 @@ The browser holds the app's own `lumbo_session` cookie, whose value is Neon Auth
 
 ### Password reset
 
-Neon Auth does not send email, so the reset link is delivered by this app. Two routes own the flow:
+Neon Auth owns this flow; the app only relays it. No SMTP key, sending domain or third-party account belongs to the app.
 
-- `POST /api/auth/forgot-password` looks the address up in `neon_auth."user"` and answers with the same "if an account exists…" message whether or not it found one, so the form cannot be used to enumerate users. It issues a 32-byte random token, stores only its SHA-256 hash in `public.password_resets` (`lib/migration-password-reset.sql`) with a 30-minute expiry, invalidates any earlier token for that account, and emails `${origin}/auth?mode=reset&token=…`. Limits: 5 requests per IP per 15 minutes and 3 per address per hour.
-- `POST /api/auth/reset-password` claims the token atomically (single-use, `UPDATE … WHERE used_at IS NULL RETURNING`), writes the new scrypt credential, deletes every row in `neon_auth.session` for that user so all other devices are signed out, and clears this device's cookie. Accounts that had never signed in since the migration get a real Neon Auth credential here too, and their `public.legacy_credentials` row is stamped `upgraded_at` — which is what stops the previous password from still working through the legacy fallback.
+- `POST /api/auth/forgot-password` looks the address up in `neon_auth."user"` and answers with the same "if an account exists…" message whether or not it found one, so the form cannot be used to enumerate users. For a real account it calls Neon Auth's `request-password-reset` endpoint (Better Auth documents this path as `forget-password`; on the managed instance that path answers `404`). Neon mints the token, emails the link from the provider configured in its own console, and expires it after an hour. Limits: 5 requests per IP per 15 minutes and 3 per address per hour — worth having because Neon's shared sender is rate-limited.
+- `POST /api/auth/reset-password` hands `{ token, newPassword }` to Neon Auth's `reset-password` endpoint, which writes the scrypt credential into `neon_auth.account` — creating that row for accounts migrated from the bcrypt hashes — and consumes the token, so a second use returns `INVALID_TOKEN`. This device's `lumbo_session` cookie is cleared on success.
+- `app/reset-password/page.js` forwards `/reset-password?token=…` to `/auth?mode=reset&token=…`: that is the URL Neon's email carries, while this app's screen is the second.
 
-Reset links need an email provider: **Resend**. Create an account, verify your sending domain, then set
+Delivery needs **Settings → Better Auth → Sign-up with Email** enabled; with it off, no mail is sent. The emailed link is built from the **base URL** in that same console page, so it must read `https://luumbo.vercel.app` or the link points at the wrong host. The built-in sender delivers from `auth@mail.myneon.app` in Neon's own branding, which Neon documents as suitable for development and testing; before real traffic, set a custom email provider (or the `send.magic_link` webhook plus your own provider) there.
 
-```bash
-RESEND_API_KEY=re_...
-EMAIL_FROM=Luumbo <no-reply@your-domain.example>
+A reset completed inside Neon does not stamp `public.legacy_credentials.upgraded_at`, because the app never learns which account the token belonged to. Sign-in therefore skips the bcrypt fallback as soon as the account has a credential row, which is what keeps the pre-reset password from opening the account.
+
+Every step is written to `public.auth_events` as `password_reset_requested`, `password_reset_completed` or `password_reset_failed` — never with the token itself. A refused request records the Neon status and code, so production can be diagnosed without the Vercel logs:
+
+```sql
+select created_at, email, detail
+  from public.auth_events
+ where event = 'password_reset_requested'
+ order by created_at desc
+ limit 10;
 ```
 
-Both are required; `EMAIL_FROM` must use a domain you verified in Resend. With them set, `lib/email.ts` posts to the Resend HTTP API (no SDK, 10s timeout) and a failed send is recorded in `public.auth_events` with `delivery_failed`. Without them, development prints the link on the forgot-password screen under **LOCAL DEVELOPMENT** (never in production, where the request just reports that delivery failed).
+`detail.send_failed` carries the status and code Neon returned — `403 MISSING_OR_NULL_ORIGIN` when this deployment's domain is missing from **Better Auth → Trusted origins**, `NEON_AUTH_UNAVAILABLE` when the auth endpoint could not be reached. A `200` with no mail in the inbox is the console's email provider, not this app.
 
-Every step is written to `public.auth_events` as `password_reset_requested`, `password_reset_completed` or `password_reset_failed` — never with the token itself.
+### Names and the greeting
+
+Sign-up asks for a first and last name and both are required: `POST /api/auth/register` rejects a request without them, and stores them as the single `neon_auth.user.name` display name (`"First Last"`). `GET /api/profiles/[id]` splits that back into `first_name`/`last_name` for the account screen, and the home page greeting uses only a real `first_name` — an email handle is never presented as a name. An account with no name gets "Good morning" with no name attached and an **Add your name** prompt on `/account`.
+
+Accounts registered before the form asked for names were given the email's local part as their display name. `lib/migration-clear-placeholder-names.sql` blanks those (single-token names equal to the address prefix; real names are untouched) and must be run in every environment. `GET /api/profiles/[id]` also hides any such value that is still stored, so the greeting is correct before and after the migration.
 
 ### Legacy tables
 
