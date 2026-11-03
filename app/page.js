@@ -580,7 +580,9 @@ export default function Home() {
   };
 
   const { text: greetingText, icon: GreetingIcon } = getGreetingData();
-  const userName = profile?.first_name || user?.email?.split("@")[0] || null;
+  // Only a name the user actually gave us. An email handle reads like a
+  // username, not a greeting.
+  const userName = profile?.first_name || null;
 
   const copyVerse = useCallback(async () => {
     const verse = verses[verseIndex];

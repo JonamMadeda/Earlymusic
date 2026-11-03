@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings, Download, Library, ChevronRight } from "lucide-react";
+import { Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings, Download, Library, ChevronRight, UserRoundPlus } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { useAuth } from "@/app/context/AuthContext";
 import Link from "next/link";
@@ -174,8 +174,11 @@ export default function AccountPage() {
     ? new Date(user.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
     : "Unknown";
 
-  const displayName = [firstName, lastName].filter(Boolean).join(" ") || user.email;
-  const initials = (displayName.match(/[a-zA-Z]/g) || ["?"]).slice(0, 2).join("").toUpperCase();
+  // The email already appears in the meta row, so the title falls back to a
+  // placeholder rather than repeating it when no name has been saved.
+  const nameParts = [firstName, lastName].filter(Boolean);
+  const displayName = nameParts.join(" ") || "Your account";
+  const initials = nameParts.map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
   const quickLinks = [
     { icon: Settings, label: "Settings", desc: "Storage, data, and app preferences", href: "/settings" },
@@ -198,7 +201,7 @@ export default function AccountPage() {
             <div className="px-5 pb-5">
               <div className="-mt-10 mb-4 flex items-end gap-4">
                 <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.08] text-xl font-bold text-accent shadow-sm ring-4 ring-white">
-                  {initials}
+                  {initials || <UserRoundPlus size={26} className="text-accent/50" aria-hidden="true" />}
                 </div>
                 <div className="min-w-0 pb-1">
                   <p className="truncate text-base font-bold tracking-tight text-neutral-900">{displayName}</p>
@@ -214,6 +217,19 @@ export default function AccountPage() {
                   </div>
                 </div>
               </div>
+
+              {!firstName && !lastName && (
+                <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-accent/15 bg-accent/[0.04] px-3.5 py-3">
+                  <UserRoundPlus size={15} className="mt-px shrink-0 text-accent" />
+                  <div>
+                    <p className="text-xs font-bold text-neutral-900">Add your name</p>
+                    <p className="mt-0.5 text-[11px] font-medium leading-relaxed text-neutral-500">
+                      The home page greets you by name. Add yours below so we
+                      know what to call you.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>

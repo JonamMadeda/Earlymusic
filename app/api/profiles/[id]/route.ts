@@ -14,9 +14,20 @@ const cleanName = (value: unknown): string | null => {
 
 // The display name lives in neon_auth.user.name; the account screen still
 // edits it as a first/last pair.
-const splitName = (name: string | null) => {
+const splitName = (name: string | null, email?: string | null) => {
   const trimmed = (name || "").trim();
   if (!trimmed) return { first_name: null, last_name: null };
+  // Accounts registered before the sign-up form asked for a name were given
+  // the email's local part as their display name. That is not a name to
+  // greet someone with, so it reads back as "no name yet".
+  const localPart = (email || "").split("@")[0].trim();
+  if (
+    localPart &&
+    !trimmed.includes(" ") &&
+    trimmed.toLowerCase() === localPart.toLowerCase()
+  ) {
+    return { first_name: null, last_name: null };
+  }
   const separator = trimmed.indexOf(" ");
   if (separator === -1) return { first_name: trimmed, last_name: null };
   return {
@@ -45,13 +56,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const result = await db.query(
-      "SELECT name FROM neon_auth.user WHERE id = $1",
+      "SELECT name, email FROM neon_auth.user WHERE id = $1",
       [id]
     );
     if (!result.rows?.length) {
       return NextResponse.json({ first_name: null, last_name: null });
     }
-    return NextResponse.json(splitName(result.rows[0].name));
+    return NextResponse.json(
+      splitName(result.rows[0].name, result.rows[0].email)
+    );
   } catch (error) {
     console.error("Unable to read profile:", error);
     return NextResponse.json(

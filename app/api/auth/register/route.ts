@@ -14,9 +14,12 @@ import {
 } from "@/lib/neonAuth";
 import { burnPasswordCompare } from "@/lib/credentials";
 
-// Neon Auth requires a non-empty display name.
-const displayNameFromEmail = (email: string) =>
-  (email.split("@")[0] || "Member").slice(0, 80);
+// Neon Auth requires a non-empty display name, so the sign-up form's
+// first/last pair is collapsed into it and read back apart by /api/profiles.
+const cleanNamePart = (value: unknown) =>
+  typeof value === "string"
+    ? value.replace(/[\u0000-\u001f\u007f]/g, "").trim().replace(/\s+/g, " ").slice(0, 40)
+    : "";
 
 export async function POST(request: NextRequest) {
   const ipLimited = await checkRateLimit(request, {
@@ -27,10 +30,19 @@ export async function POST(request: NextRequest) {
   if (ipLimited) return ipLimited;
 
   try {
-    const { email, password } = await request.json();
+    const { email, password, first_name, last_name } = await request.json();
     if (typeof email !== "string" || typeof password !== "string") {
       return NextResponse.json(
         { error: "Email and password are required." },
+        { status: 400 }
+      );
+    }
+
+    const firstName = cleanNamePart(first_name);
+    const lastName = cleanNamePart(last_name);
+    if (!firstName || !lastName) {
+      return NextResponse.json(
+        { error: "Enter your first and last name." },
         { status: 400 }
       );
     }
@@ -56,7 +68,7 @@ export async function POST(request: NextRequest) {
     const result = await signUpWithNeonAuth({
       email: normalizedEmail,
       password,
-      name: displayNameFromEmail(normalizedEmail),
+      name: `${firstName} ${lastName}`,
       origin: resolveAuthOrigin(request),
     });
 
