@@ -87,7 +87,7 @@ const Sidebar = () => {
         <div className="flex-1" />
 
         {/* Bottom — User Profile or Sign In */}
-        <div className="border-t border-neutral-100 pt-2.5">
+        <div className="mt-6 border-t border-neutral-200 pt-5">
           {user ? (
             <Link
               href="/account"
