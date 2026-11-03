@@ -155,7 +155,7 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
 
 // Vertical card shared with the songs page (see ./components/FeaturedCard)
 
-// Album-style showcase card (used in Featured Worship Sessions) with subtle retro grooves
+// Album-style showcase card (used in Featured) with subtle retro grooves
 const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
   const letter = initialLetter(song.title);
   const categoryTag = song.category || "Worship";
@@ -826,12 +826,11 @@ export default function Home() {
               </LazySection>
             )}
 
-            {/* --- FEATURED WORSHIP SESSIONS --- */}
+            {/* --- FEATURED --- */}
             <LazySection delay={50}>
               <SectionBlock
                 id="featured-songs"
-                title="Featured Worship Sessions"
-                subtitle="Praise and worship sessions picked from the library."
+                title="Featured"
                 icon={Star}
                 items={featuredSongs}
                 onPlay={(song) => setActiveSong(song, featuredSongs)}
