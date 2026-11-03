@@ -7,7 +7,6 @@ import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
 import { useState, useEffect } from "react";
 import SongAvatar from "@/app/components/SongAvatar";
-import BrandMark from "@/app/components/BrandMark";
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -29,8 +28,7 @@ const Sidebar = () => {
       <div className="flex h-full w-full flex-col p-5 pb-20">
 
         {/* Brand */}
-        <Link href="/" className="mb-5 flex items-center gap-2 px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg">
-          <BrandMark className="h-7 w-7" />
+        <Link href="/" className="mb-5 flex items-center px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg">
           <h2 className="text-[18px] font-bold tracking-tight text-neutral-900 leading-none">
             Luumbo
           </h2>
@@ -111,9 +109,9 @@ const Sidebar = () => {
           ) : (
             <Link
               href="/auth"
-              className="flex items-center gap-x-2.5 rounded-lg px-3 py-2 text-sm font-semibold tracking-tight text-neutral-600 transition-all duration-200 hover:bg-neutral-50 hover:text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+              className="flex items-center justify-center gap-x-2 rounded-xl bg-accent px-3 py-2 text-sm font-bold tracking-tight text-white shadow-sm transition-all duration-200 hover:bg-accent/90 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             >
-              <LogIn size={16} />
+              <LogIn size={15} />
               <span>Sign In</span>
             </Link>
           )}
