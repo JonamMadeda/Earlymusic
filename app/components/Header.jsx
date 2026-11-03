@@ -1,18 +1,27 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CloudOff, Search } from "lucide-react";
+import { CloudOff, LogIn, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/app/context/AuthContext";
 import GlobalSearchModal from "./GlobalSearchModal";
 
 const Header = () => {
   const pathname = usePathname();
   const [isOnline, setIsOnline] = useState(true);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  // Songs page has its own inline search — hide the header trigger there
-  // so only one search bar appears.
-  const isSongsPage = pathname === "/songs";
+  // The header search bar is the home page's entry point into search. Every
+  // other section either has its own field (songs, playlists, admin) or is a
+  // signed-out screen where it reads as broken, so it appears on "/" only.
+  // ⌘K still opens the modal anywhere.
+  const isHomePage = pathname === "/";
+
+  // The sidebar that carries Sign In is desktop-only, so mobile needs the
+  // call to action here. Waiting on the session check keeps it from flashing
+  // at someone who is already signed in.
+  const { user, loading: authLoading } = useAuth();
+  const showSignIn = !authLoading && !user && pathname !== "/auth";
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -52,8 +61,8 @@ const Header = () => {
               </span>
             </Link>
 
-            {/* Desktop quick search button (hidden on songs page — it has its own) */}
-            {!isSongsPage && (
+            {/* Desktop quick search button (home page only) */}
+            {isHomePage && (
               <button
                 type="button"
                 onClick={() => setIsSearchOpen(true)}
@@ -70,8 +79,8 @@ const Header = () => {
 
           {/* Right side: Mobile search button + Offline indicator */}
           <div className="flex items-center gap-2">
-            {/* Mobile search button (hidden on songs page — it has its own) */}
-            {!isSongsPage && (
+            {/* Mobile search button (home page only) */}
+            {isHomePage && (
               <button
                 type="button"
                 aria-label="Search"
@@ -80,6 +89,16 @@ const Header = () => {
               >
                 <Search size={16} />
               </button>
+            )}
+
+            {showSignIn && (
+              <Link
+                href={`/auth?redirectTo=${encodeURIComponent(pathname || "/")}`}
+                className="md:hidden inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-sm transition active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+              >
+                <LogIn size={13} aria-hidden="true" />
+                Sign in
+              </Link>
             )}
 
             {!isOnline && (
