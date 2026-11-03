@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
-import BrandMark from "@/app/components/BrandMark";
 import { Mail, Lock, Loader, ArrowLeft, KeyRound, Eye, EyeOff, ShieldCheck } from "lucide-react";
 
 const getSafeRedirect = (value) => {
@@ -18,6 +17,7 @@ const initialMode = (modeParam, resetToken) => {
   if (modeParam === "update-password") return "update-password";
   if (modeParam === "reset" && resetToken) return "reset";
   if (modeParam === "forgot") return "forgot";
+  if (modeParam === "signup") return "signup";
   return "login";
 };
 
@@ -31,13 +31,14 @@ function AuthForm() {
   const updatePasswordMode = modeParam === "update-password";
 
   const [mode, setMode] = useState(() => initialMode(modeParam, resetToken));
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [devLink, setDevLink] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [updated, setUpdated] = useState(false);
   const [resetDone, setResetDone] = useState(false);
@@ -78,10 +79,14 @@ function AuthForm() {
     e.preventDefault();
     setError("");
     setMessage("");
-    setDevLink("");
 
     if ((isSignup || isReset || isUpdatePassword) && password !== confirmPassword) {
       setError("Passwords do not match.");
+      return;
+    }
+
+    if (isSignup && (!firstName.trim() || !lastName.trim())) {
+      setError("Enter your first and last name.");
       return;
     }
 
@@ -94,7 +99,6 @@ function AuthForm() {
           return;
         }
         setMessage(data.message);
-        if (data.devLink) setDevLink(data.devLink);
         return;
       }
 
@@ -127,8 +131,12 @@ function AuthForm() {
         return;
       }
 
-      const fn = isLogin ? signIn : signUp;
-      const { error: authError, exists } = await fn(email, password);
+      const { error: authError, exists } = isLogin
+        ? await signIn(email, password)
+        : await signUp(email, password, {
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+          });
 
       if (exists) {
         // Email already has an account — move to sign-in instead of a
@@ -155,12 +163,17 @@ function AuthForm() {
     }
   };
 
+  const switchMode = (next) => {
+    setMode(next);
+    setError("");
+    setMessage("");
+  };
+
   const goBackToLogin = () => {
     setMode("login");
     setResetDone(false);
     setError("");
     setMessage("");
-    setDevLink("");
     setPassword("");
     setConfirmPassword("");
     // Drop the consumed token from the address bar so it cannot linger in
@@ -171,7 +184,7 @@ function AuthForm() {
   if (updated) {
     return (
       <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
-        <div className="w-full max-w-sm text-center">
+        <div className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white px-6 py-9 text-center shadow-[0_18px_45px_-28px_rgba(15,23,42,0.35)]">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent mx-auto mb-4">
             <KeyRound size={24} aria-hidden="true" />
           </div>
@@ -189,7 +202,7 @@ function AuthForm() {
   if (resetDone) {
     return (
       <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
-        <div className="w-full max-w-sm text-center">
+        <div className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white px-6 py-9 text-center shadow-[0_18px_45px_-28px_rgba(15,23,42,0.35)]">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 mx-auto mb-4">
             <ShieldCheck size={24} aria-hidden="true" />
           </div>
@@ -213,7 +226,7 @@ function AuthForm() {
   if (updatePasswordMode && !authLoading && !user) {
     return (
       <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
-        <div className="w-full max-w-sm text-center">
+        <div className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white px-6 py-9 text-center shadow-[0_18px_45px_-28px_rgba(15,23,42,0.35)]">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-neutral-100 text-neutral-400 mx-auto mb-4">
             <ShieldCheck size={24} aria-hidden="true" />
           </div>
@@ -250,35 +263,101 @@ function AuthForm() {
   }
 
   return (
-    <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-10">
-          <div className="mb-5 flex items-center justify-center gap-2">
-            <BrandMark className="h-7 w-7" />
-            <span className="text-[15px] font-bold tracking-tight text-neutral-900">
-              Luumbo
-            </span>
-          </div>
-          <div className="flex items-center gap-2 justify-center">
-            <div className="h-6 w-1 rounded-full bg-accent" />
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900 uppercase">
-              {isLogin && "Sign In"}
-              {isSignup && "Sign Up"}
-              {isUpdatePassword && "Update Password"}
-              {isForgot && "Forgot Password"}
-              {isReset && "Choose a New Password"}
-            </h1>
-          </div>
-          <p className="text-neutral-500 text-sm mt-2 font-medium">
-            {isLogin && "Welcome back"}
-            {isSignup && "Create an account"}
+    <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-4 py-10 sm:px-6">
+      <div className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-6 shadow-[0_18px_45px_-28px_rgba(15,23,42,0.35)] sm:p-7">
+        <div className="text-center mb-5">
+          <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-neutral-400">
+            Luumbo
+          </p>
+          <h1 className="mt-3 text-[22px] font-bold tracking-tight text-neutral-900">
+            {isLogin && "Sign In"}
+            {isSignup && "Sign Up"}
+            {isUpdatePassword && "Update Password"}
+            {isForgot && "Forgot Password"}
+            {isReset && "Choose a New Password"}
+          </h1>
+          <p className="text-neutral-500 text-[13px] mt-1.5 font-medium">
+            {isLogin && "Welcome back. Pick up where you left off."}
+            {isSignup && "Save songs and keep your library in one place."}
             {isUpdatePassword && "Choose a new password"}
             {isForgot && "We’ll email you a reset link"}
             {isReset && "Pick something you haven’t used before"}
           </p>
         </div>
 
+        {(isLogin || isSignup) && (
+          <div
+            role="group"
+            aria-label="Choose how to continue"
+            className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-neutral-100 p-1"
+          >
+            {[
+              { key: "login", label: "Sign In" },
+              { key: "signup", label: "Sign Up" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                aria-pressed={mode === tab.key}
+                onClick={() => switchMode(tab.key)}
+                className={`rounded-lg py-2 text-xs font-bold tracking-tight transition outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+                  mode === tab.key
+                    ? "bg-white text-neutral-900 shadow-sm"
+                    : "text-neutral-500 hover:text-neutral-800"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-y-4" noValidate={false}>
+          {isSignup && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-y-1">
+                <label htmlFor="auth-first-name" className="text-xs font-medium text-neutral-500 ml-1">
+                  First name
+                </label>
+                <div className="flex items-center p-3 bg-neutral-50 border border-neutral-200 rounded-xl focus-within:border-accent transition">
+                  <input
+                    id="auth-first-name"
+                    name="given-name"
+                    type="text"
+                    autoComplete="given-name"
+                    autoCapitalize="words"
+                    placeholder="First"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="bg-transparent outline-none w-full min-w-0 text-sm font-medium text-neutral-900 placeholder:text-neutral-300"
+                    required
+                    maxLength={40}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-y-1">
+                <label htmlFor="auth-last-name" className="text-xs font-medium text-neutral-500 ml-1">
+                  Last name
+                </label>
+                <div className="flex items-center p-3 bg-neutral-50 border border-neutral-200 rounded-xl focus-within:border-accent transition">
+                  <input
+                    id="auth-last-name"
+                    name="family-name"
+                    type="text"
+                    autoComplete="family-name"
+                    autoCapitalize="words"
+                    placeholder="Last"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="bg-transparent outline-none w-full min-w-0 text-sm font-medium text-neutral-900 placeholder:text-neutral-300"
+                    required
+                    maxLength={40}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {!isUpdatePassword && !isReset && (
             <div className="flex flex-col gap-y-1">
               <label htmlFor="auth-email" className="text-xs font-medium text-neutral-500 ml-1">
@@ -417,18 +496,6 @@ function AuthForm() {
             </p>
           )}
 
-          {devLink && (
-            <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-3">
-              <p className="text-[11px] font-bold text-neutral-500 uppercase">Local development</p>
-              <a
-                href={devLink}
-                className="block mt-1 text-[11px] text-accent break-all underline"
-              >
-                {devLink}
-              </a>
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={submitting || (isUpdatePassword && authLoading)}
@@ -444,19 +511,20 @@ function AuthForm() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-neutral-500 mt-8 font-medium">
-          {isLogin ? (
-            <>
-              Don&apos;t have an account?{" "}
+        <div className="mt-6 border-t border-neutral-100 pt-4 text-center">
+          {isLogin && (
+            <p className="text-sm text-neutral-500 font-medium">
               <button
-                onClick={() => { setMode("signup"); setError(""); setMessage(""); }}
-                className="text-accent font-bold hover:underline"
+                onClick={() => switchMode("forgot")}
+                className="text-neutral-500 hover:text-neutral-900 transition underline underline-offset-2"
               >
-                Sign Up
+                Forgot password?
               </button>
-            </>
-          ) : isSignup || isForgot || isReset ? (
-            <>
+            </p>
+          )}
+
+          {(isForgot || isReset) && (
+            <p className="text-sm text-neutral-500 font-medium">
               Already have an account?{" "}
               <button
                 onClick={goBackToLogin}
@@ -464,35 +532,32 @@ function AuthForm() {
               >
                 Sign In
               </button>
-            </>
-          ) : (
+            </p>
+          )}
+
+          {isUpdatePassword && (
             <button
               onClick={() => router.push("/account")}
-              className="inline-flex items-center gap-1 text-neutral-500 hover:text-neutral-900 transition"
+              className="inline-flex items-center gap-1 text-sm font-medium text-neutral-500 hover:text-neutral-900 transition"
             >
               <ArrowLeft size={14} aria-hidden="true" />
               Back to account
             </button>
           )}
-        </p>
 
-        {isLogin && (
-          <p className="text-center text-sm text-neutral-500 mt-3 font-medium">
-            <button
-              onClick={() => { setMode("forgot"); setError(""); setMessage(""); }}
-              className="text-neutral-500 hover:text-neutral-900 transition underline underline-offset-2"
-            >
-              Forgot password?
-            </button>
-          </p>
-        )}
+          {isSignup && (
+            <p className="text-[11px] font-medium leading-relaxed text-neutral-400">
+              Your email is only used for signing in and password resets.
+            </p>
+          )}
 
-        {isForgot && !message && (
-          <p className="text-center text-xs text-neutral-400 mt-4">
-            Enter the email you signed up with. The link works once and
-            expires in 30 minutes.
-          </p>
-        )}
+          {isForgot && !message && (
+            <p className="text-[11px] font-medium text-neutral-400 mt-1.5">
+              Use the email you signed up with. The link works once and
+              expires in an hour.
+            </p>
+          )}
+        </div>
       </div>
     </main>
   );
@@ -501,7 +566,7 @@ function AuthForm() {
 function ResultScreen({ title, body, actionLabel, onAction }) {
   return (
     <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
-      <div className="w-full max-w-sm text-center">
+      <div className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white px-6 py-9 text-center shadow-[0_18px_45px_-28px_rgba(15,23,42,0.35)]">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-neutral-100 text-neutral-400 mx-auto mb-4">
           <KeyRound size={24} aria-hidden="true" />
         </div>
