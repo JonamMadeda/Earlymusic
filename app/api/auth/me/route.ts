@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getUserFromRequest,
-  extendSession,
-  signSessionToken,
-  setSessionCookie,
-  RENEW_WINDOW_MS,
-} from "@/lib/auth";
+import { getSessionValue, getUserFromRequest, setSessionCookie } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,22 +9,20 @@ export async function GET(request: NextRequest) {
     }
 
     const response = NextResponse.json({
-      user: { id: user.id, email: user.email, created_at: user.created_at },
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        created_at: user.created_at,
+      },
       session: { expiresAt: user.expires_at },
     });
 
-    // Sliding renewal: active users are never logged out on a timer, but
-    // an abandoned session still expires after the 30-day window.
-    const expiresAt = new Date(user.expires_at).getTime();
-    if (Number.isFinite(expiresAt) && expiresAt - Date.now() < RENEW_WINDOW_MS) {
-      const newExpiry = await extendSession(user.session_id);
-      if (newExpiry) {
-        const token = await signSessionToken({
-          user,
-          sessionId: user.session_id,
-        });
-        setSessionCookie(response, token);
-      }
+    // The session in Neon Auth slides forward as it is used; refresh the
+    // browser cookie so it expires with the session, not before it.
+    const sessionValue = getSessionValue(request);
+    if (sessionValue) {
+      setSessionCookie(response, sessionValue, user.expires_at);
     }
 
     return response;

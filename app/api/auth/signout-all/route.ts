@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getUserFromRequest,
-  revokeAllSessions,
-  bumpTokenVersion,
-  clearSessionCookie,
-} from "@/lib/auth";
+import { clearSessionCookie, getUserFromRequest } from "@/lib/auth";
 import { logAuthEvent } from "@/lib/authAudit";
+import { db } from "@/lib/neon";
 
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request);
     if (user) {
-      await bumpTokenVersion(user.id);
-      await revokeAllSessions(user.id);
+      await db.query(`DELETE FROM neon_auth.session WHERE "userId" = $1`, [
+        user.id,
+      ]);
       await logAuthEvent(request, "signout_all", {
         userId: user.id,
         email: user.email,

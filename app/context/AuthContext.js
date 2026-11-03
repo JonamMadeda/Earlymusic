@@ -93,20 +93,11 @@ export const AuthProvider = ({ children }) => {
     let cancelled = false;
 
     const bootstrap = async () => {
-      // One-time upgrade: users still holding a pre-hardening localStorage
-      // token exchange it for an HttpOnly cookie session.
+      // Sessions now live in Neon Auth and ride on an HttpOnly cookie.
+      // A pre-hardening localStorage token cannot be exchanged any more,
+      // so it is simply dropped.
       try {
-        const legacy = localStorage.getItem("auth-token");
-        if (legacy) {
-          try {
-            await fetch("/api/auth/session", {
-              method: "POST",
-              credentials: "same-origin",
-              headers: { Authorization: `Bearer ${legacy}` },
-            });
-          } catch {}
-          try { localStorage.removeItem("auth-token"); } catch {}
-        }
+        localStorage.removeItem("auth-token");
       } catch {}
 
       try {

@@ -1,11 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  hashPassword,
-  createSession,
-  signSessionToken,
-  setSessionCookie,
-} from "@/lib/auth";
-import { db } from "@/lib/neon";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { logAuthEvent } from "@/lib/authAudit";
 import {
@@ -13,6 +6,17 @@ import {
   validateEmail,
   validatePassword,
 } from "@/lib/authValidation";
+import { setSessionCookie } from "@/lib/auth";
+import {
+  NEON_AUTH_ERRORS,
+  resolveAuthOrigin,
+  signUpWithNeonAuth,
+} from "@/lib/neonAuth";
+import { burnPasswordCompare } from "@/lib/credentials";
+
+// Neon Auth requires a non-empty display name.
+const displayNameFromEmail = (email: string) =>
+  (email.split("@")[0] || "Member").slice(0, 80);
 
 export async function POST(request: NextRequest) {
   const ipLimited = await checkRateLimit(request, {
@@ -49,14 +53,40 @@ export async function POST(request: NextRequest) {
     });
     if (emailLimited) return emailLimited;
 
-    const existing = await db.query(
-      "SELECT id FROM public.users WHERE lower(email) = $1",
-      [normalizedEmail]
-    );
-    if (existing.rows?.length) {
+    const result = await signUpWithNeonAuth({
+      email: normalizedEmail,
+      password,
+      name: displayNameFromEmail(normalizedEmail),
+      origin: resolveAuthOrigin(request),
+    });
+
+    if (result.ok) {
+      if (!result.sessionValue) {
+        return NextResponse.json(
+          { error: "Unable to start a session." },
+          { status: 500 }
+        );
+      }
+      const response = NextResponse.json({
+        user: {
+          id: result.data.user.id,
+          email: result.data.user.email,
+          name: result.data.user.name || null,
+          created_at: result.data.user.createdAt || null,
+        },
+      });
+      setSessionCookie(response, result.sessionValue);
+      await logAuthEvent(request, "register_success", {
+        userId: result.data.user.id,
+        email: result.data.user.email,
+      });
+      return response;
+    }
+
+    if (result.code === NEON_AUTH_ERRORS.emailExists) {
       // Same bcrypt cost as the create path so timing does not add a
       // second signal on top of the explicit "exists" response.
-      await hashPassword(`timing-noise-${normalizedEmail}-${Date.now()}`);
+      await burnPasswordCompare(password);
       await logAuthEvent(request, "register_exists", {
         email: normalizedEmail,
       });
@@ -67,59 +97,28 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const passwordHash = await hashPassword(password);
-    const result = await db.query(
-      `INSERT INTO public.users (email, password_hash)
-       VALUES ($1, $2)
-       ON CONFLICT DO NOTHING
-       RETURNING id, email, created_at, token_version`,
-      [normalizedEmail, passwordHash]
-    );
-    const user = result.rows?.[0];
-
-    // Lost the race against a concurrent registration: behave like the
-    // existing-account path instead of returning a 500.
-    if (!user) {
-      await hashPassword(`timing-noise-${normalizedEmail}-${Date.now()}`);
-      await logAuthEvent(request, "register_exists", {
+    // 422 carries the policy failure (password length, malformed address).
+    if (result.status === 422 || result.status === 400) {
+      await logAuthEvent(request, "register_failed", {
         email: normalizedEmail,
+        detail: { code: result.code },
       });
-      return NextResponse.json({
-        exists: true,
-        message:
-          "An account with this email already exists. Try signing in instead.",
-      });
-    }
-
-    // Profile creation is cosmetic; never fail registration (and leave
-    // an unusable account) because this insert failed.
-    try {
-      await db.query(
-        "INSERT INTO public.profiles (id) VALUES ($1) ON CONFLICT DO NOTHING",
-        [user.id]
-      );
-    } catch (error) {
-      console.error("Unable to create profile for new user:", error);
-    }
-
-    const sessionId = await createSession(user.id, request);
-    if (!sessionId) {
       return NextResponse.json(
-        { error: "Unable to start a session." },
-        { status: 500 }
+        { error: result.message || "Unable to create the account." },
+        { status: 400 }
       );
     }
 
-    const token = await signSessionToken({ user, sessionId });
-    const response = NextResponse.json({
-      user: { id: user.id, email: user.email, created_at: user.created_at },
-    });
-    setSessionCookie(response, token);
-    await logAuthEvent(request, "register_success", {
-      userId: user.id,
-      email: user.email,
-    });
-    return response;
+    console.error(
+      "Neon Auth sign-up failed:",
+      result.status,
+      result.code,
+      result.message
+    );
+    return NextResponse.json(
+      { error: "Unable to register right now." },
+      { status: 500 }
+    );
   } catch (error) {
     console.error("Registration error:", error);
     return NextResponse.json(

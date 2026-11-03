@@ -8,7 +8,7 @@ export const getAuthenticatedUser = async (request: NextRequest) => {
 export const isAdmin = async (userId: string) => {
   const { db } = await import("@/lib/neon");
   const { rows } = await db.query(
-    "SELECT role FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
+    `SELECT role FROM neon_auth.user WHERE id = $1 AND role = 'admin'`,
     [userId]
   );
   return rows?.length > 0;

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { rows: users } = await db.query(
-      "SELECT id, email FROM public.users WHERE email = $1",
+      "SELECT id, email FROM neon_auth.user WHERE lower(email) = $1",
       [normalizedEmail]
     );
     const user = users?.[0];
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     await db.query(
-      `INSERT INTO public.user_roles (user_id, role) VALUES ($1, 'admin') ON CONFLICT DO NOTHING`,
+      `UPDATE neon_auth.user SET role = 'admin', "updatedAt" = now() WHERE id = $1`,
       [user.id]
     );
 
@@ -60,11 +60,10 @@ export async function GET(request: NextRequest) {
     }
 
     const { rows: roles } = await db.query(
-      `SELECT ur.user_id, ur.created_at, u.email
-       FROM public.user_roles ur
-       JOIN public.users u ON u.id = ur.user_id
-       WHERE ur.role = 'admin'
-       ORDER BY ur.created_at ASC`
+      `SELECT id AS user_id, email, "createdAt" AS created_at
+       FROM neon_auth.user
+       WHERE role = 'admin'
+       ORDER BY "createdAt" ASC`
     );
 
     return NextResponse.json({
@@ -102,20 +101,23 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "You cannot revoke your own administrator access." }, { status: 400 });
     }
 
-    const { rows: roles } = await db.query(
-      "SELECT user_id FROM public.user_roles WHERE role = 'admin'"
+    const { rows: admins } = await db.query(
+      `SELECT id FROM neon_auth.user WHERE role = 'admin'`
     );
-    if ((roles || []).length <= 1) {
+    if ((admins || []).length <= 1) {
       return NextResponse.json({ error: "Cannot remove the last administrator." }, { status: 400 });
     }
 
     // NOTE: the Neon HTTP driver returns only rows (no rowCount), so a
-    // bare DELETE yields no usable count — RETURNING makes the check real.
-    const { rows: deleted } = await db.query(
-      "DELETE FROM public.user_roles WHERE user_id = $1 AND role = 'admin' RETURNING user_id",
+    // bare UPDATE yields no usable count — RETURNING makes the check real.
+    const { rows: demoted } = await db.query(
+      `UPDATE neon_auth.user
+       SET role = 'user', "updatedAt" = now()
+       WHERE id = $1 AND role = 'admin'
+       RETURNING id`,
       [userId]
     );
-    if (!deleted?.length) {
+    if (!demoted?.length) {
       return NextResponse.json({ error: "Administrator not found." }, { status: 404 });
     }
 

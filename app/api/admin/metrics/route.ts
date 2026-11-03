@@ -34,15 +34,15 @@ export async function GET(request: NextRequest) {
 
     const { rows: userRows } = await db.query(
       `SELECT COUNT(*)::int AS total,
-              COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::int AS d7,
-              COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS d30
-       FROM public.users`
+              COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '7 days')::int AS d7,
+              COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '30 days')::int AS d30
+       FROM neon_auth.user`
     );
 
     const { rows: signupRows } = await db.query(
-      `SELECT TO_CHAR(DATE(created_at), 'YYYY-MM-DD') AS day, COUNT(*)::int AS count
-       FROM public.users
-       WHERE created_at >= NOW() - INTERVAL '14 days'
+      `SELECT TO_CHAR(DATE("createdAt"), 'YYYY-MM-DD') AS day, COUNT(*)::int AS count
+       FROM neon_auth.user
+       WHERE "createdAt" >= NOW() - INTERVAL '14 days'
        GROUP BY 1 ORDER BY 1`
     );
 

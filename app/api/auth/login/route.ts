@@ -1,18 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  verifyPassword,
-  createSession,
-  signSessionToken,
-  setSessionCookie,
-} from "@/lib/auth";
-import { db } from "@/lib/neon";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { logAuthEvent } from "@/lib/authAudit";
 import { normalizeEmail, validateEmail } from "@/lib/authValidation";
+import { setSessionCookie } from "@/lib/auth";
+import {
+  NEON_AUTH_ERRORS,
+  resolveAuthOrigin,
+  signInWithNeonAuth,
+} from "@/lib/neonAuth";
+import {
+  burnPasswordCompare,
+  findLegacyCredentialByEmail,
+  markLegacyUpgraded,
+  verifyLegacyPassword,
+  writeCredentialAccount,
+} from "@/lib/credentials";
 
-// A real bcrypt hash so unknown emails still pay the same cost as known
-// ones. Without this, response timing reveals which accounts exist.
-const DUMMY_HASH = "$2b$10$Br4BLaLE0Vc4lWKUq1Li2OKYFl6Wrphnq5k1LxdUMAivG31Qbt6KG";
+const publicUser = (user: any) => ({
+  id: user.id,
+  email: user.email,
+  name: user.name || null,
+  created_at: user.createdAt || null,
+});
 
 export async function POST(request: NextRequest) {
   const ipLimited = await checkRateLimit(request, {
@@ -45,9 +54,10 @@ export async function POST(request: NextRequest) {
     });
     if (emailLimited) return emailLimited;
 
-    // Invalid addresses take the same dummy-bcrypt path as unknown users.
+    // Malformed addresses never reach Neon Auth: they would still cost a
+    // round trip and leak which inputs are worth trying.
     if (validateEmail(normalizedEmail)) {
-      await verifyPassword(password, DUMMY_HASH);
+      await burnPasswordCompare(password);
       await logAuthEvent(request, "login_failed", {
         email: normalizedEmail.slice(0, 254),
       });
@@ -57,44 +67,99 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await db.query(
-      `SELECT id, email, password_hash, created_at, token_version
-       FROM public.users
-       WHERE lower(email) = $1`,
-      [normalizedEmail]
-    );
-    const user = result.rows?.[0];
-
-    const valid = await verifyPassword(
+    const origin = resolveAuthOrigin(request);
+    const result = await signInWithNeonAuth({
+      email: normalizedEmail,
       password,
-      user?.password_hash || DUMMY_HASH
+      origin,
+    });
+
+    if (result.ok) {
+      if (!result.sessionValue) {
+        return NextResponse.json(
+          { error: "Unable to start a session." },
+          { status: 500 }
+        );
+      }
+      const response = NextResponse.json({
+        user: publicUser(result.data.user),
+      });
+      setSessionCookie(response, result.sessionValue);
+      await logAuthEvent(request, "login_success", {
+        userId: result.data.user.id,
+        email: result.data.user.email,
+      });
+      return response;
+    }
+
+    if (result.code === NEON_AUTH_ERRORS.invalidCredentials) {
+      // Accounts that predate Neon Auth still hold a bcrypt hash. Verify it
+      // once, write the Neon Auth credential, and sign them in for real.
+      const legacy = await findLegacyCredentialByEmail(normalizedEmail);
+      if (!legacy) {
+        await burnPasswordCompare(password);
+        await logAuthEvent(request, "login_failed", { email: normalizedEmail });
+        return NextResponse.json(
+          { error: "Invalid email or password." },
+          { status: 401 }
+        );
+      }
+
+      const valid = await verifyLegacyPassword(password, legacy.password_hash);
+      if (!valid) {
+        await logAuthEvent(request, "login_failed", { email: normalizedEmail });
+        return NextResponse.json(
+          { error: "Invalid email or password." },
+          { status: 401 }
+        );
+      }
+
+      try {
+        await writeCredentialAccount(legacy.user_id, password);
+        await markLegacyUpgraded(legacy.user_id);
+      } catch (error) {
+        console.error("Unable to upgrade legacy credentials:", error);
+        return NextResponse.json(
+          { error: "Unable to sign in right now." },
+          { status: 500 }
+        );
+      }
+
+      const retry = await signInWithNeonAuth({
+        email: normalizedEmail,
+        password,
+        origin,
+      });
+      if (!retry.ok || !retry.sessionValue) {
+        await logAuthEvent(request, "login_failed", { email: normalizedEmail });
+        return NextResponse.json(
+          { error: "Invalid email or password." },
+          { status: 401 }
+        );
+      }
+
+      const response = NextResponse.json({
+        user: publicUser(retry.data.user),
+      });
+      setSessionCookie(response, retry.sessionValue);
+      await logAuthEvent(request, "login_success", {
+        userId: retry.data.user.id,
+        email: retry.data.user.email,
+        detail: { upgraded_legacy_account: true },
+      });
+      return response;
+    }
+
+    console.error(
+      "Neon Auth sign-in failed:",
+      result.status,
+      result.code,
+      result.message
     );
-    if (!user || !valid) {
-      await logAuthEvent(request, "login_failed", { email: normalizedEmail });
-      return NextResponse.json(
-        { error: "Invalid email or password." },
-        { status: 401 }
-      );
-    }
-
-    const sessionId = await createSession(user.id, request);
-    if (!sessionId) {
-      return NextResponse.json(
-        { error: "Unable to start a session." },
-        { status: 500 }
-      );
-    }
-
-    const token = await signSessionToken({ user, sessionId });
-    const response = NextResponse.json({
-      user: { id: user.id, email: user.email, created_at: user.created_at },
-    });
-    setSessionCookie(response, token);
-    await logAuthEvent(request, "login_success", {
-      userId: user.id,
-      email: user.email,
-    });
-    return response;
+    return NextResponse.json(
+      { error: "Unable to sign in right now." },
+      { status: 500 }
+    );
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(

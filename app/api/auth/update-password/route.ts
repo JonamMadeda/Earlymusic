@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  hashPassword,
-  verifyPassword,
-  getUserFromRequest,
-  bumpTokenVersion,
-  revokeAllSessions,
-  createSession,
-  signSessionToken,
-  setSessionCookie,
-  getTokenVersion,
-} from "@/lib/auth";
-import { db } from "@/lib/neon";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { logAuthEvent } from "@/lib/authAudit";
 import { validatePassword } from "@/lib/authValidation";
+import { getUserFromRequest } from "@/lib/auth";
+import { db } from "@/lib/neon";
+import {
+  findLegacyCredentialByUserId,
+  getCredentialAccount,
+  markLegacyUpgraded,
+  setCredentialPassword,
+  verifyCredentialPassword,
+  verifyLegacyPassword,
+  writeCredentialAccount,
+} from "@/lib/credentials";
 
 export async function PATCH(request: NextRequest) {
   const ipLimited = await checkRateLimit(request, {
@@ -54,60 +53,69 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: passwordError }, { status: 400 });
     }
 
-    const { rows } = await db.query(
-      "SELECT password_hash FROM public.users WHERE id = $1",
-      [user.id]
+    let account = await getCredentialAccount(user.id);
+
+    if (!account) {
+      // Account that predates Neon Auth: verify the parked bcrypt hash,
+      // then give it a real Neon Auth credential before changing it.
+      const legacy = await findLegacyCredentialByUserId(user.id);
+      if (
+        !legacy ||
+        !(await verifyLegacyPassword(currentPassword, legacy.password_hash))
+      ) {
+        await logAuthEvent(request, "password_changed", {
+          userId: user.id,
+          email: user.email,
+          detail: { result: "wrong_current_password" },
+        });
+        return NextResponse.json(
+          { error: "Current password is incorrect." },
+          { status: 400 }
+        );
+      }
+
+      const accountId = await writeCredentialAccount(user.id, currentPassword);
+      await markLegacyUpgraded(user.id);
+      account = { id: accountId, password: null } as any;
+    } else {
+      const valid = await verifyCredentialPassword(
+        currentPassword,
+        account.password
+      );
+      if (!valid) {
+        await logAuthEvent(request, "password_changed", {
+          userId: user.id,
+          email: user.email,
+          detail: { result: "wrong_current_password" },
+        });
+        return NextResponse.json(
+          { error: "Current password is incorrect." },
+          { status: 400 }
+        );
+      }
+
+      if (await verifyCredentialPassword(password, account.password)) {
+        return NextResponse.json(
+          { error: "Choose a password you have not used before." },
+          { status: 400 }
+        );
+      }
+    }
+
+    await setCredentialPassword(account.id, password);
+
+    // A password change ends every other session; the current device keeps
+    // working because it re-authenticated with the old password.
+    await db.query(
+      `DELETE FROM neon_auth.session WHERE "userId" = $1 AND id <> $2`,
+      [user.id, user.session_id]
     );
-    const currentHash = rows?.[0]?.password_hash;
-    if (!currentHash || !(await verifyPassword(currentPassword, currentHash))) {
-      await logAuthEvent(request, "password_changed", {
-        userId: user.id,
-        email: user.email,
-        detail: { result: "wrong_current_password" },
-      });
-      return NextResponse.json(
-        { error: "Current password is incorrect." },
-        { status: 400 }
-      );
-    }
 
-    if (await verifyPassword(password, currentHash)) {
-      return NextResponse.json(
-        { error: "Choose a password you have not used before." },
-        { status: 400 }
-      );
-    }
-
-    const passwordHash = await hashPassword(password);
-    await db.query("UPDATE public.users SET password_hash = $1 WHERE id = $2", [
-      passwordHash,
-      user.id,
-    ]);
-
-    // Revoke every existing token/session (including the caller's), then
-    // mint a fresh session so the current device stays signed in.
-    await bumpTokenVersion(user.id);
-    await revokeAllSessions(user.id);
-    const tokenVersion = await getTokenVersion(user.id);
-    const sessionId = await createSession(user.id, request);
-    if (!sessionId) {
-      return NextResponse.json(
-        { error: "Password changed, but the session could not be renewed. Sign in again." },
-        { status: 500 }
-      );
-    }
-
-    const token = await signSessionToken({
-      user: { ...user, token_version: tokenVersion },
-      sessionId,
-    });
-    const response = NextResponse.json({ success: true });
-    setSessionCookie(response, token);
     await logAuthEvent(request, "password_changed", {
       userId: user.id,
       email: user.email,
     });
-    return response;
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Password update error:", error);
     return NextResponse.json(

@@ -12,6 +12,19 @@ const cleanName = (value: unknown): string | null => {
   return trimmed.slice(0, 80);
 };
 
+// The display name lives in neon_auth.user.name; the account screen still
+// edits it as a first/last pair.
+const splitName = (name: string | null) => {
+  const trimmed = (name || "").trim();
+  if (!trimmed) return { first_name: null, last_name: null };
+  const separator = trimmed.indexOf(" ");
+  if (separator === -1) return { first_name: trimmed, last_name: null };
+  return {
+    first_name: trimmed.slice(0, separator),
+    last_name: trimmed.slice(separator + 1).trim() || null,
+  };
+};
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const user = await getUserFromRequest(request);
@@ -32,13 +45,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const result = await db.query(
-      "SELECT first_name, last_name FROM public.profiles WHERE id = $1",
+      "SELECT name FROM neon_auth.user WHERE id = $1",
       [id]
     );
     if (!result.rows?.length) {
       return NextResponse.json({ first_name: null, last_name: null });
     }
-    return NextResponse.json(result.rows[0]);
+    return NextResponse.json(splitName(result.rows[0].name));
   } catch (error) {
     console.error("Unable to read profile:", error);
     return NextResponse.json(
@@ -63,15 +76,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const body = await request.json();
     const first_name = cleanName(body?.first_name);
     const last_name = cleanName(body?.last_name);
+    const name = [first_name, last_name].filter(Boolean).join(" ");
+
     await db.query(
-      `INSERT INTO public.profiles (id, first_name, last_name, updated_at)
-       VALUES ($1, $2, $3, now())
-       ON CONFLICT (id) DO UPDATE SET first_name = $2, last_name = $3, updated_at = now()`,
-      [id, first_name, last_name]
+      `UPDATE neon_auth.user
+       SET name = $2, "updatedAt" = now()
+       WHERE id = $1`,
+      [id, name]
     );
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Unable to update profile:", error);
-    return NextResponse.json({ error: "Unable to update profile." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Unable to update profile." },
+      { status: 500 }
+    );
   }
 }

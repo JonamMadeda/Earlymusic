@@ -6,11 +6,14 @@ export type AuthEvent =
   | "login_success"
   | "login_failed"
   | "register_success"
+  | "register_failed"
   | "register_exists"
-  | "session_migrated"
   | "signout"
   | "signout_all"
   | "password_changed"
+  | "password_reset_requested"
+  | "password_reset_completed"
+  | "password_reset_failed"
   | "session_revoked";
 
 /**

@@ -14,48 +14,109 @@ const getSafeRedirect = (value) => {
   return value;
 };
 
+const initialMode = (modeParam, resetToken) => {
+  if (modeParam === "update-password") return "update-password";
+  if (modeParam === "reset" && resetToken) return "reset";
+  if (modeParam === "forgot") return "forgot";
+  return "login";
+};
+
 function AuthForm() {
-  const { user, loading: authLoading, signIn, signUp, changePassword } = useAuth();
+  const { user, loading: authLoading, signIn, signUp, changePassword, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = getSafeRedirect(searchParams.get("redirectTo"));
-  const updatePasswordMode = searchParams.get("mode") === "update-password";
+  const modeParam = searchParams.get("mode");
+  const resetToken = searchParams.get("token") || "";
+  const updatePasswordMode = modeParam === "update-password";
 
-  const [mode, setMode] = useState(updatePasswordMode ? "update-password" : "login");
+  const [mode, setMode] = useState(() => initialMode(modeParam, resetToken));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [devLink, setDevLink] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [updated, setUpdated] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const passwordRef = useRef(null);
+
+  const isForgot = mode === "forgot";
+  const isReset = mode === "reset";
+  const isSignup = mode === "signup";
+  const isUpdatePassword = mode === "update-password";
+  const isLogin = mode === "login";
+  // Only the sign-in screens are for people who are not already signed in;
+  // recovering a password is valid while a session is live.
+  const bounceWhenSignedIn = !isForgot && !isReset && !isUpdatePassword;
 
   // Already signed in? The auth form is not the place for it — bounce to
   // the intended page instead of rendering a login form to a session.
   useEffect(() => {
     if (authLoading) return;
-    if (user && mode !== "update-password") {
+    if (user && bounceWhenSignedIn) {
       router.replace(redirectTo);
     }
-  }, [authLoading, user, mode, redirectTo, router]);
+  }, [authLoading, user, bounceWhenSignedIn, redirectTo, router]);
+
+  const postJson = async (url, body) => {
+    const res = await fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, data };
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setMessage("");
+    setDevLink("");
 
-    if (mode !== "login" && password !== confirmPassword) {
+    if ((isSignup || isReset || isUpdatePassword) && password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
     setSubmitting(true);
     try {
-      if (mode === "update-password") {
+      if (isForgot) {
+        const { ok, data } = await postJson("/api/auth/forgot-password", { email });
+        if (!ok) {
+          setError(data.error || "Unable to start a password reset right now.");
+          return;
+        }
+        setMessage(data.message);
+        if (data.devLink) setDevLink(data.devLink);
+        return;
+      }
+
+      if (isReset) {
+        const { ok, data } = await postJson("/api/auth/reset-password", {
+          token: resetToken,
+          password,
+        });
+        if (!ok) {
+          setError(data.error || "Unable to reset your password right now.");
+          return;
+        }
+        // The route revoked every session, including this device's cookie.
+        // Without this the UI keeps a stale signed-in state whose requests
+        // all 401, and "Sign in" below bounces to the home page instead of
+        // showing the form.
+        setResetDone(true);
+        await signOut();
+        return;
+      }
+
+      if (isUpdatePassword) {
         const { error: authError } = await changePassword({ currentPassword, password });
         if (authError) {
           setError(authError.message);
@@ -66,7 +127,7 @@ function AuthForm() {
         return;
       }
 
-      const fn = mode === "login" ? signIn : signUp;
+      const fn = isLogin ? signIn : signUp;
       const { error: authError, exists } = await fn(email, password);
 
       if (exists) {
@@ -94,6 +155,19 @@ function AuthForm() {
     }
   };
 
+  const goBackToLogin = () => {
+    setMode("login");
+    setResetDone(false);
+    setError("");
+    setMessage("");
+    setDevLink("");
+    setPassword("");
+    setConfirmPassword("");
+    // Drop the consumed token from the address bar so it cannot linger in
+    // browser history or be reloaded as a dead reset form.
+    router.replace("/auth");
+  };
+
   if (updated) {
     return (
       <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
@@ -107,6 +181,30 @@ function AuthForm() {
             signed out.
           </p>
           <p className="text-xs text-neutral-400 mt-3">Redirecting to your account…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (resetDone) {
+    return (
+      <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
+        <div className="w-full max-w-sm text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 mx-auto mb-4">
+            <ShieldCheck size={24} aria-hidden="true" />
+          </div>
+          <h2 className="text-lg font-bold text-neutral-900">Password reset</h2>
+          <p className="text-sm text-neutral-500 mt-1">
+            Your password is changed and every other device has been signed
+            out. Sign in here with the new one.
+          </p>
+          <button
+            onClick={goBackToLogin}
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-bold text-white transition hover:bg-accent/90"
+          >
+            <Lock size={14} aria-hidden="true" />
+            Sign in
+          </button>
         </div>
       </main>
     );
@@ -135,9 +233,21 @@ function AuthForm() {
     );
   }
 
-  const isSignup = mode === "signup";
-  const isUpdatePassword = mode === "update-password";
-  const isLogin = mode === "login";
+  if (modeParam === "reset" && !resetToken) {
+    return (
+      <ResultScreen
+        title="Reset link incomplete"
+        body="This link is missing its token. Request a new reset email and open the link it sends."
+        actionLabel="Send me a new link"
+        onAction={() => {
+          router.replace("/auth?mode=forgot");
+          setMode("forgot");
+          setError("");
+          setMessage("");
+        }}
+      />
+    );
+  }
 
   return (
     <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
@@ -155,17 +265,21 @@ function AuthForm() {
               {isLogin && "Sign In"}
               {isSignup && "Sign Up"}
               {isUpdatePassword && "Update Password"}
+              {isForgot && "Forgot Password"}
+              {isReset && "Choose a New Password"}
             </h1>
           </div>
           <p className="text-neutral-500 text-sm mt-2 font-medium">
             {isLogin && "Welcome back"}
             {isSignup && "Create an account"}
             {isUpdatePassword && "Choose a new password"}
+            {isForgot && "We’ll email you a reset link"}
+            {isReset && "Pick something you haven’t used before"}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-y-4" noValidate={false}>
-          {!isUpdatePassword && (
+          {!isUpdatePassword && !isReset && (
             <div className="flex flex-col gap-y-1">
               <label htmlFor="auth-email" className="text-xs font-medium text-neutral-500 ml-1">
                 Email
@@ -226,45 +340,47 @@ function AuthForm() {
             </div>
           )}
 
-          <div className="flex flex-col gap-y-1">
-            <label htmlFor="auth-password" className="text-xs font-medium text-neutral-500 ml-1">
-              {isUpdatePassword ? "New password" : "Password"}
-            </label>
-            <div className="flex items-center gap-x-3 p-3 bg-neutral-50 border border-neutral-200 rounded-xl focus-within:border-accent transition">
-              <Lock size={18} className="text-neutral-400 shrink-0" aria-hidden="true" />
-              <input
-                id="auth-password"
-                name="password"
-                ref={passwordRef}
-                type={showPassword ? "text" : "password"}
-                autoComplete={isLogin ? "current-password" : "new-password"}
-                placeholder="At least 8 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                aria-describedby={error ? "auth-error" : isLogin ? undefined : "auth-password-hint"}
-                className="bg-transparent outline-none flex-1 min-w-0 text-sm font-medium text-neutral-900 placeholder:text-neutral-300"
-                required
-                minLength={8}
-                maxLength={72}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-                className="text-neutral-400 hover:text-neutral-600 transition shrink-0"
-              >
-                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
-              </button>
+          {!isForgot && (
+            <div className="flex flex-col gap-y-1">
+              <label htmlFor="auth-password" className="text-xs font-medium text-neutral-500 ml-1">
+                {isUpdatePassword || isReset ? "New password" : "Password"}
+              </label>
+              <div className="flex items-center gap-x-3 p-3 bg-neutral-50 border border-neutral-200 rounded-xl focus-within:border-accent transition">
+                <Lock size={18} className="text-neutral-400 shrink-0" aria-hidden="true" />
+                <input
+                  id="auth-password"
+                  name="password"
+                  ref={passwordRef}
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={isLogin ? "current-password" : "new-password"}
+                  placeholder="At least 8 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  aria-describedby={error ? "auth-error" : isLogin ? undefined : "auth-password-hint"}
+                  className="bg-transparent outline-none flex-1 min-w-0 text-sm font-medium text-neutral-900 placeholder:text-neutral-300"
+                  required
+                  minLength={8}
+                  maxLength={72}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  className="text-neutral-400 hover:text-neutral-600 transition shrink-0"
+                >
+                  {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                </button>
+              </div>
+              {!isLogin && (
+                <p id="auth-password-hint" className="text-[10px] text-neutral-400 ml-1">
+                  Use 8–72 characters. Passphrases work well.
+                </p>
+              )}
             </div>
-            {!isLogin && (
-              <p id="auth-password-hint" className="text-[10px] text-neutral-400 ml-1">
-                Use 8–72 characters. Passphrases work well.
-              </p>
-            )}
-          </div>
+          )}
 
-          {mode !== "login" && (
+          {(isSignup || isReset || isUpdatePassword) && (
             <div className="flex flex-col gap-y-1">
               <label htmlFor="auth-confirm-password" className="text-xs font-medium text-neutral-500 ml-1">
                 Confirm password
@@ -301,6 +417,18 @@ function AuthForm() {
             </p>
           )}
 
+          {devLink && (
+            <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-3">
+              <p className="text-[11px] font-bold text-neutral-500 uppercase">Local development</p>
+              <a
+                href={devLink}
+                className="block mt-1 text-[11px] text-accent break-all underline"
+              >
+                {devLink}
+              </a>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={submitting || (isUpdatePassword && authLoading)}
@@ -311,6 +439,8 @@ function AuthForm() {
             {isLogin && "Sign In"}
             {isSignup && "Create Account"}
             {isUpdatePassword && "Update Password"}
+            {isForgot && "Send Reset Link"}
+            {isReset && "Reset Password"}
           </button>
         </form>
 
@@ -325,11 +455,11 @@ function AuthForm() {
                 Sign Up
               </button>
             </>
-          ) : isSignup ? (
+          ) : isSignup || isForgot || isReset ? (
             <>
               Already have an account?{" "}
               <button
-                onClick={() => { setMode("login"); setError(""); setMessage(""); }}
+                onClick={goBackToLogin}
                 className="text-accent font-bold hover:underline"
               >
                 Sign In
@@ -345,6 +475,45 @@ function AuthForm() {
             </button>
           )}
         </p>
+
+        {isLogin && (
+          <p className="text-center text-sm text-neutral-500 mt-3 font-medium">
+            <button
+              onClick={() => { setMode("forgot"); setError(""); setMessage(""); }}
+              className="text-neutral-500 hover:text-neutral-900 transition underline underline-offset-2"
+            >
+              Forgot password?
+            </button>
+          </p>
+        )}
+
+        {isForgot && !message && (
+          <p className="text-center text-xs text-neutral-400 mt-4">
+            Enter the email you signed up with. The link works once and
+            expires in 30 minutes.
+          </p>
+        )}
+      </div>
+    </main>
+  );
+}
+
+function ResultScreen({ title, body, actionLabel, onAction }) {
+  return (
+    <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
+      <div className="w-full max-w-sm text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-neutral-100 text-neutral-400 mx-auto mb-4">
+          <KeyRound size={24} aria-hidden="true" />
+        </div>
+        <h2 className="text-lg font-bold text-neutral-900">{title}</h2>
+        <p className="text-sm text-neutral-500 mt-1">{body}</p>
+        <button
+          onClick={onAction}
+          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-bold text-white transition hover:bg-accent/90"
+        >
+          <Mail size={14} aria-hidden="true" />
+          {actionLabel}
+        </button>
       </div>
     </main>
   );

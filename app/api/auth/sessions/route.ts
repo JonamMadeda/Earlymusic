@@ -18,17 +18,21 @@ export async function GET(request: NextRequest) {
     }
 
     const { rows } = await db.query(
-      `SELECT id, created_at, last_seen_at, expires_at, user_agent, ip
-       FROM public.user_sessions
-       WHERE user_id = $1
-         AND revoked_at IS NULL
-         AND expires_at > now()
-       ORDER BY last_seen_at DESC`,
+      `SELECT id,
+              "createdAt" AS created_at,
+              "updatedAt" AS last_seen_at,
+              "expiresAt" AS expires_at,
+              "userAgent" AS user_agent,
+              "ipAddress" AS ip
+       FROM neon_auth.session
+       WHERE "userId" = $1
+         AND "expiresAt" > now()
+       ORDER BY "updatedAt" DESC`,
       [user.id]
     );
 
     return NextResponse.json({
-      sessions: (rows || []).map((session) => ({
+      sessions: (rows || []).map((session: any) => ({
         ...session,
         current: session.id === user.session_id,
       })),

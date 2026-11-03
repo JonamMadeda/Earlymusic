@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const { rows } = await db.query(
       `SELECT a.*, a.target_id AS target, u.email as actor_email
        FROM public.admin_audit_log a
-       LEFT JOIN public.users u ON u.id = a.actor_id
+       LEFT JOIN neon_auth.user u ON u.id = a.actor_id
        ORDER BY a.created_at DESC
        LIMIT $1`,
       [Math.min(limit, 200)]

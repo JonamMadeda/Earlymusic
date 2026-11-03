@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
     if (userId !== caller.id) {
       const callerAdmin = await db.query(
-        "SELECT role FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
+        "SELECT role FROM neon_auth.user WHERE id = $1 AND role = 'admin'",
         [caller.id]
       );
       if (!callerAdmin.rows?.length) {
@@ -26,10 +26,10 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await db.query(
-      "SELECT role FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
+      "SELECT role FROM neon_auth.user WHERE id = $1",
       [userId]
     );
-    return NextResponse.json({ admin: result.rows?.length > 0 });
+    return NextResponse.json({ admin: result.rows?.[0]?.role === "admin" });
   } catch {
     return NextResponse.json({ admin: false });
   }
