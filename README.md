@@ -85,7 +85,7 @@ node scripts/migrate-users-to-neon-auth.mjs --apply    # write
 node scripts/migrate-users-to-neon-auth.mjs --verify   # compare both sides
 ```
 
-Neon Auth hashes passwords with scrypt, which cannot be derived from the old bcrypt hashes. Those hashes are parked in `public.legacy_credentials` (created by `lib/migration-neon-auth.sql`, or by the script itself) and are converted on the owner's next sign-in: the app verifies the bcrypt hash once, writes the Neon Auth credential, and stamps `upgraded_at`. Until a user signs in again their account keeps working with the old password.
+Neon Auth hashes passwords with scrypt, which cannot be derived from the old bcrypt hashes. Those hashes are parked in `public.legacy_credentials` (created by `lib/migration-neon-auth.sql`, or by the script itself) and are converted on the owner's next sign-in: the app verifies the bcrypt hash once, writes the Neon Auth credential, and stamps `upgraded_at`. Until a user signs in again their account keeps working with the old password. **Admin → Insights** shows native-credential coverage and the number still pending; retire the bcrypt fallback only when pending reaches zero.
 
 ### Sessions
 
@@ -102,6 +102,16 @@ Neon Auth owns this flow; the app only relays it. No SMTP key, sending domain or
 Delivery needs **Settings → Better Auth → Sign-up with Email** enabled; with it off, no mail is sent. The emailed link is built from the **base URL** in that same console page, so it must read `https://luumbo.vercel.app` or the link points at the wrong host. The built-in sender delivers from `auth@mail.myneon.app` in Neon's own branding, which Neon documents as suitable for development and testing; before real traffic, set a custom email provider (or the `send.magic_link` webhook plus your own provider) there.
 
 A reset completed inside Neon does not stamp `public.legacy_credentials.upgraded_at`, because the app never learns which account the token belonged to. Sign-in therefore skips the bcrypt fallback as soon as the account has a credential row, which is what keeps the pre-reset password from opening the account.
+
+### Email verification
+
+New sign-ups receive a six-digit code in a Neon-owned verification email and are not given an app session until the address is verified. `POST /api/auth/verify-email` relays the code to Neon's `email-otp/verify-email` endpoint; codes expire after five minutes. Unverified new accounts can request another code from the same screen, and accounts migrated from the legacy credential store remain signable so this change does not lock out existing listeners. The same Neon trusted-origin settings used by password reset must include the production site.
+
+### Account lifecycle and retention
+
+Signed-in listeners can permanently delete their account from `/account` after confirming their current password. Deleting `neon_auth.user` cascades through profiles, saved songs, playlists, sessions, and listening history; the legacy credential copy is removed explicitly. Audit events intentionally have no user foreign key, so a minimal `account_deleted` event remains after deletion.
+
+`public.auth_events` is retained for 90 days and purged opportunistically as new events arrive. Passwords and raw tokens are never logged. Client-side production errors are rate-limited and stored in `public.app_errors` for 90 days; create that table with `lib/migration-app-errors.sql` before deploying the reporter.
 
 Every step is written to `public.auth_events` as `password_reset_requested`, `password_reset_completed` or `password_reset_failed` — never with the token itself. A refused request records the Neon status and code, so production can be diagnosed without the Vercel logs:
 
@@ -139,7 +149,18 @@ Sign out and back in after changing a role.
 
 - **Audit trail**: run the SQL in `lib/migration.sql` (section 6) to create `public.admin_audit_log`. Grants, revokes, song deletions, and orphan cleanups are logged there automatically with actor, target, and timestamp.
 - **Break-glass**: if administrator access is ever lost entirely, re-grant it with the SQL snippet above run as a database owner in the Neon SQL editor.
-- **Rate limiting**: admin API routes throttle per IP (generous burst limits for bulk operations). Counts are per server instance — enforce hard limits at your host firewall/WAF as well.
+- **Rate limiting**: auth and admin API routes use durable counters in `public.auth_rate_limits`, shared by every server instance. A database failure fails open and is logged, so enforce hard limits at the host firewall/WAF as well.
 - **Legacy storage**: all audio now lives on Cloudflare R2. The old Supabase `songs` storage bucket has no policies in `migration.sql` — delete the bucket (or add explicit deny policies) once you confirm nothing references it. The unused `audio_tracks` table is dropped by section 6 of the migration.
 - **Accounts**: enable MFA and leaked-password protection for admin accounts in the Neon console. R2 audio URLs are permanent public links — treat them as unlisted, not secret.
 - **JWT_SECRET**: no longer used. Sessions are signed by Neon Auth, so the variable can be dropped from `.env.local` and from your deployment environment.
+
+## Verification and production setup
+
+Run `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`. The GitHub Actions workflow in `.github/workflows/ci.yml` runs the same checks on pushes and pull requests. Add `NEON_DATABASE_URL` and `NEXT_PUBLIC_R2PUBLICURL` as GitHub Actions secrets for the build job.
+
+Vercel Analytics and Speed Insights are rendered from the root layout; enable both products for the Vercel project if they are not already enabled.
+
+Two production changes require console/DNS access and cannot be completed in this repository:
+
+1. **Branded authentication email:** in Neon Better Auth, replace the shared development sender with a verified custom provider and set the application name to **Luumbo**. Keep the base URL at `https://luumbo.vercel.app` and test both verification and reset emails afterward.
+2. **Custom audio hostname:** attach a custom domain to the public R2 bucket in Cloudflare, then set both `NEXT_PUBLIC_R2PUBLICURL` and `R2PUBLICURL` to that HTTPS origin in Vercel and local development. Update any absolute `r2.dev` URLs already stored in `public.songs`; relative `song_path` values pick up the new origin automatically. The service worker matches `/audio/` by path, so it does not need another hostname change.
