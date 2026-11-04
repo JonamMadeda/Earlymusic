@@ -7,10 +7,13 @@ import PlayerWrapper from "./components/PlayerWrapper";
 import { PlayerProvider } from "./context/PlayerContext";
 import { AuthProvider } from "./context/AuthContext";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import ErrorReporter from "./components/ErrorReporter";
 import InstallPrompt from "./components/InstallPrompt";
 import SWRegister from "./components/SWRegister";
 import GlobalLoader from "./components/GlobalLoader";
 import { Inter } from "next/font/google";
+import { SITE_URL } from "@/lib/site";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,9 +24,27 @@ export const viewport = {
 };
 
 export const metadata = {
-  title: "Luumbo",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Luumbo",
+    template: "%s · Luumbo",
+  },
   description: "Stream worship sessions and praise sessions from the Luumbo library.",
   manifest: "/manifest.json?v=2",
+  openGraph: {
+    type: "website",
+    siteName: "Luumbo",
+    title: "Luumbo",
+    description: "Stream worship sessions and praise sessions from the Luumbo library.",
+    url: SITE_URL,
+    images: [{ url: "/icons/icon-512x512.png", width: 512, height: 512, alt: "Luumbo" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "Luumbo",
+    description: "Stream worship sessions and praise sessions from the Luumbo library.",
+    images: ["/icons/icon-512x512.png"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -46,6 +67,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`${inter.className} min-h-screen bg-transparent text-neutral-900 antialiased`}>
+        <a
+          href="#app-scroll"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        >
+          Skip to content
+        </a>
         <PlayerProvider>
           <AuthProvider>
             <div className="relative flex h-dvh overflow-hidden bg-white">
@@ -54,7 +81,7 @@ export default function RootLayout({ children }) {
               <main className="relative flex flex-1 flex-col overflow-hidden border-l border-neutral-200 bg-white">
                 <Header />
                 <AuthBanner />
-                <div id="app-scroll" className="flex-1 overflow-y-auto no-scrollbar pb-44 md:pb-32">
+                <div id="app-scroll" tabIndex={-1} className="flex-1 overflow-y-auto no-scrollbar pb-44 md:pb-32">
                   {children}
                 </div>
               </main>
@@ -65,6 +92,8 @@ export default function RootLayout({ children }) {
             <GlobalLoader />
 
             <Analytics />
+            <SpeedInsights />
+            <ErrorReporter />
 
             <InstallPrompt />
             <SWRegister />
