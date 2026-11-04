@@ -1,4 +1,4 @@
-const CACHE_NAME = "lumbo-app-v6";
+const CACHE_NAME = "lumbo-app-v7";
 const AUDIO_CACHE = "lumbo-audio-cache-v1";
 
 self.addEventListener("install", (event) => {
@@ -44,8 +44,6 @@ const clearPrivateCaches = async () => {
   );
 };
 
-const R2_AUDIO_ORIGIN = "https://pub-689c88e5cea643f48059e6ea3c3f8923.r2.dev";
-
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -61,7 +59,13 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return;
   if (request.headers.has("authorization")) return;
 
-  if (url.origin === R2_AUDIO_ORIGIN && url.pathname.includes("/audio/")) {
+  if (url.pathname.includes("/audio/")) {
+    // A Range response is only a slice of the file. Caching it under the
+    // track's URL would serve that slice as the whole song on the next play,
+    // so partial requests always go to the network. Matching on the path
+    // rather than the bucket hostname keeps this working when audio moves
+    // to a custom domain.
+    if (request.headers.has("range")) return;
     event.respondWith(
       fromCache(request, AUDIO_CACHE).then((res) => res || fetch(request).catch(() => new Response("", { status: 503 })))
     );

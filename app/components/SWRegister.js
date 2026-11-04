@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-const CURRENT_CACHES = ["lumbo-app-v6", "lumbo-audio-cache-v1"];
+const CURRENT_CACHES = ["lumbo-app-v7", "lumbo-audio-cache-v1"];
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 const activateWaiting = (reg) => {
