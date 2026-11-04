@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { X, FileUp, Trash2, UploadCloud } from "lucide-react";
 import { removeDownload, isSongDownloaded } from "@/lib/downloadManager";
 import { evictCachedAudio } from "@/lib/cacheUtils";
+import { getAudioPublicUrl } from "@/lib/audioUrl";
 
 const deleteR2Object = async (publicStorageUrl) => {
   await fetch("/api/admin/storage", {
@@ -67,7 +68,9 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
     }
 
     let uploadedStorageUrl = null;
-    const oldStorageUrl = song.song_path;
+    // Stored paths may be relative now; the storage DELETE API expects the
+    // absolute public URL.
+    const oldStorageUrl = getAudioPublicUrl(song.song_path);
 
     try {
       setIsLoading(true);

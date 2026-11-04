@@ -31,10 +31,16 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Invalid audio URL." }, { status: 400 });
     }
 
+    // Rows may store relative paths, so the guard must match the `/audio/…`
+    // form too — otherwise a live file would look unreferenced and get
+    // deleted from the bucket.
+    const objectPath = publicStorageUrl.slice(publicBaseUrl.length + 1);
     const candidates = [
       publicStorageUrl,
       decodeURIComponent(publicStorageUrl),
       encodeURI(decodeURIComponent(publicStorageUrl)),
+      `/${objectPath}`,
+      `/${encodeURI(objectPath)}`,
     ];
     const { rows: referencing } = await db.query(
       "SELECT id FROM public.songs WHERE song_path = ANY($1) LIMIT 1",

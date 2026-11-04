@@ -4,14 +4,8 @@ import { getAdminFromRequest } from "@/lib/auth";
 import { logAdminAction } from "@/lib/adminAudit";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getR2Client } from "@/lib/r2";
-import { verifyStoredAudio } from "@/lib/audioVerify";
+import { verifyStoredAudio, getR2ObjectKey } from "@/lib/audioVerify";
 import { db } from "@/lib/neon";
-
-const getR2ObjectKey = (songPath: string) => {
-  const publicBaseUrl = process.env.R2PUBLICURL?.replace(/\/$/, "");
-  if (!publicBaseUrl || !songPath.startsWith(`${publicBaseUrl}/`)) return null;
-  return decodeURIComponent(songPath.slice(publicBaseUrl.length + 1));
-};
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const limited = await checkRateLimit(request, { name: "song-update", limit: 60, windowMs: 60_000 });
@@ -33,6 +27,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       body = await request.json();
     } catch {
       return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
+
+    // Replace-audio flow swaps the referenced file — verify the new object
+    // the same way creation does, then store the hostname-relative form so
+    // rows created and updated after normalization stay env-independent.
+    if (typeof body.song_path === "string") {
+      const stored = await verifyStoredAudio(body.song_path);
+      if (!stored.ok) {
+        return NextResponse.json({ error: stored.error || "Audio verification failed." }, { status: 400 });
+      }
+      body.song_path = `/${getR2ObjectKey(body.song_path)}`;
     }
 
     const fields: string[] = [];
@@ -58,15 +63,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
     if (!fields.length) {
       return NextResponse.json({ error: "No valid fields to update." }, { status: 400 });
-    }
-
-    // Replace-audio flow swaps the referenced file — verify the new object
-    // the same way creation does. Metadata-only updates skip the HEAD call.
-    if (typeof body.song_path === "string") {
-      const stored = await verifyStoredAudio(body.song_path);
-      if (!stored.ok) {
-        return NextResponse.json({ error: stored.error || "Audio verification failed." }, { status: 400 });
-      }
     }
 
     values.push(id);

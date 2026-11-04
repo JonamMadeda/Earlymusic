@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminFromRequest } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getR2Client } from "@/lib/r2";
+import { getR2ObjectKey } from "@/lib/audioVerify";
 import { db } from "@/lib/neon";
 
 export async function GET(request: NextRequest) {
@@ -43,11 +44,11 @@ export async function GET(request: NextRequest) {
     for (const s of songs || []) {
       const p = (s as any).song_path;
       if (!p) continue;
-      if (p.startsWith(`${publicBaseUrl}/`)) {
-        referenced.add(decodeURIComponent(p.slice(publicBaseUrl.length + 1)));
-      } else {
-        legacyCount += 1;
-      }
+      // Accepts relative `/audio/<key>` rows and absolute public-URL rows;
+      // anything else (e.g. legacy Supabase links) is counted separately.
+      const key = getR2ObjectKey(p);
+      if (key) referenced.add(key);
+      else legacyCount += 1;
     }
 
     const orphans = objects

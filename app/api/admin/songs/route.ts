@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFromRequest } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { verifyStoredAudio } from "@/lib/audioVerify";
+import { verifyStoredAudio, getR2ObjectKey } from "@/lib/audioVerify";
 import { db } from "@/lib/neon";
 
 export async function GET(request: NextRequest) {
@@ -47,6 +47,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: stored.error || "Audio verification failed." }, { status: 400 });
     }
 
+    // Store the hostname-relative form so a future R2 hostname change is an
+    // env-only edit. getAudioPublicUrl re-prefixes it on every client.
+    const relativePath = `/${getR2ObjectKey(song_path)}`;
+
     // original_songs is a jsonb column: pass it as JSON with an explicit
     // cast. Sending a plain string parameter without ::jsonb makes Postgres
     // reject the INSERT ("column is of type jsonb but expression is of type
@@ -61,7 +65,7 @@ export async function POST(request: NextRequest) {
     const { rows } = await db.query(
       `INSERT INTO public.songs (title, author, song_path, category, original_songs, duration)
        VALUES ($1, $2, $3, $4, $5::jsonb, $6) RETURNING *`,
-      [title, author || null, song_path, category || null, originalSongsValue, duration || null]
+      [title, author || null, relativePath, category || null, originalSongsValue, duration || null]
     );
 
     return NextResponse.json({ song: rows[0] }, { status: 201 });

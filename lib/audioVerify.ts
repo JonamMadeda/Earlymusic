@@ -21,6 +21,9 @@ export const ALLOWED_AUDIO_MIME = new Set([
 ]);
 
 export const getR2ObjectKey = (songPath: string): string | null => {
+  // Stored paths are hostname-relative (`/audio/<key>`); absolute URLs are
+  // still accepted so legacy rows and admin payloads keep working.
+  if (songPath.startsWith("/")) return decodeURIComponent(songPath.slice(1));
   const publicBaseUrl = process.env.R2PUBLICURL?.replace(/\/$/, "");
   if (!publicBaseUrl || !songPath.startsWith(`${publicBaseUrl}/`)) return null;
   return decodeURIComponent(songPath.slice(publicBaseUrl.length + 1));
