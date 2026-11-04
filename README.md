@@ -156,7 +156,7 @@ Sign out and back in after changing a role.
 
 ## Verification and production setup
 
-Run `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`. The GitHub Actions workflow in `.github/workflows/ci.yml` runs the same checks on pushes and pull requests. Add `NEON_DATABASE_URL` and `NEXT_PUBLIC_R2PUBLICURL` as GitHub Actions secrets for the build job.
+Run `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`. The GitHub Actions workflow in `.github/workflows/ci.yml` runs the same checks on pushes and pull requests and needs no secrets: the build job sets placeholder `NEON_DATABASE_URL` and `NEXT_PUBLIC_R2PUBLICURL` values because `next build` imports every route module to collect its configuration, so the Neon client must at least be constructible. Nothing in CI connects to the database or serves audio — the real values belong only to the Vercel project and to your local `.env.local`.
 
 Vercel Analytics and Speed Insights are rendered from the root layout; enable both products for the Vercel project if they are not already enabled.
 

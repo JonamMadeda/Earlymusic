@@ -20,5 +20,10 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-          NEXT_PUBLIC_R2PUBLICURL: ${{ secrets.NEXT_PUBLIC_R2PUBLICURL }}
+          # next build imports every route module to collect its config, and
+          # lib/neon.js calls neon() at module scope, so the build fails without
+          # a connection string even though nothing is ever queried here.
+          # Placeholders keep real credentials out of GitHub; the values that
+          # matter live in the Vercel project's environment.
+          NEON_DATABASE_URL: postgresql://ci-placeholder:ci-placeholder@endpoint.neon.tech/ci-placeholder
+          NEXT_PUBLIC_R2PUBLICURL: https://ci-placeholder.invalid
