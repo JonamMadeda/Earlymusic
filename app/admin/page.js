@@ -1085,6 +1085,31 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Listening activity + signups */}
+                <div className="rounded-xl border border-neutral-100 bg-neutral-50/60 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold text-neutral-900">Credential migration</p>
+                      <p className="mt-1 text-[11px] text-neutral-500">
+                        {metrics.credentials.native} native · {metrics.credentials.pending} still using the bcrypt fallback
+                      </p>
+                    </div>
+                    <p className="text-xl font-bold text-accent">{metrics.credentials.coveragePercent}%</p>
+                  </div>
+                  <div
+                    role="progressbar"
+                    aria-label="Accounts with native Neon credentials"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={metrics.credentials.coveragePercent}
+                    className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-200"
+                  >
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${metrics.credentials.coveragePercent}%` }} />
+                  </div>
+                  <p className="mt-2 text-[10px] text-neutral-400">
+                    Retire the fallback only after pending reaches zero. Password resets also create native credentials.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <div>
                     <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">

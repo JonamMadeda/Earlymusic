@@ -12,9 +12,6 @@ import { KeyRound, ShieldCheck, MonitorSmartphone, Trash2 } from "lucide-react";
 export default function AccountPage() {
   const { user, profile, loading: authLoading, signOut, updateProfile } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [savedCount, setSavedCount] = useState(0);
-  const [playlistCount, setPlaylistCount] = useState(0);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -25,6 +22,10 @@ export default function AccountPage() {
   const [signingOutEverywhere, setSigningOutEverywhere] = useState(false);
   const [confirmEverywhere, setConfirmEverywhere] = useState(false);
   const confirmEverywhereTimeoutRef = useRef(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     return () => {
@@ -33,28 +34,13 @@ export default function AccountPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (profile) {
-      setFirstName(profile.first_name || "");
-      setLastName(profile.last_name || "");
-    }
-  }, [profile]);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) { setLoading(false); return; }
-
-    Promise.all([
-      apiFetch("/api/data/saved_songs?count=true&head=true"),
-      apiFetch("/api/data/playlists?count=true&head=true"),
-    ])
-      .then(([savedRes, plRes]) => {
-        setSavedCount(savedRes.count || 0);
-        setPlaylistCount(plRes.count || 0);
-      })
-      .catch((error) => console.error("Unable to load account stats:", error))
-      .finally(() => setLoading(false));
-  }, [user, authLoading]);
+  const draftKey = profile ? (user?.id || "draft") : null;
+  const [prevDraftKey, setPrevDraftKey] = useState(null);
+  if (draftKey !== prevDraftKey) {
+    setPrevDraftKey(draftKey);
+    setFirstName(profile?.first_name || "");
+    setLastName(profile?.last_name || "");
+  }
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -100,6 +86,23 @@ export default function AccountPage() {
     router.push("/");
   };
 
+  const handleDeleteAccount = async (event) => {
+    event.preventDefault();
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await apiFetch("/api/auth/delete-account", {
+        method: "POST",
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      await signOut();
+      router.replace("/");
+    } catch (error) {
+      setDeleteError(error.message || "Unable to delete the account.");
+      setDeleting(false);
+    }
+  };
+
   const describeDevice = (ua = "") => {
     if (/iPhone|iPad/i.test(ua)) return "iPhone / iPad";
     if (/Android/i.test(ua)) return "Android";
@@ -142,7 +145,7 @@ export default function AccountPage() {
     }
   };
 
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
         <div className="mx-auto max-w-3xl flex items-center justify-center py-32">
@@ -271,18 +274,7 @@ export default function AccountPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300">
-              <Heart size={18} className="text-accent" />
-              <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">{savedCount}</p>
-              <p className="mt-0.5 text-[11px] font-medium text-neutral-400">Saved songs</p>
-            </div>
-            <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300">
-              <Disc size={18} className="text-accent" />
-              <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">{playlistCount}</p>
-              <p className="mt-0.5 text-[11px] font-medium text-neutral-400">Playlists</p>
-            </div>
-          </div>
+          <StatsCards />
 
           {/* Security */}
           <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
@@ -413,12 +405,103 @@ export default function AccountPage() {
               }}
               className="shrink-0 inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
             >
-              <LogOut size={13} />
+              <LogOut size={13} aria-hidden="true" />
               Sign Out
             </button>
+          </div>
+
+          <div className="rounded-2xl border border-red-200 bg-white px-5 py-4 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-red-700">Delete account</p>
+                <p className="mt-0.5 text-[11px] font-medium leading-relaxed text-neutral-500">
+                  Permanently remove your profile, saved songs, playlists, and listening history.
+                </p>
+              </div>
+              {!showDelete && (
+                <button
+                  onClick={() => setShowDelete(true)}
+                  className="shrink-0 rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+            {showDelete && (
+              <form onSubmit={handleDeleteAccount} className="mt-4 border-t border-red-100 pt-4">
+                <label htmlFor="delete-password" className="text-xs font-semibold text-neutral-700">
+                  Confirm your current password
+                </label>
+                <input
+                  id="delete-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={deletePassword}
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                  required
+                  className="mt-2 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-red-400"
+                />
+                {deleteError && <p role="alert" className="mt-2 text-xs font-medium text-red-600">{deleteError}</p>}
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={deleting || !deletePassword}
+                    className="rounded-full bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {deleting ? "Deleting…" : "Permanently delete account"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deleting}
+                    onClick={() => {
+                      setShowDelete(false);
+                      setDeletePassword("");
+                      setDeleteError("");
+                    }}
+                    className="rounded-full border border-neutral-200 px-4 py-2 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       </div>
     </main>
+  );
+}
+
+// Owns its fetch so a user switch never gates the whole page behind a
+// synchronous setState-in-effect; the parent renders it only when signed in.
+function StatsCards() {
+  const [stats, setStats] = useState({ saved: 0, playlists: 0 });
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      apiFetch("/api/data/saved_songs?count=true&head=true"),
+      apiFetch("/api/data/playlists?count=true&head=true"),
+    ])
+      .then(([saved, playlists]) => {
+        if (!cancelled) setStats({ saved: saved.count || 0, playlists: playlists.count || 0 });
+      })
+      .catch((error) => console.error("Unable to load account stats:", error));
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300">
+        <Heart size={18} className="text-accent" />
+        <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">{stats.saved}</p>
+        <p className="mt-0.5 text-[11px] font-medium text-neutral-400">Saved songs</p>
+      </div>
+      <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300">
+        <Disc size={18} className="text-accent" />
+        <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">{stats.playlists}</p>
+        <p className="mt-0.5 text-[11px] font-medium text-neutral-400">Playlists</p>
+      </div>
+    </div>
   );
 }

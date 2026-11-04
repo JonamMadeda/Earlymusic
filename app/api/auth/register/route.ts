@@ -6,13 +6,14 @@ import {
   validateEmail,
   validatePassword,
 } from "@/lib/authValidation";
-import { setSessionCookie } from "@/lib/auth";
 import {
   NEON_AUTH_ERRORS,
   resolveAuthOrigin,
+  sendVerificationEmailWithNeonAuth,
   signUpWithNeonAuth,
 } from "@/lib/neonAuth";
 import { burnPasswordCompare } from "@/lib/credentials";
+import { db } from "@/lib/neon";
 
 // Neon Auth requires a non-empty display name, so the sign-up form's
 // first/last pair is collapsed into it and read back apart by /api/profiles.
@@ -73,26 +74,38 @@ export async function POST(request: NextRequest) {
     });
 
     if (result.ok) {
-      if (!result.sessionValue) {
+      const origin = resolveAuthOrigin(request);
+      const verification = await sendVerificationEmailWithNeonAuth({
+        email: result.data.user.email,
+        origin,
+      });
+
+      const sessionToken = result.data.token || result.sessionValue?.split(".")[0];
+      if (sessionToken) {
+        await db.query(`DELETE FROM neon_auth.session WHERE token = $1`, [
+          sessionToken,
+        ]);
+      }
+
+      if (!verification.ok) {
+        await db.query(`DELETE FROM neon_auth.user WHERE id = $1`, [
+          result.data.user.id,
+        ]);
+        await logAuthEvent(request, "register_failed", {
+          email: normalizedEmail,
+          detail: { verification_send_failed: true },
+        });
         return NextResponse.json(
-          { error: "Unable to start a session." },
-          { status: 500 }
+          { error: "Unable to send a verification email. Please try again." },
+          { status: 502 }
         );
       }
-      const response = NextResponse.json({
-        user: {
-          id: result.data.user.id,
-          email: result.data.user.email,
-          name: result.data.user.name || null,
-          created_at: result.data.user.createdAt || null,
-        },
-      });
-      setSessionCookie(response, result.sessionValue);
+
       await logAuthEvent(request, "register_success", {
         userId: result.data.user.id,
         email: result.data.user.email,
       });
-      return response;
+      return NextResponse.json({ verificationRequired: true });
     }
 
     if (result.code === NEON_AUTH_ERRORS.emailExists) {

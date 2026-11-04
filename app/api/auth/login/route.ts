@@ -16,6 +16,7 @@ import {
   verifyLegacyPassword,
   writeCredentialAccount,
 } from "@/lib/credentials";
+import { db } from "@/lib/neon";
 
 const publicUser = (user: any) => ({
   id: user.id,
@@ -82,6 +83,26 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
+
+      if (!result.data.user.emailVerified) {
+        const { rows: legacyRows } = await db.query(
+          `SELECT 1 FROM public.legacy_credentials WHERE user_id = $1 LIMIT 1`,
+          [result.data.user.id]
+        );
+        if (!legacyRows.length) {
+          await db.query(`DELETE FROM neon_auth.session WHERE token = $1`, [
+            result.data.token || result.sessionValue.split(".")[0],
+          ]);
+          return NextResponse.json(
+            {
+              error: "Verify your email before signing in.",
+              code: "EMAIL_NOT_VERIFIED",
+            },
+            { status: 403 }
+          );
+        }
+      }
+
       const response = NextResponse.json({
         user: publicUser(result.data.user),
       });
@@ -91,6 +112,16 @@ export async function POST(request: NextRequest) {
         email: result.data.user.email,
       });
       return response;
+    }
+
+    if (result.code === "EMAIL_NOT_VERIFIED") {
+      return NextResponse.json(
+        {
+          error: "Verify your email before signing in.",
+          code: "EMAIL_NOT_VERIFIED",
+        },
+        { status: 403 }
+      );
     }
 
     if (result.code === NEON_AUTH_ERRORS.invalidCredentials) {

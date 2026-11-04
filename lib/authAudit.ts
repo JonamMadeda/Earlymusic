@@ -14,7 +14,26 @@ export type AuthEvent =
   | "password_reset_requested"
   | "password_reset_completed"
   | "password_reset_failed"
-  | "session_revoked";
+  | "session_revoked"
+  | "account_deleted";
+
+/**
+ * The trail answers "what happened this week", not "where has this person
+ * signed in from, ever". Ninety days of IP addresses and user agents is
+ * enough to investigate an incident without keeping a permanent record.
+ */
+export const AUTH_EVENTS_RETENTION_DAYS = 90;
+
+const purgeExpiredEvents = async (): Promise<void> => {
+  try {
+    await db.query(
+      `DELETE FROM public.auth_events WHERE created_at < now() - $1::interval`,
+      [`${AUTH_EVENTS_RETENTION_DAYS} days`]
+    );
+  } catch (error) {
+    console.error("Unable to purge old auth events:", error);
+  }
+};
 
 /**
  * Append-only auth audit trail. Never store passwords or raw tokens here;
@@ -47,4 +66,7 @@ export const logAuthEvent = async (
   } catch (error) {
     console.error("Unable to write auth audit event:", error);
   }
+
+  // No scheduler needed: a small share of writes trims the old rows.
+  if (Math.random() < 0.02) void purgeExpiredEvents();
 };

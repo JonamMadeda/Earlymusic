@@ -39,6 +39,16 @@ export async function GET(request: NextRequest) {
        FROM neon_auth.user`
     );
 
+    const { rows: credentialRows } = await db.query(
+      `SELECT COUNT(DISTINCT u.id) FILTER (WHERE a.id IS NOT NULL)::int AS native,
+              COUNT(DISTINCT u.id) FILTER (WHERE lc.user_id IS NOT NULL AND a.id IS NULL)::int AS pending,
+              COUNT(DISTINCT lc.user_id)::int AS legacy_total
+       FROM neon_auth.user u
+       LEFT JOIN neon_auth.account a
+         ON a."userId" = u.id AND a."providerId" = 'credential'
+       LEFT JOIN public.legacy_credentials lc ON lc.user_id = u.id`
+    );
+
     const { rows: signupRows } = await db.query(
       `SELECT TO_CHAR(DATE("createdAt"), 'YYYY-MM-DD') AS day, COUNT(*)::int AS count
        FROM neon_auth.user
@@ -102,6 +112,14 @@ export async function GET(request: NextRequest) {
       totals: {
         saved: saveRows?.[0]?.total || 0,
         playlists: plRows?.[0]?.total || 0,
+      },
+      credentials: {
+        native: credentialRows?.[0]?.native || 0,
+        pending: credentialRows?.[0]?.pending || 0,
+        legacyTotal: credentialRows?.[0]?.legacy_total || 0,
+        coveragePercent: users.total
+          ? Math.round(((credentialRows?.[0]?.native || 0) / users.total) * 100)
+          : 100,
       },
     });
   } catch (error) {

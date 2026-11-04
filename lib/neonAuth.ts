@@ -212,6 +212,34 @@ export const signInWithNeonAuth = async ({
     body: { email, password },
   });
 
+export const sendVerificationEmailWithNeonAuth = async ({
+  email,
+  origin,
+}: {
+  email: string;
+  origin: string;
+}): Promise<NeonAuthResult<{ status?: boolean }>> =>
+  neonAuthFetch("send-verification-email", {
+    method: "POST",
+    origin,
+    body: { email },
+  });
+
+export const verifyEmailWithNeonAuth = async ({
+  email,
+  otp,
+  origin,
+}: {
+  email: string;
+  otp: string;
+  origin: string;
+}): Promise<NeonAuthResult<{ status?: boolean; token?: string; user?: NeonAuthUser }>> =>
+  neonAuthFetch("email-otp/verify-email", {
+    method: "POST",
+    origin,
+    body: { email, otp },
+  });
+
 export const changePasswordWithNeonAuth = async ({
   session,
   currentPassword,

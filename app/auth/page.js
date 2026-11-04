@@ -39,6 +39,8 @@ function AuthForm() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [updated, setUpdated] = useState(false);
   const [resetDone, setResetDone] = useState(false);
@@ -131,12 +133,17 @@ function AuthForm() {
         return;
       }
 
-      const { error: authError, exists } = isLogin
+      const { error: authError, exists, verificationRequired, code } = isLogin
         ? await signIn(email, password)
         : await signUp(email, password, {
             first_name: firstName.trim(),
             last_name: lastName.trim(),
           });
+
+      if (verificationRequired || code === "EMAIL_NOT_VERIFIED") {
+        setVerificationSent(true);
+        return;
+      }
 
       if (exists) {
         // Email already has an account — move to sign-in instead of a
@@ -180,6 +187,103 @@ function AuthForm() {
     // browser history or be reloaded as a dead reset form.
     router.replace("/auth");
   };
+
+  if (verificationSent) {
+    return (
+      <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-6 py-8">
+        <div className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white px-6 py-9 text-center shadow-[0_18px_45px_-28px_rgba(15,23,42,0.35)]">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
+            <Mail size={24} aria-hidden="true" />
+          </div>
+          <h1 className="text-lg font-bold text-neutral-900">Check your email</h1>
+          <p className="mt-2 text-sm leading-relaxed text-neutral-500">
+            Enter the six-digit code sent to <strong className="text-neutral-700">{email}</strong>. It expires in five minutes.
+          </p>
+          <form
+            className="mt-5"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setSubmitting(true);
+              setError("");
+              setMessage("");
+              const { ok, data } = await postJson("/api/auth/verify-email", {
+                email,
+                otp: verificationCode,
+              });
+              if (ok) {
+                setVerificationSent(false);
+                setVerificationCode("");
+                setMode("login");
+                setMessage("Email verified. You can sign in now.");
+              } else {
+                setError(data.error || "Unable to verify your email.");
+              }
+              setSubmitting(false);
+            }}
+          >
+            <label htmlFor="verification-code" className="sr-only">Six-digit verification code</label>
+            <input
+              id="verification-code"
+              name="one-time-code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              required
+              autoFocus
+              placeholder="123456"
+              value={verificationCode}
+              onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              aria-invalid={Boolean(error) || undefined}
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-center text-xl font-bold tracking-[0.4em] text-neutral-900 outline-none transition focus:border-accent placeholder:text-neutral-300"
+            />
+            {message && <p role="status" className="mt-3 text-xs font-medium text-emerald-600">{message}</p>}
+            {error && <p role="alert" className="mt-3 text-xs font-medium text-red-600">{error}</p>}
+            <button
+              type="submit"
+              disabled={submitting || verificationCode.length !== 6}
+              aria-busy={submitting}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-xs font-bold text-white transition hover:bg-accent/90 disabled:opacity-50"
+            >
+              {submitting && <Loader size={15} className="animate-spin" aria-hidden="true" />}
+              Verify email
+            </button>
+          </form>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={async () => {
+              setSubmitting(true);
+              setError("");
+              setMessage("");
+              const { ok, data } = await postJson("/api/auth/resend-verification", { email });
+              if (ok) setMessage(data.message);
+              else setError(data.error || "Unable to resend the email.");
+              setSubmitting(false);
+            }}
+            className="mt-4 w-full rounded-xl border border-neutral-200 px-4 py-3 text-xs font-bold text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50"
+          >
+            {submitting ? "Please wait…" : "Send a new code"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setVerificationSent(false);
+              setVerificationCode("");
+              setMode("login");
+              setPassword("");
+              setError("");
+              setMessage("");
+            }}
+            className="mt-3 text-xs font-semibold text-accent hover:underline"
+          >
+            Back to sign in
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   if (updated) {
     return (

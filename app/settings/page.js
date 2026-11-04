@@ -31,7 +31,10 @@ export default function SettingsPage() {
     getStorageEstimate().then(setStorage);
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    const timeout = setTimeout(refresh, 0);
+    return () => clearTimeout(timeout);
+  }, [refresh]);
 
   const clearDownloads = async () => {
     setClearingDownloads(true);

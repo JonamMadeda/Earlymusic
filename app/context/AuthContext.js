@@ -11,6 +11,7 @@ const clearPrivateClientData = async () => {
   try { localStorage.removeItem("auth-token"); } catch {}
   try { localStorage.removeItem("lumbo_recently_played"); } catch {}
   try { localStorage.removeItem("lumbo_has_played"); } catch {}
+  try { localStorage.removeItem("lumbo_playback_position"); } catch {}
   try { window.dispatchEvent(new CustomEvent("auth:signed-out")); } catch {}
   try {
     navigator.serviceWorker?.controller?.postMessage("CLEAR_PRIVATE_CACHES");
@@ -146,7 +147,7 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { error: { message: data.error || "Invalid email or password." } };
+      if (!res.ok) return { error: { message: data.error || "Invalid email or password." }, code: data.code };
       setUser(data.user);
       setSessionExpired(false);
       setAuthError(null);
@@ -169,6 +170,7 @@ export const AuthProvider = ({ children }) => {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return { error: { message: data.error || "Unable to create account." } };
       if (data.exists) return { error: { message: data.message }, exists: true };
+      if (data.verificationRequired) return { error: null, verificationRequired: true };
       setUser(data.user);
       setSessionExpired(false);
       setAuthError(null);
