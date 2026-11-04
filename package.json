@@ -7,6 +7,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
@@ -14,6 +16,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1090.0",
     "@neondatabase/serverless": "^1.1.0",
     "@vercel/analytics": "^1.6.1",
+    "@vercel/speed-insights": "^2.0.0",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.12",
     "lucide-react": "^0.562.0",
@@ -30,6 +33,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.3.5",
     "tailwindcss": "^4",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
   }
 }
