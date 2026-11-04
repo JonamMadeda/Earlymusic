@@ -67,12 +67,12 @@ function LibraryContent() {
   }, []);
 
   useEffect(() => {
-    refreshDownloads();
+    const timeout = setTimeout(refreshDownloads, 0);
+    return () => clearTimeout(timeout);
   }, [refreshDownloads]);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) { setLoading(false); return; }
+    if (authLoading || !user) return;
 
     let cancelled = false;
     // Play counts need lib/migration-play-count.sql; on databases without
@@ -206,7 +206,7 @@ function LibraryContent() {
     }
   };
 
-  if (authLoading || loading) {
+  if (authLoading || (user && loading)) {
     return (
       <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
         <div className="max-w-5xl mx-auto"><PageSkeleton /></div>

@@ -11,11 +11,9 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-    } else {
-      setQuery("");
-    }
+    if (!isOpen) return;
+    const timeout = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(timeout);
   }, [isOpen]);
 
   useEffect(() => {
@@ -47,7 +45,12 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
         onClick={onClose}
       />
 
-      <div className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl animate-fade-in">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Search songs"
+        className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl animate-fade-in"
+      >
         <div className="flex items-center gap-3 border-b border-neutral-100 px-4 py-3.5">
           <Search size={18} className="text-neutral-400 shrink-0" />
           <input
@@ -55,6 +58,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search songs and artists"
             placeholder="Search songs, artists..."
             className="flex-1 bg-transparent text-sm md:text-base font-medium text-neutral-900 placeholder:text-neutral-400 outline-none"
           />
@@ -62,6 +66,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
             <button
               type="button"
               onClick={() => setQuery("")}
+              aria-label="Clear search"
               className="rounded-full p-1 text-neutral-400 hover:text-neutral-700 transition"
             >
               <X size={15} />
@@ -70,11 +75,20 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close search"
             className="rounded-lg border border-neutral-200 px-2 py-1 text-[11px] font-semibold text-neutral-500 hover:bg-neutral-50"
           >
             ESC
           </button>
         </div>
+
+        {/* Stable live region: mounted for the whole session so the count is
+            announced as the query changes, unlike a per-branch element. */}
+        <p role="status" aria-live="polite" className="sr-only">
+          {query.trim() === ""
+            ? ""
+            : `${filteredSongs.length} ${filteredSongs.length === 1 ? "song" : "songs"} found`}
+        </p>
 
         <div className="max-h-[60vh] overflow-y-auto p-2">
           {query.trim() === "" ? (
@@ -92,7 +106,10 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
             </div>
           ) : (
             <div className="space-y-1">
-              <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+              <p
+                role="status"
+                className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400"
+              >
                 Songs ({filteredSongs.length})
               </p>
               {filteredSongs.map((song) => (

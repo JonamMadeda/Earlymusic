@@ -25,8 +25,9 @@ export async function generateMetadata({ params }) {
       description: "This shared song could not be found on Luumbo.",
     };
   }
-  const title = `${song.title || "Untitled"}${song.author ? ` by ${song.author}` : ""} | Luumbo`;
+  const title = `${song.title || "Untitled"}${song.author ? ` by ${song.author}` : ""}`;
   const description = `Listen to "${song.title || "this song"}"${song.author ? ` by ${song.author}` : ""} on Luumbo.`;
+  const images = [{ url: "/icons/icon-512x512.png", width: 512, height: 512, alt: "Luumbo" }];
   return {
     title,
     description,
@@ -35,11 +36,13 @@ export async function generateMetadata({ params }) {
       description,
       type: "music.song",
       url: `/share/${song.id}`,
+      images,
     },
     twitter: {
       card: "summary",
       title,
       description,
+      images,
     },
   };
 }

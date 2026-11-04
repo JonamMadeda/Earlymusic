@@ -30,7 +30,8 @@ export default function DownloadsPage() {
   }, []);
 
   useEffect(() => {
-    refresh();
+    const timeout = setTimeout(refresh, 0);
+    return () => clearTimeout(timeout);
   }, [refresh]);
 
   const handleRemove = async (e, songId) => {

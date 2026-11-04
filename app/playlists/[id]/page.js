@@ -27,8 +27,7 @@ export default function PlaylistDetailPage() {
 
   // Fetch playlist + its songs from DB
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) { setLoading(false); return; }
+    if (authLoading || !user) return;
 
     let cancelled = false;
     Promise.all([
@@ -161,7 +160,7 @@ export default function PlaylistDetailPage() {
     router.replace("/playlists");
   };
 
-  if (authLoading || loading) {
+  if (authLoading || (user && loading)) {
     return (
       <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
         <div className="max-w-5xl mx-auto"><PageSkeleton /></div>

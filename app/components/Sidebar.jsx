@@ -5,22 +5,18 @@ import { usePathname } from "next/navigation";
 import { Home, Library, LogIn, ShieldCheck, Music, ChevronRight } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
-import { useState, useEffect } from "react";
 import SongAvatar from "@/app/components/SongAvatar";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const { user, isAdmin, profile } = useAuth();
   const { activeSong, recentlyPlayed, setActiveSong } = usePlayer();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
 
   const navRoutes = [
-    { icon: Home, label: "Home", active: mounted && pathname === "/", href: "/" },
-    { icon: Music, label: "Songs", active: mounted && pathname === "/songs", href: "/songs" },
-    { icon: Library, label: "Library", active: mounted && (pathname === "/library" || pathname === "/playlists" || pathname.startsWith("/playlists/")), href: "/library" },
-    ...(isAdmin ? [{ icon: ShieldCheck, label: "Admin", active: mounted && pathname === "/admin", href: "/admin" }] : []),
+    { icon: Home, label: "Home", active: pathname === "/", href: "/" },
+    { icon: Music, label: "Songs", active: pathname === "/songs", href: "/songs" },
+    { icon: Library, label: "Library", active: pathname === "/library" || pathname === "/playlists" || pathname.startsWith("/playlists/"), href: "/library" },
+    ...(isAdmin ? [{ icon: ShieldCheck, label: "Admin", active: pathname === "/admin", href: "/admin" }] : []),
   ];
 
   return (

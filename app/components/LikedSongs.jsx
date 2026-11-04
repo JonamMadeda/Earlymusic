@@ -11,7 +11,7 @@ const LikedSongs = () => {
   const [songs, setSongs] = useState([]);
 
   useEffect(() => {
-    if (!user) { setSongs([]); return; }
+    if (!user) return;
 
     let cancelled = false;
 

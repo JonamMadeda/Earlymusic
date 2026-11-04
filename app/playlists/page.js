@@ -16,8 +16,7 @@ export default function PlaylistsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) { setLoading(false); return; }
+    if (authLoading || !user) return;
 
     apiFetch("/api/data/playlists?order=created_at&ascending=false")
       .then((data) => {
@@ -58,7 +57,7 @@ export default function PlaylistsPage() {
     }
   };
 
-  if (authLoading || loading) {
+  if (authLoading || (user && loading)) {
     return (
       <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
         <div className="max-w-5xl mx-auto flex items-center justify-center py-32">

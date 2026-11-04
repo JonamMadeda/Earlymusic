@@ -1,15 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { CloudOff, LogIn, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import GlobalSearchModal from "./GlobalSearchModal";
 
+const subscribeToOnlineStatus = (onChange) => {
+  window.addEventListener("online", onChange);
+  window.addEventListener("offline", onChange);
+  return () => {
+    window.removeEventListener("online", onChange);
+    window.removeEventListener("offline", onChange);
+  };
+};
+
 const Header = () => {
   const pathname = usePathname();
-  const [isOnline, setIsOnline] = useState(true);
+  const isOnline = useSyncExternalStore(
+    subscribeToOnlineStatus,
+    () => navigator.onLine,
+    () => true
+  );
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   // The header search bar is the home page's entry point into search. Every
   // other section either has its own field (songs, playlists, admin) or is a
@@ -22,20 +35,6 @@ const Header = () => {
   // at someone who is already signed in.
   const { user, loading: authLoading } = useAuth();
   const showSignIn = !authLoading && !user && pathname !== "/auth";
-
-  useEffect(() => {
-    setIsOnline(navigator.onLine);
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
 
   // Keyboard shortcut Cmd/Ctrl + K to open search
   useEffect(() => {
@@ -113,7 +112,7 @@ const Header = () => {
         </div>
       </header>
 
-      <GlobalSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+      {isSearchOpen && <GlobalSearchModal isOpen onClose={() => setIsSearchOpen(false)} />}
     </>
   );
 };

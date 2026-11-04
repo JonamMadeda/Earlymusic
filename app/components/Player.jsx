@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { getAudioPublicUrl } from "@/lib/audioUrl";
-import { usePlayer } from "../context/PlayerContext";
+import { usePlayer, PLAYBACK_POSITION_KEY } from "../context/PlayerContext";
 import {
   Play,
   Pause,
@@ -33,6 +33,7 @@ const Player = () => {
     activeSong: song,
     queue,
     setActiveSong: onSongSelect,
+    restorePlayback,
     allSongs,
     sleepTimerStopSignal,
   } = usePlayer();
@@ -104,6 +105,9 @@ const Player = () => {
   const handledSleepStopRef = useRef(sleepTimerStopSignal);
   const autoAdvanceTimerRef = useRef(null);
   const lastPrevPressRef = useRef(0);
+  const resumePositionRef = useRef(0);
+  const lastPositionSaveRef = useRef(0);
+  const closeButtonRef = useRef(null);
   const MAX_AUTO_RETRIES = 1;
   const AUTO_ADVANCE_DELAY = 1200;
   const PREV_DOUBLE_PRESS_WINDOW = 2000;
@@ -111,6 +115,40 @@ const Player = () => {
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(PLAYBACK_POSITION_KEY) || "null");
+      if (!saved?.song?.id || !saved.song.song_path || !(saved.position > 5)) return;
+      resumePositionRef.current = saved.position;
+      skipWhilePausedRef.current = true;
+      restorePlayback(saved.song, [saved.song]);
+    } catch {
+      localStorage.removeItem(PLAYBACK_POSITION_KEY);
+    }
+  }, [restorePlayback]);
+
+  const savePlaybackPosition = useCallback(() => {
+    if (!song || audioSongId !== song.id || !audioRef.current) return;
+    const position = audioRef.current.currentTime;
+    const total = audioRef.current.duration;
+    try {
+      if (position < 5 || (Number.isFinite(total) && total - position < 5)) {
+        localStorage.removeItem(PLAYBACK_POSITION_KEY);
+        return;
+      }
+      localStorage.setItem(
+        PLAYBACK_POSITION_KEY,
+        JSON.stringify({ song, position, updatedAt: Date.now() })
+      );
+    } catch {}
+  }, [song, audioSongId]);
+
+  useEffect(() => {
+    if (!isPlaying) savePlaybackPosition();
+  }, [isPlaying, savePlaybackPosition]);
+
+  useEffect(() => () => savePlaybackPosition(), [savePlaybackPosition]);
 
   // --- Auto-advance on playback error ---
   const clearAutoAdvanceTimer = useCallback(() => {
@@ -234,6 +272,16 @@ const Player = () => {
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
+  }, [showFullPlayer]);
+
+  useEffect(() => {
+    if (!showFullPlayer) return;
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setShowFullPlayer(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [showFullPlayer]);
 
   useEffect(() => {
@@ -557,6 +605,11 @@ const Player = () => {
         onTimeUpdate={() => {
           if (audioRef.current && !scrubbingRef.current) {
             setCurrentTime(audioRef.current.currentTime);
+            const now = Date.now();
+            if (now - lastPositionSaveRef.current > 5000) {
+              lastPositionSaveRef.current = now;
+              savePlaybackPosition();
+            }
           }
         }}
         onWaiting={() => setIsBuffering(true)}
@@ -573,7 +626,13 @@ const Player = () => {
         }}
         onLoadedMetadata={() => {
           if (audioRef.current && Number.isFinite(audioRef.current.duration)) {
-            setDuration(audioRef.current.duration);
+            const total = audioRef.current.duration;
+            setDuration(total);
+            if (resumePositionRef.current > 0 && resumePositionRef.current < total - 5) {
+              audioRef.current.currentTime = resumePositionRef.current;
+              setCurrentTime(resumePositionRef.current);
+            }
+            resumePositionRef.current = 0;
           }
         }}
         onError={() => {
@@ -608,6 +667,7 @@ const Player = () => {
         }}
         onEnded={() => {
           playRef.current = false;
+          try { localStorage.removeItem(PLAYBACK_POSITION_KEY); } catch {}
           advanceToNext({ reason: "ended" });
         }}
       />
@@ -626,6 +686,8 @@ const Player = () => {
               min="0"
               max={duration || 0}
               value={currentTime}
+              aria-label="Seek through song"
+              aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
               onPointerDown={() => { scrubbingRef.current = true; }}
               onPointerUp={() => { scrubbingRef.current = false; }}
               onChange={(e) => handleSeek(Number(e.target.value))}
@@ -648,9 +710,17 @@ const Player = () => {
               <div className="flex items-center gap-3 w-[260px] shrink-0">
                 <SongAvatar title={song.title} size="sm" variant="mono" />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+                  <button
+                    type="button"
+                    aria-label={`Open now playing: ${song.title}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowFullPlayer(true);
+                    }}
+                    className="block w-full truncate text-left text-sm font-semibold tracking-tight text-neutral-900"
+                  >
                     {song.title}
-                  </p>
+                  </button>
                   {isBusy ? (
                     <p className="truncate text-[11px] font-semibold text-accent">
                       {isPreparing ? "Opening…" : "Buffering…"}
@@ -669,6 +739,7 @@ const Player = () => {
                   <button
                     type="button"
                     aria-label="Toggle shuffle"
+                    aria-pressed={isShuffle}
                     onClick={(e) => {
                       e.stopPropagation();
                       const newState = !isShuffle;
@@ -720,6 +791,7 @@ const Player = () => {
                   <button
                     type="button"
                     aria-label="Toggle repeat"
+                    aria-pressed={isLooping}
                     onClick={(e) => {
                       e.stopPropagation();
                       const newState = !isLooping;
@@ -815,9 +887,17 @@ const Player = () => {
         <div className="flex items-center gap-3 px-3.5 py-2.5">
           <SongAvatar title={song.title} size="avatar-mini" variant="mono" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold tracking-tight text-neutral-900 leading-tight">
+            <button
+              type="button"
+              aria-label={`Open now playing: ${song.title}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowFullPlayer(true);
+              }}
+              className="block w-full truncate text-left text-sm font-semibold leading-tight tracking-tight text-neutral-900"
+            >
               {song.title}
-            </p>
+            </button>
             {isBusy ? (
               <p className="truncate text-xs font-semibold text-accent">
                 {isPreparing ? "Opening…" : "Buffering…"}
@@ -847,7 +927,7 @@ const Player = () => {
 
       {/* Full-screen player overlay */}
       {showFullPlayer && (
-        <div className="fixed inset-0 z-[99999] flex flex-col animate-fade-in bg-[#0b1120] text-white">
+        <div role="dialog" aria-modal="true" aria-label="Now playing" className="fixed inset-0 z-[99999] flex flex-col animate-fade-in bg-[#0b1120] text-white">
           {/* Atmospheric background glow */}
           <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-black opacity-95" />
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/20 rounded-full blur-[100px] pointer-events-none" />
@@ -855,6 +935,7 @@ const Player = () => {
           {/* Header */}
           <div className="relative z-10 flex items-center justify-between px-5 pt-5 pb-2 md:px-8">
             <button
+              ref={closeButtonRef}
               type="button"
               aria-label="Close player"
               onClick={() => {
@@ -978,6 +1059,8 @@ const Player = () => {
                   min="0"
                   max={duration || 0}
                   value={currentTime}
+                  aria-label="Seek through song"
+                  aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
                   onPointerDown={() => { scrubbingRef.current = true; }}
                   onPointerUp={() => { scrubbingRef.current = false; }}
                   onChange={(e) => handleSeek(Number(e.target.value))}
@@ -999,6 +1082,7 @@ const Player = () => {
               <button
                 type="button"
                 aria-label="Toggle shuffle"
+                aria-pressed={isShuffle}
                 onClick={() => {
                   const newState = !isShuffle;
                   setIsShuffle(newState);
@@ -1047,6 +1131,7 @@ const Player = () => {
               <button
                 type="button"
                 aria-label="Toggle repeat"
+                aria-pressed={isLooping}
                 onClick={() => {
                   const newState = !isLooping;
                   setIsLooping(newState);

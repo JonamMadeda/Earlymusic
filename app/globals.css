@@ -22,6 +22,11 @@ body {
   color: #111827;
 }
 
+:focus-visible {
+  outline: 2px solid #0f172a;
+  outline-offset: 3px;
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

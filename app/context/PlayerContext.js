@@ -7,6 +7,7 @@ const PlayerContext = createContext();
 
 const RECENT_KEY = "lumbo_recently_played";
 const SLEEP_TIMER_KEY = "lumbo_sleep_timer";
+export const PLAYBACK_POSITION_KEY = "lumbo_playback_position";
 const MAX_RECENT = 10;
 const SEED_COUNT = 6;
 
@@ -42,10 +43,11 @@ export const PlayerProvider = ({ children }) => {
   const seeded = useRef(false);
   const prevRecentRef = useRef(null);
 
-  // Load from localStorage on mount, then try Supabase for cross-device sync
+  // Load local history after hydration without a synchronous state cascade.
   useEffect(() => {
-    const stored = localStorage.getItem(RECENT_KEY);
-    if (stored) {
+    const timeout = setTimeout(() => {
+      const stored = localStorage.getItem(RECENT_KEY);
+      if (!stored) return;
       try {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -54,7 +56,23 @@ export const PlayerProvider = ({ children }) => {
       } catch {
         localStorage.removeItem(RECENT_KEY);
       }
-    }
+    }, 0);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  // PlayerWrapper only mounts <Player> once activeSong is set, and it is
+  // <Player> that seeks to the stored position — so a reload has to seed the
+  // song here first or resume never happens.
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(PLAYBACK_POSITION_KEY) || "null");
+        if (saved?.song?.id && saved.song.song_path && saved.position > 5) {
+          setActiveSongState(saved.song);
+        }
+      } catch {}
+    }, 0);
+    return () => clearTimeout(timeout);
   }, []);
 
   // Signing out must drop the previous listener's history in this tab too.
@@ -65,6 +83,9 @@ export const PlayerProvider = ({ children }) => {
       try {
         localStorage.removeItem(RECENT_KEY);
         localStorage.removeItem("lumbo_has_played");
+        // Without this the resume effect below would hand the next listener
+        // in this tab the previous account's half-played track.
+        localStorage.removeItem(PLAYBACK_POSITION_KEY);
       } catch {}
     };
     window.addEventListener("auth:signed-out", onSignedOut);
@@ -179,9 +200,12 @@ export const PlayerProvider = ({ children }) => {
     if (recentlyPlayed.length > 0) return;
 
     seeded.current = true;
-    const seededSongs = shuffle(allSongs).slice(0, SEED_COUNT);
-    setRecentlyPlayed(seededSongs);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(seededSongs));
+    const timeout = setTimeout(() => {
+      const seededSongs = shuffle(allSongs).slice(0, SEED_COUNT);
+      setRecentlyPlayed(seededSongs);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(seededSongs));
+    }, 0);
+    return () => clearTimeout(timeout);
   }, [allSongs, recentlyPlayed]);
 
   // Sync recently played changes to the database (only the latest play).
@@ -237,6 +261,13 @@ export const PlayerProvider = ({ children }) => {
       .catch((error) => console.error("Unable to read recently played:", error));
   }, [recentlyPlayed]);
 
+  const restorePlayback = useCallback((song, savedQueue = []) => {
+    if (!song) return;
+    setActiveSongState(song);
+    setQueue(savedQueue.length > 0 ? savedQueue : [song]);
+    setPlayingSource("library");
+  }, []);
+
   const setActiveSong = useCallback(
     (song, customQueue = null) => {
       setActiveSongState(song);
@@ -273,6 +304,7 @@ export const PlayerProvider = ({ children }) => {
       value={{
         activeSong,
         setActiveSong,
+        restorePlayback,
         allSongs,
         setAllSongs,
         queue,
