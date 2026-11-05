@@ -1,9 +1,13 @@
 name: CI
 
+# Manual only. Actions compute is not billed for a public repo, but this
+# account is locked for billing reasons, so a push trigger can never start a
+# runner and only leaves a red X that means nothing. Verification happens
+# locally before every push instead:
+#   npm run lint && npm run typecheck && npm test && npm run build
+# Restore the push and pull_request triggers once the account lock is lifted.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   verify:
