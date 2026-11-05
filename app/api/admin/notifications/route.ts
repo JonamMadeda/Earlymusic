@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminFromRequest } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { logAdminAction } from "@/lib/adminAudit";
+import { postAnnouncement } from "@/lib/announcement";
 import { db } from "@/lib/neon";
 import {
   BODY_MAX_LENGTH,
@@ -9,6 +10,7 @@ import {
   NOTIFICATION_KINDS,
   TITLE_MAX_LENGTH,
   normalizeNotificationUrl,
+  type NotificationKind,
 } from "@/lib/notifications";
 
 const SELECT = `SELECT id, kind, title, body, url, created_at
@@ -97,45 +99,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { rows } = await db.query(
-      `INSERT INTO public.notifications (kind, title, body, url)
-       VALUES ($1, $2, $3, $4) RETURNING id, kind, title, body, url, created_at`,
-      [kind, title, body || null, url]
-    );
-    const created = rows?.[0];
-    if (!created) {
+    // Insert plus cap enforcement lives in one place so every announcement,
+    // hand-written or auto-posted by a song upload, is trimmed the same way.
+    const posted = await postAnnouncement({
+      kind: kind as NotificationKind,
+      title,
+      body,
+      url,
+    });
+    if (!posted) {
       return NextResponse.json(
         { error: "Unable to post the announcement." },
         { status: 500 }
       );
     }
-
-    // Postgres has no "keep the newest N" clause, so the cap is applied right
-    // after the insert. Ordering by id DESC as well breaks ties inside a single
-    // now() timestamp, which would otherwise evict the row just posted.
-    // RETURNING is required for the count: the HTTP driver reports rowCount 0
-    // for a bare DELETE.
-    const trimmed = await db.query(
-      `DELETE FROM public.notifications
-        WHERE id NOT IN (
-          SELECT id FROM public.notifications
-           ORDER BY created_at DESC, id DESC
-           LIMIT $1
-        )
-        RETURNING id`,
-      [MAX_NOTIFICATIONS]
-    );
-    const evicted = trimmed?.rows?.length || 0;
+    const created = posted.announcement;
 
     await logAdminAction({
       actorId: admin.user.id,
       action: "notification.create",
       target: String(created.id),
-      detail: { kind, title, evicted },
+      detail: { kind, title, evicted: posted.evicted },
     });
 
     return NextResponse.json(
-      { notification: created, evicted, max: MAX_NOTIFICATIONS },
+      { notification: created, evicted: posted.evicted, max: MAX_NOTIFICATIONS },
       { status: 201 }
     );
   } catch (error) {

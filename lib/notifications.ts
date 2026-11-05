@@ -42,6 +42,28 @@ export const KIND_ACCENTS: Record<NotificationKind, string> = {
 
 const FALLBACK_KIND: NotificationKind = "news";
 
+/**
+ * The announcement a new track earns the moment it is saved. Kept as a pure
+ * function so the wording is testable and the database write can stay in
+ * lib/announcement.ts.
+ */
+export const releaseAnnouncementFor = (song: {
+  id?: unknown;
+  title?: unknown;
+  author?: unknown;
+}): { kind: NotificationKind; title: string; body: string; url: string | null } => {
+  const title = typeof song.title === "string" ? song.title.trim() : "";
+  const author = typeof song.author === "string" ? song.author.trim() : "";
+  return {
+    kind: "release",
+    title: (title || "New song").slice(0, TITLE_MAX_LENGTH),
+    body: author
+      ? `New from ${author}. It is in the library now.`
+      : "Just added to the library.",
+    url: song.id == null ? null : `/share/${String(song.id)}`.slice(0, URL_MAX_LENGTH),
+  };
+};
+
 export const normalizeNotificationKind = (value: unknown): NotificationKind =>
   NOTIFICATION_KINDS.includes(value as NotificationKind)
     ? (value as NotificationKind)

@@ -52,7 +52,7 @@ const Sidebar = () => {
               <span>{item.label}</span>
               {item.badge > 0 && (
                 <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold leading-none text-white">
-                  {item.badge > 9 ? "9+" : item.badge}
+                  {item.badge}
                 </span>
               )}
             </Link>

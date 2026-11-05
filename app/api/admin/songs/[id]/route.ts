@@ -5,6 +5,7 @@ import { logAdminAction } from "@/lib/adminAudit";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getR2Client } from "@/lib/r2";
 import { verifyStoredAudio, getR2ObjectKey } from "@/lib/audioVerify";
+import { retractSongAnnouncements } from "@/lib/announcement";
 import { db } from "@/lib/neon";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -133,6 +134,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!deleted?.length) {
       return NextResponse.json({ error: "Song not found." }, { status: 404 });
     }
+
+    // The "New release" tile posted for this track would otherwise outlive it
+    // and open an invalid share page.
+    await retractSongAnnouncements(id);
 
     await logAdminAction({
       actorId: admin.user.id,

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_NOTIFICATIONS,
+  TITLE_MAX_LENGTH,
   URL_MAX_LENGTH,
   normalizeNotificationKind,
   normalizeNotificationUrl,
+  releaseAnnouncementFor,
 } from "../lib/notifications";
 
 describe("announcements", () => {
@@ -36,5 +38,36 @@ describe("announcements", () => {
 
   it("holds the feed threshold", () => {
     expect(MAX_NOTIFICATIONS).toBe(15);
+  });
+
+  it("turns a saved track into a release announcement", () => {
+    expect(releaseAnnouncementFor({ id: 12, title: " Kyrie ", author: " Taizé " })).toEqual({
+      kind: "release",
+      title: "Kyrie",
+      body: "New from Taizé. It is in the library now.",
+      url: "/share/12",
+    });
+  });
+
+  it("still announces a track with no author or blank title", () => {
+    expect(releaseAnnouncementFor({ id: "7", author: "Choir" })).toEqual({
+      kind: "release",
+      title: "New song",
+      body: "New from Choir. It is in the library now.",
+      url: "/share/7",
+    });
+    expect(releaseAnnouncementFor({ id: 7, title: "  " }).body).toBe(
+      "Just added to the library."
+    );
+  });
+
+  it("leaves the link off when there is nothing to point at", () => {
+    expect(releaseAnnouncementFor({ title: "Silent" }).url).toBeNull();
+  });
+
+  it("keeps a long track title inside the headline cap", () => {
+    expect(
+      releaseAnnouncementFor({ id: 1, title: "x".repeat(400) }).title
+    ).toHaveLength(TITLE_MAX_LENGTH);
   });
 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminFromRequest } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { verifyStoredAudio, getR2ObjectKey } from "@/lib/audioVerify";
+import { announceNewSong } from "@/lib/announcement";
 import { db } from "@/lib/neon";
 
 export async function GET(request: NextRequest) {
@@ -68,7 +69,15 @@ export async function POST(request: NextRequest) {
       [title, author || null, relativePath, category || null, originalSongsValue, duration || null]
     );
 
-    return NextResponse.json({ song: rows[0] }, { status: 201 });
+    const song = rows?.[0];
+    if (!song) {
+      return NextResponse.json({ error: "Unable to create song." }, { status: 500 });
+    }
+
+    // Listeners hear about a drop without an admin writing an announcement.
+    await announceNewSong(song);
+
+    return NextResponse.json({ song }, { status: 201 });
   } catch (error) {
     console.error("Unable to create song:", error);
     return NextResponse.json({ error: "Unable to create song." }, { status: 500 });
