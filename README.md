@@ -56,6 +56,8 @@ Configure the R2 bucket CORS policy to allow browser `PUT` requests from your de
 ]
 ```
 
+The bytes go straight from the browser to R2, so two allow-lists have to agree: the bucket CORS above, and `connect-src` in `next.config.mjs`, which lists **both** `https://*.r2.dev` (playback) and `https://*.r2.cloudflarestorage.com` (the presigned `PUT` host). Drop the second and every upload fails with a bare "Failed to fetch" before the request ever leaves the browser.
+
 Run `lib/migration.sql` in the Supabase SQL editor to create the `audio_tracks` table and its row-level security policies.
 
 ## Authentication (Neon Auth)
@@ -144,6 +146,16 @@ update neon_auth.user set role = 'admin' where email = 'admin@example.com';
 ```
 
 Sign out and back in after changing a role.
+
+## Announcements
+
+`/notifications` is a public feed — listeners do not need an account, so it works as a broadcast channel for news, app updates, new song drops and warnings. The four kinds are `news`, `update`, `release` and `warning`, defined with their labels and colours in `lib/notifications.ts`.
+
+- **Schema**: `public.notifications` is created by `lib/migration-notifications.sql`, applied with `node scripts/apply-sql-migration.mjs lib/migration-notifications.sql` (or paste it into the Neon SQL editor). Every migration file here is `CREATE ... IF NOT EXISTS`, so re-running is harmless. Until the table exists the feed reads as empty and the admin panel says so; nothing else in the app breaks.
+- **The feed holds 15 announcements.** Posting a sixteenth deletes the oldest row in the same request (`MAX_NOTIFICATIONS` in `lib/notifications.ts`), so the list is always the newest fifteen. Deleting by hand is the only way to drop a row early.
+- **Reading** is `GET /api/notifications` — no session required, rate limited, `no-store`. **Writing** is `/api/admin/notifications` (GET/POST/DELETE), which requires an admin session and records `notification.create` / `notification.delete` in the audit trail, visible on the admin **Activity** tab.
+- **Posting** happens on the admin dashboard's **Notifications** tab. The optional link is limited to an in-app path (`/songs`) or an `https://` URL — `javascript:`, `data:`, `http:` and protocol-relative `//host` values are rejected before they reach the database.
+- **Entry points**: a bell in the mobile top bar and a **Notifications** link in the desktop sidebar, both always present so listeners have a fixed place to return to; the empty feed just says "Nothing to report right now." An unread badge appears on either only when there is something new. Both share one client-side store (`lib/notificationFeed.js`) so the badge and the page agree. "Read" is per device, kept in `localStorage` — signing in does not sync it.
 
 ## Security operations
 
