@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import GlobalSearchModal from "./GlobalSearchModal";
+import NotificationBell from "./NotificationBell";
 
 const subscribeToOnlineStatus = (onChange) => {
   window.addEventListener("online", onChange);
@@ -76,7 +77,7 @@ const Header = () => {
             )}
           </div>
 
-          {/* Right side: Mobile search button + Offline indicator */}
+          {/* Right side: Mobile search + announcements bell + sign-in prompt */}
           <div className="flex items-center gap-2">
             {/* Mobile search button (home page only) */}
             {isHomePage && (
@@ -89,6 +90,8 @@ const Header = () => {
                 <Search size={16} />
               </button>
             )}
+
+            <NotificationBell />
 
             {showSignIn && (
               <Link

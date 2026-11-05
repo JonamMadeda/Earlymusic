@@ -2,20 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Library, LogIn, ShieldCheck, Music, ChevronRight } from "lucide-react";
+import { Home, Library, LogIn, ShieldCheck, Music, ChevronRight, Bell } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
+import { useNotificationFeed } from "@/lib/notificationFeed";
 import SongAvatar from "@/app/components/SongAvatar";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const { user, isAdmin, profile } = useAuth();
   const { activeSong, recentlyPlayed, setActiveSong } = usePlayer();
+  const { unread } = useNotificationFeed();
 
   const navRoutes = [
     { icon: Home, label: "Home", active: pathname === "/", href: "/" },
     { icon: Music, label: "Songs", active: pathname === "/songs", href: "/songs" },
     { icon: Library, label: "Library", active: pathname === "/library" || pathname === "/playlists" || pathname.startsWith("/playlists/"), href: "/library" },
+    // Always listed: a fixed entry point listeners can learn and return to,
+    // even while the feed has nothing in it.
+    { icon: Bell, label: "Notifications", active: pathname === "/notifications", href: "/notifications", badge: unread },
     ...(isAdmin ? [{ icon: ShieldCheck, label: "Admin", active: pathname === "/admin", href: "/admin" }] : []),
   ];
 
@@ -45,6 +50,11 @@ const Sidebar = () => {
             >
               <item.icon size={16} strokeWidth={item.active ? 2.5 : 2} />
               <span>{item.label}</span>
+              {item.badge > 0 && (
+                <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold leading-none text-white">
+                  {item.badge > 9 ? "9+" : item.badge}
+                </span>
+              )}
             </Link>
           ))}
         </nav>

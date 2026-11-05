@@ -23,6 +23,7 @@ import {
 import EditModal from "../components/EditModal";
 import ReplaceAudioModal from "../components/ReplaceAudioModal";
 import ConfirmModal from "../components/ConfirmModal";
+import AdminNotificationsPanel from "../components/AdminNotificationsPanel";
 
 const authedFetch = async (url, opts = {}) => {
   const res = await fetch(url, {
@@ -55,6 +56,8 @@ const AUDIT_ACTIONS = {
   "admin.revoke": { label: "Revoked admin", dot: "bg-red-500" },
   "song.delete": { label: "Deleted track", dot: "bg-red-500" },
   "storage.orphan_delete": { label: "Deleted orphan file", dot: "bg-amber-400" },
+  "notification.create": { label: "Posted announcement", dot: "bg-accent" },
+  "notification.delete": { label: "Deleted announcement", dot: "bg-neutral-400" },
 };
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
@@ -619,6 +622,7 @@ export default function AdminDashboard() {
           {[
             { id: "tracks", label: "Tracks" },
             { id: "insights", label: "Insights" },
+            { id: "notifications", label: "Notifications" },
             { id: "storage", label: "Storage", alert: (storage?.orphanCount || 0) > 0 },
             { id: "team", label: "Team" },
             { id: "activity", label: "Activity" },
@@ -1194,6 +1198,11 @@ export default function AdminDashboard() {
               </div>
             )}
           </section>
+        )}
+
+        {/* Announcements tab — writes the public feed listeners see without signing in */}
+        {activeTab === "notifications" && (
+          <AdminNotificationsPanel onToast={showToast} />
         )}
 
         {activeTab === "tracks" && (
