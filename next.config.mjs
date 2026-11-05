@@ -31,7 +31,10 @@ const nextConfig = {
       "media-src 'self' blob: https://*.r2.dev",
       // API calls, R2 presigned PUTs, analytics beacons. Keep this narrow:
       // a wildcard https: lets injected script exfiltrate session data.
-      "connect-src 'self' blob: https://*.r2.dev https://va.vercel-scripts.com https://vitals.vercel-insights.com",
+      // The presigned PUT targets the S3 API host, not the r2.dev public host,
+      // so both have to be listed or the browser blocks the upload as a
+      // "Failed to fetch".
+      "connect-src 'self' blob: https://*.r2.dev https://*.r2.cloudflarestorage.com https://va.vercel-scripts.com https://vitals.vercel-insights.com",
       "font-src 'self' data:",
       "manifest-src 'self'",
       "object-src 'none'",
