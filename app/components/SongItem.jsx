@@ -203,7 +203,9 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(e); } }}
-      className="group relative flex cursor-pointer items-center gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3.5 text-left shadow-sm transition-all duration-300 hover:border-neutral-300 hover:shadow-md"
+      className={`group relative flex cursor-pointer items-center gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3.5 text-left shadow-sm transition-all duration-300 hover:border-neutral-300 hover:shadow-md ${
+        showMenu || showInfo || showPlaylists ? "z-50" : ""
+      }`}
     >
       <div className="relative shrink-0">
         <SongAvatar title={song.title} size="md" variant="mono" />

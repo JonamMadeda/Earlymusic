@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminFromRequest } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { verifyStoredAudio, getR2ObjectKey } from "@/lib/audioVerify";
-import { announceNewSong } from "@/lib/announcement";
+import { announceNewSong, hasSongAnnouncement } from "@/lib/announcement";
+import { logAdminAction } from "@/lib/adminAudit";
 import { db } from "@/lib/neon";
 
 export async function GET(request: NextRequest) {
@@ -75,7 +76,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Listeners hear about a drop without an admin writing an announcement.
-    await announceNewSong(song);
+    // A release announcement is only posted once per song.
+    const alreadyAnnounced = await hasSongAnnouncement(song.id);
+    if (!alreadyAnnounced) {
+      const posted = await announceNewSong(song);
+      await logAdminAction({
+        actorId: admin.user.id,
+        action: "song.announce",
+        target: String(song.id),
+        detail: { title: song.title, evicted: posted?.evicted },
+      });
+    }
 
     return NextResponse.json({ song }, { status: 201 });
   } catch (error) {

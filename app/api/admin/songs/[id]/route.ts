@@ -5,7 +5,7 @@ import { logAdminAction } from "@/lib/adminAudit";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getR2Client } from "@/lib/r2";
 import { verifyStoredAudio, getR2ObjectKey } from "@/lib/audioVerify";
-import { retractSongAnnouncements } from "@/lib/announcement";
+import { announceSongUpdate, retractSongAnnouncements } from "@/lib/announcement";
 import { db } from "@/lib/neon";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -75,7 +75,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "Song not found." }, { status: 404 });
     }
 
-    return NextResponse.json({ song: rows[0] });
+    const updatedSong = rows[0];
+
+    // Listeners hear about a re-release without an admin writing an announcement.
+    await announceSongUpdate(updatedSong);
+
+    await logAdminAction({
+      actorId: admin.user.id,
+      action: "song.update",
+      target: id,
+      detail: { title: updatedSong.title },
+    });
+
+    return NextResponse.json({ song: updatedSong });
   } catch (error) {
     console.error("Unable to update song:", error);
     return NextResponse.json({ error: "Unable to update the song." }, { status: 500 });

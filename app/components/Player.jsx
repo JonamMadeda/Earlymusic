@@ -877,12 +877,27 @@ const Player = () => {
 
       {/* Mobile floating mini-player card */}
       <div
-        className="fixed left-3 right-3 bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))] z-[900] md:hidden cursor-pointer rounded-2xl border border-neutral-200/90 bg-white/95 shadow-xl backdrop-blur-2xl overflow-hidden transition-all active:scale-[0.99]"
+        className="fixed left-3 right-3 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-[900] md:hidden cursor-pointer rounded-2xl border border-neutral-200/90 bg-white/95 shadow-xl backdrop-blur-2xl overflow-hidden transition-all active:scale-[0.99]"
         onClick={() => setShowFullPlayer(true)}
       >
         {/* Mini progress bar */}
-        <div className="h-1 bg-neutral-100/90">
-          <div className="h-full transition-all duration-150 bg-accent rounded-r-full" style={{ width: `${progress}%` }} />
+        <div className="h-1 bg-neutral-100/90 group">
+          <input
+            type="range"
+            min="0"
+            max={duration || 0}
+            value={currentTime}
+            aria-label="Seek through song"
+            aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
+            onPointerDown={() => { scrubbingRef.current = true; }}
+            onPointerUp={() => { scrubbingRef.current = false; }}
+            onChange={(e) => handleSeek(Number(e.target.value))}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+          />
+          <div
+            className="h-full transition-all duration-150 bg-accent rounded-r-full"
+            style={{ width: `${progress}%` }}
+          />
         </div>
         <div className="flex items-center gap-3 px-3.5 py-2.5">
           <SongAvatar title={song.title} size="avatar-mini" variant="mono" />
@@ -908,20 +923,48 @@ const Player = () => {
               </p>
             )}
           </div>
-          <button
-            type="button"
-            aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
-            onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-md active:scale-90 transition hover:bg-accent/90"
-          >
-            {isBusy ? (
-              <BusySpinner size={16} />
-            ) : isPlaying ? (
-              <Pause size={18} fill="currentColor" />
-            ) : (
-              <Play size={18} fill="currentColor" className="ml-0.5" />
-            )}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              aria-label="Previous track"
+              onClick={(e) => { e.stopPropagation(); onPlayPrevious(); }}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 transition active:scale-90 hover:text-neutral-900"
+            >
+              <SkipBack size={13} fill="currentColor" />
+            </button>
+            <button
+              type="button"
+              aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
+              onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-md active:scale-90 transition hover:bg-accent/90"
+            >
+              {isBusy ? (
+                <BusySpinner size={16} />
+              ) : isPlaying ? (
+                <Pause size={18} fill="currentColor" />
+              ) : (
+                <Play size={18} fill="currentColor" className="ml-0.5" />
+              )}
+            </button>
+            <button
+              type="button"
+              aria-label="Next track"
+              onClick={(e) => { e.stopPropagation(); onPlayNext(); }}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 transition active:scale-90 hover:text-neutral-900"
+            >
+              <SkipForward size={13} fill="currentColor" />
+            </button>
+            <button
+              type="button"
+              aria-label={isLiked ? "Remove from saved songs" : "Save song"}
+              onClick={(e) => { e.stopPropagation(); toggleLike(); }}
+              className={`flex h-8 w-8 items-center justify-center rounded-full transition ${
+                isLiked ? "text-accent" : "text-neutral-400 hover:text-accent"
+              }`}
+            >
+              <Heart size={15} fill={isLiked ? "currentColor" : "none"} />
+            </button>
+          </div>
         </div>
       </div>
 
