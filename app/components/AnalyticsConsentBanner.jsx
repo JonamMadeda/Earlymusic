@@ -54,7 +54,7 @@ export default function AnalyticsConsentBanner() {
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
       {/* Modal panel */}
-      <div className="relative w-full max-w-md mx-auto p-6 md:p-8">
+      <div className="relative w-full max-w-md mx-auto p-6 md:p-8 rounded-3xl bg-white border border-neutral-100 shadow-xl">
         <div className="flex flex-col gap-6">
           {/* Header */}
           <div className="flex items-center gap-3">
