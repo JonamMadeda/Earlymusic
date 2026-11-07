@@ -49,11 +49,17 @@ export default function AnalyticsConsentBanner() {
       aria-modal="true"
       aria-labelledby="analytics-consent-title"
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-md" />
+      {/* Backdrop — click to decline */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-md"
+        onClick={handleDecline}
+      />
 
       {/* Modal panel */}
-      <div className="relative w-full max-w-md mx-auto p-6 md:p-8 rounded-2xl bg-white border border-neutral-200 shadow-xl ring-1 ring-black/5">
+      <div
+        className="relative w-full max-w-md mx-auto p-6 md:p-8 rounded-2xl bg-white border border-neutral-200 shadow-xl ring-1 ring-black/5"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex flex-col gap-6">
           {/* Header */}
           <div className="flex items-center gap-3">
