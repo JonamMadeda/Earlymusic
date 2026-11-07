@@ -675,7 +675,7 @@ const Player = () => {
         <>
           {/* Desktop player — full-width bar */}
       <div
-        className="fixed bottom-14 left-0 right-0 z-[900] hidden md:block md:bottom-0 cursor-pointer"
+        className="fixed bottom-14 left-0 right-0 z-[900] hidden min-[600px]:block md:bottom-0 cursor-pointer"
         onClick={() => setShowFullPlayer(true)}
       >
         <div className="relative overflow-hidden border-t border-neutral-200 bg-white shadow-sm">
@@ -708,7 +708,7 @@ const Player = () => {
           <div className="relative z-10 px-6 h-[72px]">
             <div className="flex items-center h-full max-w-screen-2xl mx-auto gap-x-4">
               {/* Left — song info */}
-              <div className="flex items-center gap-3 w-[260px] shrink-0">
+              <div className="flex items-center gap-3 w-[180px] shrink-0 sm:w-[220px] md:w-[260px]">
                 <SongAvatar title={song.title} size="sm" variant="mono" />
                 <div className="min-w-0">
                   <button
@@ -816,7 +816,7 @@ const Player = () => {
               </div>
 
               {/* Right — volume */}
-              <div className="flex items-center justify-end gap-3 w-[260px] shrink-0">
+              <div className="flex items-center justify-end gap-2 shrink-0 md:gap-3">
                 <button
                   type="button"
                   aria-label={isLiked ? "Remove from saved songs" : "Save song"}
@@ -868,7 +868,7 @@ const Player = () => {
                     if (audioRef.current) audioRef.current.volume = v;
                     if (v > 0) setIsMuted(false);
                   }}
-                  className="h-1 w-20 lg:w-28 cursor-pointer appearance-none rounded-full bg-neutral-200 accent-accent"
+                  className="hidden h-1 w-20 cursor-pointer appearance-none rounded-full bg-neutral-200 accent-accent md:block lg:w-28"
                 />
               </div>
             </div>
@@ -878,7 +878,7 @@ const Player = () => {
 
       {/* Mobile floating mini-player card */}
       <div
-        className="fixed left-3 right-3 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-[900] md:hidden cursor-pointer rounded-2xl border border-neutral-200/90 bg-white/95 shadow-xl backdrop-blur-2xl overflow-hidden transition-all active:scale-[0.99]"
+        className="fixed left-3 right-3 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-[900] min-[600px]:hidden cursor-pointer rounded-2xl border border-neutral-200/90 bg-white/95 shadow-xl backdrop-blur-2xl overflow-hidden transition-all active:scale-[0.99]"
         onClick={() => setShowFullPlayer(true)}
       >
         {/* Mini progress bar */}
