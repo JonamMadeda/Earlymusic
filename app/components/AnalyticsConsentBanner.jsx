@@ -31,7 +31,6 @@ export default function AnalyticsConsentBanner() {
 
   // Only render the banner until the user has made a choice.
   if (consented !== null) {
-    // If consented, render analytics (client-side only after consent).
     if (consented === true) {
       return (
         <>
@@ -51,15 +50,15 @@ export default function AnalyticsConsentBanner() {
       aria-labelledby="analytics-consent-title"
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-md" />
 
       {/* Modal panel */}
-      <div className="relative w-full max-w-md mx-auto p-6 md:p-8 rounded-3xl bg-white border border-neutral-100 shadow-xl">
+      <div className="relative w-full max-w-md mx-auto p-6 md:p-8 rounded-2xl bg-white border border-neutral-200 shadow-xl ring-1 ring-black/5">
         <div className="flex flex-col gap-6">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/10 text-accent">
-              <BarChart3 size={22} />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent">
+              <BarChart3 size={22} strokeWidth={2.5} />
             </div>
             <div>
               <h2 id="analytics-consent-title" className="text-lg font-bold tracking-tight text-neutral-900">
@@ -73,13 +72,15 @@ export default function AnalyticsConsentBanner() {
           </div>
 
           {/* Details */}
-          <div className="flex items-start gap-3 text-sm text-neutral-600 leading-relaxed">
-            <ShieldCheck size={16} className="mt-0.5 shrink-0 text-neutral-400" />
-            <div>
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 shrink-0">
+              <ShieldCheck size={16} strokeWidth={2.5} className="text-neutral-400" />
+            </div>
+            <div className="text-sm text-neutral-600 leading-relaxed">
               <p className="font-medium text-neutral-800">
                 No personal data is sold or shared.
               </p>
-              <p className="mt-0.5 text-[12px]">
+              <p className="mt-0.5">
                 Analytics only helps us improve performance, fix bugs, and
                 understand which features listeners use most. You can decline
                 and the app will still work fully.
@@ -88,7 +89,16 @@ export default function AnalyticsConsentBanner() {
           </div>
 
           {/* Links row */}
-          <div className="flex items-center justify-end gap-2 text-xs">
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <Link
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline font-medium"
+            >
+              Terms of Service
+            </Link>
+            <span className="text-neutral-300">•</span>
             <Link
               href="/privacy"
               target="_blank"
@@ -103,7 +113,7 @@ export default function AnalyticsConsentBanner() {
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
               onClick={handleDecline}
-              className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-6 py-3 text-sm font-bold text-neutral-600 transition-all shadow-sm hover:bg-neutral-50 active:scale-95"
+              className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-6 py-3 text-sm font-bold text-neutral-600 shadow-sm transition-all hover:bg-neutral-50 hover:text-neutral-700 active:scale-95"
             >
               Decline
             </button>
