@@ -31,10 +31,17 @@ export async function POST(request: NextRequest) {
   if (ipLimited) return ipLimited;
 
   try {
-    const { email, password, first_name, last_name } = await request.json();
+    const { email, password, first_name, last_name, tos_accepted, privacy_accepted } = await request.json();
     if (typeof email !== "string" || typeof password !== "string") {
       return NextResponse.json(
         { error: "Email and password are required." },
+        { status: 400 }
+      );
+    }
+
+    if (tos_accepted !== true || privacy_accepted !== true) {
+      return NextResponse.json(
+        { error: "You must accept the Terms of Service and Privacy Policy." },
         { status: 400 }
       );
     }
@@ -105,6 +112,19 @@ export async function POST(request: NextRequest) {
         userId: result.data.user.id,
         email: result.data.user.email,
       });
+
+      // Record that the user accepted the Terms and Privacy Policy at sign-up.
+      try {
+        await db.query(
+          `UPDATE neon_auth."user"
+           SET tos_accepted_at = now(), privacy_accepted_at = now()
+           WHERE id = $1`,
+          [result.data.user.id]
+        );
+      } catch {
+        // Best-effort: acceptance was already validated in the request body.
+      }
+
       return NextResponse.json({ verificationRequired: true });
     }
 

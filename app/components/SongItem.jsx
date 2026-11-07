@@ -8,10 +8,12 @@ import {
   ListPlus,
   ListMusic,
   Plus,
-  MoreHorizontal,
   Play,
   Share2,
   Check,
+  Flag,
+  X,
+  MoreHorizontal,
 } from "lucide-react";
 import SongAvatar from "@/app/components/SongAvatar";
 
@@ -46,6 +48,8 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
   const [playlists, setPlaylists] = useState([]);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [shareFeedback, setShareFeedback] = useState("");
+  const [showReport, setShowReport] = useState(false);
+  const [reportFeedback, setReportFeedback] = useState("");
 
   const isSaved = saved !== undefined ? saved : internalSaved;
 
@@ -105,6 +109,35 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
       }
     } catch (error) {
       console.error("Unable to share song:", error);
+    }
+  };
+
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    setReportFeedback("");
+    const formData = new FormData(e.target);
+    const reason = formData.get("reason");
+    const reporterName = formData.get("reporter_name");
+    const reporterEmail = formData.get("reporter_email");
+    if (!reason || typeof reason !== "string") {
+      setReportFeedback("Please describe the issue.");
+      return;
+    }
+    try {
+      const response = await fetch("/api/dmca/report", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ song_id: song.id, reason, reporter_name: reporterName || null, reporter_email: reporterEmail || null }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Unable to submit report.");
+      setShowReport(false);
+      setReportFeedback("Report submitted. Thank you.");
+      setTimeout(() => setReportFeedback(""), 4000);
+    } catch (error) {
+      console.error("Unable to submit DMCA report:", error);
+      setReportFeedback(error instanceof Error ? error.message : "Unable to submit report.");
     }
   };
 
@@ -316,6 +349,17 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
                 {isSaved ? "Remove from Library" : "Add to Library"}
               </span>
             </button>
+            <button
+              onClick={() => {
+                e.stopPropagation();
+                setShowMenu(false);
+                setShowReport(true);
+              }}
+              className="flex w-full items-center gap-x-3 rounded-2xl px-3 py-3 text-left text-red-600 transition hover:bg-red-50 hover:text-red-700"
+            >
+              <Flag size={16} className="text-red-500" />
+              <span className="text-[13px] font-semibold">Report this song</span>
+            </button>
           </div>
         )}
       </div>
@@ -359,6 +403,42 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
                 </p>
               )}
             </div>
+
+            {(song.copyright_holder || song.license_type || song.license_url || song.rights_clearance_date) && (
+              <div className="pt-2 border-t border-neutral-50">
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-2">
+                  Rights &amp; Licensing
+                </h4>
+                {song.copyright_holder && (
+                  <p className="text-[12px] font-medium text-neutral-700">
+                    <span className="font-bold">Copyright:</span>{" "}
+                    {song.copyright_holder}
+                  </p>
+                )}
+                {song.license_type && (
+                  <p className="text-[12px] font-medium text-neutral-700">
+                    <span className="font-bold">License:</span>{" "}
+                    {song.license_type}
+                  </p>
+                )}
+                {song.license_url && (
+                  <a
+                    href={song.license_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[12px] font-medium text-accent hover:underline"
+                  >
+                    View license
+                  </a>
+                )}
+                {song.rights_clearance_date && (
+                  <p className="text-[12px] font-medium text-neutral-700">
+                    <span className="font-bold">Cleared on:</span>{" "}
+                    {new Date(song.rights_clearance_date).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -421,6 +501,76 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
                 <Plus size={14} />
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showReport && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute right-0 top-0 z-50 mt-12 min-w-[280px] rounded-2xl border border-neutral-100 bg-white p-5 shadow-lg"
+        >
+          <div className="flex flex-col gap-y-4">
+            <div className="flex items-center justify-between border-b border-neutral-50 pb-2">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+                Report this song
+              </h4>
+              <button
+                onClick={() => setShowReport(false)}
+                className="text-neutral-300 transition hover:text-neutral-900"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            {reportFeedback && (
+              <p className={`text-xs font-medium ${reportFeedback.includes("submitted") ? "text-green-600" : "text-red-600"}`}>
+                {reportFeedback}
+              </p>
+            )}
+            <form onSubmit={handleReportSubmit} className="flex flex-col gap-y-3">
+              <div className="flex flex-col gap-y-1">
+                <label className="text-[11px] font-semibold text-neutral-500">
+                  What is the issue?
+                </label>
+                <textarea
+                  name="reason"
+                  rows={3}
+                  placeholder="e.g. copyright infringement, offensive content, incorrect attribution..."
+                  className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm outline-none transition focus:border-accent focus:bg-white"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-y-2">
+                <div className="flex flex-col gap-y-1">
+                  <label className="text-[11px] font-semibold text-neutral-500">
+                    Your name (optional)
+                  </label>
+                  <input
+                    name="reporter_name"
+                    type="text"
+                    placeholder="John Doe"
+                    className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm outline-none transition focus:border-accent focus:bg-white"
+                  />
+                </div>
+                <div className="flex flex-col gap-y-1">
+                  <label className="text-[11px] font-semibold text-neutral-500">
+                    Your email (optional)
+                  </label>
+                  <input
+                    name="reporter_email"
+                    type="email"
+                    placeholder="you@example.com"
+                    className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm outline-none transition focus:border-accent focus:bg-white"
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                className="rounded-lg bg-accent px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent/90 active:scale-95"
+              >
+                Submit Report
+              </button>
+            </form>
           </div>
         </div>
       )}

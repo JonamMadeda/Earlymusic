@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Administrator access is required." }, { status: 403 });
     }
 
-    const { title, author, song_path, category, original_songs, duration } = await request.json();
+    const { title, author, song_path, category, original_songs, duration, copyright_holder, license_type, license_url, rights_clearance_date, status } = await request.json();
     if (!title || !song_path) {
       return NextResponse.json({ error: "Title and song_path are required." }, { status: 400 });
     }
@@ -65,9 +65,21 @@ export async function POST(request: NextRequest) {
           : JSON.stringify(original_songs);
 
     const { rows } = await db.query(
-      `INSERT INTO public.songs (title, author, song_path, category, original_songs, duration)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6) RETURNING *`,
-      [title, author || null, relativePath, category || null, originalSongsValue, duration || null]
+      `INSERT INTO public.songs (title, author, song_path, category, original_songs, duration, copyright_holder, license_type, license_url, rights_clearance_date, status)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [
+        title,
+        author || null,
+        relativePath,
+        category || null,
+        originalSongsValue,
+        duration || null,
+        copyright_holder || null,
+        license_type || null,
+        license_url || null,
+        rights_clearance_date || null,
+        status || "approved",
+      ]
     );
 
     const song = rows?.[0];

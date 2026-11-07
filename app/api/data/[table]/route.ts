@@ -165,12 +165,19 @@ export async function GET(
     }
 
     // Public table (songs) — no auth needed
+    // Only approved songs are visible to the public; pending/rejected rows
+    // stay hidden until an admin approves them.
     const columns = searchParams.get("columns");
     const selectCols = columns ? sanitizeColumns(columns) : "*";
 
     let query = `SELECT ${selectCols} FROM public.${table}`;
     const values: string[] = [];
     const conditions: string[] = [];
+
+    if (table === "songs") {
+      conditions.push(`status = $${values.length + 1}`);
+      values.push("approved");
+    }
 
     // Support optional filters on public tables
     for (const [key, value] of searchParams.entries()) {

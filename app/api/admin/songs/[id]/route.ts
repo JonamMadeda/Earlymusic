@@ -44,7 +44,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const fields: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
-    for (const key of ["title", "author", "song_path", "category", "duration"] as const) {
+    for (const key of ["title", "author", "song_path", "category", "duration", "copyright_holder", "license_type", "license_url", "rights_clearance_date", "status", "region_restricted"] as const) {
       if (body[key] !== undefined) {
         fields.push(`${key} = $${idx}`);
         values.push(typeof body[key] === "string" && body[key].trim() === "" ? null : body[key]);
@@ -142,10 +142,17 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     // NOTE: the Neon HTTP driver returns only rows (no rowCount), so a
     // bare DELETE yields no usable count — RETURNING makes the check real.
-    const { rows: deleted } = await db.query("DELETE FROM public.songs WHERE id = $1 RETURNING id", [id]);
+    const { rows: deleted } = await db.query("DELETE FROM public.songs WHERE id = $1 RETURNING id, title", [id]);
     if (!deleted?.length) {
       return NextResponse.json({ error: "Song not found." }, { status: 404 });
     }
+
+    // Record the takedown for legal audit trail.
+    await db.query(
+      `INSERT INTO public.takedown_log (song_id, song_title, actor_id, reason)
+       VALUES ($1, $2, $3, $4)`,
+      [id, deleted[0].title, admin.user.id, "Administrator deleted song and audio file."]
+    );
 
     // The "New release" tile posted for this track would otherwise outlive it
     // and open an invalid share page.

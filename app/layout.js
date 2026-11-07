@@ -4,6 +4,7 @@ import Header from "./components/Header";
 import AuthBanner from "./components/AuthBanner";
 import BottomNav from "./components/BottomNav";
 import PlayerWrapper from "./components/PlayerWrapper";
+import Link from "next/link";
 import { PlayerProvider } from "./context/PlayerContext";
 import { AuthProvider } from "./context/AuthContext";
 import { Analytics } from "@vercel/analytics/react";
@@ -12,6 +13,7 @@ import ErrorReporter from "./components/ErrorReporter";
 import InstallPrompt from "./components/InstallPrompt";
 import SWRegister from "./components/SWRegister";
 import GlobalLoader from "./components/GlobalLoader";
+import AnalyticsConsentBanner from "./components/AnalyticsConsentBanner";
 import { Inter } from "next/font/google";
 import { SITE_URL } from "@/lib/site";
 
@@ -91,12 +93,54 @@ export default function RootLayout({ children }) {
             <PlayerWrapper />
             <GlobalLoader />
 
-            <Analytics />
-            <SpeedInsights />
+            <AnalyticsConsentBanner />
             <ErrorReporter />
 
             <InstallPrompt />
             <SWRegister />
+
+            <footer className="border-t border-neutral-200 bg-neutral-50 py-6 md:py-8">
+              <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-3 md:gap-6">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold tracking-tight text-neutral-900">
+                      Luumbo
+                    </span>
+                    <span className="text-xs text-neutral-500">
+                      · Stream worship and praise music
+                    </span>
+                  </div>
+                  <nav className="flex flex-wrap gap-x-6 md:gap-x-8 text-xs text-neutral-500">
+                    <Link
+                      href="/terms"
+                      className="hover:text-accent transition"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Terms of Service
+                    </Link>
+                    <Link
+                      href="/privacy"
+                      className="hover:text-accent transition"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Privacy Policy
+                    </Link>
+                    <a
+                      href="mailto:legal@luumbo.example"
+                      className="hover:text-accent transition"
+                    >
+                      DMCA / Legal Contact
+                    </a>
+                  </nav>
+                  <p className="text-[10px] text-neutral-400">
+                    Audio hosted on Cloudflare R2 · Auth &amp; data on Neon ·
+                    Deployed on Vercel
+                  </p>
+                </div>
+              </div>
+            </footer>
           </AuthProvider>
         </PlayerProvider>
       </body>
