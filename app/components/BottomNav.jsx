@@ -3,11 +3,9 @@
 import { Home, Library, Music, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useNotificationFeed } from "@/lib/notificationFeed";
 
 const BottomNav = () => {
   const pathname = usePathname();
-  const { unread } = useNotificationFeed();
 
   const navItems = [
     { icon: Home, label: "Home", href: "/" },
@@ -19,9 +17,6 @@ const BottomNav = () => {
   const isPathActive = (href) => {
     if (href === "/library") {
       return pathname === "/library" || pathname === "/playlists" || pathname.startsWith("/playlists/");
-    }
-    if (href === "/notifications") {
-      return pathname === "/notifications";
     }
     return pathname === href;
   };
@@ -54,14 +49,6 @@ const BottomNav = () => {
                 }`}
                 strokeWidth={isActive ? 2.5 : 1.75}
               />
-              {item.label === "Notifications" && unread > 0 && (
-                <span
-                  aria-hidden="true"
-                  className="absolute top-1 right-1 flex h-3 min-w-3 items-center justify-center rounded-full bg-accent px-0.5 text-[8px] font-bold leading-none text-white ring-2 ring-white"
-                >
-                  {unread > 9 ? "9+" : unread}
-                </span>
-              )}
             </div>
             <span
               className={`text-[10px] font-semibold tracking-tight leading-none transition-colors duration-200 ${

@@ -81,11 +81,15 @@ export const announceNewSong = async (song: Record<string, unknown>) => {
 export const announceSongUpdate = async (song: Record<string, unknown>) => {
   try {
     const songId = String(song.id ?? "");
-    if (await hasSongAnnouncement(songId)) return null;
+    // One "updated" tile per song. A release announcement does not block this:
+    // the track has genuinely changed since it was first announced. Checking
+    // the update kind instead of the release kind is what stops repeated edits
+    // from flooding the feed with identical update tiles.
+    if (await hasSongAnnouncement(songId, "update")) return null;
     return await postAnnouncement({
       kind: "update",
-      title: String(song.title ?? "Song updated").slice(0, 120),
-      body: String(song.author ? `Updated from ${song.author}.` : "The track has been updated.").slice(0, 600),
+      title: String(song.title ?? "Song updated").slice(0, TITLE_MAX_LENGTH),
+      body: String(song.author ? `Updated from ${song.author}.` : "The track has been updated.").slice(0, BODY_MAX_LENGTH),
       url: song.id == null ? null : `/share/${String(song.id)}`,
     });
   } catch (error) {
@@ -95,14 +99,15 @@ export const announceSongUpdate = async (song: Record<string, unknown>) => {
 };
 
 /**
- * Drop the announcements pointing at a track that no longer exists, so a
- * deleted song cannot leave a "New release" tile that opens an invalid link.
+ * Drop every announcement pointing at a track that no longer exists. Deleting
+ * only "release" tiles would leave "update" tiles behind with a dead
+ * /share/<id> link, so the URL is the source of truth here.
  */
 export const retractSongAnnouncements = async (songId: string | number) => {
   try {
     const { rows } = await db.query(
       `DELETE FROM public.notifications
-        WHERE kind = 'release' AND url = $1 RETURNING id`,
+        WHERE url = $1 RETURNING id`,
       [`/share/${songId}`]
     );
     return rows?.length || 0;
@@ -113,15 +118,20 @@ export const retractSongAnnouncements = async (songId: string | number) => {
 };
 
 /**
- * Returns true when a release announcement already points at this song, so
- * re-saving the same track never creates a duplicate tile.
+ * Returns true when an announcement of the given kind already points at this
+ * song. New-song posts pass "release" (the default) so re-saving never creates
+ * a duplicate release tile; update posts pass "update" so repeated edits do
+ * not create a duplicate update tile either.
  */
-export const hasSongAnnouncement = async (songId: string | number) => {
+export const hasSongAnnouncement = async (
+  songId: string | number,
+  kind: NotificationKind = "release"
+) => {
   try {
     const { rows } = await db.query(
       `SELECT id FROM public.notifications
-        WHERE kind = 'release' AND url = $1 LIMIT 1`,
-      [`/share/${songId}`]
+        WHERE kind = $2 AND url = $1 LIMIT 1`,
+      [`/share/${songId}`, kind]
     );
     return rows?.length > 0;
   } catch (error) {

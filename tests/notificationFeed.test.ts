@@ -117,4 +117,30 @@ describe("announcement feed store", () => {
     expect(snapshot.error).toBe("Announcements are unavailable right now.");
     expect(snapshot.loading).toBe(false);
   });
+
+  it("returns a stable snapshot reference between reads", async () => {
+    const store = await loadStore();
+    const first = store.getNotificationSnapshot();
+    const second = store.getNotificationSnapshot();
+    expect(first).toBe(second);
+  });
+
+  it("picks up the stored seen time on the client only", async () => {
+    storage[SEEN_KEY] = "2026-01-01T00:00:00.000Z";
+    const store = await loadStore();
+
+    expect(store.getNotificationSnapshot().seenAt).toBe(storage[SEEN_KEY]);
+  });
+
+  it("keeps existing items on screen during a background refresh", async () => {
+    const store = await loadStore();
+    await store.refreshNotifications();
+
+    const pending = store.refreshNotifications({ force: true });
+    const during = store.getNotificationSnapshot();
+    expect(during.loading).toBe(false);
+    expect(during.items).toHaveLength(2);
+
+    await pending;
+  });
 });
