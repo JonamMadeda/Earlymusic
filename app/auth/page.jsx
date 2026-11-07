@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
 import { Mail, Lock, Loader, ArrowLeft, KeyRound, Eye, EyeOff, ShieldCheck } from "lucide-react";
 
@@ -41,12 +42,14 @@ function AuthForm() {
   const [message, setMessage] = useState("");
   const [verificationSent, setVerificationSent] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [updated, setUpdated] = useState(false);
-  const [resetDone, setResetDone] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const passwordRef = useRef(null);
+const [submitting, setSubmitting] = useState(false);
+const [updated, setUpdated] = useState(false);
+const [resetDone, setResetDone] = useState(false);
+const [showPassword, setShowPassword] = useState(false);
+const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+const [tosAccepted, setTosAccepted] = useState(false);
+const [privacyAccepted, setPrivacyAccepted] = useState(false);
+const passwordRef = useRef(null);
 
   const isForgot = mode === "forgot";
   const isReset = mode === "reset";
@@ -133,28 +136,16 @@ function AuthForm() {
         return;
       }
 
-      const { error: authError, exists, verificationRequired, code } = isLogin
-        ? await signIn(email, password)
-        : await signUp(email, password, {
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-          });
-
-      if (verificationRequired || code === "EMAIL_NOT_VERIFIED") {
-        setVerificationSent(true);
-        return;
-      }
-
-      if (exists) {
-        // Email already has an account — move to sign-in instead of a
-        // dead end. Clear the password field so the stale one is gone.
-        setMessage("An account with this email already exists. Sign in with your password instead.");
-        setMode("login");
-        setPassword("");
-        setConfirmPassword("");
-        setTimeout(() => passwordRef.current?.focus(), 0);
-        return;
-      }
+      const { error: authError, exists, verificationRequired, code } = await signUp(
+        email,
+        password,
+        {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          tos_accepted: tosAccepted,
+          privacy_accepted: privacyAccepted,
+        }
+      );
 
       if (authError) {
         setError(authError.message);
@@ -588,6 +579,35 @@ function AuthForm() {
             </div>
           )}
 
+          {isSignup && (
+            <div className="flex flex-col gap-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  id="auth-tos"
+                  type="checkbox"
+                  checked={tosAccepted}
+                  onChange={(e) => setTosAccepted(e.target.checked)}
+                  className="w-4 h-4 rounded border-neutral-300 text-accent focus:ring-accent"
+                />
+                <label htmlFor="auth-tos" className="text-[12px] font-medium text-neutral-600 leading-relaxed">
+                  I accept the <Link href="/terms" className="text-accent hover:underline">Terms of Service</Link>
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="auth-privacy"
+                  type="checkbox"
+                  checked={privacyAccepted}
+                  onChange={(e) => setPrivacyAccepted(e.target.checked)}
+                  className="w-4 h-4 rounded border-neutral-300 text-accent focus:ring-accent"
+                />
+                <label htmlFor="auth-privacy" className="text-[12px] font-medium text-neutral-600 leading-relaxed">
+                  I accept the <Link href="/privacy" className="text-accent hover:underline">Privacy Policy</Link>
+                </label>
+              </div>
+            </div>
+          )}
+
           {error && (
             <p id="auth-error" role="alert" className="text-[13px] font-medium text-red-600 text-center">
               {error}
@@ -602,7 +622,11 @@ function AuthForm() {
 
           <button
             type="submit"
-            disabled={submitting || (isUpdatePassword && authLoading)}
+            disabled={
+              submitting ||
+              (isUpdatePassword && authLoading) ||
+              (isSignup && (!tosAccepted || !privacyAccepted))
+            }
             aria-busy={submitting}
             className="bg-accent py-3.5 rounded-xl text-white font-bold hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
           >
