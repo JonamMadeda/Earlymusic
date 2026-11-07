@@ -690,6 +690,7 @@ const Player = () => {
               aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
               onPointerDown={() => { scrubbingRef.current = true; }}
               onPointerUp={() => { scrubbingRef.current = false; }}
+              onClick={(e) => e.stopPropagation()}
               onChange={(e) => handleSeek(Number(e.target.value))}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
             />
@@ -881,7 +882,7 @@ const Player = () => {
         onClick={() => setShowFullPlayer(true)}
       >
         {/* Mini progress bar */}
-        <div className="h-1 bg-neutral-100/90 group">
+        <div className="relative h-1 bg-neutral-100/90 group">
           <input
             type="range"
             min="0"
@@ -891,6 +892,7 @@ const Player = () => {
             aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
             onPointerDown={() => { scrubbingRef.current = true; }}
             onPointerUp={() => { scrubbingRef.current = false; }}
+            onClick={(e) => e.stopPropagation()}
             onChange={(e) => handleSeek(Number(e.target.value))}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
           />
