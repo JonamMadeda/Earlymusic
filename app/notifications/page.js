@@ -12,7 +12,6 @@ import {
   X,
 } from "lucide-react";
 import {
-  KIND_ACCENTS,
   KIND_LABELS,
   KIND_PILLS,
   normalizeNotificationKind,
@@ -178,7 +177,7 @@ export default function NotificationsPage() {
 
         <section className="mb-6 md:mb-8">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold uppercase tracking-tight text-neutral-900 md:text-2xl">
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
               Notifications
             </h1>
             {hasUnread && !loading && (
@@ -262,9 +261,6 @@ export default function NotificationsPage() {
                             : "bg-neutral-50/40 border-neutral-100"
                         } hover:border-neutral-300 md:p-5 md:pl-6`}
                       >
-                        <span
-                          aria-hidden="true"
-                          className={`absolute inset-y-0 left-0 w-1 ${KIND_ACCENTS[kind]}`} />
                         {unread && (
                           <span
                             className="absolute top-2 right-2 h-2 w-2 rounded-full bg-accent ring-2 ring-white"
