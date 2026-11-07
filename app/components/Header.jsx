@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import GlobalSearchModal from "./GlobalSearchModal";
+import NotificationBell from "./NotificationBell";
 
 const subscribeToOnlineStatus = (onChange) => {
   window.addEventListener("online", onChange);
@@ -89,6 +90,8 @@ const Header = () => {
                 <Search size={16} />
               </button>
             )}
+
+            <NotificationBell />
 
             {showSignIn && (
               <Link

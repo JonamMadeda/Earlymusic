@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Home, Library, Music, User } from "lucide-react";
+import { Home, Library, Music, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useNotificationFeed } from "@/lib/notificationFeed";
@@ -13,7 +13,6 @@ const BottomNav = () => {
     { icon: Home, label: "Home", href: "/" },
     { icon: Music, label: "Songs", href: "/songs" },
     { icon: Library, label: "Library", href: "/library" },
-    { icon: Bell, label: "Notifications", href: "/notifications" },
     { icon: User, label: "Account", href: "/account" },
   ];
 
