@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Settings,
   HardDrive,
@@ -9,9 +10,11 @@ import {
   Download,
   RefreshCw,
   Timer,
+  ShieldCheck,
 } from "lucide-react";
 import { getDownloadedSongs, removeDownload, getStorageEstimate } from "@/lib/downloadManager";
 import { SleepTimerSettings } from "../components/SleepTimer";
+import AnalyticsConsentControl from "../components/AnalyticsConsentControl";
 
 const formatBytes = (bytes) => {
   if (!bytes || bytes === 0) return "0 B";
@@ -59,6 +62,13 @@ export default function SettingsPage() {
     localStorage.removeItem("lumbo_downloaded_songs");
     localStorage.removeItem("lumbo_recently_played");
     localStorage.removeItem("lumbo_player_expanded");
+    // Clear every remaining app preference too, so "Reset App Data" matches
+    // what it says: playback state, notification state, and consent choices.
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith("lumbo_") || key.startsWith("lumbo-")) {
+        localStorage.removeItem(key);
+      }
+    }
     window.location.reload();
   };
 
@@ -141,6 +151,34 @@ export default function SettingsPage() {
             <SleepTimerSettings />
           </div>
 
+          {/* Privacy & consent */}
+          <div
+            id="privacy"
+            className="scroll-mt-24 rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl hover:shadow-md"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldCheck size={15} className="text-neutral-400" />
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">
+                Privacy &amp; consent
+              </h2>
+            </div>
+            <p className="text-xs text-neutral-500 mb-4">
+              Control analytics and review how your data is handled.
+            </p>
+            <AnalyticsConsentControl />
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-neutral-200/70 pt-3 text-[11px] font-semibold">
+              <Link href="/privacy" className="text-accent hover:underline">
+                Privacy Policy
+              </Link>
+              <Link href="/terms" className="text-accent hover:underline">
+                Terms of Service
+              </Link>
+              <Link href="/privacy#choices" className="text-accent hover:underline">
+                Your rights
+              </Link>
+            </div>
+          </div>
+
           {/* Clear Downloads */}
           <div className="rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl hover:shadow-md">
             <div className="flex items-center gap-2 mb-2">
@@ -167,8 +205,8 @@ export default function SettingsPage() {
               <h2 className="text-sm font-bold tracking-tight text-neutral-900">Reset App Data</h2>
             </div>
             <p className="text-xs text-neutral-500 mb-4">
-              Clear all cached data including downloads, song cache, and recently played. The app
-              will reload automatically.
+              Clear downloads, cached songs, playback state, notification state,
+              and consent preferences. The app will reload automatically.
             </p>
             <button
               onClick={clearAllData}

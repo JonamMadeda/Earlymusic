@@ -12,11 +12,17 @@ const clearPrivateClientData = async () => {
   try { localStorage.removeItem("lumbo_recently_played"); } catch {}
   try { localStorage.removeItem("lumbo_has_played"); } catch {}
   try { localStorage.removeItem("lumbo_playback_position"); } catch {}
+  // The download list names every track the account saved offline. It is
+  // account data, so it must not survive a sign-out on a shared device.
+  try { localStorage.removeItem("lumbo_downloaded_songs"); } catch {}
   try { window.dispatchEvent(new CustomEvent("auth:signed-out")); } catch {}
   try {
     navigator.serviceWorker?.controller?.postMessage("CLEAR_PRIVATE_CACHES");
   } catch {}
   if ("caches" in window) {
+    try {
+      await caches.delete("lumbo-audio-cache-v1");
+    } catch {}
     try {
       const names = await caches.keys();
       await Promise.all(

@@ -590,7 +590,15 @@ const passwordRef = useRef(null);
                   className="w-4 h-4 rounded border-neutral-300 text-accent focus:ring-accent"
                 />
                 <label htmlFor="auth-tos" className="text-[12px] font-medium text-neutral-600 leading-relaxed">
-                  I accept the <Link href="/terms" className="text-accent hover:underline">Terms of Service</Link>
+                  I accept the{" "}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent hover:underline"
+                  >
+                    Terms of Service
+                  </Link>
                 </label>
               </div>
               <div className="flex items-center gap-2">
@@ -602,9 +610,21 @@ const passwordRef = useRef(null);
                   className="w-4 h-4 rounded border-neutral-300 text-accent focus:ring-accent"
                 />
                 <label htmlFor="auth-privacy" className="text-[12px] font-medium text-neutral-600 leading-relaxed">
-                  I accept the <Link href="/privacy" className="text-accent hover:underline">Privacy Policy</Link>
+                  I accept the{" "}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent hover:underline"
+                  >
+                    Privacy Policy
+                  </Link>
                 </label>
               </div>
+              <p className="text-[11px] leading-relaxed text-neutral-400">
+                You must be at least 13 years old. If you are under 18, ask a
+                parent or guardian first.
+              </p>
             </div>
           )}
 

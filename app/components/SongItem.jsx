@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Heart,
@@ -517,11 +518,26 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
               </h4>
               <button
                 onClick={() => setShowReport(false)}
+                aria-label="Close report form"
                 className="text-neutral-300 transition hover:text-neutral-900"
               >
                 <X size={14} />
               </button>
             </div>
+            <p className="text-[11px] leading-relaxed text-neutral-400">
+              Report copyright infringement, offensive content, or incorrect
+              attribution. For copyright claims, include the work, the link to
+              this song, and your contact details so we can follow up.{" "}
+              <Link
+                href="/terms#copyright"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-accent hover:underline"
+              >
+                What a copyright notice needs
+              </Link>
+              .
+            </p>
             {reportFeedback && (
               <p className={`text-xs font-medium ${reportFeedback.includes("submitted") ? "text-green-600" : "text-red-600"}`}>
                 {reportFeedback}
@@ -554,7 +570,7 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
                 </div>
                 <div className="flex flex-col gap-y-1">
                   <label className="text-[11px] font-semibold text-neutral-500">
-                    Your email (optional)
+                    Your email (for a reply)
                   </label>
                   <input
                     name="reporter_email"

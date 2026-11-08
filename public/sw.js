@@ -30,6 +30,12 @@ self.addEventListener("message", (event) => {
 // Remove every cached API response (auth state, library, playlists,
 // profiles) so signing out cannot leave another account's data behind.
 const clearPrivateCaches = async () => {
+  // The audio cache holds the account's downloaded tracks. Drop it with the
+  // API responses so a shared device cannot show the previous listener's
+  // downloads after sign-out.
+  try {
+    await caches.delete(AUDIO_CACHE);
+  } catch {}
   const names = await caches.keys();
   await Promise.all(
     names.map(async (name) => {

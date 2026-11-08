@@ -5,54 +5,18 @@ import Link from "next/link";
 import { BarChart3, ShieldCheck } from "lucide-react";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import {
+  setAnalyticsConsent,
+  useAnalyticsConsent,
+} from "@/lib/analyticsConsent";
 
-const CONSENT_KEY = "lumbo_analytics_consent";
-
-/**
- * Consent lives in localStorage but is exposed to React through a tiny
- * external store. This keeps the server snapshot ("undecided") and the client
- * snapshot in sync, so hydration never leaves a stale, inert dialog on screen.
- */
-const listeners = new Set();
-let memoryConsent = null;
-
-function readStoredConsent() {
-  if (memoryConsent !== null) return memoryConsent;
-  try {
-    const stored = window.localStorage.getItem(CONSENT_KEY);
-    if (stored === "true") return true;
-    if (stored === "false") return false;
-  } catch {
-    // localStorage can throw in private mode or when blocked by the browser.
-  }
-  return null;
-}
-
-function subscribe(listener) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function storeConsent(value) {
-  memoryConsent = value;
-  try {
-    window.localStorage.setItem(CONSENT_KEY, value ? "true" : "false");
-  } catch {}
-  listeners.forEach((listener) => listener());
-}
-
-const getServerConsent = () => null;
 const subscribeToMount = () => () => {};
 const getMounted = () => true;
 const getServerMounted = () => false;
 
 export default function AnalyticsConsentBanner() {
   // `null` = undecided (show the dialog), `true`/`false` = a stored choice.
-  const consented = useSyncExternalStore(
-    subscribe,
-    readStoredConsent,
-    getServerConsent
-  );
+  const consented = useAnalyticsConsent();
 
   // False during SSR and hydration, true afterwards. Avoids rendering the
   // dialog on the server only to remove it once localStorage is read.
@@ -65,7 +29,7 @@ export default function AnalyticsConsentBanner() {
   const acceptRef = useRef(null);
   const isOpen = mounted && consented === null;
 
-  const choose = useCallback((value) => storeConsent(value), []);
+  const choose = useCallback((value) => setAnalyticsConsent(value), []);
 
   // While the dialog is open: close on Escape, lock page scroll and move focus
   // to the primary action.

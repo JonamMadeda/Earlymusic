@@ -7,8 +7,6 @@ import PlayerWrapper from "./components/PlayerWrapper";
 import Link from "next/link";
 import { PlayerProvider } from "./context/PlayerContext";
 import { AuthProvider } from "./context/AuthContext";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import ErrorReporter from "./components/ErrorReporter";
 import InstallPrompt from "./components/InstallPrompt";
 import SWRegister from "./components/SWRegister";
@@ -16,6 +14,7 @@ import GlobalLoader from "./components/GlobalLoader";
 import AnalyticsConsentBanner from "./components/AnalyticsConsentBanner";
 import { Inter } from "next/font/google";
 import { SITE_URL } from "@/lib/site";
+import { LEGAL_EMAIL, LEGAL_MAILTO } from "@/lib/legal";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -113,7 +112,7 @@ export default function RootLayout({ children }) {
                   <nav className="flex flex-wrap gap-x-6 md:gap-x-8 text-xs text-neutral-500">
                     <Link
                       href="/terms"
-                      className="hover:text-accent transition"
+                      className="inline-flex min-h-6 items-center hover:text-accent transition"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -121,20 +120,27 @@ export default function RootLayout({ children }) {
                     </Link>
                     <Link
                       href="/privacy"
-                      className="hover:text-accent transition"
+                      className="inline-flex min-h-6 items-center hover:text-accent transition"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
                       Privacy Policy
                     </Link>
+                    <Link
+                      href="/settings#privacy"
+                      className="inline-flex min-h-6 items-center hover:text-accent transition"
+                    >
+                      Privacy choices
+                    </Link>
                     <a
-                      href="mailto:legal@luumbo.example"
-                      className="hover:text-accent transition"
+                      href={LEGAL_MAILTO}
+                      className="inline-flex min-h-6 items-center hover:text-accent transition"
+                      title={`Email ${LEGAL_EMAIL}`}
                     >
                       DMCA / Legal Contact
                     </a>
                   </nav>
-                  <p className="text-[10px] text-neutral-400">
+                  <p className="text-[11px] text-neutral-500">
                     Audio hosted on Cloudflare R2 · Auth &amp; data on Neon ·
                     Deployed on Vercel
                   </p>

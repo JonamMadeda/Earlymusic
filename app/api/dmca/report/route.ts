@@ -32,6 +32,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Reporter details are optional, but a malformed address would make the
+    // report impossible to answer, so reject it instead of storing it.
+    const rawName = typeof reporter_name === "string" ? reporter_name.trim() : "";
+    const rawEmail =
+      typeof reporter_email === "string" ? reporter_email.trim() : "";
+    const reporterName = rawName ? rawName.slice(0, 120) : null;
+    const reporterEmail = rawEmail ? rawEmail.slice(0, 254) : null;
+    if (
+      reporterEmail &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(reporterEmail)
+    ) {
+      return NextResponse.json(
+        { error: "Enter a valid email address, or leave it blank." },
+        { status: 400 }
+      );
+    }
+
     // Verify the song exists before accepting a report.
     const { rows: songs } = await db.query(
       "SELECT id FROM public.songs WHERE id = $1",
@@ -45,7 +62,7 @@ export async function POST(request: NextRequest) {
       `INSERT INTO public.dmca_reports (song_id, reason, reporter_name, reporter_email)
        VALUES ($1, $2, $3, $4)
        RETURNING id, song_id, reason, reporter_name, reporter_email, status, created_at`,
-      [song_id, reason.trim(), reporter_name || null, reporter_email || null]
+      [song_id, reason.trim(), reporterName, reporterEmail]
     );
 
     return NextResponse.json({ report: rows?.[0] }, { status: 201 });
