@@ -44,14 +44,21 @@ CREATE POLICY "Admins can manage DMCA reports"
   WITH CHECK ((SELECT public.is_admin()));
 
 -- 3. Takedown log (audit trail of content removals)
+-- song_id deliberately has no foreign key: a takedown record must outlive the
+-- song it documents, and the route writes it after the song row is deleted.
 CREATE TABLE IF NOT EXISTS public.takedown_log (
   id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  song_id      BIGINT NOT NULL REFERENCES public.songs(id) ON DELETE CASCADE,
+  song_id      BIGINT NOT NULL,
   song_title   TEXT,
   actor_id     UUID REFERENCES neon_auth."user"(id) ON DELETE SET NULL,
   reason       TEXT NOT NULL,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Older deployments created this table with an ON DELETE CASCADE FK, which
+-- both rejected the post-delete insert and would have erased the audit row.
+ALTER TABLE public.takedown_log
+  DROP CONSTRAINT IF EXISTS takedown_log_song_id_fkey;
 
 ALTER TABLE public.takedown_log ENABLE ROW LEVEL SECURITY;
 

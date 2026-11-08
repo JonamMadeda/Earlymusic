@@ -147,12 +147,20 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: "Song not found." }, { status: 404 });
     }
 
-    // Record the takedown for legal audit trail.
-    await db.query(
-      `INSERT INTO public.takedown_log (song_id, song_title, actor_id, reason)
-       VALUES ($1, $2, $3, $4)`,
-      [id, deleted[0].title, admin.user.id, "Administrator deleted song and audio file."]
-    );
+    // Record the takedown for legal audit trail. This runs after the song row
+    // is gone, so the log must not depend on a live foreign key: the migration
+    // drops `takedown_log_song_id_fkey` and keeps song_id as a plain id.
+    // A logging failure must not report the already-completed deletion as a
+    // failure, so it is reported separately instead of aborting the request.
+    try {
+      await db.query(
+        `INSERT INTO public.takedown_log (song_id, song_title, actor_id, reason)
+         VALUES ($1, $2, $3, $4)`,
+        [id, deleted[0].title, admin.user.id, "Administrator deleted song and audio file."]
+      );
+    } catch (logError) {
+      console.error("Unable to write takedown_log entry:", logError);
+    }
 
     // The "New release" tile posted for this track would otherwise outlive it
     // and open an invalid share page.
