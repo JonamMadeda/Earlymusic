@@ -16,7 +16,7 @@ CREATE INDEX IF NOT EXISTS songs_status_idx ON public.songs (status);
 
 -- 2. DMCA / infringement reports
 CREATE TABLE IF NOT EXISTS public.dmca_reports (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   song_id       BIGINT NOT NULL REFERENCES public.songs(id) ON DELETE CASCADE,
   reporter_name TEXT,
   reporter_email TEXT,
@@ -28,26 +28,17 @@ CREATE TABLE IF NOT EXISTS public.dmca_reports (
   resolved_by   UUID REFERENCES neon_auth."user"(id) ON DELETE SET NULL
 );
 
-ALTER TABLE public.dmca_reports ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Anyone can create DMCA reports" ON public.dmca_reports;
-CREATE POLICY "Anyone can create DMCA reports"
-  ON public.dmca_reports FOR INSERT
-  TO anon, authenticated
-  WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Admins can manage DMCA reports" ON public.dmca_reports;
-CREATE POLICY "Admins can manage DMCA reports"
-  ON public.dmca_reports FOR ALL
-  TO authenticated
-  USING ((SELECT public.is_admin()))
-  WITH CHECK ((SELECT public.is_admin()));
+-- No RLS here: the app reaches Postgres only through server routes using the
+-- database owner role, and every other public table also runs without RLS.
+-- If you later expose these tables to a browser client, enable RLS and add a
+-- working admin predicate first (the old policy referenced a non-existent
+-- public.is_admin() function).
 
 -- 3. Takedown log (audit trail of content removals)
 -- song_id deliberately has no foreign key: a takedown record must outlive the
 -- song it documents, and the route writes it after the song row is deleted.
 CREATE TABLE IF NOT EXISTS public.takedown_log (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   song_id      BIGINT NOT NULL,
   song_title   TEXT,
   actor_id     UUID REFERENCES neon_auth."user"(id) ON DELETE SET NULL,
@@ -60,14 +51,7 @@ CREATE TABLE IF NOT EXISTS public.takedown_log (
 ALTER TABLE public.takedown_log
   DROP CONSTRAINT IF EXISTS takedown_log_song_id_fkey;
 
-ALTER TABLE public.takedown_log ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Admins can view takedown log" ON public.takedown_log;
-CREATE POLICY "Admins can view takedown log"
-  ON public.takedown_log FOR SELECT
-  TO authenticated
-  USING ((SELECT public.is_admin()));
-
+-- RLS intentionally omitted; see the note above dmca_reports.
 -- Writes use the service-role key inside API routes.
 
 -- 4. Terms / Privacy acceptance tracking on Neon Auth users

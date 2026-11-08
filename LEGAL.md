@@ -109,7 +109,7 @@ takedown process, you increase legal exposure and risk platform enforcement.
   process, and repeat-infringer policy.
 - `public.takedown_log` records each admin deletion (song id, title, actor,
   reason, timestamp). It is written by the song-delete route
-  (`app/api/admin/songs/[id]/route.ts`) and has an admin-only read policy.
+  (`app/api/admin/songs/[id]/route.ts`); there is no in-app reader yet.
 - Song deletion removes the R2 object and the `public.songs` row, writes a
   `public.takedown_log` entry, and retracts the release announcement.
 - The DMCA contact is published in the Terms, Privacy Policy, and footer via
@@ -124,11 +124,10 @@ takedown process, you increase legal exposure and risk platform enforcement.
 - Track repeat infringers and enforce the suspension/termination policy the
   Terms describe.
 - Add a UI for `public.takedown_log` if you want an auditable in-app history.
-- Apply the current `lib/migration-legal.sql` (or at least its
-  `DROP CONSTRAINT IF EXISTS takedown_log_song_id_fkey` statement) so
-  `takedown_log` accepts the post-delete row on databases created with the
-  old cascading foreign key. Without it, deletions still succeed, but the
-  audit entry is skipped and the error is logged.
+- The current database has `lib/migration-legal.sql` applied. Run the same
+  file on any other environment; it uses `gen_random_uuid()` and no RLS, which
+  matches the rest of the schema (the app reaches Postgres only through server
+  routes using the owner role).
 
 ---
 
