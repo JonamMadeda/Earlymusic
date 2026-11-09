@@ -15,7 +15,14 @@ export async function POST(request: NextRequest) {
       .json()
       .catch(() => ({}));
 
-    if (!song_id || typeof song_id !== "number") {
+    // Neon returns bigint ids as strings, so callers legitimately send either.
+    const songId =
+      typeof song_id === "number"
+        ? song_id
+        : typeof song_id === "string" && /^\d+$/.test(song_id.trim())
+          ? Number(song_id.trim())
+          : NaN;
+    if (!Number.isSafeInteger(songId) || songId <= 0) {
       return NextResponse.json(
         { error: "A valid song id is required." },
         { status: 400 }
@@ -52,7 +59,7 @@ export async function POST(request: NextRequest) {
     // Verify the song exists before accepting a report.
     const { rows: songs } = await db.query(
       "SELECT id FROM public.songs WHERE id = $1",
-      [song_id]
+      [songId]
     );
     if (!songs?.length) {
       return NextResponse.json({ error: "Song not found." }, { status: 404 });
@@ -62,7 +69,7 @@ export async function POST(request: NextRequest) {
       `INSERT INTO public.dmca_reports (song_id, reason, reporter_name, reporter_email)
        VALUES ($1, $2, $3, $4)
        RETURNING id, song_id, reason, reporter_name, reporter_email, status, created_at`,
-      [song_id, reason.trim(), reporterName, reporterEmail]
+      [songId, reason.trim(), reporterName, reporterEmail]
     );
 
     return NextResponse.json({ report: rows?.[0] }, { status: 201 });

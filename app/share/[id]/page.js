@@ -6,7 +6,7 @@ async function getSharedSong(id) {
   if (!id || typeof id !== "string") return null;
   try {
     const { rows } = await db.query(
-      "SELECT id, title, author, song_path, category, duration, original_songs, created_at FROM public.songs WHERE id = $1 LIMIT 1",
+      "SELECT id, title, author, song_path, category, duration, original_songs, created_at, copyright_holder, license_type, license_url, rights_clearance_date FROM public.songs WHERE id = $1 LIMIT 1",
       [id]
     );
     return rows?.[0] || null;

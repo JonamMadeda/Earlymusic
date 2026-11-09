@@ -76,7 +76,7 @@ export default function RootLayout({ children }) {
         </a>
         <PlayerProvider>
           <AuthProvider>
-            <div className="relative flex h-dvh overflow-hidden bg-white">
+            <div id="app-shell" className="relative flex h-dvh overflow-hidden bg-white">
               <Sidebar />
 
               <main className="relative flex flex-1 flex-col overflow-hidden border-l border-neutral-200 bg-white">

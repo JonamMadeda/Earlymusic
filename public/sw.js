@@ -1,5 +1,7 @@
 const CACHE_NAME = "lumbo-app-v7";
 const AUDIO_CACHE = "lumbo-audio-cache-v1";
+const MAX_AUDIO_ENTRIES = 30;
+const OFFLINE_HEADER = "x-luumbo-download";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -102,14 +104,34 @@ const fromCache = async (request, cacheName = CACHE_NAME) => {
     const cache = await caches.open(cacheName);
     const cached = await cache.match(request);
     if (cached) return cached;
-    
+
     const response = await fetch(request);
     if (response.ok) {
-      cache.put(request, response.clone());
+      const stored = response.clone();
+      cache
+        .put(request, stored)
+        .then(() => (cacheName === AUDIO_CACHE ? trimAudioCache(cache) : null))
+        .catch(() => {});
     }
     return response;
   } catch {
     return null;
+  }
+};
+
+// Streams share the cache with explicit downloads, so trimming has to spare
+// anything the listener asked to keep. Cache keys come back in insertion
+// order, so the oldest stream is the one that goes.
+const trimAudioCache = async (cache) => {
+  const keys = await cache.keys();
+  let excess = keys.length - MAX_AUDIO_ENTRIES;
+  if (excess <= 0) return;
+  for (const key of keys) {
+    if (excess <= 0) break;
+    const stored = await cache.match(key);
+    if (stored?.headers.get(OFFLINE_HEADER)) continue;
+    await cache.delete(key);
+    excess -= 1;
   }
 };
 

@@ -71,6 +71,19 @@ body {
   background-clip: content-box;
 }
 
+/* Vinyl record rotation for the full-screen player */
+@keyframes vinylSpin {
+  to { transform: rotate(360deg); }
+}
+
+.vinyl-spin {
+  animation: vinylSpin 16s linear infinite;
+}
+
+.vinyl-spin-paused {
+  animation-play-state: paused;
+}
+
 /* Animated waveform equalizer */
 @keyframes waveBar {
   0%, 100% { transform: scaleY(0.35); }
@@ -182,5 +195,40 @@ body {
     rgba(255, 255, 255, 0.06) 3.5px,
     transparent 4px
   );
+}
+
+/* Reduced motion: stop animations, keep static layouts intact */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .vinyl-spin {
+    animation: none;
+  }
+
+  /* Bars rest at their per-child heights; .paused scaleY(0.35) still applies */
+  .waveform span,
+  .waveform-big span {
+    animation: none;
+  }
+
+  .animate-fade-in {
+    animation: none;
+  }
+
+  .spotlight-gradient {
+    animation: none;
+  }
+
+  .section-lazy-enter.section-visible {
+    animation: none;
+  }
+
+  /* sectionReveal only reaches opacity 1 via animation forwards; without it, force sections visible */
+  .section-lazy-enter {
+    opacity: 1;
+    transform: none;
+  }
 }
 

@@ -23,6 +23,7 @@ const BottomNav = () => {
 
   return (
     <nav
+      id="bottom-nav"
       aria-label="Bottom navigation"
       className="fixed bottom-0 left-0 right-0 z-50 flex h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] items-center justify-around border-t border-neutral-200/80 bg-white/95 px-4 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-xl md:hidden"
     >

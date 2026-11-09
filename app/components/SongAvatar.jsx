@@ -49,10 +49,10 @@ export const VinylArtwork = ({ title, isPlaying = false }) => {
   const letter = initialLetter(title);
   return (
     <div className="relative flex items-center justify-center py-4">
-      {/* Vinyl record with spinning animation when playing */}
+      {/* Vinyl record: animation always applied, play state toggles so pause freezes the angle */}
       <div
-        className={`relative aspect-square w-52 sm:w-64 md:w-72 lg:w-80 rounded-full bg-neutral-900 border-4 border-neutral-800/90 flex items-center justify-center transition-all duration-700 ${
-          isPlaying ? "animate-[spin_16s_linear_infinite]" : ""
+        className={`relative aspect-square w-52 sm:w-64 md:w-72 lg:w-80 rounded-full bg-neutral-900 border-4 border-neutral-800/90 flex items-center justify-center vinyl-spin ${
+          isPlaying ? "" : "vinyl-spin-paused"
         }`}
         style={{
           boxShadow: "0 25px 60px -15px rgba(0,0,0,0.7), inset 0 0 25px rgba(255,255,255,0.06)",

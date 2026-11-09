@@ -159,6 +159,20 @@ Sign out and back in after changing a role.
 - **Entry points**: a bell in the mobile top bar and a **Notifications** link in the desktop sidebar, both always present so listeners have a fixed place to return to; the empty feed just says "You're all caught up." An unread badge appears on either only when there is something new, and shows the exact count — at most 15, because the feed itself holds 15. Both share one client-side store (`lib/notificationFeed.js`) so the badge and the page agree. "Read" is per device, kept in `localStorage` — signing in does not sync it.
 - **Nothing interrupts the listener.** There is no browser push permission, no `Notification`, no sound — announcements only appear when the app is opened or re-focused, which is when `lib/notificationFeed.js` re-reads the feed.
 
+## Player
+
+- **Repeat has three states** — off, queue, one track (`repeatMode` in `app/context/PlayerContext.js`). Off really stops at the end of the queue instead of silently starting over; one track uses the audio element's native `loop`. Shuffle keeps a pass history so it does not replay the same few tracks, and starts a fresh pass only when repeat is on queue. The rules live in `lib/playbackQueue.js` and are covered by `tests/playbackQueue.test.ts`. Shuffle and repeat are independent — turning one on no longer turns the other off.
+- **Volume, mute, shuffle and repeat persist per device** in `localStorage` under `lumbo_player_settings`. They survive reloads and sign-out, because they describe the device, not the account.
+- **The full-screen player is a real modal.** The page behind it is `inert` and cannot scroll, Tab is trapped inside, focus returns to whatever opened it, and the button, Escape, hardware back and a downward swipe on the grabber all use one close path that pops the history entry exactly once.
+- **Keyboard shortcuts** (while the full-screen player is open): Space or `K` play/pause, `←`/`→` seek five seconds, `Shift+←`/`Shift+→` previous/next track, `M` mute, `Q` queue, `Esc` close. They are ignored while typing, and Space still activates a focused button.
+- **Scrubbing commits on release.** Dragging the seek bar no longer seeks on every input event, and a gesture cancelled by the OS clears the hold instead of freezing the clock for the rest of the track. The thin progress strip on the bar and mini card keeps a 16px hit area.
+- **The queue is editable** — play next, move up/down, remove, clear — but only when the listener started an explicit queue; the whole-library fallback is read-only. Opening it scrolls to the playing track. Clearing keeps the current song so playback does not stop.
+- **Lock-screen controls** get generated 512×512 artwork (`lib/artwork.js`, the same identity the lists show), plus seek-to/seek-forward/seek-backward handlers and a position state.
+- **Offline is explicit.** Streaming no longer fetches every file twice to cache it. `Download for offline` in the player's overflow menu stores the track and marks the cache entry with `x-luumbo-download`, which the service worker's 30-entry trim spares; unmarked streams are evicted oldest-first. The player shows an "Available offline" chip for stored tracks.
+- **Attribution** (`copyright_holder`, `license_type`, `license_url`) shows under the artist when a track has it, including on `/share/<id>`. No track in the library currently has those fields filled in, so the line stays hidden until an admin adds them.
+- **Queue and track times** are formatted by `lib/timeFormat.js`, which switches to `h:mm:ss` past an hour. The `songs.duration` column currently holds text labels ("Long", "Short") rather than seconds, so per-track times and the queue total stay hidden until real durations are stored — nothing is guessed or shown as `0:00`.
+- **Reduced motion** stops the vinyl spin, waveforms and section reveals; lazy sections are forced visible so they cannot stay hidden forever.
+
 ## Security operations
 
 - **Audit trail**: run the SQL in `lib/migration.sql` (section 6) to create `public.admin_audit_log`. Grants, revokes, song deletions, and orphan cleanups are logged there automatically with actor, target, and timestamp.

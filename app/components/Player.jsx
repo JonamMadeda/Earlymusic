@@ -5,6 +5,9 @@ import { useRouter, usePathname } from "next/navigation";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { getAudioPublicUrl } from "@/lib/audioUrl";
+import { getSongArtwork } from "@/lib/artwork";
+import { pickNextSong } from "@/lib/playbackQueue";
+import { isSongDownloaded } from "@/lib/downloadManager";
 import { usePlayer, PLAYBACK_POSITION_KEY } from "../context/PlayerContext";
 import {
   Play,
@@ -12,6 +15,7 @@ import {
   Volume,
   VolumeX,
   Repeat,
+  Repeat1,
   Shuffle,
   SkipBack,
   SkipForward,
@@ -21,11 +25,25 @@ import {
   ListMusic,
   Share2,
   Check,
+  Download,
 } from "lucide-react";
-import { getCachedAudioUrl, cacheAudioFile, evictCachedAudio } from "@/lib/cacheUtils";
-import SongAvatar, { initialLetter, VinylArtwork } from "./SongAvatar";
+import { getCachedAudioUrl, evictCachedAudio } from "@/lib/cacheUtils";
+import SongAvatar, { VinylArtwork } from "./SongAvatar";
 import { SleepTimerControl } from "./SleepTimer";
+import { ThinProgress, SeekBar, TimeReadout } from "./PlayerProgress";
+import PlayerQueue from "./PlayerQueue";
+import SongOverflowMenu from "./SongOverflowMenu";
 import { useAuth } from "../context/AuthContext";
+
+const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5];
+const REPEAT_ORDER = ["off", "all", "one"];
+const REPEAT_LABELS = {
+  off: "Repeat off",
+  all: "Repeat queue",
+  one: "Repeat this song",
+};
+const SEEK_STEP = 5;
+const SWIPE_CLOSE_DISTANCE = 80;
 
 const Player = () => {
   const audioRef = useRef(null);
@@ -36,6 +54,18 @@ const Player = () => {
     restorePlayback,
     allSongs,
     sleepTimerStopSignal,
+    volume,
+    setVolume,
+    isMuted,
+    setIsMuted,
+    isShuffle,
+    setIsShuffle,
+    repeatMode,
+    setRepeatMode,
+    addToQueueNext,
+    removeFromQueue,
+    clearQueue,
+    moveInQueue,
   } = usePlayer();
 
   // Skip/auto-advance queue. Pages normally pass the visible list as the
@@ -45,23 +75,24 @@ const Player = () => {
     () => (queue && queue.length > 0 ? queue : allSongs || []),
     [queue, allSongs]
   );
+  // Only an explicit queue can be reordered — the library fallback is not ours
+  // to edit.
+  const queueEditable = queue.length > 0;
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isLooping, setIsLooping] = useState(false);
-  const [isShuffle, setIsShuffle] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isLikePending, setIsLikePending] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume] = useState(1);
   const [audioUrl, setAudioUrl] = useState(null);
   const [audioSongId, setAudioSongId] = useState(null);
   const [isBuffering, setIsBuffering] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [audioError, setAudioError] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [isOffline, setIsOffline] = useState(false);
   const [shareFeedback, setShareFeedback] = useState("");
+  const [liveMessage, setLiveMessage] = useState("");
 
   const { user } = useAuth();
   const router = useRouter();
@@ -91,7 +122,6 @@ const Player = () => {
   const loadIdRef = useRef(0);
   const isPlayingRef = useRef(false);
   const skipWhilePausedRef = useRef(false);
-  const scrubbingRef = useRef(false);
   const blobUrlRef = useRef(null);
   const publicUrlRef = useRef(null);
   const networkFallbackTriedRef = useRef(false);
@@ -99,15 +129,23 @@ const Player = () => {
   // Songs that failed since the last manual pick — auto-advance skips them so
   // one broken track can't trap playback in a retry loop.
   const failedSongIdsRef = useRef(new Set());
+  // Tracks already played in this shuffle pass, so "random" doesn't mean
+  // "the same three songs on repeat".
+  const shuffleHistoryRef = useRef(new Set());
   // Song id we auto-advanced to, so the song-change effect can tell an
   // automatic move apart from the user picking something new.
   const autoTargetRef = useRef(null);
   const handledSleepStopRef = useRef(sleepTimerStopSignal);
   const autoAdvanceTimerRef = useRef(null);
+  const feedbackTimerRef = useRef(null);
   const lastPrevPressRef = useRef(0);
   const resumePositionRef = useRef(0);
   const lastPositionSaveRef = useRef(0);
   const closeButtonRef = useRef(null);
+  const modalRef = useRef(null);
+  const lastFocusedRef = useRef(null);
+  const historyPushedRef = useRef(false);
+  const swipeStartRef = useRef(null);
   const MAX_AUTO_RETRIES = 1;
   const AUTO_ADVANCE_DELAY = 1200;
   const PREV_DOUBLE_PRESS_WINDOW = 2000;
@@ -150,6 +188,36 @@ const Player = () => {
 
   useEffect(() => () => savePlaybackPosition(), [savePlaybackPosition]);
 
+  // Mobile browsers kill the tab without running React cleanup, so the resume
+  // position has to be written on the way out too.
+  useEffect(() => {
+    const onPageHide = () => savePlaybackPosition();
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+  }, [savePlaybackPosition]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setIsOffline(isSongDownloaded(song?.id)), 0);
+    return () => clearTimeout(timeout);
+  }, [song?.id]);
+
+  const announce = useCallback((message, share = "") => {
+    setLiveMessage(message);
+    setShareFeedback(share);
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => {
+      setLiveMessage("");
+      setShareFeedback("");
+    }, 3000);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    },
+    []
+  );
+
   // --- Auto-advance on playback error ---
   const clearAutoAdvanceTimer = useCallback(() => {
     if (autoAdvanceTimerRef.current) {
@@ -191,7 +259,10 @@ const Player = () => {
     const isAutoAdvance =
       autoTargetRef.current && autoTargetRef.current === song?.id;
     autoTargetRef.current = null;
-    if (!isAutoAdvance) failedSongIdsRef.current.clear();
+    if (!isAutoAdvance) {
+      failedSongIdsRef.current.clear();
+      shuffleHistoryRef.current.clear();
+    }
 
     errorCountRef.current = 0;
     networkFallbackTriedRef.current = false;
@@ -210,7 +281,7 @@ const Player = () => {
         if (activeSongIdRef.current === songId) setIsLiked(Array.isArray(data) && data.length > 0);
       })
       .catch((error) => console.error("Unable to check saved song:", error));
-  }, [user, song?.id]);
+  }, [user, song]);
 
   const toggleLike = async () => {
     if (!song) return;
@@ -251,37 +322,68 @@ const Player = () => {
       const { shareSong } = await import("@/lib/share");
       const result = await shareSong(song);
       if (result === "copied") {
-        setShareFeedback("copied");
-        setTimeout(() => setShareFeedback(""), 2000);
+        announce("Link copied to clipboard.", "copied");
       } else if (result === "failed") {
-        setShareFeedback("failed");
-        setTimeout(() => setShareFeedback(""), 2000);
+        announce("Sharing failed. Copy the link from your address bar.", "failed");
       }
     } catch (error) {
       console.error("Unable to share song:", error);
+      announce("Sharing failed. Copy the link from your address bar.", "failed");
     }
   };
+
+  const openFullPlayer = useCallback(() => {
+    lastFocusedRef.current = document.activeElement;
+    setShowFullPlayer(true);
+  }, []);
+
+  // One close path: the button, Escape and swipe all land here, and the extra
+  // history entry is only popped if this player actually pushed it.
+  const closeFullPlayer = useCallback(() => {
+    setShowFullPlayer(false);
+    if (historyPushedRef.current) {
+      historyPushedRef.current = false;
+      window.history.back();
+    }
+  }, []);
 
   // Mobile back button closes full-screen player instead of leaving the app
   useEffect(() => {
     if (!showFullPlayer) return;
 
-    window.history.pushState(null, "", window.location.href);
+    window.history.pushState({ player: true }, "", window.location.href);
+    historyPushedRef.current = true;
 
-    const handlePopState = () => setShowFullPlayer(false);
+    const handlePopState = () => {
+      historyPushedRef.current = false;
+      setShowFullPlayer(false);
+    };
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [showFullPlayer]);
 
+  // The overlay is a modal: the page behind it must not scroll, take focus or
+  // answer clicks, and focus returns to whatever opened it.
   useEffect(() => {
     if (!showFullPlayer) return;
+
+    const shell = document.getElementById("app-shell");
+    const nav = document.getElementById("bottom-nav");
+    const scroller = document.getElementById("app-scroll");
+    const previousOverflow = scroller?.style.overflow ?? "";
+    if (shell) shell.inert = true;
+    if (nav) nav.inert = true;
+    if (scroller) scroller.style.overflow = "hidden";
     closeButtonRef.current?.focus();
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") setShowFullPlayer(false);
+
+    return () => {
+      if (shell) shell.inert = false;
+      if (nav) nav.inert = false;
+      if (scroller) scroller.style.overflow = previousOverflow;
+      const target = lastFocusedRef.current;
+      if (target && document.contains(target)) target.focus?.();
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
   }, [showFullPlayer]);
 
   useEffect(() => {
@@ -299,34 +401,56 @@ const Player = () => {
     }
   }, [isPlaying]);
 
+  useEffect(() => {
+    if (!audioRef.current) return;
+    audioRef.current.volume = volume;
+    audioRef.current.muted = isMuted;
+  }, [volume, isMuted]);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = playbackRate;
+  }, [playbackRate, audioUrl]);
+
+  const syncMediaPosition = useCallback(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration: audio.duration,
+        playbackRate: audio.playbackRate || 1,
+        position: Math.min(audio.currentTime, audio.duration),
+      });
+    } catch {}
+  }, []);
+
+  const seekBy = useCallback((delta) => {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(audio.duration)) return;
+    audio.currentTime = Math.min(
+      Math.max(0, audio.currentTime + delta),
+      audio.duration
+    );
+    syncMediaPosition();
+  }, [syncMediaPosition]);
+
+  const handleSeek = useCallback((time) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = time;
+    syncMediaPosition();
+  }, [syncMediaPosition]);
+
   const selectNextSong = useCallback(
-    (skipIds) => {
-      if (songs.length === 0) return null;
-
-      // Shuffle: pick from every track except the current one and anything
-      // already known to be broken.
-      if (isShuffle) {
-        const pool = songs.filter(
-          (s) => s.id !== song?.id && !skipIds?.has(s.id)
-        );
-        if (pool.length === 0) return null;
-        return pool[Math.floor(Math.random() * pool.length)];
-      }
-
-      // Sequential: walk the queue from the current track and stop at the
-      // first playable one. start === -1 (song not in this queue) maps to 0.
-      const start = songs.findIndex((s) => s.id === song?.id);
-      for (let step = 1; step <= songs.length; step += 1) {
-        const index = (start + step + songs.length) % songs.length;
-        const candidate = songs[index];
-        if (!candidate) continue;
-        if (candidate.id === song?.id) continue;
-        if (skipIds?.has(candidate.id)) continue;
-        return candidate;
-      }
-      return null;
-    },
-    [songs, song?.id, isShuffle]
+    (skipIds) =>
+      pickNextSong({
+        songs,
+        currentId: song?.id,
+        isShuffle,
+        repeatMode,
+        skipIds,
+        playedIds: shuffleHistoryRef.current,
+      }),
+    [songs, song?.id, isShuffle, repeatMode]
   );
 
   const onPlayNext = useCallback(() => {
@@ -346,8 +470,8 @@ const Player = () => {
       const nextSong = selectNextSong(failedSongIdsRef.current);
 
       if (!nextSong) {
-        // Everything in the queue failed. Stop instead of looping the same
-        // broken track forever; a manual pick or retry starts a fresh cycle.
+        // End of the queue (or everything in it failed). Stop instead of
+        // looping forever; a manual pick or retry starts a fresh cycle.
         failedSongIdsRef.current.clear();
         setIsPlaying(false);
         setIsBuffering(false);
@@ -377,17 +501,20 @@ const Player = () => {
     // window skips to the previous track.
     if (!isDoublePress) {
       if (audioRef.current) audioRef.current.currentTime = 0;
-      setCurrentTime(0);
       return;
     }
 
     lastPrevPressRef.current = 0;
     if (songs.length === 0) return;
-    skipWhilePausedRef.current = !isPlayingRef.current;
     const index = songs.findIndex((s) => s.id === song.id);
+    if (index <= 0 && repeatMode !== "all") {
+      if (audioRef.current) audioRef.current.currentTime = 0;
+      return;
+    }
+    skipWhilePausedRef.current = !isPlayingRef.current;
     const prevIndex = index <= 0 ? songs.length - 1 : index - 1;
     onSongSelect(songs[prevIndex], songs);
-  }, [song, songs, onSongSelect]);
+  }, [song, songs, onSongSelect, repeatMode]);
 
   const setPlayState = useCallback((playing) => {
     setIsPlaying(playing);
@@ -396,6 +523,111 @@ const Player = () => {
   const togglePlay = useCallback(() => {
     setIsPlaying((prev) => !prev);
   }, []);
+
+  const toggleMute = useCallback(() => {
+    setIsMuted((prev) => !prev);
+  }, [setIsMuted]);
+
+  const cycleRepeat = useCallback(() => {
+    setRepeatMode((prev) => {
+      const index = REPEAT_ORDER.indexOf(prev);
+      return REPEAT_ORDER[(index + 1) % REPEAT_ORDER.length];
+    });
+  }, [setRepeatMode]);
+
+  const cyclePlaybackRate = useCallback(() => {
+    setPlaybackRate((prev) => {
+      const index = PLAYBACK_RATES.indexOf(prev);
+      return PLAYBACK_RATES[(index + 1) % PLAYBACK_RATES.length];
+    });
+  }, []);
+
+  // Shortcuts and the Tab trap live in one handler so the modal can't leak
+  // focus to the inert page behind it.
+  useEffect(() => {
+    if (!showFullPlayer) return;
+
+    const onKeyDown = (event) => {
+      if (event.key === "Tab") {
+        const focusable = Array.from(
+          modalRef.current?.querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          ) || []
+        ).filter((el) => el.offsetParent !== null);
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+        if (event.shiftKey && (active === first || !modalRef.current?.contains(active))) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && active === last) {
+          event.preventDefault();
+          first.focus();
+        }
+        return;
+      }
+
+      const target = event.target;
+      const isTyping =
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+      if (isTyping || event.metaKey || event.ctrlKey || event.altKey) return;
+
+      switch (event.key) {
+        case " ":
+          // Space on a focused button belongs to that button.
+          if (target instanceof HTMLElement && target.tagName === "BUTTON") return;
+          event.preventDefault();
+          togglePlay();
+          break;
+        case "k":
+        case "K":
+          event.preventDefault();
+          togglePlay();
+          break;
+        case "ArrowRight":
+          event.preventDefault();
+          if (event.shiftKey) onPlayNext();
+          else seekBy(SEEK_STEP);
+          break;
+        case "ArrowLeft":
+          event.preventDefault();
+          if (event.shiftKey) onPlayPrevious();
+          else seekBy(-SEEK_STEP);
+          break;
+        case "m":
+        case "M":
+          toggleMute();
+          break;
+        case "q":
+        case "Q":
+          setShowQueue((prev) => !prev);
+          break;
+        case "Escape":
+          closeFullPlayer();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showFullPlayer, togglePlay, onPlayNext, onPlayPrevious, seekBy, toggleMute, closeFullPlayer]);
+
+  const onGrabberDown = (event) => {
+    if (event.pointerType === "mouse") return;
+    swipeStartRef.current = event.clientY;
+  };
+
+  const onGrabberUp = (event) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (start == null) return;
+    if (event.clientY - start > SWIPE_CLOSE_DISTANCE) closeFullPlayer();
+  };
 
   const handlePlaybackError = useCallback(() => {
     clearAutoAdvanceTimer();
@@ -421,13 +653,14 @@ const Player = () => {
   useEffect(() => {
     if (typeof window === "undefined" || !("mediaSession" in navigator) || !song) return;
 
+    const generated = getSongArtwork(song.title);
     navigator.mediaSession.metadata = new MediaMetadata({
       title: song.title,
       artist: song.author,
       album: "Luumbo",
-      artwork: [
-        { src: "/favicon.ico", sizes: "192x192", type: "image/png" },
-      ],
+      artwork: generated
+        ? [{ src: generated, sizes: "512x512", type: "image/png" }]
+        : [{ src: "/favicon.ico", sizes: "192x192", type: "image/png" }],
     });
 
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
@@ -437,15 +670,32 @@ const Player = () => {
     navigator.mediaSession.setActionHandler("stop", () => setPlayState(false));
     navigator.mediaSession.setActionHandler("previoustrack", onPlayPrevious);
     navigator.mediaSession.setActionHandler("nexttrack", onPlayNext);
+    navigator.mediaSession.setActionHandler("seekbackward", (details) =>
+      seekBy(-(details?.seekOffset || SEEK_STEP))
+    );
+    navigator.mediaSession.setActionHandler("seekforward", (details) =>
+      seekBy(details?.seekOffset || SEEK_STEP)
+    );
+    navigator.mediaSession.setActionHandler("seekto", (details) => {
+      if (typeof details?.seekTime === "number") handleSeek(details.seekTime);
+    });
+    syncMediaPosition();
 
     return () => {
-      navigator.mediaSession.setActionHandler("play", null);
-      navigator.mediaSession.setActionHandler("pause", null);
-      navigator.mediaSession.setActionHandler("stop", null);
-      navigator.mediaSession.setActionHandler("previoustrack", null);
-      navigator.mediaSession.setActionHandler("nexttrack", null);
+      for (const action of [
+        "play",
+        "pause",
+        "stop",
+        "previoustrack",
+        "nexttrack",
+        "seekbackward",
+        "seekforward",
+        "seekto",
+      ]) {
+        navigator.mediaSession.setActionHandler(action, null);
+      }
     };
-  }, [song, isPlaying, setPlayState, onPlayNext, onPlayPrevious]);
+  }, [song, isPlaying, setPlayState, onPlayNext, onPlayPrevious, seekBy, handleSeek, syncMediaPosition]);
 
   useEffect(() => {
     if (!song) return;
@@ -456,7 +706,6 @@ const Player = () => {
     const loadAudio = async () => {
       setAudioError(false);
       setDuration(0);
-      setCurrentTime(0);
       setIsBuffering(true);
       const loadingSongId = song.id;
 
@@ -469,6 +718,8 @@ const Player = () => {
         }
         publicUrlRef.current = publicUrl;
 
+        // Only explicit downloads fill the cache; streaming used to fetch the
+        // whole file a second time just to store a copy nobody asked for.
         const cachedUrl = await getCachedAudioUrl(publicUrl);
         if (cancelled || loadId !== loadIdRef.current) {
           if (cachedUrl) URL.revokeObjectURL(cachedUrl);
@@ -485,7 +736,6 @@ const Player = () => {
           setAudioUrl(cachedUrl);
         } else {
           setAudioUrl(publicUrl);
-          cacheAudioFile(publicUrl, song.song_path);
         }
         setAudioSongId(loadingSongId);
 
@@ -568,27 +818,19 @@ const Player = () => {
     }
   };
 
-  const toggleMute = () => {
-    const newMuted = !isMuted;
-    setIsMuted(newMuted);
-    if (audioRef.current) audioRef.current.muted = newMuted;
-  };
+  const attribution = song?.copyright_holder || song?.license_type;
+  const RepeatIcon = repeatMode === "one" ? Repeat1 : Repeat;
+  const repeatActive = repeatMode !== "off";
 
-  const formatTime = (time) => {
-    if (!Number.isFinite(time) || time < 0) return "0:00";
-    const mins = Math.floor(time / 60);
-    const secs = Math.floor(time % 60);
-    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
-  };
-
-  const handleSeek = (time) => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = time;
-    setCurrentTime(time);
-    scrubbingRef.current = false;
-  };
-
-  const progress = duration ? (currentTime / duration) * 100 : 0;
+  const playbackStatus = audioError
+    ? errorCountRef.current > MAX_AUTO_RETRIES
+      ? "Playback failed. Skipping to the next track."
+      : "Playback failed. Activate retry to try again."
+    : isBusy
+      ? isPreparing
+        ? "Opening…"
+        : "Buffering…"
+      : "";
 
   return (
     <>
@@ -601,15 +843,13 @@ const Player = () => {
         src={audioUrl || undefined}
         preload="auto"
         playsInline
-        loop={isLooping}
+        loop={repeatMode === "one"}
         onTimeUpdate={() => {
-          if (audioRef.current && !scrubbingRef.current) {
-            setCurrentTime(audioRef.current.currentTime);
-            const now = Date.now();
-            if (now - lastPositionSaveRef.current > 5000) {
-              lastPositionSaveRef.current = now;
-              savePlaybackPosition();
-            }
+          const now = Date.now();
+          if (now - lastPositionSaveRef.current > 5000) {
+            lastPositionSaveRef.current = now;
+            savePlaybackPosition();
+            syncMediaPosition();
           }
         }}
         onWaiting={() => setIsBuffering(true)}
@@ -628,13 +868,15 @@ const Player = () => {
           if (audioRef.current && Number.isFinite(audioRef.current.duration)) {
             const total = audioRef.current.duration;
             setDuration(total);
+            audioRef.current.playbackRate = playbackRate;
             if (resumePositionRef.current > 0 && resumePositionRef.current < total - 5) {
               audioRef.current.currentTime = resumePositionRef.current;
-              setCurrentTime(resumePositionRef.current);
             }
             resumePositionRef.current = 0;
+            syncMediaPosition();
           }
         }}
+        onRateChange={syncMediaPosition}
         onError={() => {
           const mediaError = audioRef.current?.error;
           console.error("Playback error:", {
@@ -675,34 +917,13 @@ const Player = () => {
         <>
           {/* Desktop player — full-width bar */}
       <div
+        inert={showFullPlayer}
+        aria-hidden={showFullPlayer}
         className="fixed bottom-14 left-0 right-0 z-[900] hidden min-[600px]:block md:bottom-0 cursor-pointer"
-        onClick={() => setShowFullPlayer(true)}
+        onClick={openFullPlayer}
       >
         <div className="relative overflow-hidden border-t border-neutral-200 bg-white shadow-sm">
-          {/* Progress bar */}
-          <div className="relative z-10 h-1 bg-neutral-100 group">
-            <input
-              type="range"
-              min="0"
-              max={duration || 0}
-              value={currentTime}
-              aria-label="Seek through song"
-              aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
-              onPointerDown={() => { scrubbingRef.current = true; }}
-              onPointerUp={() => { scrubbingRef.current = false; }}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => handleSeek(Number(e.target.value))}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-            />
-            <div
-              className="h-full transition-all duration-150 bg-accent"
-              style={{ width: `${progress}%` }}
-            />
-            <div
-              className="absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-white bg-accent shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-30 pointer-events-none"
-              style={{ left: `${progress}%`, marginLeft: '-7px' }}
-            />
-          </div>
+          <ThinProgress audioRef={audioRef} duration={duration} onSeek={handleSeek} />
 
           {/* Body */}
           <div className="relative z-10 px-6 h-[72px]">
@@ -716,7 +937,7 @@ const Player = () => {
                     aria-label={`Open now playing: ${song.title}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowFullPlayer(true);
+                      openFullPlayer();
                     }}
                     className="block w-full truncate text-left text-sm font-semibold tracking-tight text-neutral-900"
                   >
@@ -743,11 +964,9 @@ const Player = () => {
                     aria-pressed={isShuffle}
                     onClick={(e) => {
                       e.stopPropagation();
-                      const newState = !isShuffle;
-                      setIsShuffle(newState);
-                      if (newState) setIsLooping(false);
+                      setIsShuffle(!isShuffle);
                     }}
-                    className={`rounded-full p-1.5 transition-colors active:scale-90 ${
+                    className={`rounded-full p-2 transition-colors active:scale-90 ${
                       isShuffle
                         ? "text-accent"
                         : "text-neutral-400 hover:text-neutral-900"
@@ -760,7 +979,7 @@ const Player = () => {
                     type="button"
                     aria-label="Previous track"
                     onClick={(e) => { e.stopPropagation(); onPlayPrevious(); }}
-                    className="rounded-full p-1.5 text-neutral-500 transition active:scale-90 hover:text-neutral-900"
+                    className="rounded-full p-2 text-neutral-500 transition active:scale-90 hover:text-neutral-900"
                   >
                     <SkipBack size={17} fill="currentColor" />
                   </button>
@@ -784,39 +1003,30 @@ const Player = () => {
                     type="button"
                     aria-label="Next track"
                     onClick={(e) => { e.stopPropagation(); onPlayNext(); }}
-                    className="rounded-full p-1.5 text-neutral-500 transition active:scale-90 hover:text-neutral-900"
+                    className="rounded-full p-2 text-neutral-500 transition active:scale-90 hover:text-neutral-900"
                   >
                     <SkipForward size={17} fill="currentColor" />
                   </button>
 
                   <button
                     type="button"
-                    aria-label="Toggle repeat"
-                    aria-pressed={isLooping}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const newState = !isLooping;
-                      setIsLooping(newState);
-                      if (newState) setIsShuffle(false);
-                    }}
-                    className={`rounded-full p-1.5 transition-colors active:scale-90 ${
-                      isLooping
+                    aria-label={REPEAT_LABELS[repeatMode]}
+                    aria-pressed={repeatActive}
+                    onClick={(e) => { e.stopPropagation(); cycleRepeat(); }}
+                    className={`rounded-full p-2 transition-colors active:scale-90 ${
+                      repeatActive
                         ? "text-accent"
                         : "text-neutral-400 hover:text-neutral-900"
                     }`}
                   >
-                    <Repeat size={15} />
+                    <RepeatIcon size={15} />
                   </button>
                 </div>
-                <div className="flex items-center gap-1 text-[10px] font-medium tabular-nums text-neutral-400">
-                  <span>{formatTime(currentTime)}</span>
-                  <span className="text-neutral-300">/</span>
-                  <span>-{formatTime(Math.max(0, duration - currentTime))}</span>
-                </div>
+                <TimeReadout audioRef={audioRef} duration={duration} />
               </div>
 
               {/* Right — volume */}
-              <div className="flex items-center justify-end gap-2 shrink-0 md:gap-3">
+              <div className="flex items-center justify-end gap-1 shrink-0 md:gap-2">
                 <button
                   type="button"
                   aria-label={isLiked ? "Remove from saved songs" : "Save song"}
@@ -830,10 +1040,13 @@ const Player = () => {
                 <button
                   type="button"
                   aria-label="Share this song"
-                  title={shareFeedback === "copied" ? "Link copied!" : "Share this song"}
                   onClick={handleShare}
                   className={`rounded-full p-2 transition ${
-                    shareFeedback === "copied" ? "text-green-600" : "text-neutral-400 hover:text-accent"
+                    shareFeedback === "copied"
+                      ? "text-green-600"
+                      : shareFeedback === "failed"
+                        ? "text-red-600"
+                        : "text-neutral-400 hover:text-accent"
                   }`}
                 >
                   {shareFeedback === "copied" ? (
@@ -842,34 +1055,37 @@ const Player = () => {
                     <Share2 size={18} />
                   )}
                 </button>
-                <button
-                  type="button"
-                  aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
-                  onClick={(e) => { e.stopPropagation(); toggleMute(); }}
-                  className="rounded-full p-2 text-neutral-400 transition hover:text-accent"
-                >
-                  {isMuted || volume === 0 ? (
-                    <VolumeX size={18} />
-                  ) : (
-                    <Volume size={18} />
-                  )}
-                </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={isMuted ? 0 : volume}
-                  aria-label="Volume"
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setVolume(v);
-                    if (audioRef.current) audioRef.current.volume = v;
-                    if (v > 0) setIsMuted(false);
-                  }}
-                  className="hidden h-1 w-20 cursor-pointer appearance-none rounded-full bg-neutral-200 accent-accent md:block lg:w-28"
-                />
+                {/* Touch devices have hardware volume; a slider there is a
+                    target that can't be hit accurately. */}
+                <div className="hidden items-center gap-1 md:flex [@media(pointer:coarse)]:hidden">
+                  <button
+                    type="button"
+                    aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
+                    onClick={(e) => { e.stopPropagation(); toggleMute(); }}
+                    className="rounded-full p-2 text-neutral-400 transition hover:text-accent"
+                  >
+                    {isMuted || volume === 0 ? (
+                      <VolumeX size={18} />
+                    ) : (
+                      <Volume size={18} />
+                    )}
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={isMuted ? 0 : volume}
+                    aria-label="Volume"
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setVolume(v);
+                      if (v > 0) setIsMuted(false);
+                    }}
+                    className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-neutral-200 accent-accent lg:w-28"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -878,29 +1094,17 @@ const Player = () => {
 
       {/* Mobile floating mini-player card */}
       <div
+        inert={showFullPlayer}
+        aria-hidden={showFullPlayer}
         className="fixed left-3 right-3 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-[900] min-[600px]:hidden cursor-pointer rounded-2xl border border-neutral-200/90 bg-white/95 shadow-xl backdrop-blur-2xl overflow-hidden transition-all active:scale-[0.99]"
-        onClick={() => setShowFullPlayer(true)}
+        onClick={openFullPlayer}
       >
-        {/* Mini progress bar */}
-        <div className="relative h-1 bg-neutral-100/90 group">
-          <input
-            type="range"
-            min="0"
-            max={duration || 0}
-            value={currentTime}
-            aria-label="Seek through song"
-            aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
-            onPointerDown={() => { scrubbingRef.current = true; }}
-            onPointerUp={() => { scrubbingRef.current = false; }}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => handleSeek(Number(e.target.value))}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-          />
-          <div
-            className="h-full transition-all duration-150 bg-accent rounded-r-full"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        <ThinProgress
+          audioRef={audioRef}
+          duration={duration}
+          onSeek={handleSeek}
+          trackClassName="rounded-r-full"
+        />
         <div className="flex items-center gap-3 px-3.5 py-2.5">
           <SongAvatar title={song.title} size="avatar-mini" variant="mono" />
           <div className="min-w-0 flex-1">
@@ -909,7 +1113,7 @@ const Player = () => {
               aria-label={`Open now playing: ${song.title}`}
               onClick={(e) => {
                 e.stopPropagation();
-                setShowFullPlayer(true);
+                openFullPlayer();
               }}
               className="block w-full truncate text-left text-sm font-semibold leading-tight tracking-tight text-neutral-900"
             >
@@ -925,20 +1129,20 @@ const Player = () => {
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
               aria-label="Previous track"
               onClick={(e) => { e.stopPropagation(); onPlayPrevious(); }}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 transition active:scale-90 hover:text-neutral-900"
+              className="flex h-11 w-9 items-center justify-center rounded-full text-neutral-500 transition active:scale-90 hover:text-neutral-900"
             >
-              <SkipBack size={13} fill="currentColor" />
+              <SkipBack size={14} fill="currentColor" />
             </button>
             <button
               type="button"
               aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
               onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-md active:scale-90 transition hover:bg-accent/90"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-md active:scale-90 transition hover:bg-accent/90"
             >
               {isBusy ? (
                 <BusySpinner size={16} />
@@ -952,19 +1156,19 @@ const Player = () => {
               type="button"
               aria-label="Next track"
               onClick={(e) => { e.stopPropagation(); onPlayNext(); }}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 transition active:scale-90 hover:text-neutral-900"
+              className="flex h-11 w-9 items-center justify-center rounded-full text-neutral-500 transition active:scale-90 hover:text-neutral-900"
             >
-              <SkipForward size={13} fill="currentColor" />
+              <SkipForward size={14} fill="currentColor" />
             </button>
             <button
               type="button"
               aria-label={isLiked ? "Remove from saved songs" : "Save song"}
               onClick={(e) => { e.stopPropagation(); toggleLike(); }}
-              className={`flex h-8 w-8 items-center justify-center rounded-full transition ${
+              className={`flex h-11 w-9 items-center justify-center rounded-full transition ${
                 isLiked ? "text-accent" : "text-neutral-400 hover:text-accent"
               }`}
             >
-              <Heart size={15} fill={isLiked ? "currentColor" : "none"} />
+              <Heart size={16} fill={isLiked ? "currentColor" : "none"} />
             </button>
           </div>
         </div>
@@ -972,269 +1176,297 @@ const Player = () => {
 
       {/* Full-screen player overlay */}
       {showFullPlayer && (
-        <div role="dialog" aria-modal="true" aria-label="Now playing" className="fixed inset-0 z-[99999] flex flex-col animate-fade-in bg-white text-neutral-900">
+        <div
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="player-title"
+          className="fixed inset-0 z-[99999] flex flex-col animate-fade-in bg-white text-neutral-900"
+        >
           {/* Atmospheric background glow */}
           <div className="absolute inset-0 bg-gradient-to-b from-white via-neutral-50 to-neutral-100" />
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/[0.06] rounded-full blur-[100px] pointer-events-none" />
 
+          {/* Swipe-down grabber */}
+          <div
+            aria-hidden="true"
+            onPointerDown={onGrabberDown}
+            onPointerUp={onGrabberUp}
+            onPointerCancel={() => { swipeStartRef.current = null; }}
+            className="relative z-10 flex h-7 shrink-0 touch-none items-center justify-center md:hidden"
+          >
+            <span className="h-1.5 w-10 rounded-full bg-neutral-300" />
+          </div>
+
           {/* Header */}
-          <div className="relative z-10 flex items-center justify-between px-5 pt-5 pb-2 md:px-8">
+          <div className="relative z-10 flex shrink-0 items-center justify-between gap-1 px-3 pt-[env(safe-area-inset-top,0px)] pb-2 md:px-6 md:pt-4">
             <button
               ref={closeButtonRef}
               type="button"
               aria-label="Close player"
-              onClick={() => {
-                setShowFullPlayer(false);
-                window.history.back();
-              }}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 transition"
+              onClick={closeFullPlayer}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 transition"
             >
               <ChevronDown size={22} />
             </button>
-            <div className="flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 border border-neutral-200">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+            <div className="flex min-w-0 items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 border border-neutral-200">
+              <span className="truncate text-[10px] font-bold uppercase tracking-widest text-neutral-500">
                 {showQueue ? "Up Next" : "Now Playing"}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-label="Share this song"
-              title={shareFeedback === "copied" ? "Link copied!" : "Share this song"}
-              onClick={handleShare}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 transition hover:text-neutral-900 hover:bg-neutral-100"
-            >
-              {shareFeedback === "copied" ? (
-                <Check size={18} strokeWidth={3} />
-              ) : (
-                <Share2 size={18} />
-              )}
-            </button>
-            <button
-              type="button"
-              aria-label={isLiked ? "Remove from saved songs" : "Save song"}
-              onClick={toggleLike}
-              className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
-                isLiked ? "text-white bg-accent" : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100"
-              }`}
-            >
-              <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
-            </button>
+            <div className="flex shrink-0 items-center">
+              <button
+                type="button"
+                aria-label="Share this song"
+                onClick={handleShare}
+                className={`flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-neutral-100 ${
+                  shareFeedback === "copied"
+                    ? "text-green-600"
+                    : shareFeedback === "failed"
+                      ? "text-red-600"
+                      : "text-neutral-500 hover:text-neutral-900"
+                }`}
+              >
+                {shareFeedback === "copied" ? (
+                  <Check size={18} strokeWidth={3} />
+                ) : (
+                  <Share2 size={18} />
+                )}
+              </button>
+              <button
+                type="button"
+                aria-label={isLiked ? "Remove from saved songs" : "Save song"}
+                aria-pressed={isLiked}
+                onClick={toggleLike}
+                className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
+                  isLiked ? "text-white bg-accent" : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100"
+                }`}
+              >
+                <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
+              </button>
+              <SongOverflowMenu song={song} onStatus={announce} onOfflineChange={setIsOffline} />
             </div>
           </div>
 
-          {/* Center Content: Vinyl Artwork OR Up Next Queue */}
-          {showQueue ? (
-            <div className="relative z-10 flex flex-1 flex-col w-full max-w-lg mx-auto overflow-hidden px-5 py-2">
-              <div className="flex items-center justify-between pb-2.5 border-b border-neutral-200 mb-2">
-                <span className="text-xs font-bold tracking-wider text-neutral-700 uppercase">
-                  Queue ({songs?.length || 0})
-                </span>
-                <span className="text-[11px] text-neutral-500">Tap any song to play</span>
-              </div>
-              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
-                {(songs || []).map((s, idx) => {
-                  const isCurrent = s.id === song?.id;
-                  return (
-                    <button
-                      key={s.id || idx}
-                      type="button"
-                      onClick={() => onSongSelect(s, songs)}
-                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition ${
-                        isCurrent
-                          ? "bg-neutral-100 text-neutral-900 font-semibold border border-neutral-200 shadow-sm"
-                          : "hover:bg-neutral-50 text-neutral-700"
-                      }`}
-                    >
-                      <span className="text-xs text-neutral-500 w-5 text-center shrink-0">{idx + 1}</span>
-                      <SongAvatar title={s.title} size="sm" variant="mono" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-semibold text-neutral-900">{s.title}</p>
-                        <p className="truncate text-[11px] text-neutral-500">{s.author}</p>
-                      </div>
-                      {isCurrent && isPlaying && (
-                        <div className="waveform text-accent flex h-3.5 items-center"><span /><span /><span /><span /></div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="relative z-10 flex flex-1 items-center justify-center px-6">
-              <VinylArtwork title={song.title} isPlaying={isPlaying} />
+          {shareFeedback && (
+            <div className="pointer-events-none absolute inset-x-0 top-24 z-20 flex justify-center px-6">
+              <span
+                className={`rounded-full px-4 py-2 text-xs font-semibold shadow-lg ${
+                  shareFeedback === "failed"
+                    ? "bg-red-50 text-red-700"
+                    : "bg-neutral-900 text-white"
+                }`}
+              >
+                {shareFeedback === "copied"
+                  ? "Link copied"
+                  : "Couldn't share — copy the link from your address bar"}
+              </span>
             </div>
           )}
 
-          {/* Song info */}
-          <div className="relative z-10 px-6 pb-2 md:px-12 lg:px-20 md:text-center">
-            <h2 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
-              {song.title}
-            </h2>
-            <p className="mt-1 text-sm font-medium text-neutral-500 md:text-base">
-              {song.author}
-            </p>
-            {isBusy && (
-              <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
-                <BusySpinner size={12} />
-                {isPreparing ? "Opening…" : "Buffering…"}
-              </p>
-            )}
-            {audioError && (
-              <button
-                type="button"
-                onClick={retryPlayback}
-                className="mt-3 flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2 text-xs font-semibold text-neutral-700"
-              >
-                <AlertTriangle size={14} />
-                {errorCountRef.current > MAX_AUTO_RETRIES
-                  ? "Skipping to next track..."
-                  : "Playback failed — Tap to retry"}
-              </button>
-            )}
-          </div>
-
-          {/* Glass-morphism controls panel */}
-          <div className="relative z-10 rounded-t-3xl bg-white/80 backdrop-blur-2xl border-t border-neutral-200 px-5 pt-4 pb-8 md:px-12 lg:px-20">
-            {/* Seek bar */}
-            <div className="mb-2">
-              <div className="relative flex items-center py-2">
-                <input
-                  type="range"
-                  min="0"
-                  max={duration || 0}
-                  value={currentTime}
-                  aria-label="Seek through song"
-                  aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
-                  onPointerDown={() => { scrubbingRef.current = true; }}
-                  onPointerUp={() => { scrubbingRef.current = false; }}
-                  onChange={(e) => handleSeek(Number(e.target.value))}
-                  className="h-2 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 accent-accent [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:shadow-lg"
+          <div className="relative z-10 flex min-h-0 flex-1 flex-col md:flex-row">
+            {/* Left column: artwork or queue */}
+            <div className="flex min-h-0 flex-1 flex-col px-5 py-2 md:basis-[45%] md:flex-none md:border-r md:border-neutral-200 md:px-8 md:py-6">
+              {showQueue ? (
+                <PlayerQueue
+                  songs={songs}
+                  currentSongId={song.id}
+                  isPlaying={isPlaying}
+                  editable={queueEditable}
+                  onSelect={(picked) => onSongSelect(picked, songs)}
+                  onPlayNext={addToQueueNext}
+                  onRemove={removeFromQueue}
+                  onMove={moveInQueue}
+                  onClear={clearQueue}
                 />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium tabular-nums text-neutral-500">
-                  {formatTime(currentTime)}
-                </span>
-                <span className="text-xs font-medium tabular-nums text-neutral-500">
-                  -{formatTime(Math.max(0, duration - currentTime))}
-                </span>
-              </div>
+              ) : (
+                <div className="flex flex-1 items-center justify-center">
+                  <VinylArtwork title={song.title} isPlaying={isPlaying} />
+                </div>
+              )}
             </div>
 
-            {/* Controls */}
-            <div className="flex items-center justify-center gap-5 sm:gap-7 py-2">
-              <button
-                type="button"
-                aria-label="Toggle shuffle"
-                aria-pressed={isShuffle}
-                onClick={() => {
-                  const newState = !isShuffle;
-                  setIsShuffle(newState);
-                  if (newState) setIsLooping(false);
-                }}
-                className={`rounded-full p-2.5 transition-colors ${
-                  isShuffle ? "text-white bg-accent" : "text-neutral-500 hover:text-neutral-900"
-                }`}
-              >
-                <Shuffle size={18} />
-              </button>
-
-              <button
-                type="button"
-                aria-label="Previous track"
-                onClick={onPlayPrevious}
-                className="rounded-full p-2 text-neutral-600 transition active:scale-90 hover:text-neutral-900"
-              >
-                <SkipBack size={26} fill="currentColor" />
-              </button>
-
-              <button
-                type="button"
-                aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
-                onClick={togglePlay}
-                className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-white shadow-xl transition active:scale-95 hover:bg-accent/90 hover:scale-105"
-              >
-                {isBusy ? (
-                  <BusySpinner size={26} />
-                ) : isPlaying ? (
-                  <Pause size={28} fill="currentColor" />
-                ) : (
-                  <Play size={28} fill="currentColor" className="ml-1" />
+            {/* Right column: song info and controls */}
+            <div className="relative z-10 flex shrink-0 flex-col md:min-h-0 md:flex-1 md:justify-center">
+              <div className="px-6 pb-2 md:px-12 md:text-center lg:px-16">
+                <h2
+                  id="player-title"
+                  className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl"
+                >
+                  {song.title}
+                </h2>
+                <p className="mt-1 text-sm font-medium text-neutral-500 md:text-base">
+                  {song.author}
+                </p>
+                {attribution && (
+                  <p className="mt-1 text-[11px] leading-relaxed text-neutral-400">
+                    {song.copyright_holder && <>© {song.copyright_holder}</>}
+                    {song.copyright_holder && song.license_type && " · "}
+                    {song.license_type &&
+                      (song.license_url ? (
+                        <a
+                          href={song.license_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline transition hover:text-neutral-600"
+                        >
+                          {song.license_type}
+                        </a>
+                      ) : (
+                        song.license_type
+                      ))}
+                  </p>
                 )}
-              </button>
-
-              <button
-                type="button"
-                aria-label="Next track"
-                onClick={onPlayNext}
-                className="rounded-full p-2 text-neutral-600 transition active:scale-90 hover:text-neutral-900"
-              >
-                <SkipForward size={26} fill="currentColor" />
-              </button>
-
-              <button
-                type="button"
-                aria-label="Toggle repeat"
-                aria-pressed={isLooping}
-                onClick={() => {
-                  const newState = !isLooping;
-                  setIsLooping(newState);
-                  if (newState) setIsShuffle(false);
-                }}
-                className={`rounded-full p-2.5 transition-colors ${
-                  isLooping ? "text-white bg-accent" : "text-neutral-500 hover:text-neutral-900"
-                }`}
-              >
-                <Repeat size={18} />
-              </button>
-            </div>
-
-            {/* Bottom utilities: Volume, sleep timer & queue toggle */}
-            <div className="flex items-center justify-between pt-2 max-w-sm mx-auto">
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
-                  onClick={toggleMute}
-                  className="rounded-full p-1.5 text-neutral-500 hover:text-neutral-900 transition"
-                >
-                  {isMuted || volume === 0 ? (
-                    <VolumeX size={17} />
-                  ) : (
-                    <Volume size={17} />
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 md:justify-center">
+                  {isOffline && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-500">
+                      <Download size={10} />
+                      Available offline
+                    </span>
                   )}
-                </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={isMuted ? 0 : volume}
-                  aria-label="Volume"
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setVolume(v);
-                    if (audioRef.current) audioRef.current.volume = v;
-                    if (v > 0) setIsMuted(false);
-                  }}
-                  className="h-1.5 w-24 sm:w-28 cursor-pointer appearance-none rounded-full bg-neutral-200 accent-accent"
-                />
+                  {isBusy && (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
+                      <BusySpinner size={12} />
+                      {isPreparing ? "Opening…" : "Buffering…"}
+                    </span>
+                  )}
+                </div>
+                {audioError && (
+                  <button
+                    type="button"
+                    onClick={retryPlayback}
+                    className="mt-3 flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2 text-xs font-semibold text-neutral-700 md:mx-auto"
+                  >
+                    <AlertTriangle size={14} />
+                    {errorCountRef.current > MAX_AUTO_RETRIES
+                      ? "Skipping to next track..."
+                      : "Playback failed — Tap to retry"}
+                  </button>
+                )}
               </div>
 
-              <div className="flex items-center gap-2">
-                <SleepTimerControl />
-                <button
-                  type="button"
-                  aria-label={showQueue ? "Show artwork" : "Show queue"}
-                  onClick={() => setShowQueue(!showQueue)}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                    showQueue ? "bg-accent text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-                  }`}
-                >
-                  <ListMusic size={15} />
-                  <span>{showQueue ? "Artwork" : "Queue"}</span>
-                </button>
+              {/* Controls panel */}
+              <div className="rounded-t-3xl border-t border-neutral-200 bg-white/80 px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] backdrop-blur-2xl md:rounded-none md:border-t-0 md:bg-transparent md:px-12 md:pb-8 md:backdrop-blur-none lg:px-16">
+                <SeekBar audioRef={audioRef} duration={duration} onSeek={handleSeek} />
+
+                <div className="flex items-center justify-center gap-4 py-2 sm:gap-6">
+                  <button
+                    type="button"
+                    aria-label="Toggle shuffle"
+                    aria-pressed={isShuffle}
+                    onClick={() => setIsShuffle(!isShuffle)}
+                    className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
+                      isShuffle ? "text-white bg-accent" : "text-neutral-500 hover:text-neutral-900"
+                    }`}
+                  >
+                    <Shuffle size={18} />
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label="Previous track"
+                    onClick={onPlayPrevious}
+                    className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-600 transition active:scale-90 hover:text-neutral-900"
+                  >
+                    <SkipBack size={26} fill="currentColor" />
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
+                    onClick={togglePlay}
+                    className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-white shadow-xl transition active:scale-95 hover:bg-accent/90 hover:scale-105"
+                  >
+                    {isBusy ? (
+                      <BusySpinner size={26} />
+                    ) : isPlaying ? (
+                      <Pause size={28} fill="currentColor" />
+                    ) : (
+                      <Play size={28} fill="currentColor" className="ml-1" />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label="Next track"
+                    onClick={onPlayNext}
+                    className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-600 transition active:scale-90 hover:text-neutral-900"
+                  >
+                    <SkipForward size={26} fill="currentColor" />
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label={REPEAT_LABELS[repeatMode]}
+                    aria-pressed={repeatActive}
+                    onClick={cycleRepeat}
+                    className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
+                      repeatActive ? "text-white bg-accent" : "text-neutral-500 hover:text-neutral-900"
+                    }`}
+                  >
+                    <RepeatIcon size={18} />
+                  </button>
+                </div>
+
+                {/* Bottom utilities */}
+                <div className="mx-auto flex max-w-md items-center justify-between gap-2 pt-2">
+                  <div className="hidden items-center gap-1 [@media(pointer:coarse)]:hidden sm:flex">
+                    <button
+                      type="button"
+                      aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
+                      onClick={toggleMute}
+                      className="flex h-11 w-9 items-center justify-center rounded-full text-neutral-500 transition hover:text-neutral-900"
+                    >
+                      {isMuted || volume === 0 ? (
+                        <VolumeX size={17} />
+                      ) : (
+                        <Volume size={17} />
+                      )}
+                    </button>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={isMuted ? 0 : volume}
+                      aria-label="Volume"
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setVolume(v);
+                        if (v > 0) setIsMuted(false);
+                      }}
+                      className="h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-neutral-200 accent-accent lg:w-24"
+                    />
+                  </div>
+
+                  <div className="flex flex-1 items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      aria-label={`Playback speed ${playbackRate} times. Change speed.`}
+                      onClick={cyclePlaybackRate}
+                      className={`flex h-9 min-w-11 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums transition ${
+                        playbackRate === 1
+                          ? "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                          : "bg-accent text-white"
+                      }`}
+                    >
+                      {playbackRate}×
+                    </button>
+                    <SleepTimerControl />
+                    <button
+                      type="button"
+                      aria-label={showQueue ? "Show artwork" : "Show queue"}
+                      aria-pressed={showQueue}
+                      onClick={() => setShowQueue(!showQueue)}
+                      className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${
+                        showQueue ? "bg-accent text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                      }`}
+                    >
+                      <ListMusic size={15} />
+                      <span>{showQueue ? "Artwork" : "Queue"}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1242,6 +1474,9 @@ const Player = () => {
       )}
         </>
       )}
+      <p aria-live="polite" role="status" className="sr-only">
+        {liveMessage || playbackStatus}
+      </p>
     </>
   );
 };

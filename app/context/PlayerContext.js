@@ -7,6 +7,8 @@ const PlayerContext = createContext();
 
 const RECENT_KEY = "lumbo_recently_played";
 const SLEEP_TIMER_KEY = "lumbo_sleep_timer";
+const PLAYER_SETTINGS_KEY = "lumbo_player_settings";
+const REPEAT_MODES = ["off", "all", "one"];
 export const PLAYBACK_POSITION_KEY = "lumbo_playback_position";
 const MAX_RECENT = 10;
 const SEED_COUNT = 6;
@@ -31,6 +33,10 @@ export const PlayerProvider = ({ children }) => {
   const [sleepTimerDuration, setSleepTimerDuration] = useState(0);
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState(0);
   const [sleepTimerStopSignal, setSleepTimerStopSignal] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isShuffle, setIsShuffle] = useState(false);
+  const [repeatMode, setRepeatMode] = useState("off");
   // True once the user has genuinely played something (seeded suggestions
   // for new users don't count — see the seed effect below).
   const [hasRealHistory, setHasRealHistory] = useState(() => {
@@ -42,6 +48,7 @@ export const PlayerProvider = ({ children }) => {
   });
   const seeded = useRef(false);
   const prevRecentRef = useRef(null);
+  const settingsRestoredRef = useRef(false);
 
   // Load local history after hydration without a synchronous state cascade.
   useEffect(() => {
@@ -119,6 +126,43 @@ export const PlayerProvider = ({ children }) => {
     const timeoutId = setTimeout(restore, 0);
     return () => clearTimeout(timeoutId);
   }, []);
+
+  // Restore device player settings after hydration, deferred a tick like the
+  // sleep-timer restore above to avoid a synchronous state cascade.
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      try {
+        const stored = localStorage.getItem(PLAYER_SETTINGS_KEY);
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (typeof parsed?.volume === "number" && Number.isFinite(parsed.volume)) {
+              setVolume(Math.min(1, Math.max(0, parsed.volume)));
+            }
+            if (typeof parsed?.isMuted === "boolean") setIsMuted(parsed.isMuted);
+            if (typeof parsed?.isShuffle === "boolean") setIsShuffle(parsed.isShuffle);
+            if (REPEAT_MODES.includes(parsed?.repeatMode)) setRepeatMode(parsed.repeatMode);
+          } catch {
+            localStorage.removeItem(PLAYER_SETTINGS_KEY);
+          }
+        }
+      } catch {}
+      settingsRestoredRef.current = true;
+    }, 0);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  // Persist settings, but only after the deferred restore has run — otherwise
+  // the mount-time defaults would clobber whatever was stored last session.
+  useEffect(() => {
+    if (!settingsRestoredRef.current) return;
+    try {
+      localStorage.setItem(
+        PLAYER_SETTINGS_KEY,
+        JSON.stringify({ volume, isMuted, isShuffle, repeatMode })
+      );
+    } catch {}
+  }, [volume, isMuted, isShuffle, repeatMode]);
 
   // Tick the sleep timer down and fire a stop signal when it expires.
   useEffect(() => {
@@ -299,6 +343,56 @@ export const PlayerProvider = ({ children }) => {
     [allSongs, recentlyPlayed]
   );
 
+  const addToQueueNext = useCallback(
+    (song) => {
+      if (!song) return;
+      setQueue((prev) => {
+        const activeIndex = activeSong
+          ? prev.findIndex((s) => s.id === activeSong.id)
+          : -1;
+        const insertAt = activeIndex === -1 ? 0 : activeIndex + 1;
+        // De-duplicate by id; adjust for a copy removed before the insert point.
+        const removedBefore = prev
+          .slice(0, insertAt)
+          .filter((s) => s.id === song.id).length;
+        const next = prev.filter((s) => s.id !== song.id);
+        next.splice(insertAt - removedBefore, 0, song);
+        return next;
+      });
+    },
+    [activeSong]
+  );
+
+  const removeFromQueue = useCallback((songId) => {
+    setQueue((prev) => prev.filter((s) => s.id !== songId));
+  }, []);
+
+  const clearQueue = useCallback(() => {
+    // Player falls back to the whole library when the queue is empty, so keep
+    // the active song to mean "nothing up next" without stopping playback.
+    setQueue(activeSong ? [activeSong] : []);
+  }, [activeSong]);
+
+  const moveInQueue = useCallback((fromIndex, toIndex) => {
+    setQueue((prev) => {
+      if (
+        !Number.isInteger(fromIndex) ||
+        !Number.isInteger(toIndex) ||
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= prev.length ||
+        toIndex >= prev.length ||
+        fromIndex === toIndex
+      ) {
+        return prev;
+      }
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }, []);
+
   return (
     <PlayerContext.Provider
       value={{
@@ -308,11 +402,23 @@ export const PlayerProvider = ({ children }) => {
         allSongs,
         setAllSongs,
         queue,
+        addToQueueNext,
+        removeFromQueue,
+        clearQueue,
+        moveInQueue,
         isLoading,
         setIsLoading,
         recentlyPlayed,
         playingSource,
         hasRealHistory,
+        volume,
+        setVolume,
+        isMuted,
+        setIsMuted,
+        isShuffle,
+        setIsShuffle,
+        repeatMode,
+        setRepeatMode,
         sleepTimerEnd,
         sleepTimerDuration,
         sleepTimerRemaining,
