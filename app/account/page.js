@@ -26,6 +26,8 @@ export default function AccountPage() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
 
   useEffect(() => {
     return () => {
@@ -86,8 +88,7 @@ export default function AccountPage() {
     router.push("/");
   };
 
-  const handleDeleteAccount = async (event) => {
-    event.preventDefault();
+  const handleDeleteAccount = async (event) => {    event.preventDefault();
     setDeleting(true);
     setDeleteError("");
     try {
@@ -100,6 +101,35 @@ export default function AccountPage() {
     } catch (error) {
       setDeleteError(error.message || "Unable to delete the account.");
       setDeleting(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    setExportError("");
+    try {
+      const response = await fetch("/api/account/export", {
+        credentials: "same-origin",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Unable to build your data export.");
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      const filename =
+        match?.[1] || `luumbo-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setExportError(error.message || "Unable to build your data export.");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -363,6 +393,35 @@ export default function AccountPage() {
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Your data */}
+          <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
+            <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50/60 flex items-center justify-between">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Your data</p>
+              <Download size={14} className="text-neutral-400" aria-hidden="true" />
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm font-semibold tracking-tight text-neutral-900">Download a copy</p>
+              <p className="mt-1 text-[11px] font-medium leading-relaxed text-neutral-500">
+                Export your profile, saved songs, playlists, listening history,
+                reports you filed, and consent records as JSON. Your password and
+                session tokens are never included.
+              </p>
+              {exportError && (
+                <p role="alert" className="mt-2 text-[11px] font-medium text-red-600">
+                  {exportError}
+                </p>
+              )}
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent/90 disabled:opacity-50"
+              >
+                <Download size={13} aria-hidden="true" />
+                {exporting ? "Preparing…" : "Download my data"}
+              </button>
             </div>
           </div>
 

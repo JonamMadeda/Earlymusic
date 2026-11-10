@@ -49,6 +49,7 @@ const [showPassword, setShowPassword] = useState(false);
 const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 const [tosAccepted, setTosAccepted] = useState(false);
 const [privacyAccepted, setPrivacyAccepted] = useState(false);
+const [ageAttested, setAgeAttested] = useState(false);
 const passwordRef = useRef(null);
 
   const isForgot = mode === "forgot";
@@ -160,6 +161,7 @@ const passwordRef = useRef(null);
           last_name: lastName.trim(),
           tos_accepted: tosAccepted,
           privacy_accepted: privacyAccepted,
+          age_attested: ageAttested,
         }
       );
 
@@ -648,6 +650,18 @@ const passwordRef = useRef(null);
                 You must be at least 13 years old. If you are under 18, ask a
                 parent or guardian first.
               </p>
+              <div className="flex items-start gap-2">
+                <input
+                  id="auth-age"
+                  type="checkbox"
+                  checked={ageAttested}
+                  onChange={(e) => setAgeAttested(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-neutral-300 text-accent focus:ring-accent"
+                />
+                <label htmlFor="auth-age" className="text-[12px] font-medium text-neutral-600 leading-relaxed">
+                  I confirm that I am at least 13 years old.
+                </label>
+              </div>
             </div>
           )}
 
@@ -668,7 +682,7 @@ const passwordRef = useRef(null);
             disabled={
               submitting ||
               (isUpdatePassword && authLoading) ||
-              (isSignup && (!tosAccepted || !privacyAccepted))
+              (isSignup && (!tosAccepted || !privacyAccepted || !ageAttested))
             }
             aria-busy={submitting}
             className="bg-accent py-3.5 rounded-xl text-white font-bold hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"

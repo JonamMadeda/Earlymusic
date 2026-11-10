@@ -165,13 +165,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signUp = async (email, password, { first_name, last_name } = {}) => {
+  const signUp = async (email, password, { first_name, last_name, tos_accepted, privacy_accepted, age_attested } = {}) => {
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, first_name, last_name }),
+        body: JSON.stringify({
+          email,
+          password,
+          first_name,
+          last_name,
+          tos_accepted,
+          privacy_accepted,
+          age_attested,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return { error: { message: data.error || "Unable to create account." } };

@@ -14,6 +14,8 @@ import {
 } from "@/lib/neonAuth";
 import { burnPasswordCompare } from "@/lib/credentials";
 import { db } from "@/lib/neon";
+import { getClientIp } from "@/lib/requestIp";
+import { LEGAL_MIN_AGE, LEGAL_PRIVACY_VERSION, LEGAL_TERMS_VERSION } from "@/lib/legal";
 
 // Neon Auth requires a non-empty display name, so the sign-up form's
 // first/last pair is collapsed into it and read back apart by /api/profiles.
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest) {
   if (ipLimited) return ipLimited;
 
   try {
-    const { email, password, first_name, last_name, tos_accepted, privacy_accepted } = await request.json();
+    const { email, password, first_name, last_name, tos_accepted, privacy_accepted, age_attested } = await request.json();
     if (typeof email !== "string" || typeof password !== "string") {
       return NextResponse.json(
         { error: "Email and password are required." },
@@ -42,6 +44,13 @@ export async function POST(request: NextRequest) {
     if (tos_accepted !== true || privacy_accepted !== true) {
       return NextResponse.json(
         { error: "You must accept the Terms of Service and Privacy Policy." },
+        { status: 400 }
+      );
+    }
+
+    if (age_attested !== true) {
+      return NextResponse.json(
+        { error: "You must confirm that you meet the minimum age requirement." },
         { status: 400 }
       );
     }
@@ -113,16 +122,43 @@ export async function POST(request: NextRequest) {
         email: result.data.user.email,
       });
 
-      // Record that the user accepted the Terms and Privacy Policy at sign-up.
+      // Record that the user accepted the Terms and Privacy Policy and attested
+      // to the minimum age at sign-up, then keep an append-only audit row.
       try {
         await db.query(
           `UPDATE neon_auth."user"
-           SET tos_accepted_at = now(), privacy_accepted_at = now()
-           WHERE id = $1`,
-          [result.data.user.id]
+              SET tos_accepted_at = now(),
+                  privacy_accepted_at = now(),
+                  terms_version = $2,
+                  privacy_version = $3,
+                  age_attested_at = now()
+            WHERE id = $1`,
+          [result.data.user.id, LEGAL_TERMS_VERSION, LEGAL_PRIVACY_VERSION]
         );
-      } catch {
-        // Best-effort: acceptance was already validated in the request body.
+      } catch (error) {
+        console.error("Unable to store sign-up consent:", error);
+      }
+
+      try {
+        const ip = getClientIp(request);
+        const userAgent = request.headers.get("user-agent") || null;
+        await db.query(
+          `INSERT INTO public.consent_log
+             (user_id, kind, granted, policy_version, ip, user_agent)
+           VALUES ($1, 'terms', TRUE, $2, $4, $5),
+                  ($1, 'privacy', TRUE, $3, $4, $5),
+                  ($1, 'age', TRUE, $6, $4, $5)`,
+          [
+            result.data.user.id,
+            LEGAL_TERMS_VERSION,
+            LEGAL_PRIVACY_VERSION,
+            ip,
+            userAgent,
+            String(LEGAL_MIN_AGE),
+          ]
+        );
+      } catch (error) {
+        console.error("Unable to write sign-up consent log:", error);
       }
 
       return NextResponse.json({ verificationRequired: true });

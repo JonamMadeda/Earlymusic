@@ -176,6 +176,9 @@ export default function SettingsPage() {
               <Link href="/privacy#choices" className="text-accent hover:underline">
                 Your rights
               </Link>
+              <Link href="/accessibility" className="text-accent hover:underline">
+                Accessibility
+              </Link>
             </div>
           </div>
 

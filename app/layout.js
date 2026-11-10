@@ -12,6 +12,7 @@ import InstallPrompt from "./components/InstallPrompt";
 import SWRegister from "./components/SWRegister";
 import GlobalLoader from "./components/GlobalLoader";
 import AnalyticsConsentBanner from "./components/AnalyticsConsentBanner";
+import PolicyConsentBanner from "./components/PolicyConsentBanner";
 import { Inter } from "next/font/google";
 import { SITE_URL } from "@/lib/site";
 import { LEGAL_EMAIL, LEGAL_MAILTO } from "@/lib/legal";
@@ -93,6 +94,7 @@ export default function RootLayout({ children }) {
             <GlobalLoader />
 
             <AnalyticsConsentBanner />
+            <PolicyConsentBanner />
             <ErrorReporter />
 
             <InstallPrompt />
@@ -125,6 +127,14 @@ export default function RootLayout({ children }) {
                       rel="noopener noreferrer"
                     >
                       Privacy Policy
+                    </Link>
+                    <Link
+                      href="/accessibility"
+                      className="inline-flex min-h-6 items-center hover:text-accent transition"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Accessibility
                     </Link>
                     <Link
                       href="/settings#privacy"

@@ -14,6 +14,11 @@ export async function GET(request: NextRequest) {
         email: user.email,
         name: user.name,
         created_at: user.created_at,
+        tos_accepted_at: user.tos_accepted_at,
+        privacy_accepted_at: user.privacy_accepted_at,
+        terms_version: user.terms_version,
+        privacy_version: user.privacy_version,
+        age_attested_at: user.age_attested_at,
       },
       session: { expiresAt: user.expires_at },
     });

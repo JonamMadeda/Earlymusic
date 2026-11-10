@@ -25,6 +25,24 @@ const publicUser = (user: any) => ({
   created_at: user.createdAt || null,
 });
 
+// The policy columns live on our own user table, not in Neon Auth's sign-in
+// payload. Include them so the re-consent banner can tell whether the account
+// already accepted the current versions.
+const policyFields = async (userId: string) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT tos_accepted_at, privacy_accepted_at, terms_version,
+              privacy_version, age_attested_at
+         FROM neon_auth."user"
+        WHERE id = $1`,
+      [userId]
+    );
+    return rows?.[0] || {};
+  } catch {
+    return {};
+  }
+};
+
 export async function POST(request: NextRequest) {
   const ipLimited = await checkRateLimit(request, {
     name: "auth-login-ip",
@@ -104,7 +122,10 @@ export async function POST(request: NextRequest) {
       }
 
       const response = NextResponse.json({
-        user: publicUser(result.data.user),
+        user: {
+          ...publicUser(result.data.user),
+          ...(await policyFields(result.data.user.id)),
+        },
       });
       setSessionCookie(response, result.sessionValue);
       await logAuthEvent(request, "login_success", {
@@ -178,7 +199,10 @@ export async function POST(request: NextRequest) {
       }
 
       const response = NextResponse.json({
-        user: publicUser(retry.data.user),
+        user: {
+          ...publicUser(retry.data.user),
+          ...(await policyFields(retry.data.user.id)),
+        },
       });
       setSessionCookie(response, retry.sessionValue);
       await logAuthEvent(request, "login_success", {

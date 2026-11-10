@@ -6,7 +6,7 @@ import {
 } from "@/lib/legal";
 
 export const metadata = {
-  title: "Privacy Policy · Luumbo",
+  title: "Privacy Policy",
   description:
     "What Luumbo collects, why we collect it, how long we keep it, and how to access, export, or delete your data.",
 };
@@ -374,6 +374,11 @@ export default function PrivacyPage() {
           href: "/settings#privacy",
           label: "Privacy choices",
           description: "Change analytics consent or clear local data.",
+        },
+        {
+          href: "/accessibility",
+          label: "Accessibility",
+          description: "How to get help when the app is hard to use.",
         },
       ]}
     />

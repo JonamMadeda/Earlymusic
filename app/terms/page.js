@@ -6,7 +6,7 @@ import {
 } from "@/lib/legal";
 
 export const metadata = {
-  title: "Terms of Service · Luumbo",
+  title: "Terms of Service",
   description:
     "The rules for using Luumbo: accounts, streaming, offline downloads, acceptable use, copyright complaints, and liability.",
 };
@@ -329,6 +329,11 @@ export default function TermsPage() {
           href: "/settings#privacy",
           label: "Privacy choices",
           description: "Turn analytics on or off and clear local data.",
+        },
+        {
+          href: "/accessibility",
+          label: "Accessibility",
+          description: "Keyboard access, screen readers, and reporting a barrier.",
         },
       ]}
     />
