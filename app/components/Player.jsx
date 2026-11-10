@@ -189,11 +189,17 @@ const Player = () => {
   useEffect(() => () => savePlaybackPosition(), [savePlaybackPosition]);
 
   // Mobile browsers kill the tab without running React cleanup, so the resume
-  // position has to be written on the way out too.
+  // position has to be written on the way out too. `pagehide` covers bfcache
+  // and mobile task kills; `beforeunload` covers desktop tab closes.
   useEffect(() => {
     const onPageHide = () => savePlaybackPosition();
+    const onBeforeUnload = () => savePlaybackPosition();
     window.addEventListener("pagehide", onPageHide);
-    return () => window.removeEventListener("pagehide", onPageHide);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
   }, [savePlaybackPosition]);
 
   useEffect(() => {
@@ -917,6 +923,7 @@ const Player = () => {
         <>
           {/* Desktop player — full-width bar */}
       <div
+        id="now-playing-bar"
         inert={showFullPlayer}
         aria-hidden={showFullPlayer}
         className="fixed bottom-14 left-0 right-0 z-[900] hidden min-[600px]:block md:bottom-0 cursor-pointer"
@@ -1083,7 +1090,7 @@ const Player = () => {
                       setVolume(v);
                       if (v > 0) setIsMuted(false);
                     }}
-                    className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-neutral-200 accent-accent lg:w-28"
+                    className="volume-slider w-20 lg:w-28"
                   />
                 </div>
               </div>
@@ -1198,8 +1205,9 @@ const Player = () => {
             <span className="h-1.5 w-10 rounded-full bg-neutral-300" />
           </div>
 
-          {/* Header */}
-          <div className="relative z-10 flex shrink-0 items-center justify-between gap-1 px-3 pt-[env(safe-area-inset-top,0px)] pb-2 md:px-6 md:pt-4">
+          {/* Header. Above the body columns so the overflow menu is not painted
+              over by them — z-index inside a stacking context cannot escape it. */}
+          <div className="relative z-30 flex shrink-0 items-center justify-between gap-1 px-3 pt-[env(safe-area-inset-top,0px)] pb-2 md:px-6 md:pt-4">
             <button
               ref={closeButtonRef}
               type="button"
@@ -1244,7 +1252,13 @@ const Player = () => {
               >
                 <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
               </button>
-              <SongOverflowMenu song={song} onStatus={announce} onOfflineChange={setIsOffline} />
+              <SongOverflowMenu
+                song={song}
+                playbackRate={playbackRate}
+                onCyclePlaybackRate={cyclePlaybackRate}
+                onStatus={announce}
+                onOfflineChange={setIsOffline}
+              />
             </div>
           </div>
 
@@ -1408,9 +1422,11 @@ const Player = () => {
                   </button>
                 </div>
 
-                {/* Bottom utilities */}
-                <div className="mx-auto flex max-w-md items-center justify-between gap-2 pt-2">
-                  <div className="hidden items-center gap-1 [@media(pointer:coarse)]:hidden sm:flex">
+                {/* Bottom utilities. Volume gets its own row on phones so the
+                    slider is always reachable; from sm up everything sits on
+                    one row. */}
+                <div className="mx-auto flex max-w-md flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-1.5">
+                  <div className="flex items-center justify-center gap-1">
                     <button
                       type="button"
                       aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
@@ -1430,28 +1446,17 @@ const Player = () => {
                       step="0.05"
                       value={isMuted ? 0 : volume}
                       aria-label="Volume"
+                      aria-valuetext={`${Math.round((isMuted ? 0 : volume) * 100)}%`}
                       onChange={(e) => {
                         const v = Number(e.target.value);
                         setVolume(v);
                         if (v > 0) setIsMuted(false);
                       }}
-                      className="h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-neutral-200 accent-accent lg:w-24"
+                      className="volume-slider w-32 sm:w-20 lg:w-24"
                     />
                   </div>
 
-                  <div className="flex flex-1 items-center justify-end gap-1.5">
-                    <button
-                      type="button"
-                      aria-label={`Playback speed ${playbackRate} times. Change speed.`}
-                      onClick={cyclePlaybackRate}
-                      className={`flex h-9 min-w-11 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums transition ${
-                        playbackRate === 1
-                          ? "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-                          : "bg-accent text-white"
-                      }`}
-                    >
-                      {playbackRate}×
-                    </button>
+                  <div className="flex items-center justify-center gap-1.5">
                     <SleepTimerControl />
                     <button
                       type="button"

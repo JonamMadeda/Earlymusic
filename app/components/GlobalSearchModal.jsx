@@ -51,7 +51,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
         aria-label="Search songs"
         className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl animate-fade-in"
       >
-        <div className="flex items-center gap-3 border-b border-neutral-100 px-4 py-3.5">
+        <div className="search-field flex items-center gap-3 border-b border-neutral-100 px-4 py-3.5">
           <Search size={18} className="text-neutral-400 shrink-0" />
           <input
             ref={inputRef}

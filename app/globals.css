@@ -22,9 +22,74 @@ body {
   color: #111827;
 }
 
+/* Keyboard focus for links and buttons: a crisp ring that follows the
+   element's own radius. */
 :focus-visible {
   outline: 2px solid #0f172a;
   outline-offset: 3px;
+}
+
+/* Form fields used to inherit the button ring, which drew a hard rectangle
+   around an input that has no radius of its own. Give them a soft rounded
+   ring instead so the focus state still reads clearly. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.16);
+}
+
+/* Range inputs are a track, not a box: a pill-shaped ring reads as focus
+   without boxing in the whole slider. */
+input[type="range"]:focus-visible {
+  outline: 2px solid rgba(15, 23, 42, 0.35);
+  outline-offset: 4px;
+  border-radius: 9999px;
+}
+
+/* Volume sliders: `appearance: none` removes the browser thumb, so it has to
+   be drawn explicitly. The input stays 24px tall for a finger-sized target
+   while the visible track remains a thin 6px line. */
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 24px;
+  border-radius: 9999px;
+  background: linear-gradient(#e5e5e5, #e5e5e5) center / 100% 6px no-repeat;
+  cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
+  cursor: pointer;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 9999px;
+  background: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
+  cursor: pointer;
+}
+
+/* The global search is one rounded field, so the ring belongs on the wrapper
+   rather than the bare input inside it. */
+.search-field input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.search-field:focus-within {
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
 }
 
 .no-scrollbar::-webkit-scrollbar {
