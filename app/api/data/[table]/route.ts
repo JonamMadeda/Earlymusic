@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/neon";
 import { getUserFromRequest } from "@/lib/auth";
+import { getCountryFromHeaders } from "@/lib/geo";
 
 const USER_TABLES = new Set(["saved_songs", "playlists", "playlist_songs", "recently_played"]);
 
@@ -177,6 +178,17 @@ export async function GET(
     if (table === "songs") {
       conditions.push(`status = $${values.length + 1}`);
       values.push("approved");
+
+      // Territory-limited licences. When the edge cannot tell us the country
+      // (local dev, no geo proxy) the check fails open rather than hiding the
+      // whole library; see lib/geo.js.
+      const country = getCountryFromHeaders(request.headers);
+      if (country) {
+        conditions.push(
+          `(region_restricted = FALSE OR $${values.length + 1} = ANY(COALESCE(allowed_countries, ARRAY[]::text[])))`
+        );
+        values.push(country);
+      }
     }
 
     // Support optional filters on public tables

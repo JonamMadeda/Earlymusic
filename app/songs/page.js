@@ -9,6 +9,7 @@ import { PageSkeleton } from "../components/Skeleton";
 import SongAvatar from "../components/SongAvatar";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
 import { getNewestSongs } from "@/lib/newSongs";
+import ReportSongDialog from "../components/ReportSongDialog";
 
 import {
   ChevronDown,
@@ -31,6 +32,7 @@ import {
   X,
   ArrowUp,
   Share2,
+  Flag,
   Loader as SpinnerIcon,
 } from "lucide-react";
 
@@ -77,6 +79,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
   const [showMenu, setShowMenu] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showPlaylists, setShowPlaylists] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [downloadStatus, setDownloadStatus] = useState("idle");
@@ -122,6 +125,12 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
 
   const toggleDownload = async (e) => {
     e.stopPropagation();
+    if (song.download_allowed === false) {
+      setDownloadStatus("error");
+      setDownloadError("Streaming only");
+      dlTimeoutRef.current = setTimeout(() => { setDownloadStatus("idle"); setDownloadError(""); }, 3000);
+      return;
+    }
     if (downloadStatus === "downloaded") {
       const { removeDownload } = await import("@/lib/downloadManager");
       await removeDownload(song.id);
@@ -303,6 +312,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
           }}
           className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
           title="More"
+          aria-label={`More actions for ${song.title || "this song"}`}
         >
           <MoreHorizontal size={14} />
         </button>
@@ -338,21 +348,23 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
               <ListPlus size={15} className="text-neutral-400" />
               <span className="text-xs font-semibold">Add to Playlist</span>
             </button>
-            <button
-              onClick={toggleDownload}
-              className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
-            >
-              {downloadStatus === "downloading" ? (
-                <SpinnerIcon size={15} className="animate-spin text-neutral-400" />
-              ) : downloadStatus === "downloaded" ? (
-                <Check size={15} className="text-green-500" strokeWidth={3} />
-              ) : (
-                <Download size={15} className="text-neutral-400" />
-              )}
-              <span className={`text-xs font-semibold ${downloadStatus === "error" ? "text-red-500" : ""}`}>
-                {downloadStatus === "downloading" ? "Downloading..." : downloadStatus === "downloaded" ? "Remove Download" : downloadStatus === "error" ? downloadError : "Download for offline"}
-              </span>
-            </button>
+            {song.download_allowed !== false && (
+              <button
+                onClick={toggleDownload}
+                className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+              >
+                {downloadStatus === "downloading" ? (
+                  <SpinnerIcon size={15} className="animate-spin text-neutral-400" />
+                ) : downloadStatus === "downloaded" ? (
+                  <Check size={15} className="text-green-500" strokeWidth={3} />
+                ) : (
+                  <Download size={15} className="text-neutral-400" />
+                )}
+                <span className={`text-xs font-semibold ${downloadStatus === "error" ? "text-red-500" : ""}`}>
+                  {downloadStatus === "downloading" ? "Downloading..." : downloadStatus === "downloaded" ? "Remove Download" : downloadStatus === "error" ? downloadError : "Download for offline"}
+                </span>
+              </button>
+            )}
             <button
               onClick={handleShare}
               className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
@@ -377,6 +389,16 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
               <span className="text-xs font-semibold">
                 {isSaved ? "Remove from Library" : "Add to Library"}
               </span>
+            </button>
+            <button
+              onClick={() => {
+                setShowMenu(false);
+                setShowReport(true);
+              }}
+              className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-red-600 transition hover:bg-red-50 hover:text-red-700"
+            >
+              <Flag size={15} className="text-red-500" />
+              <span className="text-xs font-semibold">Report this song</span>
             </button>
           </div>
         )}
@@ -483,6 +505,12 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
           </div>
         </div>
       )}
+
+      <ReportSongDialog
+        open={showReport}
+        onClose={() => setShowReport(false)}
+        song={song}
+      />
     </div>
   );
 };

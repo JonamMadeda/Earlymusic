@@ -96,38 +96,55 @@ Rights holders may ask you to remove infringing tracks. Without a documented
 takedown process, you increase legal exposure and risk platform enforcement.
 
 ### How the app navigates this
-- **Reporting is live.** "Report this song" in `app/components/SongItem.jsx`
-  posts to `app/api/dmca/report/route.ts`, which writes to
-  `public.dmca_reports` (`song_id`, `reporter_name`, `reporter_email`,
-  `reason`, `status`). The route is rate limited (10/min), verifies the song
-  exists, caps the reason at 1,000 characters, trims/caps reporter details,
-  and rejects a malformed reporter email.
-- Reports can be filed anonymously; name and email are optional, and the form
-  says the email is used for a reply.
-- The report dialog links to the notice requirements in
-  `/terms#copyright`, which lists the statutory elements, counter-notice
-  process, and repeat-infringer policy.
-- `public.takedown_log` records each admin deletion (song id, title, actor,
-  reason, timestamp). It is written by the song-delete route
-  (`app/api/admin/songs/[id]/route.ts`); there is no in-app reader yet.
-- Song deletion removes the R2 object and the `public.songs` row, writes a
-  `public.takedown_log` entry, and retracts the release announcement.
+- **Reporting is live.** The shared `app/components/ReportSongDialog.jsx` (used
+  by song rows and the player overflow menu) posts to
+  `app/api/dmca/report/route.ts`. The dialog has a **copyright** mode that
+  collects the elements of a statutory notice under 17 U.S.C. 512(c)(3): the
+  copyrighted work, the allegedly infringing URL, the reporter's name, email,
+  postal address, optional phone, an electronic signature, and the good-faith,
+  accuracy-under-penalty-of-perjury, and authority statements. An **other
+  issue** mode stays short. The route re-validates every field server-side,
+  rate limits at 10/min, verifies the song exists, and writes to
+  `public.dmca_reports`.
+- **Admin review queue.** `/admin` has a **Legal** tab
+  (`app/components/AdminLegalPanel.jsx`) that lists reports, shows the full
+  notice, lets an admin set `open` / `reviewed` / `resolved` / `dismissed`, and
+  store an internal resolution note. The API is
+  `app/api/admin/dmca/route.ts`.
+- **Effective takedowns.** "Take down" disables the track immediately by
+  setting `public.songs.status = 'rejected'` (so public listings and share
+  links stop serving it), writes a `public.takedown_log` row, resolves the
+  report, and writes an admin audit event. Deleting the row and R2 object stays
+  a separate admin action.
+- **Reporter communication.** The queue offers a pre-filled `mailto:` reply and
+  records `reply_sent_at`. The template explains the outcome and the
+  counter-notice path. Sending is still manual (no transactional email
+  provider).
+- **Audit trail.** `public.takedown_log` records each takedown (song id, title,
+  actor, reason, timestamp) and survives song deletion because `song_id` has no
+  foreign key. The Legal tab reads it and exports CSV via
+  `app/api/admin/takedown-log/route.ts`. Song deletion also writes an entry.
+- The report dialog links to the notice requirements in `/terms#copyright`,
+  which lists the statutory elements, counter-notice process, and
+  repeat-infringer policy.
 - The DMCA contact is published in the Terms, Privacy Policy, and footer via
   `NEXT_PUBLIC_LEGAL_EMAIL`.
 
 ### Still to implement / confirm
-- **Admin review queue.** Reports are stored but `/admin` has no tab that
-  reads or actions them, so `status` stays `open`. Until that exists, review
-  `public.dmca_reports` directly in SQL and update rows by hand.
-- Acknowledge reports to the reporter and forward valid counter-notices to the
-  original complainant; neither is automated today.
+- **Register a DMCA agent** with the U.S. Copyright Office and publish the
+  registration details; the safe-harbour in 512(c) depends on it.
+- Monitor the legal inbox. The app records and queues notices, but it does not
+  prove a human read them.
 - Track repeat infringers and enforce the suspension/termination policy the
-  Terms describe.
-- Add a UI for `public.takedown_log` if you want an auditable in-app history.
-- The current database has `lib/migration-legal.sql` applied. Run the same
-  file on any other environment; it uses `gen_random_uuid()` and no RLS, which
-  matches the rest of the schema (the app reaches Postgres only through server
-  routes using the owner role).
+  Terms describe. The queue and takedown log give you the evidence; the policy
+  decision is still manual.
+- Decide who sends reporter replies and counter-notice acknowledgements. A
+  transactional email provider would make this automatic.
+- The current database has `lib/migration-legal.sql` and
+  `lib/migration-legal-v2.sql` applied. Run both files on any other
+  environment; they use `gen_random_uuid()` and no RLS, which matches the rest
+  of the schema (the app reaches Postgres only through server routes using the
+  owner role).
 
 ---
 
@@ -152,9 +169,22 @@ Insights.
   minimal audit row without exposing personal data.
 - The **Privacy Policy** and **Terms of Service** are published at `/privacy`
   and `/terms`, with effective and last-updated dates from `lib/legal.js`.
-- Registration requires both consent checkboxes, and
-  `app/api/auth/register/route.ts` stores `tos_accepted_at` and
-  `privacy_accepted_at` on the Neon Auth user.
+- Registration requires both consent checkboxes plus an age attestation, and
+  `app/api/auth/register/route.ts` stores `tos_accepted_at`,
+  `privacy_accepted_at`, `terms_version`, `privacy_version`, and
+  `age_attested_at` on the Neon Auth user. It also appends rows to
+  `public.consent_log`.
+- `public.consent_log` is an append-only record of Terms, Privacy, age, and
+  analytics choices (user, kind, granted, policy version, IP, user agent,
+  timestamp). Analytics choices are posted by `lib/analyticsConsent.js` to
+  `app/api/consent/route.ts`.
+- Signed-in users who accepted an older policy version see
+  `app/components/PolicyConsentBanner.jsx` until they accept the current one;
+  acceptance is recorded by `app/api/auth/accept-policies/route.ts`.
+- Signed-in users can download their data from `/account` or
+  `GET /api/account/export`. The JSON includes the account, sessions, saved
+  songs, playlists, listening history, reports filed under their email, and
+  consent records — never passwords or session tokens.
 - Vercel Analytics and Speed Insights mount only after the listener accepts
   the consent banner (`app/components/AnalyticsConsentBanner.jsx`). The choice
   can be reversed in **Settings → Privacy & consent**
@@ -163,6 +193,8 @@ Insights.
 - Signing out clears the local download list, playback/recent state, and the
   offline audio cache so a shared device does not retain account data.
 - Reset App Data clears every `lumbo_`/`lumbo-` localStorage key plus caches.
+- `/accessibility` describes keyboard access, screen-reader semantics, media
+  alternatives, contrast, reduced motion, and how to report a barrier.
 
 ### Still to implement / confirm
 - Set and monitor `NEXT_PUBLIC_LEGAL_EMAIL`; the fallback address is only a
@@ -170,8 +202,8 @@ Insights.
 - If you have EU/UK users, confirm a lawful basis for processing, consider a
   Data Processing Agreement with subprocessors, and check whether an EU/UK
   representative is required.
-- Consider a self-service data export. Today the Privacy Policy says to
-  contact the legal address for a copy.
+- Confirm retention periods for `public.consent_log`, `public.dmca_reports`,
+  and `public.takedown_log`, and document them in the Privacy Policy.
 - Keep the provider list in the Privacy Policy current if Neon, Cloudflare, or
   Vercel change their role or subprocessors.
 
@@ -195,6 +227,10 @@ copyrighted music.
   is not automatically purged from a device that already downloaded it.
 - The Terms disclose the download feature and prohibit extracting,
   redistributing, or commercially using offline copies.
+- **Per-track download permission.** `public.songs.download_allowed` (default
+  `true`) hides the download action in the player menu and in
+  `lib/downloadManager.js` when a licence is streaming-only. Admins set it in
+  `app/components/EditModal.jsx`.
 - R2 presigned URLs for upload are short-lived (PUT); playback URLs are not
   offered as permanent download links in page source beyond what the player
   requires.
@@ -202,10 +238,10 @@ copyrighted music.
 ### Still to implement / confirm
 - Confirm that your licences cover **offline/download copies**, not just
   streaming; mechanical or download licences may be required separately.
-- Consider a per-track download permission flag and hide the download control
-  for tracks that are not cleared for offline use.
 - Remember that browser storage can be evicted by the OS or browser, so
   downloads are a convenience, not a guaranteed archive.
+- Consider a launch-time revocation check if your licences require a taken-down
+  track to stop playing on devices that already cached it.
 
 ---
 
@@ -222,18 +258,23 @@ go live instantly.
   inserting the row.
 - `public.songs.status` supports `pending` / `approved` / `rejected`, and the
   public songs endpoint returns only approved rows.
-- The single-song PATCH accepts `status`, so moderation can be scripted or
-  added to the UI without a schema change.
+- **New uploads default to `pending`.** `app/api/admin/songs/route.ts` inserts
+  `pending` unless an explicit valid status is supplied, and the upload screen
+  tells the uploader the track goes public after review.
+- The admin **Edit Track** dialog (`app/components/EditModal.jsx`) exposes
+  status, rights holder, licence type/URL, clearance date, download permission,
+  and region restriction. Approving a track with no rights metadata requires a
+  self-owned / public-domain attestation checkbox.
+- `app/share/[id]/page.js` filters `status = 'approved'`, so a pending or
+  rejected track is not reachable through a direct share link.
 
 ### Still to implement / confirm
-- There is no admin UI for `status`, and new uploads default to `approved`.
-  Add a moderation control/queue on `/admin`, and consider making uploads
-  `pending` by default.
-- `app/share/[id]/page.js` fetches a song by id without checking `status`, so
-  a pending or rejected track is still reachable through a direct
-  `/share/<id>` link. Add a status filter there.
 - Bulk update (`app/api/admin/songs/bulk-update/route.ts`) does not accept
   `status`; extend it if you want bulk moderation.
+- Decide who reviews the pending queue and how quickly. The UI exists; the
+  staffing is operational.
+- Consider requiring the rights attestation server-side as well, not only in
+  the edit dialog.
 
 ---
 
@@ -243,13 +284,24 @@ go live instantly.
 A license may cover streaming in one country but not another.
 
 ### How the app navigates this
-- `public.songs.region_restricted` exists (default `false`) and the
-  single-song PATCH accepts it.
+- `public.songs.region_restricted` (default `false`) and
+  `public.songs.allowed_countries` (ISO-3166 alpha-2 allowlist) are editable in
+  the admin Edit Track dialog and accepted by the song APIs.
+- `lib/geo.js` reads `x-vercel-ip-country` or `cf-ipcountry`. The public songs
+  endpoint filters restricted rows by the request country, and the share page
+  shows "Not available in your region" instead of the player.
+- When no geo header is present (local development, self-hosted deployment
+  without a geo proxy), the check **fails open** rather than hiding the whole
+  library. A restricted track with an empty allowlist is denied once a country
+  is known.
 
 ### Still to implement / confirm
-- Nothing enforces `region_restricted` yet: playback and the share page do not
-  check the listener's region. Add region detection and per-song territory
-  blocks before relying on geography-limited licences.
+- Configure a geo header in production (Vercel supplies
+  `x-vercel-ip-country` automatically) before relying on territory licences.
+- Region checks use IP geolocation, which is approximate and can be bypassed
+  with a VPN. Treat them as a good-faith control, not DRM.
+- Confirm that your licences permit IP-based enforcement and that the
+  allowlist matches each licence's territory.
 
 ---
 
@@ -281,10 +333,36 @@ create liability.
    legal advice.
 4. **Set `NEXT_PUBLIC_LEGAL_EMAIL`** to a monitored inbox and test that a
    message actually arrives.
-5. **Build the DMCA admin queue** and a repeat-infringer record, and decide
-   who replies to reporters.
-6. **Decide the moderation default** (`pending` vs `approved`) and add the
-   missing `status` check to the share page.
+5. **Register a DMCA agent** with the U.S. Copyright Office, publish the
+   registration details, and decide who monitors the Legal tab and replies to
+   reporters.
+6. **Staff the pending-review queue** and decide how quickly uploads are
+   approved. New uploads are already `pending` by default.
 7. **Review R2 / Neon / Vercel terms** and any required data processing
    agreements.
-8. **Have an attorney clear the app** before any public release or marketing.
+8. **Have an attorney clear the app** before any public release or marketing,
+   including the Terms, Privacy Policy, accessibility statement, DMCA process,
+   consent log, and licensing metadata.
+
+## 10. Implementation status
+
+Implemented in code (database migration in `lib/migration-legal-v2.sql`):
+
+| Area | Status |
+| --- | --- |
+| Statutory copyright notice form | Implemented (`ReportSongDialog.jsx`) |
+| Admin DMCA queue with status/notes | Implemented (`/admin` → Legal) |
+| Effective takedown + audit log + CSV | Implemented (`takedown_log`, `AdminLegalPanel`) |
+| Reporter reply template | Implemented as a manual `mailto:` with `reply_sent_at` |
+| Rights/licence metadata and approval attestation | Implemented (`EditModal.jsx`) |
+| Pending-by-default uploads | Implemented |
+| Per-track download permission | Implemented (`download_allowed`) |
+| Region allowlists | Implemented (`lib/geo.js`); fails open without a geo header |
+| Self-service data export | Implemented (`/api/account/export`, `/account`) |
+| Policy re-consent | Implemented (`PolicyConsentBanner`, `/api/auth/accept-policies`) |
+| Server-side consent log | Implemented (`consent_log`, `/api/consent`) |
+| Age attestation at sign-up | Implemented (`age_attested_at`) |
+| Accessibility statement | Implemented (`/accessibility`) |
+
+Operational items that remain outside the code: a registered DMCA agent, a
+monitored legal inbox, signed releases/licences, DPAs, and attorney review.

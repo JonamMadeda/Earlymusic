@@ -24,6 +24,7 @@ import EditModal from "../components/EditModal";
 import ReplaceAudioModal from "../components/ReplaceAudioModal";
 import ConfirmModal from "../components/ConfirmModal";
 import AdminNotificationsPanel from "../components/AdminNotificationsPanel";
+import AdminLegalPanel from "../components/AdminLegalPanel";
 
 const authedFetch = async (url, opts = {}) => {
   const res = await fetch(url, {
@@ -623,6 +624,7 @@ export default function AdminDashboard() {
             { id: "tracks", label: "Tracks" },
             { id: "insights", label: "Insights" },
             { id: "notifications", label: "Notifications" },
+            { id: "legal", label: "Legal" },
             { id: "storage", label: "Storage", alert: (storage?.orphanCount || 0) > 0 },
             { id: "team", label: "Team" },
             { id: "activity", label: "Activity" },
@@ -1203,6 +1205,20 @@ export default function AdminDashboard() {
         {/* Announcements tab — writes the public feed listeners see without signing in */}
         {activeTab === "notifications" && (
           <AdminNotificationsPanel onToast={showToast} />
+        )}
+
+        {/* Legal tab — DMCA queue, effective takedowns, and the audit trail */}
+        {activeTab === "legal" && (
+          <AdminLegalPanel
+            onToast={showToast}
+            onTakedown={(songId) =>
+              setAllSongs((prev) =>
+                prev.map((song) =>
+                  song.id === songId ? { ...song, status: "rejected" } : song
+                )
+              )
+            }
+          />
         )}
 
         {activeTab === "tracks" && (

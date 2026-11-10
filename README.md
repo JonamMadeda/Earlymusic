@@ -168,10 +168,23 @@ Sign out and back in after changing a role.
 - **Scrubbing commits on release.** Dragging the seek bar no longer seeks on every input event, and a gesture cancelled by the OS clears the hold instead of freezing the clock for the rest of the track. The thin progress strip on the bar and mini card keeps a 16px hit area.
 - **The queue is editable** — play next, move up/down, remove, clear — but only when the listener started an explicit queue; the whole-library fallback is read-only. Opening it scrolls to the playing track. Clearing keeps the current song so playback does not stop.
 - **Lock-screen controls** get generated 512×512 artwork (`lib/artwork.js`, the same identity the lists show), plus seek-to/seek-forward/seek-backward handlers and a position state.
-- **Offline is explicit.** Streaming no longer fetches every file twice to cache it. `Download for offline` in the player's overflow menu stores the track and marks the cache entry with `x-luumbo-download`, which the service worker's 30-entry trim spares; unmarked streams are evicted oldest-first. The player shows an "Available offline" chip for stored tracks.
+- **Offline is explicit.** Streaming no longer fetches every file twice to cache it. `Download for offline` in the player's overflow menu stores the track and marks the cache entry with `x-luumbo-download`, which the service worker's 30-entry trim spares, while unmarked streams are evicted oldest-first. The player shows an "Available offline" chip for stored tracks. Playback speed lives in the same menu, keeping the bottom row to volume, sleep timer and queue.
 - **Attribution** (`copyright_holder`, `license_type`, `license_url`) shows under the artist when a track has it, including on `/share/<id>`. No track in the library currently has those fields filled in, so the line stays hidden until an admin adds them.
 - **Queue and track times** are formatted by `lib/timeFormat.js`, which switches to `h:mm:ss` past an hour. The `songs.duration` column currently holds text labels ("Long", "Short") rather than seconds, so per-track times and the queue total stay hidden until real durations are stored — nothing is guessed or shown as `0:00`.
 - **Reduced motion** stops the vinyl spin, waveforms and section reveals; lazy sections are forced visible so they cannot stay hidden forever.
+
+## Legal & compliance
+
+The legal controls are implemented in code; the operational tasks are not.
+
+- **Schema**: `lib/migration-legal.sql` and `lib/migration-legal-v2.sql` add song rights/moderation columns, `public.dmca_reports`, `public.takedown_log`, `public.consent_log`, per-track download/region fields, and the policy-version/age columns on `neon_auth."user"`. Both are additive and safe to re-run.
+- **Copyright notices**: `ReportSongDialog.jsx` collects the statutory elements (work, URL, contact details, signature, good-faith/accuracy/authority statements). `POST /api/dmca/report` re-validates and stores the notice.
+- **Admin queue**: `/admin` → **Legal** lists reports, edits status/notes, sends a pre-filled reply, and performs a two-step takedown. Takedown sets `songs.status = 'rejected'`, writes `takedown_log`, and resolves the report. The tab also exports the takedown log as CSV.
+- **Moderation**: new uploads default to `pending`; public listings and `/share/[id]` only serve `approved` tracks. The Edit Track dialog exposes status, rights holder, licence, clearance date, download permission, and country allowlists, and requires a rights attestation before approving a track with no metadata.
+- **Privacy rights**: `/api/account/export` backs the **Download my data** card on `/account`; `PolicyConsentBanner` asks signed-in users to re-accept changed policies; registration requires Terms, Privacy, and an age attestation; `consent_log` records Terms/Privacy/age and analytics choices.
+- **Accessibility**: `/accessibility` describes keyboard access, screen readers, media alternatives, contrast, reduced motion, and how to report a barrier.
+
+Before launch, register a DMCA agent with the U.S. Copyright Office, point `NEXT_PUBLIC_LEGAL_EMAIL` at a monitored inbox, obtain signed releases/licences, review subprocessor DPAs, and have an attorney review the published documents. `LEGAL.md` tracks the detail.
 
 ## Security operations
 

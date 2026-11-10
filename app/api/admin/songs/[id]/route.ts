@@ -44,12 +44,26 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const fields: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
-    for (const key of ["title", "author", "song_path", "category", "duration", "copyright_holder", "license_type", "license_url", "rights_clearance_date", "status", "region_restricted"] as const) {
+    for (const key of ["title", "author", "song_path", "category", "duration", "copyright_holder", "license_type", "license_url", "rights_clearance_date", "status", "region_restricted", "download_allowed"] as const) {
       if (body[key] !== undefined) {
         fields.push(`${key} = $${idx}`);
         values.push(typeof body[key] === "string" && body[key].trim() === "" ? null : body[key]);
         idx++;
       }
+    }
+    if (body.allowed_countries !== undefined) {
+      const raw = body.allowed_countries;
+      const codes = Array.isArray(raw)
+        ? raw
+        : typeof raw === "string"
+          ? raw.split(",")
+          : [];
+      const normalized = codes
+        .map((code) => String(code).trim().toUpperCase())
+        .filter((code) => /^[A-Z]{2}$/.test(code));
+      fields.push(`allowed_countries = $${idx}::text[]`);
+      values.push(normalized.length ? `{${normalized.join(",")}}` : null);
+      idx++;
     }
     if (body.original_songs !== undefined) {
       // jsonb column: explicit cast so string params are accepted.

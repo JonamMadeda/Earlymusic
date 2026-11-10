@@ -6,6 +6,7 @@ import {
   Check,
   Download,
   Flag,
+  Gauge,
   ListPlus,
   Loader2,
   MoreHorizontal,
@@ -16,13 +17,20 @@ import {
 import { useAuth } from "@/app/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { downloadSong, isSongDownloaded, removeDownload } from "@/lib/downloadManager";
+import ReportSongDialog from "@/app/components/ReportSongDialog";
 
 /**
  * The player's overflow menu. Add-to-playlist, offline download and reporting
  * all already existed on the song rows; this surfaces the same flows without
  * leaving the now-playing screen.
  */
-const SongOverflowMenu = ({ song, onStatus, onOfflineChange }) => {
+const SongOverflowMenu = ({
+  song,
+  playbackRate = 1,
+  onCyclePlaybackRate,
+  onStatus,
+  onOfflineChange,
+}) => {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -34,6 +42,7 @@ const SongOverflowMenu = ({ song, onStatus, onOfflineChange }) => {
   const [busy, setBusy] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [error, setError] = useState("");
+  const [reportOpen, setReportOpen] = useState(false);
 
   const say = useCallback(
     (message) => {
@@ -142,6 +151,10 @@ const SongOverflowMenu = ({ song, onStatus, onOfflineChange }) => {
 
   const toggleDownload = async () => {
     if (busy) return;
+    if (song?.download_allowed === false) {
+      say("This track is licensed for streaming only.");
+      return;
+    }
     setBusy(true);
     try {
       if (downloaded) {
@@ -161,36 +174,6 @@ const SongOverflowMenu = ({ song, onStatus, onOfflineChange }) => {
           ? "Device storage is full."
           : "Unable to save this song offline."
       );
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const submitReport = async (event) => {
-    event.preventDefault();
-    if (busy) return;
-    const form = new FormData(event.currentTarget);
-    const reason = String(form.get("reason") || "").trim();
-    if (!reason) {
-      say("Please describe the issue.");
-      return;
-    }
-    setBusy(true);
-    try {
-      await apiFetch("/api/dmca/report", {
-        method: "POST",
-        body: JSON.stringify({
-          song_id: song.id,
-          reason,
-          reporter_name: String(form.get("reporter_name") || "").trim() || null,
-          reporter_email: String(form.get("reporter_email") || "").trim() || null,
-        }),
-      });
-      say("Report submitted. Thank you.");
-      setOpen(false);
-      setView("menu");
-    } catch (reportError) {
-      say(reportError instanceof Error ? reportError.message : "Unable to submit the report.");
     } finally {
       setBusy(false);
     }
@@ -240,22 +223,38 @@ const SongOverflowMenu = ({ song, onStatus, onOfflineChange }) => {
                 <ListPlus size={16} className="text-neutral-400" />
                 Add to playlist
               </button>
-              <button type="button" className={itemClass} disabled={busy} onClick={toggleDownload}>
-                {busy ? (
-                  <Loader2 size={16} className="animate-spin text-neutral-400" />
-                ) : downloaded ? (
-                  <Trash2 size={16} className="text-neutral-400" />
-                ) : (
-                  <Download size={16} className="text-neutral-400" />
-                )}
-                {downloaded ? "Remove download" : "Download for offline"}
+              <button
+                type="button"
+                className={itemClass}
+                onClick={() => onCyclePlaybackRate?.()}
+                aria-label={`Playback speed ${playbackRate} times. Change speed.`}
+              >
+                <Gauge size={16} className="text-neutral-400" />
+                <span>Playback speed</span>
+                <span className="ml-auto rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-bold tabular-nums text-neutral-600">
+                  {playbackRate}×
+                </span>
               </button>
+              {song.download_allowed !== false && (
+                <button type="button" className={itemClass} disabled={busy} onClick={toggleDownload}>
+                  {busy ? (
+                    <Loader2 size={16} className="animate-spin text-neutral-400" />
+                  ) : downloaded ? (
+                    <Trash2 size={16} className="text-neutral-400" />
+                  ) : (
+                    <Download size={16} className="text-neutral-400" />
+                  )}
+                  {downloaded ? "Remove download" : "Download for offline"}
+                </button>
+              )}
               <button
                 type="button"
                 className={itemClass}
                 onClick={() => {
-                  setView("report");
+                  setOpen(false);
+                  setView("menu");
                   setError("");
+                  setReportOpen(true);
                 }}
               >
                 <Flag size={16} className="text-neutral-400" />
@@ -307,46 +306,6 @@ const SongOverflowMenu = ({ song, onStatus, onOfflineChange }) => {
             </div>
           )}
 
-          {view === "report" && (
-            <form onSubmit={submitReport} className="space-y-2 p-1">
-              <p className="px-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400">
-                Report this song
-              </p>
-              <textarea
-                name="reason"
-                required
-                rows={3}
-                maxLength={1000}
-                placeholder="Copyright infringement, offensive content, or incorrect attribution…"
-                aria-label="Reason for the report"
-                className="w-full resize-none rounded-lg border border-neutral-200 px-2.5 py-2 text-xs outline-none focus:border-accent"
-              />
-              <input
-                name="reporter_name"
-                maxLength={120}
-                placeholder="Your name (optional)"
-                aria-label="Your name"
-                className="w-full rounded-lg border border-neutral-200 px-2.5 py-2 text-xs outline-none focus:border-accent"
-              />
-              <input
-                name="reporter_email"
-                type="email"
-                maxLength={200}
-                placeholder="Email (optional)"
-                aria-label="Your email"
-                className="w-full rounded-lg border border-neutral-200 px-2.5 py-2 text-xs outline-none focus:border-accent"
-              />
-              <button
-                type="submit"
-                disabled={busy}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2.5 text-xs font-bold text-white transition disabled:opacity-50"
-              >
-                {busy && <Loader2 size={14} className="animate-spin" />}
-                Submit report
-              </button>
-            </form>
-          )}
-
           {error && (
             <p role="status" className="px-3 pb-1.5 pt-2 text-[11px] font-medium text-neutral-500">
               {error}
@@ -368,6 +327,13 @@ const SongOverflowMenu = ({ song, onStatus, onOfflineChange }) => {
           )}
         </div>
       )}
+
+      <ReportSongDialog
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        song={song}
+        onSubmitted={(message) => say(message)}
+      />
     </div>
   );
 };

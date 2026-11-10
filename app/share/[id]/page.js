@@ -1,12 +1,20 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { db } from "@/lib/neon";
+import { getCountryFromHeaders, isRegionAllowed } from "@/lib/geo";
 import ShareClient from "./ShareClient";
 
 async function getSharedSong(id) {
   if (!id || typeof id !== "string") return null;
   try {
     const { rows } = await db.query(
-      "SELECT id, title, author, song_path, category, duration, original_songs, created_at, copyright_holder, license_type, license_url, rights_clearance_date FROM public.songs WHERE id = $1 LIMIT 1",
+      `SELECT id, title, author, song_path, category, duration, original_songs,
+              created_at, copyright_holder, license_type, license_url,
+              rights_clearance_date, status, region_restricted,
+              allowed_countries, download_allowed
+         FROM public.songs
+        WHERE id = $1 AND status = 'approved'
+        LIMIT 1`,
       [id]
     );
     return rows?.[0] || null;
@@ -61,6 +69,32 @@ export default async function SharePage({ params }) {
           <p className="mt-1 text-xs leading-relaxed text-neutral-500">
             This shared link is invalid or the song was removed. Browse the
             library to find something else to play.
+          </p>
+          <Link
+            href="/songs"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-xs font-bold text-white transition hover:bg-accent/90"
+          >
+            Browse all songs
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  // Territory-limited licences: hide the track when the edge tells us the
+  // listener is outside the allowlist. Unknown country fails open (see lib/geo).
+  const requestHeaders = await headers();
+  const country = getCountryFromHeaders(requestHeaders);
+  if (!isRegionAllowed(song, country)) {
+    return (
+      <main className="min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pb-12 pt-10">
+        <div className="mx-auto max-w-md rounded-xl border border-neutral-200 bg-white p-8 text-center shadow-2xs">
+          <p className="text-base font-bold tracking-tight text-neutral-900">
+            Not available in your region
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-neutral-500">
+            The licence for this track does not cover your country. Browse the
+            library for music that is available where you are.
           </p>
           <Link
             href="/songs"

@@ -190,7 +190,7 @@ export default function UploadPage() {
         throw new Error(body?.error || "Failed to save song metadata.");
       }
 
-      patchItem(item.key, { phase: "done", note: "Live" });
+      patchItem(item.key, { phase: "done", note: "Pending review" });
       return true;
     } catch (error) {
       if (uploadedStorageUrl) {
@@ -245,8 +245,8 @@ export default function UploadPage() {
       const failed = pending.length - succeeded;
       setSummary(
         failed === 0
-          ? `Published ${succeeded} track${succeeded === 1 ? "" : "s"}.`
-          : `Published ${succeeded} of ${pending.length} — ${failed} failed. Fix the titles or retry them.`
+          ? `Uploaded ${succeeded} track${succeeded === 1 ? "" : "s"} for review.`
+          : `Uploaded ${succeeded} of ${pending.length} — ${failed} failed. Fix the titles or retry them.`
       );
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Publishing failed. Please try again.");
@@ -283,6 +283,7 @@ export default function UploadPage() {
             <h1 className="text-lg font-bold tracking-tight text-neutral-900">Upload Tracks</h1>
             <p className="truncate text-xs text-neutral-500">
               Queue files or a batch — artist, category, and compilation details apply to every track.
+              New uploads start as pending and go public after an admin approves their rights metadata.
             </p>
           </div>
         </div>
@@ -524,10 +525,10 @@ export default function UploadPage() {
               className="flex-1 rounded-xl bg-accent py-3 text-sm font-bold uppercase tracking-tight text-white shadow-sm transition-all hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isPublishing
-                ? `Publishing… (${doneCount}/${publishTotal})`
+                ? `Uploading… (${doneCount}/${publishTotal})`
                 : pendingCount > 0
-                  ? `Publish ${pendingCount} track${pendingCount === 1 ? "" : "s"}`
-                  : "Publish Tracks"}
+                  ? `Upload ${pendingCount} track${pendingCount === 1 ? "" : "s"}`
+                  : "Upload Tracks"}
             </button>
             {queue.length > 0 && !isPublishing && (
               <button

@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Administrator access is required." }, { status: 403 });
     }
 
-    const { title, author, song_path, category, original_songs, duration, copyright_holder, license_type, license_url, rights_clearance_date, status } = await request.json();
+    const { title, author, song_path, category, original_songs, duration, copyright_holder, license_type, license_url, rights_clearance_date, status, region_restricted, download_allowed, allowed_countries } = await request.json();
     if (!title || !song_path) {
       return NextResponse.json({ error: "Title and song_path are required." }, { status: 400 });
     }
@@ -64,9 +64,33 @@ export async function POST(request: NextRequest) {
           ? original_songs
           : JSON.stringify(original_songs);
 
+    // Country allowlists arrive as an array or a comma-separated string. Store
+    // a Postgres text[] literal so the driver does not guess the type.
+    const countryCodes = (Array.isArray(allowed_countries)
+      ? allowed_countries
+      : typeof allowed_countries === "string"
+        ? allowed_countries.split(",")
+        : []
+    )
+      .map((code: unknown) => String(code).trim().toUpperCase())
+      .filter((code: string) => /^[A-Z]{2}$/.test(code));
+    const allowedCountriesValue = countryCodes.length
+      ? `{${countryCodes.join(",")}}`
+      : null;
+
+    // New uploads are pending by default: a track should not go public until
+    // an admin has checked its rights metadata.
+    const songStatus = ["pending", "approved", "rejected"].includes(status)
+      ? status
+      : "pending";
+
     const { rows } = await db.query(
-      `INSERT INTO public.songs (title, author, song_path, category, original_songs, duration, copyright_holder, license_type, license_url, rights_clearance_date, status)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      `INSERT INTO public.songs
+         (title, author, song_path, category, original_songs, duration,
+          copyright_holder, license_type, license_url, rights_clearance_date,
+          status, region_restricted, download_allowed, allowed_countries)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14::text[])
+       RETURNING *`,
       [
         title,
         author || null,
@@ -78,7 +102,10 @@ export async function POST(request: NextRequest) {
         license_type || null,
         license_url || null,
         rights_clearance_date || null,
-        status || "approved",
+        songStatus,
+        region_restricted === true,
+        download_allowed !== false,
+        allowedCountriesValue,
       ]
     );
 
