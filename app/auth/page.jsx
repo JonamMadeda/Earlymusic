@@ -136,7 +136,23 @@ const passwordRef = useRef(null);
         return;
       }
 
-      const { error: authError, exists, verificationRequired, code } = await signUp(
+      if (isLogin) {
+        const { error: authError, code } = await signIn(email, password);
+        if (authError) {
+          // The code screen can send a fresh code, so give them a way to act.
+          if (code === "EMAIL_NOT_VERIFIED") {
+            setVerificationSent(true);
+            return;
+          }
+          setError(authError.message);
+          return;
+        }
+        router.push(redirectTo);
+        router.refresh();
+        return;
+      }
+
+      const { error: authError, verificationRequired } = await signUp(
         email,
         password,
         {
@@ -149,6 +165,13 @@ const passwordRef = useRef(null);
 
       if (authError) {
         setError(authError.message);
+        return;
+      }
+
+      // Sign-up does not open a session: the address has to be confirmed
+      // with the emailed code first.
+      if (verificationRequired) {
+        setVerificationSent(true);
         return;
       }
 
