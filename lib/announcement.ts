@@ -3,6 +3,7 @@ import {
   BODY_MAX_LENGTH,
   MAX_NOTIFICATIONS,
   TITLE_MAX_LENGTH,
+  audioUpdateAnnouncementFor,
   normalizeNotificationUrl,
   releaseAnnouncementFor,
   type NotificationKind,
@@ -65,6 +66,8 @@ export const postAnnouncement = async (
  */
 export const announceNewSong = async (song: Record<string, unknown>) => {
   try {
+    // The tile links to /share/<id>, which only serves approved tracks.
+    if (song.status !== "approved") return null;
     const songId = String(song.id ?? "");
     if (await hasSongAnnouncement(songId)) return null;
     return await postAnnouncement(releaseAnnouncementFor(song));
@@ -77,9 +80,19 @@ export const announceNewSong = async (song: Record<string, unknown>) => {
 /**
  * Announce that a track was updated (metadata or audio replaced). Listeners
  * hear about a re-release without an admin writing an announcement.
+ *
+ * A replaced audio file always earns a tile: each swap is one deliberate admin
+ * action and listeners can hear the difference, so a second re-recording the
+ * same week is not a duplicate. Metadata edits keep the existence check, which
+ * is what stops repeated typo fixes from flooding the feed.
  */
-export const announceSongUpdate = async (song: Record<string, unknown>) => {
+export const announceSongUpdate = async (
+  song: Record<string, unknown>,
+  options: { audioReplaced?: boolean } = {}
+) => {
   try {
+    if (song.status !== "approved") return null;
+    if (options.audioReplaced) return await postAnnouncement(audioUpdateAnnouncementFor(song));
     const songId = String(song.id ?? "");
     // One "updated" tile per song. A release announcement does not block this:
     // the track has genuinely changed since it was first announced. Checking

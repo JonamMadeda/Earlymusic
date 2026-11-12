@@ -5,7 +5,7 @@ import { logAdminAction } from "@/lib/adminAudit";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getR2Client } from "@/lib/r2";
 import { verifyStoredAudio, getR2ObjectKey } from "@/lib/audioVerify";
-import { announceSongUpdate, retractSongAnnouncements } from "@/lib/announcement";
+import { announceNewSong, announceSongUpdate, retractSongAnnouncements } from "@/lib/announcement";
 import { db } from "@/lib/neon";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -30,6 +30,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
     }
 
+    const { rows: existingRows } = await db.query(
+      "SELECT status, song_path, region_restricted, allowed_countries FROM public.songs WHERE id = $1",
+      [id]
+    );
+    const existing = existingRows?.[0];
+    if (!existing) {
+      return NextResponse.json({ error: "Song not found." }, { status: 404 });
+    }
+
     // Replace-audio flow swaps the referenced file — verify the new object
     // the same way creation does, then store the hostname-relative form so
     // rows created and updated after normalization stay env-independent.
@@ -40,17 +49,32 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
       body.song_path = `/${getR2ObjectKey(body.song_path)}`;
     }
+    // Compare object keys, not strings: a legacy row may still hold an
+    // absolute R2 URL for the very file the admin just re-selected, which is
+    // a re-save rather than a new recording.
+    const previousSongPath = typeof existing.song_path === "string" ? existing.song_path : null;
+    const audioReplaced =
+      typeof body.song_path === "string" &&
+      getR2ObjectKey(body.song_path) !== getR2ObjectKey(previousSongPath || "");
 
     const fields: string[] = [];
+    const changedColumns: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
     for (const key of ["title", "author", "song_path", "category", "duration", "copyright_holder", "license_type", "license_url", "rights_clearance_date", "status", "region_restricted", "download_allowed"] as const) {
       if (body[key] !== undefined) {
+        // status is NOT NULL with a CHECK constraint: reject bad values here
+        // instead of letting "" become null and surface as a generic 500.
+        if (key === "status" && !["pending", "approved", "rejected"].includes(body[key] as string)) {
+          return NextResponse.json({ error: "Status must be pending, approved, or rejected." }, { status: 400 });
+        }
         fields.push(`${key} = $${idx}`);
+        changedColumns.push(key);
         values.push(typeof body[key] === "string" && body[key].trim() === "" ? null : body[key]);
         idx++;
       }
     }
+    let normalizedCountries: string[] | null = null;
     if (body.allowed_countries !== undefined) {
       const raw = body.allowed_countries;
       const codes = Array.isArray(raw)
@@ -58,16 +82,36 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         : typeof raw === "string"
           ? raw.split(",")
           : [];
-      const normalized = codes
+      normalizedCountries = codes
         .map((code) => String(code).trim().toUpperCase())
         .filter((code) => /^[A-Z]{2}$/.test(code));
+    }
+    if (body.region_restricted !== undefined || normalizedCountries !== null) {
+      const restricted = body.region_restricted !== undefined
+        ? body.region_restricted === true
+        : existing.region_restricted === true;
+      const storedCodes = (Array.isArray(existing.allowed_countries) ? existing.allowed_countries : [])
+        .map((code: unknown) => String(code).trim().toUpperCase())
+        .filter((code: string) => /^[A-Z]{2}$/.test(code));
+      // A NULL allowlist with region_restricted hides the track everywhere geo
+      // is known but fails open where it is not — reject it instead.
+      if (restricted && (normalizedCountries ?? storedCodes).length === 0) {
+        return NextResponse.json(
+          { error: "Region-restricted tracks require at least one valid two-letter country code." },
+          { status: 400 }
+        );
+      }
+    }
+    if (normalizedCountries !== null) {
       fields.push(`allowed_countries = $${idx}::text[]`);
-      values.push(normalized.length ? `{${normalized.join(",")}}` : null);
+      changedColumns.push("allowed_countries");
+      values.push(normalizedCountries.length ? `{${normalizedCountries.join(",")}}` : null);
       idx++;
     }
     if (body.original_songs !== undefined) {
       // jsonb column: explicit cast so string params are accepted.
       fields.push(`original_songs = $${idx}::jsonb`);
+      changedColumns.push("original_songs");
       const v = body.original_songs;
       values.push(
         v == null || (Array.isArray(v) && v.length === 0)
@@ -91,14 +135,30 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const updatedSong = rows[0];
 
-    // Listeners hear about a re-release without an admin writing an announcement.
-    await announceSongUpdate(updatedSong);
+    // Announce only approved tracks: the tile links to /share/<id>, which
+    // 404s otherwise. Approval posts the release tile (deduped inside
+    // announceNewSong); edits to an already-approved track post an update.
+    if (updatedSong.status === "approved") {
+      if (existing.status === "approved") {
+        await announceSongUpdate(updatedSong, { audioReplaced });
+      } else {
+        await announceNewSong(updatedSong);
+      }
+    } else if (existing.status === "approved") {
+      await retractSongAnnouncements(id);
+    }
 
     await logAdminAction({
       actorId: admin.user.id,
       action: "song.update",
       target: id,
-      detail: { title: updatedSong.title },
+      detail: {
+        title: updatedSong.title,
+        columns: changedColumns,
+        ...(audioReplaced
+          ? { audio_replaced: true, song_path_before: previousSongPath, song_path_after: updatedSong.song_path }
+          : null),
+      },
     });
 
     return NextResponse.json({ song: updatedSong });

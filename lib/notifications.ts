@@ -70,6 +70,28 @@ export const normalizeNotificationKind = (value: unknown): NotificationKind =>
     : FALLBACK_KIND;
 
 /**
+ * The tile a track earns when an admin replaces its audio file. It is worded
+ * apart from a metadata edit because listeners are told about something they
+ * can hear, not about a changed spelling.
+ */
+export const audioUpdateAnnouncementFor = (song: {
+  id?: unknown;
+  title?: unknown;
+  author?: unknown;
+}): { kind: NotificationKind; title: string; body: string; url: string | null } => {
+  const title = typeof song.title === "string" ? song.title.trim() : "";
+  const author = typeof song.author === "string" ? song.author.trim() : "";
+  return {
+    kind: "update",
+    title: (title || "Song updated").slice(0, TITLE_MAX_LENGTH),
+    body: author
+      ? `A new recording of ${author}'s track is live in the library.`
+      : "A new audio file is live for this track.",
+    url: song.id == null ? null : `/share/${String(song.id)}`.slice(0, URL_MAX_LENGTH),
+  };
+};
+
+/**
  * An optional destination for an announcement. In-app paths are preferred so
  * the link keeps working if the domain changes; anything absolute must be
  * https, which is what keeps `javascript:`, `data:` and plain `http:` out of an

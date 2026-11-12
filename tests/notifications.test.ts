@@ -3,6 +3,7 @@ import {
   MAX_NOTIFICATIONS,
   TITLE_MAX_LENGTH,
   URL_MAX_LENGTH,
+  audioUpdateAnnouncementFor,
   normalizeNotificationKind,
   normalizeNotificationUrl,
   releaseAnnouncementFor,
@@ -69,5 +70,17 @@ describe("announcements", () => {
     expect(
       releaseAnnouncementFor({ id: 1, title: "x".repeat(400) }).title
     ).toHaveLength(TITLE_MAX_LENGTH);
+  });
+
+  it("says a recording changed when audio is replaced", () => {
+    expect(audioUpdateAnnouncementFor({ id: 12, title: "Kyrie", author: "Taizé" })).toEqual({
+      kind: "update",
+      title: "Kyrie",
+      body: "A new recording of Taizé's track is live in the library.",
+      url: "/share/12",
+    });
+    expect(audioUpdateAnnouncementFor({ id: 12, title: "Kyrie" }).body).toBe(
+      "A new audio file is live for this track."
+    );
   });
 });

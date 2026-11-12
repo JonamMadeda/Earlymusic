@@ -172,7 +172,7 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
           </button>
         </div>
         <p className="mb-5 text-xs leading-relaxed text-neutral-500">
-          The track keeps its ID — playlists, libraries, and history are unaffected. The old file is deleted after the swap.
+          The track keeps its ID — playlists, libraries, and history are unaffected. The old file is deleted after the swap, and an approved track posts an update notice.
         </p>
 
         <form onSubmit={handleReplace} className="flex flex-col gap-y-4">
