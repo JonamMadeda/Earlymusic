@@ -63,7 +63,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
         {/* Keep the new badge visible while the track is playing too; it sits
             above the pulsing active dot so the "N" text never disappears. */}
         {isNew && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-md bg-gold px-1 text-xs font-black uppercase tracking-wider text-white ring-2 ring-white">
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-md bg-gold px-1 text-[10px] font-normal uppercase tracking-wider text-white ring-2 ring-white">
             N
           </span>
         )}

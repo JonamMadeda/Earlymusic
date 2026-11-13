@@ -276,6 +276,15 @@ input[type="range"]:focus-visible {
   animation: fadeIn 0.25s ease-out;
 }
 
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-modal-in {
+  animation: modalIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 /* Spotlight gradient cycling */
 @keyframes gradientCycle {
   0%   { background-position: 0% 50%; }
@@ -339,6 +348,10 @@ input[type="range"]:focus-visible {
   }
 
   .animate-fade-in {
+    animation: none;
+  }
+
+  .animate-modal-in {
     animation: none;
   }
 

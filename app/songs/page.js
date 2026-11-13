@@ -313,7 +313,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
             </div>
           )}
           {isNew && !isActive && (
-            <span className="rounded bg-gold/10 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-gold">
+            <span className="rounded bg-gold/10 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
               New
             </span>
           )}

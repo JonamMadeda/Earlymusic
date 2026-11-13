@@ -6,6 +6,8 @@ import { Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings, Download, L
 import { apiFetch } from "@/lib/apiFetch";
 import { useAuth } from "@/app/context/AuthContext";
 import StatusMessage from "@/app/components/StatusMessage";
+import AnalyticsConsentControl from "@/app/components/AnalyticsConsentControl";
+import { LEGAL_EMAIL, LEGAL_MAILTO } from "@/lib/legal";
 import Link from "next/link";
 import { KeyRound, ShieldCheck, MonitorSmartphone, Trash2 } from "lucide-react";
 
@@ -459,6 +461,38 @@ export default function AccountPage() {
                 <Download size={13} aria-hidden="true" />
                 {exporting ? "Preparing…" : "Download my data"}
               </button>
+            </div>
+          </div>
+
+          {/* Privacy & analytics */}
+          <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
+            <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50/60 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Privacy &amp; analytics</p>
+              <ShieldCheck size={14} className="text-neutral-400" aria-hidden="true" />
+            </div>
+            <div className="px-5 py-4">
+              <AnalyticsConsentControl />
+              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-neutral-100 pt-3 text-xs font-semibold">
+                <Link href="/privacy" className="text-accent hover:underline">
+                  Privacy Policy
+                </Link>
+                <Link href="/terms" className="text-accent hover:underline">
+                  Terms of Service
+                </Link>
+                <Link href="/privacy#choices" className="text-accent hover:underline">
+                  Your rights
+                </Link>
+                <Link href="/accessibility" className="text-accent hover:underline">
+                  Accessibility
+                </Link>
+                <a
+                  href={LEGAL_MAILTO}
+                  title={`Email ${LEGAL_EMAIL}`}
+                  className="text-accent hover:underline"
+                >
+                  DMCA / Legal Contact
+                </a>
+              </div>
             </div>
           </div>
 

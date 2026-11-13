@@ -4,7 +4,6 @@ import Header from "./components/Header";
 import AuthBanner from "./components/AuthBanner";
 import BottomNav from "./components/BottomNav";
 import PlayerWrapper from "./components/PlayerWrapper";
-import Link from "next/link";
 import { PlayerProvider } from "./context/PlayerContext";
 import { AuthProvider } from "./context/AuthContext";
 import ErrorReporter from "./components/ErrorReporter";
@@ -15,7 +14,6 @@ import AnalyticsConsentBanner from "./components/AnalyticsConsentBanner";
 import PolicyConsentBanner from "./components/PolicyConsentBanner";
 import { Inter } from "next/font/google";
 import { SITE_URL } from "@/lib/site";
-import { LEGAL_EMAIL, LEGAL_MAILTO } from "@/lib/legal";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -85,64 +83,6 @@ export default function RootLayout({ children }) {
                 <AuthBanner />
                 <div id="app-scroll" tabIndex={-1} className="flex-1 overflow-y-auto no-scrollbar pb-44 md:pb-32">
                   {children}
-
-                  <footer className="border-t border-neutral-200 bg-neutral-50 py-6 md:py-8">
-                    <div className="mx-auto max-w-5xl px-3 sm:px-6 md:px-8">
-                      <div className="flex flex-col md:flex-row items-center justify-between gap-3 md:gap-6">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold tracking-tight text-neutral-900">
-                            Luumbo
-                          </span>
-                          <span className="text-xs text-neutral-500">
-                            · Stream worship and praise music
-                          </span>
-                        </div>
-                        <nav className="flex flex-wrap gap-x-6 md:gap-x-8 text-xs text-neutral-500">
-                          <Link
-                            href="/terms"
-                            className="inline-flex min-h-6 items-center hover:text-accent transition"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Terms of Service
-                          </Link>
-                          <Link
-                            href="/privacy"
-                            className="inline-flex min-h-6 items-center hover:text-accent transition"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Privacy Policy
-                          </Link>
-                          <Link
-                            href="/accessibility"
-                            className="inline-flex min-h-6 items-center hover:text-accent transition"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Accessibility
-                          </Link>
-                          <Link
-                            href="/settings#privacy"
-                            className="inline-flex min-h-6 items-center hover:text-accent transition"
-                          >
-                            Privacy choices
-                          </Link>
-                          <a
-                            href={LEGAL_MAILTO}
-                            className="inline-flex min-h-6 items-center hover:text-accent transition"
-                            title={`Email ${LEGAL_EMAIL}`}
-                          >
-                            DMCA / Legal Contact
-                          </a>
-                        </nav>
-                        <p className="text-xs text-neutral-500">
-                          Audio hosted on Cloudflare R2 · Auth &amp; data on Neon ·
-                          Deployed on Vercel
-                        </p>
-                      </div>
-                    </div>
-                  </footer>
                 </div>
               </main>
             </div>

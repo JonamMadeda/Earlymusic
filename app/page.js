@@ -132,7 +132,7 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="rounded bg-gold/10 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-gold">
+            <span className="rounded bg-gold/10 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
               New
             </span>
           )}
@@ -208,7 +208,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-xs font-bold uppercase tracking-wider text-gold">
+            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
               New
             </span>
           )}
@@ -318,7 +318,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
             </span>
           )}
           {isNew && (
-            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-xs font-bold uppercase tracking-wider text-gold">
+            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
               New
             </span>
           )}
