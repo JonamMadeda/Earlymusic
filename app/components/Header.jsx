@@ -70,7 +70,7 @@ const Header = () => {
               >
                 <Search size={14} className="text-neutral-400" />
                 <span className="flex-1 text-left">Search songs, artists...</span>
-                <kbd className="rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-neutral-400">
+                <kbd className="rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-neutral-400">
                   ⌘K
                 </kbd>
               </button>
@@ -106,7 +106,7 @@ const Header = () => {
             {!isOnline && (
               <div className="flex items-center gap-x-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 animate-pulse">
                 <CloudOff size={12} className="text-amber-700" />
-                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">
+                <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">
                   Offline
                 </span>
               </div>

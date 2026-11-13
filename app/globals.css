@@ -2,10 +2,70 @@
 
 @theme {
   --color-accent: #0f172a;
+  /* Warm highlight reserved for "New" badges and celebratory accents.
+     Dark enough to hold 4.5:1 contrast on white and on its own 10% tint. */
+  --color-gold: #b45309;
 }
 
 :root {
   color-scheme: light;
+}
+
+/* Shared button patterns. Every variant carries a 44px minimum height so
+   the same class is safe on touch without per-page overrides. */
+@layer components {
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-accent/90 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white px-5 py-2.5 text-sm font-bold text-neutral-700 transition hover:bg-neutral-50 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-tertiary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold text-neutral-600 transition hover:bg-neutral-100 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-destructive {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-destructive-outline {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .card {
+    @apply rounded-2xl border border-neutral-200 bg-white shadow-sm;
+  }
+
+  .page-title {
+    @apply text-xl font-bold tracking-tight text-neutral-900 sm:text-2xl;
+  }
+
+  .section-title {
+    @apply text-base font-bold tracking-tight text-neutral-900 sm:text-lg;
+  }
+}
+
+/* Touch devices: every tappable control meets the 44px minimum target.
+   Inline text links are unaffected because min sizes don't apply to inline
+   boxes; block/flex controls (nav items, rows, rails) grow to finger size. */
+@media (pointer: coarse) {
+  button,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  a,
+  select,
+  summary {
+    min-height: 44px;
+  }
+
+  input[type="range"] {
+    min-height: 44px;
+  }
 }
 
 html {

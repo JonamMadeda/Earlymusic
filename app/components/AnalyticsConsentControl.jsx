@@ -24,7 +24,7 @@ export default function AnalyticsConsentControl() {
     <div>
       <div className="mb-3 flex items-center gap-2">
         <span
-          className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${status.className}`}
+          className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${status.className}`}
         >
           {status.label}
         </span>
@@ -58,7 +58,7 @@ export default function AnalyticsConsentControl() {
         </button>
       </div>
 
-      <p className="mt-3 flex items-center gap-1.5 text-[11px] text-neutral-400">
+      <p className="mt-3 flex items-center gap-1.5 text-xs text-neutral-400">
         <BarChart3 size={12} aria-hidden="true" />
         Read more in the{" "}
         <Link

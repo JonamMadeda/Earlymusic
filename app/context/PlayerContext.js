@@ -305,10 +305,12 @@ export const PlayerProvider = ({ children }) => {
       .catch((error) => console.error("Unable to read recently played:", error));
   }, [recentlyPlayed]);
 
-  const restorePlayback = useCallback((song, savedQueue = []) => {
+  const restorePlayback = useCallback((song) => {
     if (!song) return;
     setActiveSongState(song);
-    setQueue(savedQueue.length > 0 ? savedQueue : [song]);
+    // Empty queue lets the player fall back to the full library, so a
+    // resumed session keeps working next/previous.
+    setQueue([]);
     setPlayingSource("library");
   }, []);
 

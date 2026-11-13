@@ -41,7 +41,7 @@ const PlayerQueue = ({
             Queue ({total})
           </p>
           {known > 0 && (
-            <p className="mt-0.5 truncate text-[11px] text-neutral-500">
+            <p className="mt-0.5 truncate text-xs text-neutral-500">
               {formatTime(seconds)}
               {known < total ? ` of ${total} tracks timed` : " total"}
             </p>
@@ -51,7 +51,7 @@ const PlayerQueue = ({
           <button
             type="button"
             onClick={onClear}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1.5 text-[11px] font-semibold text-neutral-600 transition hover:bg-neutral-200"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-200"
           >
             <ListX size={13} />
             Clear
@@ -102,7 +102,7 @@ const PlayerQueue = ({
                     >
                       {item.title}
                     </span>
-                    <span className="block truncate text-[11px] text-neutral-500">
+                    <span className="block truncate text-xs text-neutral-500">
                       {item.author}
                       {secondsValue != null && ` · ${formatTime(secondsValue)}`}
                     </span>

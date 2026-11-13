@@ -132,7 +132,7 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
     }
   };
 
-  const reply = async (report) => {
+  const reply = (report) => {
     if (!report.reporter_email) return;
     const subject = `Re: your report about “${report.song_title || "a Luumbo track"}”`;
     const body = [
@@ -149,7 +149,8 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
       "Luumbo",
     ].join("\n");
 
-    await patchReport(report.id, { reply_sent: true });
+    // Opening a mailto draft is not a confirmed send, so reply_sent_at is
+    // deliberately not stamped here.
     window.location.href = `mailto:${report.reporter_email}?subject=${encodeURIComponent(
       subject
     )}&body=${encodeURIComponent(body)}`;
@@ -180,11 +181,11 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
       <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-5">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <ShieldAlert size={14} className="text-accent" />
-          <h2 className="text-sm font-bold tracking-tight text-neutral-900">
+          <h2 className="text-base font-bold tracking-tight text-neutral-900">
             Copyright &amp; content reports
           </h2>
           {openCount > 0 && (
-            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700">
               {openCount} open
             </span>
           )}
@@ -226,7 +227,7 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                      className={`rounded-full border px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${
                         report.report_type === "copyright"
                           ? "border-red-200 bg-red-50 text-red-700"
                           : "border-neutral-200 bg-white text-neutral-600"
@@ -235,13 +236,13 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
                       {report.report_type === "copyright" ? "Copyright" : "Other"}
                     </span>
                     <span
-                      className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                      className={`rounded-full border px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${
                         STATUS_STYLES[report.status] || STATUS_STYLES.open
                       }`}
                     >
                       {report.status}
                     </span>
-                    <span className="text-[10px] font-medium text-neutral-400">
+                    <span className="text-xs font-medium text-neutral-400">
                       {timeAgo(report.created_at)}
                     </span>
                     {report.song_id && (
@@ -249,7 +250,7 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
                         href={`/share/${report.song_id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold text-accent hover:underline"
+                        className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline"
                       >
                         Open track <ExternalLink size={10} />
                       </Link>
@@ -267,7 +268,7 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
                   </p>
 
                   {report.report_type === "copyright" && (
-                    <dl className="mt-2 grid gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-[11px] text-neutral-600 sm:grid-cols-2">
+                    <dl className="mt-2 grid gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-600 sm:grid-cols-2">
                       {report.copyrighted_work && (
                         <div>
                           <dt className="font-bold text-neutral-800">Work</dt>
@@ -301,7 +302,7 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
                     </dl>
                   )}
 
-                  <p className="mt-2 text-[11px] font-medium text-neutral-500">
+                  <p className="mt-2 text-xs font-medium text-neutral-500">
                     {report.reporter_name || "Anonymous"}
                     {report.reporter_email && (
                       <>
@@ -317,7 +318,7 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
                   </p>
 
                   <div className="mt-3 grid gap-2 sm:grid-cols-[130px_minmax(0,1fr)]">
-                    <label className="flex flex-col gap-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-wider text-neutral-400">
                       Status
                       <select
                         value={draft.status}
@@ -336,7 +337,7 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
                         ))}
                       </select>
                     </label>
-                    <label className="flex flex-col gap-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-wider text-neutral-400">
                       Resolution note (internal)
                       <textarea
                         value={draft.note}
@@ -359,7 +360,7 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
                       type="button"
                       disabled={busy}
                       onClick={() => saveReport(report)}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-neutral-700 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-neutral-700 disabled:opacity-50"
                     >
                       {busy ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
                       Save
@@ -369,7 +370,7 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
                         type="button"
                         disabled={busy}
                         onClick={() => reply(report)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-[11px] font-bold text-neutral-700 transition hover:border-neutral-300 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-bold text-neutral-700 transition hover:border-neutral-300 disabled:opacity-50"
                       >
                         <Mail size={12} /> Reply
                       </button>
@@ -379,14 +380,14 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
                         type="button"
                         disabled={busy}
                         onClick={() => takeDown(report)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-[11px] font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
                       >
                         <Gavel size={12} />
                         {confirmId === report.id ? "Confirm takedown" : "Take down"}
                       </button>
                     )}
                     {report.song_status === "rejected" && (
-                      <span className="rounded-lg bg-red-50 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-red-600">
+                      <span className="rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider text-red-600">
                         Access disabled
                       </span>
                     )}
@@ -401,8 +402,8 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
       <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-5">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Gavel size={14} className="text-accent" />
-          <h2 className="text-sm font-bold tracking-tight text-neutral-900">Takedown log</h2>
-          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-bold text-neutral-500">
+          <h2 className="text-base font-bold tracking-tight text-neutral-900">Takedown log</h2>
+          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-bold text-neutral-500">
             {takedowns?.length || 0}
           </span>
           <button
@@ -431,8 +432,8 @@ export default function AdminLegalPanel({ onToast, onTakedown }) {
                   <p className="truncate text-xs font-bold text-neutral-800">
                     {entry.song_title || `Song #${entry.song_id}`}
                   </p>
-                  <p className="text-[11px] leading-relaxed text-neutral-500">{entry.reason}</p>
-                  <p className="mt-0.5 text-[10px] text-neutral-400">
+                  <p className="text-xs leading-relaxed text-neutral-500">{entry.reason}</p>
+                  <p className="mt-0.5 text-xs text-neutral-400">
                     {entry.actor_email || "System"} · {timeAgo(entry.created_at)}
                   </p>
                 </div>

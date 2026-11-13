@@ -135,11 +135,15 @@ const Player = () => {
   // Song id we auto-advanced to, so the song-change effect can tell an
   // automatic move apart from the user picking something new.
   const autoTargetRef = useRef(null);
+  // Queue navigation preserves the shuffle pass, independently of whether
+  // failed tracks should be retried after a user-initiated skip.
+  const queueTargetRef = useRef(null);
+  const loadedSourceRef = useRef(null);
   const handledSleepStopRef = useRef(sleepTimerStopSignal);
   const autoAdvanceTimerRef = useRef(null);
   const feedbackTimerRef = useRef(null);
   const lastPrevPressRef = useRef(0);
-  const resumePositionRef = useRef(0);
+  const resumePositionRef = useRef(null);
   const lastPositionSaveRef = useRef(0);
   const closeButtonRef = useRef(null);
   const modalRef = useRef(null);
@@ -158,9 +162,9 @@ const Player = () => {
     try {
       const saved = JSON.parse(localStorage.getItem(PLAYBACK_POSITION_KEY) || "null");
       if (!saved?.song?.id || !saved.song.song_path || !(saved.position > 5)) return;
-      resumePositionRef.current = saved.position;
+      resumePositionRef.current = { songId: saved.song.id, position: saved.position };
       skipWhilePausedRef.current = true;
-      restorePlayback(saved.song, [saved.song]);
+      restorePlayback(saved.song);
     } catch {
       localStorage.removeItem(PLAYBACK_POSITION_KEY);
     }
@@ -168,6 +172,9 @@ const Player = () => {
 
   const savePlaybackPosition = useCallback(() => {
     if (!song || audioSongId !== song.id || !audioRef.current) return;
+    // A restored session mounts paused at 0; saving now would delete the
+    // stored position before onLoadedMetadata can seek to it.
+    if (resumePositionRef.current) return;
     const position = audioRef.current.currentTime;
     const total = audioRef.current.duration;
     try {
@@ -245,6 +252,7 @@ const Player = () => {
     handledSleepStopRef.current = sleepTimerStopSignal;
 
     playRef.current = false;
+    isPlayingRef.current = false;
     setIsPlaying(false);
     setIsBuffering(false);
     clearAutoAdvanceTimer();
@@ -258,6 +266,16 @@ const Player = () => {
     }
   }, [sleepTimerStopSignal, clearAutoAdvanceTimer]);
 
+  useEffect(() => {
+    const target = queueTargetRef.current;
+    const isQueueMove = target?.song === song && target?.songs === songs;
+    queueTargetRef.current = null;
+    if (!isQueueMove) shuffleHistoryRef.current.clear();
+    // A fresh manual selection or queue starts a new pass, even for the same
+    // song id. Next/Previous and automatic advancement keep the existing pass.
+    if (song?.id) shuffleHistoryRef.current.add(song.id);
+  }, [song, songs]);
+
   // Reset error count when the song changes
   useEffect(() => {
     // A manual pick starts a fresh failure cycle; an automatic move keeps the
@@ -267,7 +285,9 @@ const Player = () => {
     autoTargetRef.current = null;
     if (!isAutoAdvance) {
       failedSongIdsRef.current.clear();
-      shuffleHistoryRef.current.clear();
+    }
+    if (resumePositionRef.current && resumePositionRef.current.songId !== song?.id) {
+      resumePositionRef.current = null;
     }
 
     errorCountRef.current = 0;
@@ -462,9 +482,21 @@ const Player = () => {
   const onPlayNext = useCallback(() => {
     const nextSong = selectNextSong();
     if (!nextSong) return;
+    // Repeat-all can wrap onto the current track; reselecting the same song
+    // wouldn't retrigger the load effect, so restart the element directly.
+    if (nextSong.id === song?.id) {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        if (isPlayingRef.current) {
+          audioRef.current.play().catch(() => setIsPlaying(false));
+        }
+      }
+      return;
+    }
     skipWhilePausedRef.current = !isPlayingRef.current;
+    queueTargetRef.current = { song: nextSong, songs };
     onSongSelect(nextSong, songs);
-  }, [selectNextSong, songs, onSongSelect]);
+  }, [selectNextSong, songs, onSongSelect, song?.id]);
 
   // Auto-advance (track ended or unplayable): always resume playback, and
   // keep moving past tracks that fail so one dead URL can't stall the queue.
@@ -484,7 +516,17 @@ const Player = () => {
         return;
       }
 
+      // Same-song wrap (single-track repeat-all): restart without a reselect.
+      if (nextSong.id === song.id) {
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(() => setIsPlaying(false));
+        }
+        return;
+      }
+
       autoTargetRef.current = nextSong.id;
+      queueTargetRef.current = { song: nextSong, songs };
       skipWhilePausedRef.current = false;
       onSongSelect(nextSong, songs);
     },
@@ -519,16 +561,25 @@ const Player = () => {
     }
     skipWhilePausedRef.current = !isPlayingRef.current;
     const prevIndex = index <= 0 ? songs.length - 1 : index - 1;
+    if (songs[prevIndex].id !== song.id) {
+      queueTargetRef.current = { song: songs[prevIndex], songs };
+    }
     onSongSelect(songs[prevIndex], songs);
   }, [song, songs, onSongSelect, repeatMode]);
 
   const setPlayState = useCallback((playing) => {
+    playRef.current = playing;
+    isPlayingRef.current = playing;
+    if (!playing) {
+      clearAutoAdvanceTimer();
+      audioRef.current?.pause();
+    }
     setIsPlaying(playing);
-  }, []);
+  }, [clearAutoAdvanceTimer]);
 
   const togglePlay = useCallback(() => {
-    setIsPlaying((prev) => !prev);
-  }, []);
+    setPlayState(!isPlayingRef.current);
+  }, [setPlayState]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => !prev);
@@ -638,23 +689,33 @@ const Player = () => {
   const handlePlaybackError = useCallback(() => {
     clearAutoAdvanceTimer();
     errorCountRef.current += 1;
+    const loadId = loadIdRef.current;
+    const songId = song?.id;
+    const isCurrent = () =>
+      loadId === loadIdRef.current && songId === activeSongIdRef.current;
 
     if (errorCountRef.current <= MAX_AUTO_RETRIES) {
-      // One quick reload in case the stream hiccuped.
+      // Reload without losing the intent captured before the error. A later
+      // pause/stop cancels this timer and clears that intent.
       autoAdvanceTimerRef.current = setTimeout(() => {
+        if (!isCurrent()) return;
+        autoAdvanceTimerRef.current = null;
         if (audioRef.current && errorCountRef.current <= MAX_AUTO_RETRIES) {
+          loadIdRef.current += 1;
           audioRef.current.load();
         }
       }, 800);
     } else {
-      // Still failing: mark it as broken and try the next playable track.
+      // Still failing: only advance if playback is still wanted.
       autoAdvanceTimerRef.current = setTimeout(() => {
+        if (!isCurrent()) return;
         autoAdvanceTimerRef.current = null;
+        if (!playRef.current) return;
         errorCountRef.current = 0;
         advanceToNext({ reason: "error" });
       }, AUTO_ADVANCE_DELAY);
     }
-  }, [clearAutoAdvanceTimer, advanceToNext]);
+  }, [clearAutoAdvanceTimer, advanceToNext, song?.id]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("mediaSession" in navigator) || !song) return;
@@ -706,7 +767,19 @@ const Player = () => {
   useEffect(() => {
     if (!song) return;
 
+    const publicUrl = getAudioPublicUrl(song.song_path);
+    const loaded = loadedSourceRef.current;
+    if (publicUrl && loaded?.songId === song.id && loaded.publicUrl === publicUrl) {
+      // A fetched copy of the restored/current song is a selection, not a new
+      // source. Keep metadata and buffering intact; the URL effect won't run.
+      const shouldPlay = !skipWhilePausedRef.current;
+      skipWhilePausedRef.current = false;
+      setPlayState(shouldPlay);
+      return;
+    }
+
     const loadId = ++loadIdRef.current;
+    loadedSourceRef.current = null;
     let cancelled = false;
 
     const loadAudio = async () => {
@@ -716,7 +789,6 @@ const Player = () => {
       const loadingSongId = song.id;
 
       try {
-        const publicUrl = getAudioPublicUrl(song.song_path);
         if (!publicUrl) {
           // No playable source (missing file/URL): fail fast so auto-advance
           // can move on instead of leaving the player stuck buffering.
@@ -744,6 +816,7 @@ const Player = () => {
           setAudioUrl(publicUrl);
         }
         setAudioSongId(loadingSongId);
+        loadedSourceRef.current = { songId: loadingSongId, publicUrl };
 
         playRef.current = !skipWhilePausedRef.current;
         skipWhilePausedRef.current = false;
@@ -768,17 +841,22 @@ const Player = () => {
     return () => {
       cancelled = true;
     };
-  }, [song]);
+  }, [song, setPlayState]);
 
   // Eager attempt to play as soon as the audio URL is set
   useEffect(() => {
     if (!audioUrl || !audioRef.current || !playRef.current) return;
 
+    const loadId = loadIdRef.current;
     audioRef.current.play().then(() => {
+      if (loadId !== loadIdRef.current || !playRef.current) return;
       setIsPlaying(true);
       setIsBuffering(false);
       playRef.current = false;
     }).catch(() => {
+      // The media error may arrive before this rejection. Its retry owns the
+      // pending intent now; an older play promise must not erase it.
+      if (loadId !== loadIdRef.current || errorCountRef.current > 0) return;
       playRef.current = false;
       setIsPlaying(false);
       setIsBuffering(false);
@@ -861,29 +939,35 @@ const Player = () => {
         onWaiting={() => setIsBuffering(true)}
         onPlaying={() => setIsBuffering(false)}
         onCanPlay={() => {
+          if (audioSongId !== song?.id || activeSongIdRef.current !== song?.id) return;
           setIsBuffering(false);
+          setAudioError(false);
+          errorCountRef.current = 0;
+          clearAutoAdvanceTimer();
           if (playRef.current) {
             playRef.current = false;
             audioRef.current?.play().catch(() => setIsPlaying(false));
             setIsPlaying(true);
-            errorCountRef.current = 0;
-            clearAutoAdvanceTimer();
           }
         }}
         onLoadedMetadata={() => {
+          const resume = resumePositionRef.current;
+          resumePositionRef.current = null;
           if (audioRef.current && Number.isFinite(audioRef.current.duration)) {
             const total = audioRef.current.duration;
             setDuration(total);
             audioRef.current.playbackRate = playbackRate;
-            if (resumePositionRef.current > 0 && resumePositionRef.current < total - 5) {
-              audioRef.current.currentTime = resumePositionRef.current;
+            if (resume && resume.songId === audioSongId && resume.position < total - 5) {
+              audioRef.current.currentTime = resume.position;
             }
-            resumePositionRef.current = 0;
             syncMediaPosition();
           }
         }}
         onRateChange={syncMediaPosition}
         onError={() => {
+          // An error from the previous source can arrive while the replacement
+          // is still loading; reacting to it would cancel the new load.
+          if (audioSongId !== song?.id || activeSongIdRef.current !== song?.id) return;
           const mediaError = audioRef.current?.error;
           console.error("Playback error:", {
             songId: song?.id,
@@ -907,7 +991,8 @@ const Player = () => {
             });
             return;
           }
-          playRef.current = false;
+          playRef.current = playRef.current || isPlayingRef.current;
+          isPlayingRef.current = false;
           setIsPlaying(false);
           setIsBuffering(false);
           setAudioError(true);
@@ -951,11 +1036,11 @@ const Player = () => {
                     {song.title}
                   </button>
                   {isBusy ? (
-                    <p className="truncate text-[11px] font-semibold text-accent">
+                    <p className="truncate text-xs font-semibold text-accent">
                       {isPreparing ? "Opening…" : "Buffering…"}
                     </p>
                   ) : (
-                    <p className="truncate text-[11px] font-medium text-neutral-400">
+                    <p className="truncate text-xs font-medium text-neutral-400">
                       {song.author}
                     </p>
                   )}
@@ -1218,7 +1303,7 @@ const Player = () => {
               <ChevronDown size={22} />
             </button>
             <div className="flex min-w-0 items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 border border-neutral-200">
-              <span className="truncate text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+              <span className="truncate text-xs font-bold uppercase tracking-widest text-neutral-500">
                 {showQueue ? "Up Next" : "Now Playing"}
               </span>
             </div>
@@ -1313,7 +1398,7 @@ const Player = () => {
                   {song.author}
                 </p>
                 {attribution && (
-                  <p className="mt-1 text-[11px] leading-relaxed text-neutral-400">
+                  <p className="mt-1 text-xs leading-relaxed text-neutral-400">
                     {song.copyright_holder && <>© {song.copyright_holder}</>}
                     {song.copyright_holder && song.license_type && " · "}
                     {song.license_type &&
@@ -1333,7 +1418,7 @@ const Player = () => {
                 )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 md:justify-center">
                   {isOffline && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-500">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-500">
                       <Download size={10} />
                       Available offline
                     </span>
@@ -1360,7 +1445,7 @@ const Player = () => {
               </div>
 
               {/* Controls panel */}
-              <div className="rounded-t-3xl border-t border-neutral-200 bg-white/80 px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] backdrop-blur-2xl md:rounded-none md:border-t-0 md:bg-transparent md:px-12 md:pb-8 md:backdrop-blur-none lg:px-16">
+              <div className="rounded-t-2xl border-t border-neutral-200 bg-white/80 px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] backdrop-blur-2xl md:rounded-none md:border-t-0 md:bg-transparent md:px-12 md:pb-8 md:backdrop-blur-none lg:px-16">
                 <SeekBar audioRef={audioRef} duration={duration} onSeek={handleSeek} />
 
                 <div className="flex items-center justify-center gap-4 py-2 sm:gap-6">

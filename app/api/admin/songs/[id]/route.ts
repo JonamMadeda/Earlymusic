@@ -42,12 +42,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // Replace-audio flow swaps the referenced file — verify the new object
     // the same way creation does, then store the hostname-relative form so
     // rows created and updated after normalization stay env-independent.
-    if (typeof body.song_path === "string") {
-      const stored = await verifyStoredAudio(body.song_path);
+    const replacingAudio = body.song_path !== undefined;
+    const approving = body.status === "approved" && existing.status !== "approved";
+    if (replacingAudio || approving) {
+      const audioPath = replacingAudio ? body.song_path : existing.song_path;
+      if (typeof audioPath !== "string" || !audioPath) {
+        return NextResponse.json({ error: "Upload audio before approving this track." }, { status: 400 });
+      }
+      const stored = await verifyStoredAudio(audioPath);
       if (!stored.ok) {
         return NextResponse.json({ error: stored.error || "Audio verification failed." }, { status: 400 });
       }
-      body.song_path = `/${getR2ObjectKey(body.song_path)}`;
+      if (replacingAudio) body.song_path = `/${getR2ObjectKey(audioPath)}`;
     }
     // Compare object keys, not strings: a legacy row may still hold an
     // absolute R2 URL for the very file the admin just re-selected, which is

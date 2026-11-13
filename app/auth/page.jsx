@@ -211,7 +211,7 @@ const passwordRef = useRef(null);
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
             <Mail size={24} aria-hidden="true" />
           </div>
-          <h1 className="text-lg font-bold text-neutral-900">Check your email</h1>
+          <h1 className="text-xl font-bold text-neutral-900">Check your email</h1>
           <p className="mt-2 text-sm leading-relaxed text-neutral-500">
             Enter the six-digit code sent to <strong className="text-neutral-700">{email}</strong>. It expires in five minutes.
           </p>
@@ -386,7 +386,7 @@ const passwordRef = useRef(null);
     <main className="min-h-[90vh] bg-transparent flex items-center justify-center px-4 py-10 sm:px-6">
       <div className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-6 shadow-[0_18px_45px_-28px_rgba(15,23,42,0.35)] sm:p-7">
         <div className="text-center mb-5">
-          <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-neutral-400">
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-neutral-400">
             Luumbo
           </p>
           <h1 className="mt-3 text-[22px] font-bold tracking-tight text-neutral-900">
@@ -572,7 +572,7 @@ const passwordRef = useRef(null);
                 </button>
               </div>
               {!isLogin && (
-                <p id="auth-password-hint" className="text-[10px] text-neutral-400 ml-1">
+                <p id="auth-password-hint" className="text-xs text-neutral-400 ml-1">
                   Use 8–72 characters. Passphrases work well.
                 </p>
               )}
@@ -614,7 +614,7 @@ const passwordRef = useRef(null);
                   onChange={(e) => setTosAccepted(e.target.checked)}
                   className="w-4 h-4 rounded border-neutral-300 text-accent focus:ring-accent"
                 />
-                <label htmlFor="auth-tos" className="text-[12px] font-medium text-neutral-600 leading-relaxed">
+                <label htmlFor="auth-tos" className="text-xs font-medium text-neutral-600 leading-relaxed">
                   I accept the{" "}
                   <Link
                     href="/terms"
@@ -634,7 +634,7 @@ const passwordRef = useRef(null);
                   onChange={(e) => setPrivacyAccepted(e.target.checked)}
                   className="w-4 h-4 rounded border-neutral-300 text-accent focus:ring-accent"
                 />
-                <label htmlFor="auth-privacy" className="text-[12px] font-medium text-neutral-600 leading-relaxed">
+                <label htmlFor="auth-privacy" className="text-xs font-medium text-neutral-600 leading-relaxed">
                   I accept the{" "}
                   <Link
                     href="/privacy"
@@ -646,7 +646,7 @@ const passwordRef = useRef(null);
                   </Link>
                 </label>
               </div>
-              <p className="text-[11px] leading-relaxed text-neutral-400">
+              <p className="text-xs leading-relaxed text-neutral-400">
                 You must be at least 13 years old. If you are under 18, ask a
                 parent or guardian first.
               </p>
@@ -658,7 +658,7 @@ const passwordRef = useRef(null);
                   onChange={(e) => setAgeAttested(e.target.checked)}
                   className="mt-0.5 w-4 h-4 rounded border-neutral-300 text-accent focus:ring-accent"
                 />
-                <label htmlFor="auth-age" className="text-[12px] font-medium text-neutral-600 leading-relaxed">
+                <label htmlFor="auth-age" className="text-xs font-medium text-neutral-600 leading-relaxed">
                   I confirm that I am at least 13 years old.
                 </label>
               </div>
@@ -731,13 +731,13 @@ const passwordRef = useRef(null);
           )}
 
           {isSignup && (
-            <p className="text-[11px] font-medium leading-relaxed text-neutral-400">
+            <p className="text-xs font-medium leading-relaxed text-neutral-400">
               Your email is only used for signing in and password resets.
             </p>
           )}
 
           {isForgot && !message && (
-            <p className="text-[11px] font-medium text-neutral-400 mt-1.5">
+            <p className="text-xs font-medium text-neutral-400 mt-1.5">
               Use the email you signed up with. The link works once and
               expires in an hour.
             </p>
@@ -769,10 +769,17 @@ function ResultScreen({ title, body, actionLabel, onAction }) {
   );
 }
 
+function AuthFormForUrl() {
+  const searchParams = useSearchParams();
+  // Mode/token navigation resets the form without disrupting local login/signup tabs.
+  const formKey = JSON.stringify([searchParams.get("mode"), searchParams.get("token")]);
+  return <AuthForm key={formKey} />;
+}
+
 export default function AuthPage() {
   return (
     <Suspense fallback={<div className="min-h-[90vh] flex items-center justify-center"><Loader aria-hidden="true" /></div>}>
-      <AuthForm />
+      <AuthFormForUrl />
     </Suspense>
   );
 }

@@ -72,7 +72,7 @@ export default function ShareClient({ song }) {
       <div className="mx-auto max-w-xl space-y-5">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-neutral-500 transition hover:text-neutral-900"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-500 transition hover:text-neutral-900"
         >
           <ArrowLeft size={13} />
           Back to home
@@ -84,18 +84,18 @@ export default function ShareClient({ song }) {
             className="relative flex flex-col items-center px-6 pt-8 pb-6 text-center text-white"
             style={{ backgroundColor: "#0f172a" }}
           >
-            <span className="mb-4 rounded border border-white/20 bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+            <span className="mb-4 rounded border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
               Shared song
             </span>
             <VinylArtwork title={song.title} isPlaying={isCurrent} />
-            <h1 className="mt-5 text-lg font-bold tracking-tight text-white">
+            <h1 className="mt-5 text-xl font-bold tracking-tight text-white">
               {song.title}
             </h1>
             <p className="mt-1 truncate text-sm text-neutral-300">
               {song.author || "Unknown artist"}
             </p>
             {song.category && (
-              <span className="mt-2.5 rounded border border-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-300">
+              <span className="mt-2.5 rounded border border-white/15 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-neutral-300">
                 {song.category}
               </span>
             )}
@@ -155,14 +155,14 @@ export default function ShareClient({ song }) {
             </div>
 
             {shareState && (
-              <p className="text-center text-[11px] font-medium text-neutral-500">
+              <p className="text-center text-xs font-medium text-neutral-500">
                 {shareState}
               </p>
             )}
 
             {song.original_songs && song.original_songs.length > 0 && (
               <div className="rounded-lg bg-neutral-50 p-3 text-left">
-                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-neutral-400">
                   Compilation details
                 </p>
                 <div className="flex flex-col gap-1.5">
@@ -171,7 +171,7 @@ export default function ShareClient({ song }) {
                       <p className="text-xs font-bold text-neutral-900">
                         {entry.title || "Unknown title"}
                       </p>
-                      <p className="text-[11px] text-neutral-500">
+                      <p className="text-xs text-neutral-500">
                         Original artist: {entry.artist || "Unknown"}
                       </p>
                     </div>
@@ -182,7 +182,7 @@ export default function ShareClient({ song }) {
           </div>
         </section>
 
-        <p className="text-center text-[11px] text-neutral-400">
+        <p className="text-center text-xs text-neutral-400">
           Shared links always open right here in the app — no account needed to
           listen.
         </p>

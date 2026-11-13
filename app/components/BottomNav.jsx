@@ -52,7 +52,7 @@ const BottomNav = () => {
               />
             </div>
             <span
-              className={`text-[10px] font-semibold tracking-tight leading-none transition-colors duration-200 ${
+              className={`text-xs font-semibold tracking-tight leading-none transition-colors duration-200 ${
                 isActive ? "text-accent font-bold" : "text-neutral-500"
               }`}
             >

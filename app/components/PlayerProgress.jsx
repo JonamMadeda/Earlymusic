@@ -107,7 +107,7 @@ export const ThinProgress = ({ audioRef, duration, onSeek, trackClassName = "" }
         style={{ width: `${scrub.percent}%` }}
       />
       <div
-        className="pointer-events-none absolute top-1/2 z-30 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-white bg-accent opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+        className="pointer-events-none absolute top-1/2 z-30 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-white bg-accent opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
         style={{ left: `${scrub.percent}%`, marginLeft: "-7px" }}
       />
     </div>
@@ -145,7 +145,7 @@ export const TimeReadout = ({ audioRef, duration }) => {
   const total = Number.isFinite(duration) && duration > 0 ? duration : 0;
 
   return (
-    <div className="flex items-center gap-1 text-[10px] font-medium tabular-nums text-neutral-400">
+    <div className="flex items-center gap-1 text-xs font-medium tabular-nums text-neutral-400">
       <span>{formatTime(time)}</span>
       <span className="text-neutral-300">/</span>
       <span>-{formatTime(Math.max(0, total - time))}</span>

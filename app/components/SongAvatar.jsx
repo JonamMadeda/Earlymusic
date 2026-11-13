@@ -45,7 +45,7 @@ export const hueGradient = (seed) => {
 };
 
 const sizeMap = {
-  xs: "h-6 w-6 text-[10px] rounded-md",
+  xs: "h-6 w-6 text-xs rounded-md",
   sm: "h-7 w-7 text-xs rounded-md",
   "avatar-mini": "h-8 w-8 text-xs rounded-md",
   row: "h-10 w-10 text-sm rounded-lg",
@@ -86,7 +86,7 @@ export const VinylArtwork = ({ title, isPlaying = false }) => {
             <span className="text-2xl sm:text-3xl font-black text-white select-none drop-shadow-md">
               {letter}
             </span>
-            <span className="text-[7px] sm:text-[8px] font-bold tracking-[0.2em] text-white/70 uppercase mt-0.5 select-none">
+            <span className="text-xs sm:text-xs font-bold tracking-[0.2em] text-white/70 uppercase mt-0.5 select-none">
               Luumbo
             </span>
             {/* Center spindle hole */}

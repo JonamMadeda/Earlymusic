@@ -12,7 +12,7 @@ const Loader = () => {
           <span className="h-1.5 w-1.5 rounded-full bg-accent animate-bounce [animation-delay:-0.15s]" />
           <span className="h-1.5 w-1.5 rounded-full bg-accent animate-bounce" />
         </div>
-        <p className="text-[12px] font-medium text-neutral-400">
+        <p className="text-xs font-medium text-neutral-400">
           Loading library...
         </p>
       </div>

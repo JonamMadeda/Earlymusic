@@ -15,12 +15,14 @@ import {
  * server-side, so the banner cannot reappear until the next material change.
  */
 export default function PolicyConsentBanner() {
-  const { user } = useAuth();
-  const [dismissed, setDismissed] = useState(false);
+  const { user, refreshUser } = useAuth();
+  // Dismissal belongs to one account: signing in as somebody else on the same
+  // page must not inherit the previous account's "Later".
+  const [dismissedFor, setDismissedFor] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  if (!user || dismissed) return null;
+  if (!user || dismissedFor === user.id) return null;
 
   const needsTerms = user.terms_version !== LEGAL_TERMS_VERSION;
   const needsPrivacy = user.privacy_version !== LEGAL_PRIVACY_VERSION;
@@ -38,7 +40,10 @@ export default function PolicyConsentBanner() {
         const body = await response.json().catch(() => ({}));
         throw new Error(body.error || "Unable to record your acceptance.");
       }
-      setDismissed(true);
+      // The server stored new versions; pull them into the auth context so
+      // the rest of the app stops treating this account as out of date.
+      await refreshUser();
+      setDismissedFor(user.id);
     } catch (acceptError) {
       setError(acceptError.message || "Unable to record your acceptance.");
     } finally {
@@ -57,10 +62,10 @@ export default function PolicyConsentBanner() {
           <ShieldCheck size={17} aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold tracking-tight text-neutral-900">
+          <p className="text-base font-bold tracking-tight text-neutral-900">
             We updated our legal documents
           </p>
-          <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
+          <p className="mt-1 text-xs leading-relaxed text-neutral-500">
             Please review the{" "}
             <Link href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold text-accent hover:underline">
               Terms of Service
@@ -72,7 +77,7 @@ export default function PolicyConsentBanner() {
             and accept them to keep using your account.
           </p>
           {error && (
-            <p role="alert" className="mt-2 text-[11px] font-medium text-red-600">
+            <p role="alert" className="mt-2 text-xs font-medium text-red-600">
               {error}
             </p>
           )}
@@ -81,16 +86,16 @@ export default function PolicyConsentBanner() {
               type="button"
               onClick={accept}
               disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-[11px] font-bold text-white transition hover:bg-accent/90 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-xs font-bold text-white transition hover:bg-accent/90 disabled:opacity-50"
             >
               {busy && <Loader2 size={12} className="animate-spin" />}
               Accept and continue
             </button>
             <button
               type="button"
-              onClick={() => setDismissed(true)}
+              onClick={() => setDismissedFor(user.id)}
               disabled={busy}
-              className="rounded-full px-3 py-2 text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-100 disabled:opacity-50"
+              className="rounded-full px-3 py-2 text-xs font-semibold text-neutral-500 transition hover:bg-neutral-100 disabled:opacity-50"
             >
               Later
             </button>
@@ -99,7 +104,7 @@ export default function PolicyConsentBanner() {
         <button
           type="button"
           aria-label="Dismiss"
-          onClick={() => setDismissed(true)}
+          onClick={() => setDismissedFor(user.id)}
           disabled={busy}
           className="rounded-lg p-1 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
         >

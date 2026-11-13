@@ -76,7 +76,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
             type="button"
             onClick={onClose}
             aria-label="Close search"
-            className="rounded-lg border border-neutral-200 px-2 py-1 text-[11px] font-semibold text-neutral-500 hover:bg-neutral-50"
+            className="rounded-lg border border-neutral-200 px-2 py-1 text-xs font-semibold text-neutral-500 hover:bg-neutral-50"
           >
             ESC
           </button>
@@ -97,18 +97,18 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
                 <Music size={18} />
               </div>
               <p className="text-xs font-semibold text-neutral-600">Quick Song Search</p>
-              <p className="mt-0.5 text-[11px] text-neutral-400">Type a song title or artist to play instantly</p>
+              <p className="mt-0.5 text-xs text-neutral-400">Type a song title or artist to play instantly</p>
             </div>
           ) : filteredSongs.length === 0 ? (
             <div className="py-10 text-center">
               <p className="text-xs font-semibold text-neutral-600">No songs found for &ldquo;{query}&rdquo;</p>
-              <p className="mt-1 text-[11px] text-neutral-400">Try searching for a different title or artist</p>
+              <p className="mt-1 text-xs text-neutral-400">Try searching for a different title or artist</p>
             </div>
           ) : (
             <div className="space-y-1">
               <p
                 role="status"
-                className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400"
+                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-neutral-400"
               >
                 Songs ({filteredSongs.length})
               </p>
@@ -127,11 +127,11 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
                     <p className="truncate text-xs font-semibold text-neutral-900 group-hover:text-accent">
                       {song.title}
                     </p>
-                    <p className="truncate text-[11px] text-neutral-500">
+                    <p className="truncate text-xs text-neutral-500">
                       {song.author}
                     </p>
                   </div>
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white opacity-0 shadow-sm transition group-hover:opacity-100 shrink-0">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white opacity-0 shadow-sm transition group-hover:opacity-100 group-focus-within:opacity-100 shrink-0">
                     <Play size={12} fill="currentColor" className="ml-0.5" />
                   </div>
                 </button>
