@@ -247,7 +247,9 @@ export const PlayerProvider = ({ children }) => {
     const timeout = setTimeout(() => {
       const seededSongs = shuffle(allSongs).slice(0, SEED_COUNT);
       setRecentlyPlayed(seededSongs);
-      localStorage.setItem(RECENT_KEY, JSON.stringify(seededSongs));
+      try {
+        localStorage.setItem(RECENT_KEY, JSON.stringify(seededSongs));
+      } catch {}
     }, 0);
     return () => clearTimeout(timeout);
   }, [allSongs, recentlyPlayed]);
@@ -257,7 +259,9 @@ export const PlayerProvider = ({ children }) => {
   useEffect(() => {
     if (recentlyPlayed.length === 0) return;
 
-    localStorage.setItem(RECENT_KEY, JSON.stringify(recentlyPlayed));
+    try {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(recentlyPlayed));
+    } catch {}
 
     const prev = prevRecentRef.current;
     prevRecentRef.current = recentlyPlayed;

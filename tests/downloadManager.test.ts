@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  downloadSong,
+  removeDownload,
   stageClearDownloads,
   undoClearDownloads,
   commitClearDownloads,
@@ -236,5 +238,44 @@ describe("staged download clearing", () => {
     const snapshot = stageClearDownloads();
     expect(snapshot.songs).toEqual([]);
     expect(getDownloadedSongs()).toEqual([]);
+  });
+});
+
+describe("re-downloading a replaced recording", () => {
+  const stubFetch = () =>
+    vi.stubGlobal("fetch", async () =>
+      new Response("audio", { headers: { "Content-Type": "audio/mpeg" } })
+    );
+
+  it("rewrites the stored path so pruning can reclaim the superseded bytes", async () => {
+    await seed([song("a")]);
+    stubFetch();
+
+    await downloadSong({ ...song("a"), song_path: "/audio/a-v2.mp3" });
+
+    expect(getDownloadedSongs().map((s) => s.song_path)).toEqual(["/audio/a-v2.mp3"]);
+    await pruneOrphanedDownloads();
+    expect(await audio.match("/audio/a.mp3")).toBeUndefined();
+    expect(await audio.match("/audio/a-v2.mp3")).toBeDefined();
+  });
+
+  it("lets removal delete the current file rather than the old one", async () => {
+    await seed([song("a")]);
+    stubFetch();
+    await downloadSong({ ...song("a"), song_path: "/audio/a-v2.mp3" });
+
+    await removeDownload("a");
+
+    expect(await audio.match("/audio/a-v2.mp3")).toBeUndefined();
+    expect(getDownloadedSongs()).toEqual([]);
+  });
+
+  it("leaves an unchanged download entry alone", async () => {
+    await seed([song("a")]);
+    stubFetch();
+
+    await downloadSong(song("a"));
+
+    expect(getDownloadedSongs()[0].downloadedAt).toBe("2026-11-13T00:00:00.000Z");
   });
 });
