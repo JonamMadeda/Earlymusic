@@ -11,6 +11,7 @@ export type AuthEvent =
   | "signout"
   | "signout_all"
   | "password_changed"
+  | "password_change_failed"
   | "password_reset_requested"
   | "password_reset_completed"
   | "password_reset_failed"

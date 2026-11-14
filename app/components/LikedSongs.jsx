@@ -45,7 +45,7 @@ const LikedSongs = () => {
     return (
       <div className="flex flex-col items-center justify-center rounded-[22px] border border-dashed border-neutral-200 bg-white/60 py-6 px-4">
         <Heart size={16} className="mb-2 text-neutral-200" />
-        <p className="text-center text-[12px] font-medium leading-snug text-neutral-400">
+        <p className="text-center text-xs font-medium leading-snug text-neutral-400">
           Liked songs will <br /> appear here
         </p>
       </div>
@@ -71,7 +71,7 @@ const LikedSongs = () => {
             <p className="truncate text-[13px] font-semibold text-neutral-600 transition-colors group-hover:text-neutral-900">
               {song.title}
             </p>
-            <p className="truncate text-[11px] font-medium text-neutral-400">
+            <p className="truncate text-xs font-medium text-neutral-400">
               {song.author}
             </p>
           </div>

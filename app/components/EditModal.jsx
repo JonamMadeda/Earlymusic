@@ -34,7 +34,13 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
     if (song && isOpen) {
       setTitle(song.title || "");
       setAuthor(song.author || "");
-      setOriginalSongs(song.original_songs && song.original_songs.length > 0 ? song.original_songs : [{ title: "", artist: "" }]);
+      // Copy the entries: the song object is shared player/admin state, and
+      // editing a draft must not rewrite the row behind the modal.
+      setOriginalSongs(
+        song.original_songs && song.original_songs.length > 0
+          ? song.original_songs.map((entry) => ({ ...entry }))
+          : [{ title: "", artist: "" }]
+      );
       const normalizedCat = (song.category || "Worship").trim();
       setCategory(normalizedCat.charAt(0).toUpperCase() + normalizedCat.slice(1).toLowerCase());
       setDuration(song.duration || "Long");
@@ -46,7 +52,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
           ? String(song.rights_clearance_date).slice(0, 10)
           : ""
       );
-      setStatus(song.status || "approved");
+      setStatus(song.status || "pending");
       setRegionRestricted(Boolean(song.region_restricted));
       setAllowedCountries(
         Array.isArray(song.allowed_countries)
@@ -69,9 +75,11 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
   };
 
   const handleOriginalChange = (index, field, value) => {
-    const updated = [...originalSongs];
-    updated[index][field] = value;
-    setOriginalSongs(updated);
+    setOriginalSongs(
+      originalSongs.map((entry, i) =>
+        i === index ? { ...entry, [field]: value } : entry
+      )
+    );
   };
 
   const handleUpdate = async (e) => {
@@ -196,7 +204,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
               <button
                 type="button"
                 onClick={handleAddOriginal}
-                className="text-accent hover:text-neutral-900 transition flex items-center gap-1 text-[11px] font-bold"
+                className="text-accent hover:text-neutral-900 transition flex items-center gap-1 text-xs font-bold"
               >
                 <Plus size={14} /> Add Song
               </button>
@@ -298,7 +306,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
 
             <div className="flex flex-col gap-y-3">
               <div className="flex flex-col gap-y-1">
-                <label className="text-[11px] font-medium text-neutral-500">
+                <label className="text-xs font-medium text-neutral-500">
                   Copyright holder
                 </label>
                 <input
@@ -312,7 +320,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-y-1">
-                  <label className="text-[11px] font-medium text-neutral-500">
+                  <label className="text-xs font-medium text-neutral-500">
                     Licence type
                   </label>
                   <input
@@ -324,7 +332,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
                   />
                 </div>
                 <div className="flex flex-col gap-y-1">
-                  <label className="text-[11px] font-medium text-neutral-500">
+                  <label className="text-xs font-medium text-neutral-500">
                     Cleared on
                   </label>
                   <input
@@ -337,7 +345,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
               </div>
 
               <div className="flex flex-col gap-y-1">
-                <label className="text-[11px] font-medium text-neutral-500">
+                <label className="text-xs font-medium text-neutral-500">
                   Licence URL
                 </label>
                 <input
@@ -350,7 +358,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
               </div>
 
               <div className="flex flex-col gap-y-1">
-                <label className="text-[11px] font-medium text-neutral-500">
+                <label className="text-xs font-medium text-neutral-500">
                   Publication status
                 </label>
                 <select
@@ -364,7 +372,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
                 </select>
               </div>
 
-              <label className="flex items-center gap-2 text-[12px] font-medium text-neutral-600">
+              <label className="flex items-center gap-2 text-xs font-medium text-neutral-600">
                 <input
                   type="checkbox"
                   checked={downloadAllowed}
@@ -374,7 +382,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
                 Allow offline downloads
               </label>
 
-              <label className="flex items-center gap-2 text-[12px] font-medium text-neutral-600">
+              <label className="flex items-center gap-2 text-xs font-medium text-neutral-600">
                 <input
                   type="checkbox"
                   checked={regionRestricted}
@@ -386,7 +394,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
 
               {regionRestricted && (
                 <div className="flex flex-col gap-y-1">
-                  <label className="text-[11px] font-medium text-neutral-500">
+                  <label className="text-xs font-medium text-neutral-500">
                     Allowed countries (ISO codes, comma separated)
                   </label>
                   <input
@@ -404,7 +412,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
                 !licenseType.trim() &&
                 !licenseUrl.trim() &&
                 !rightsClearanceDate && (
-                  <label className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] leading-relaxed text-amber-800">
+                  <label className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
                     <input
                       type="checkbox"
                       checked={rightsAttested}

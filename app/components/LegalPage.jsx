@@ -32,7 +32,7 @@ export default function LegalPage({
       className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6"
     >
       <div className="mx-auto max-w-5xl">
-        <header className="relative overflow-hidden rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm md:p-8">
+        <header className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm md:p-8">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-accent/[0.04]"
@@ -43,19 +43,19 @@ export default function LegalPage({
           />
 
           <div className="relative">
-            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-500">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-neutral-500">
               <Scale size={13} aria-hidden="true" />
               Legal
             </div>
 
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-neutral-900 md:text-3xl">
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-neutral-900">
               {title}
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-500 md:text-[15px]">
               {description}
             </p>
 
-            <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-2.5 text-[11px] font-medium text-neutral-600">
+            <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-2.5 text-xs font-medium text-neutral-600">
               <div className="flex items-center gap-1.5">
                 <CalendarDays size={13} className="text-neutral-400" aria-hidden="true" />
                 <dt className="sr-only">Effective date</dt>
@@ -86,7 +86,7 @@ export default function LegalPage({
         >
           <h2
             id="legal-summary-title"
-            className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-accent"
+            className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-accent"
           >
             <Sparkles size={13} aria-hidden="true" />
             The short version
@@ -100,7 +100,7 @@ export default function LegalPage({
           <summary className="cursor-pointer list-none px-4 py-3 text-xs font-bold text-neutral-700 marker:content-none [&::-webkit-details-marker]:hidden">
             <span className="flex items-center justify-between gap-3">
               On this page
-              <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 {sections.length} sections
                 <ChevronDown
                   size={14}
@@ -118,7 +118,7 @@ export default function LegalPage({
                     href={`#${section.id}`}
                     className="flex items-baseline gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900"
                   >
-                    <span className="w-4 shrink-0 text-[10px] font-bold tabular-nums text-neutral-500">
+                    <span className="w-4 shrink-0 text-xs font-bold tabular-nums text-neutral-500">
                       {index + 1}
                     </span>
                     {section.title}
@@ -132,7 +132,7 @@ export default function LegalPage({
         <div className="mt-5 grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8">
           <nav aria-label="On this page" className="hidden lg:block">
             <div className="sticky top-4 rounded-2xl border border-neutral-200 bg-white p-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-500">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-neutral-500">
                 On this page
               </p>
               <ol className="mt-3 space-y-0.5">
@@ -140,9 +140,9 @@ export default function LegalPage({
                   <li key={section.id}>
                     <a
                       href={`#${section.id}`}
-                      className="flex items-baseline gap-2 rounded-lg px-2 py-1.5 text-[12px] font-medium leading-snug text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900"
+                      className="flex items-baseline gap-2 rounded-lg px-2 py-1.5 text-xs font-medium leading-snug text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900"
                     >
-                      <span className="w-4 shrink-0 text-[10px] font-bold tabular-nums text-neutral-500">
+                      <span className="w-4 shrink-0 text-xs font-bold tabular-nums text-neutral-500">
                         {index + 1}
                       </span>
                       {section.title}
@@ -165,7 +165,7 @@ export default function LegalPage({
                   <div className="flex items-start gap-3">
                     <span
                       aria-hidden="true"
-                      className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-accent/[0.07] text-[11px] font-bold tabular-nums text-accent"
+                      className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-accent/[0.07] text-xs font-bold tabular-nums text-accent"
                     >
                       {index + 1}
                     </span>
@@ -216,7 +216,7 @@ export default function LegalPage({
                     href={entry.href}
                     className="group rounded-2xl border border-neutral-200 bg-white p-4 transition hover:border-neutral-300 hover:shadow-sm"
                   >
-                    <span className="flex items-center justify-between gap-2 text-sm font-bold tracking-tight text-neutral-900">
+                    <span className="flex items-center justify-between gap-2 text-base font-bold tracking-tight text-neutral-900">
                       {entry.label}
                       <ArrowUpRight
                         size={14}
@@ -235,7 +235,7 @@ export default function LegalPage({
             <div className="mt-5 flex justify-center">
               <a
                 href="#top"
-                className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-neutral-500 transition hover:border-neutral-300 hover:text-neutral-800"
+                className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-xs font-semibold text-neutral-500 transition hover:border-neutral-300 hover:text-neutral-800"
               >
                 <ArrowUp size={12} aria-hidden="true" />
                 Back to top

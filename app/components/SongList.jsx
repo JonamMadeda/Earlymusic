@@ -10,7 +10,7 @@ const SongList = ({ songs = [], onSongSelect }) => {
         <div className="w-16 h-16 bg-neutral-50 rounded-full flex items-center justify-center mb-4">
           <Disc className="text-neutral-200" size={32} />
         </div>
-        <h3 className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.3em]">
+        <h3 className="text-xs font-black text-neutral-400 uppercase tracking-[0.3em]">
           No music found
         </h3>
       </div>

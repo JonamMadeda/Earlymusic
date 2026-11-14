@@ -51,6 +51,41 @@ describe("song grouping", () => {
     expect(groups.flatMap((g) => g.songs)).toHaveLength(3);
   });
 
+  it("preserves descending title groups and each group's sorted rows", () => {
+    const songs = [
+      { id: "z", title: "Zulu" },
+      { id: "b", title: "Beta" },
+      { id: "an", title: "Anthem" },
+      { id: "al", title: "Alpha" },
+    ];
+    const groups = groupSongs(songs, "title");
+    expect(groups.map(({ key, label }) => [key, label])).toEqual([
+      ["Z", "Z"], ["B", "B"], ["A", "A"],
+    ]);
+    expect(groups.flatMap((group) => group.songs.map((song) => song.id))).toEqual(["z", "b", "an", "al"]);
+    expect(songs.map((song) => song.id)).toEqual(["z", "b", "an", "al"]);
+  });
+
+  it("keeps newest month/year groups ordered with unknown dates last", () => {
+    const songs = [
+      { id: "new", created_at: "2026-11-20T12:00:00Z" },
+      { id: "same-month", created_at: "2026-11-10T12:00:00Z" },
+      { id: "october", created_at: "2026-10-10T12:00:00Z" },
+      { id: "last-year", created_at: "2025-11-10T12:00:00Z" },
+      { id: "missing" },
+      { id: "invalid", created_at: "not-a-date" },
+    ];
+    const groups = groupSongs(songs, "created_at");
+    expect(groups.map(({ key, label }) => [key, label])).toEqual([
+      ["2026-11", "Nov 2026"],
+      ["2026-10", "Oct 2026"],
+      ["2025-11", "Nov 2025"],
+      ["unknown", "Unknown date"],
+    ]);
+    expect(groups.flatMap((group) => group.songs.map((song) => song.id)))
+      .toEqual(songs.map((song) => song.id));
+  });
+
   it("survives an empty or missing list", () => {
     expect(groupSongs([], "title")).toEqual([]);
     expect(groupSongs(null, "title")).toEqual([]);

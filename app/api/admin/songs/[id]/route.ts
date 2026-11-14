@@ -42,12 +42,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // Replace-audio flow swaps the referenced file — verify the new object
     // the same way creation does, then store the hostname-relative form so
     // rows created and updated after normalization stay env-independent.
-    if (typeof body.song_path === "string") {
-      const stored = await verifyStoredAudio(body.song_path);
+    const replacingAudio = body.song_path !== undefined;
+    const approving = body.status === "approved" && existing.status !== "approved";
+    if (replacingAudio || approving) {
+      const audioPath = replacingAudio ? body.song_path : existing.song_path;
+      if (typeof audioPath !== "string" || !audioPath) {
+        return NextResponse.json({ error: "Upload audio before approving this track." }, { status: 400 });
+      }
+      const stored = await verifyStoredAudio(audioPath);
       if (!stored.ok) {
         return NextResponse.json({ error: stored.error || "Audio verification failed." }, { status: 400 });
       }
-      body.song_path = `/${getR2ObjectKey(body.song_path)}`;
+      if (replacingAudio) body.song_path = `/${getR2ObjectKey(audioPath)}`;
     }
     // Compare object keys, not strings: a legacy row may still hold an
     // absolute R2 URL for the very file the admin just re-selected, which is
@@ -201,6 +207,17 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: "Song path does not match the stored record." }, { status: 400 });
     }
 
+    // Row first, file second. A file left behind is an orphan the Storage panel
+    // already lists and can reclaim; a row pointing at a deleted file leaves the
+    // track permanently unplayable with no way back.
+    // NOTE: the Neon HTTP driver returns only rows (no rowCount), so a
+    // bare DELETE yields no usable count — RETURNING makes the check real.
+    const { rows: deleted } = await db.query("DELETE FROM public.songs WHERE id = $1 RETURNING id, title", [id]);
+    if (!deleted?.length) {
+      return NextResponse.json({ error: "Song not found." }, { status: 404 });
+    }
+
+    let audioRemoved = true;
     const objectKey = getR2ObjectKey(songPath);
     if (objectKey) {
       try {
@@ -209,16 +226,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
           Key: objectKey,
         }));
       } catch (r2Error) {
-        console.error("Unable to delete R2 object:", r2Error);
-        return NextResponse.json({ error: "Unable to delete the audio file. Please try again." }, { status: 500 });
+        // The listener-visible work is already done, so this must not report the
+        // deletion as a failure — it would leave a live row on a missing file.
+        audioRemoved = false;
+        console.error("Song deleted but its R2 object remains:", r2Error);
       }
-    }
-
-    // NOTE: the Neon HTTP driver returns only rows (no rowCount), so a
-    // bare DELETE yields no usable count — RETURNING makes the check real.
-    const { rows: deleted } = await db.query("DELETE FROM public.songs WHERE id = $1 RETURNING id, title", [id]);
-    if (!deleted?.length) {
-      return NextResponse.json({ error: "Song not found." }, { status: 404 });
     }
 
     // Record the takedown for legal audit trail. This runs after the song row
@@ -244,7 +256,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       actorId: admin.user.id,
       action: "song.delete",
       target: id,
-      detail: { song_path: songPath },
+      detail: { song_path: songPath, ...(audioRemoved ? null : { orphaned_object: true }) },
     });
 
     return NextResponse.json({ success: true });

@@ -63,13 +63,27 @@ export async function PATCH(request: NextRequest) {
         !legacy ||
         !(await verifyLegacyPassword(currentPassword, legacy.password_hash))
       ) {
-        await logAuthEvent(request, "password_changed", {
+        await logAuthEvent(request, "password_change_failed", {
           userId: user.id,
           email: user.email,
           detail: { result: "wrong_current_password" },
         });
         return NextResponse.json(
           { error: "Current password is incorrect." },
+          { status: 400 }
+        );
+      }
+
+      // Check reuse before the upgrade writes anything: a rejected request
+      // must not leave a half-migrated credential behind.
+      if (await verifyLegacyPassword(password, legacy.password_hash)) {
+        await logAuthEvent(request, "password_change_failed", {
+          userId: user.id,
+          email: user.email,
+          detail: { result: "password_reused" },
+        });
+        return NextResponse.json(
+          { error: "Choose a password you have not used before." },
           { status: 400 }
         );
       }
@@ -83,7 +97,7 @@ export async function PATCH(request: NextRequest) {
         account.password
       );
       if (!valid) {
-        await logAuthEvent(request, "password_changed", {
+        await logAuthEvent(request, "password_change_failed", {
           userId: user.id,
           email: user.email,
           detail: { result: "wrong_current_password" },
@@ -95,6 +109,11 @@ export async function PATCH(request: NextRequest) {
       }
 
       if (await verifyCredentialPassword(password, account.password)) {
+        await logAuthEvent(request, "password_change_failed", {
+          userId: user.id,
+          email: user.email,
+          detail: { result: "password_reused" },
+        });
         return NextResponse.json(
           { error: "Choose a password you have not used before." },
           { status: 400 }

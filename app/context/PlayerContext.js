@@ -247,7 +247,9 @@ export const PlayerProvider = ({ children }) => {
     const timeout = setTimeout(() => {
       const seededSongs = shuffle(allSongs).slice(0, SEED_COUNT);
       setRecentlyPlayed(seededSongs);
-      localStorage.setItem(RECENT_KEY, JSON.stringify(seededSongs));
+      try {
+        localStorage.setItem(RECENT_KEY, JSON.stringify(seededSongs));
+      } catch {}
     }, 0);
     return () => clearTimeout(timeout);
   }, [allSongs, recentlyPlayed]);
@@ -257,7 +259,9 @@ export const PlayerProvider = ({ children }) => {
   useEffect(() => {
     if (recentlyPlayed.length === 0) return;
 
-    localStorage.setItem(RECENT_KEY, JSON.stringify(recentlyPlayed));
+    try {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(recentlyPlayed));
+    } catch {}
 
     const prev = prevRecentRef.current;
     prevRecentRef.current = recentlyPlayed;
@@ -305,10 +309,12 @@ export const PlayerProvider = ({ children }) => {
       .catch((error) => console.error("Unable to read recently played:", error));
   }, [recentlyPlayed]);
 
-  const restorePlayback = useCallback((song, savedQueue = []) => {
+  const restorePlayback = useCallback((song) => {
     if (!song) return;
     setActiveSongState(song);
-    setQueue(savedQueue.length > 0 ? savedQueue : [song]);
+    // Empty queue lets the player fall back to the full library, so a
+    // resumed session keeps working next/previous.
+    setQueue([]);
     setPlayingSource("library");
   }, []);
 

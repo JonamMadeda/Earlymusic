@@ -73,8 +73,9 @@ export async function GET(request: NextRequest) {
           [user.id]
         ),
         db.query(
-          `SELECT id, song_id, report_type, reason, status, created_at,
-                  resolution_note, resolved_at
+          // resolution_note is internal admin correspondence; reporter_email
+          // is unverified, so it must never reach a self-service export.
+          `SELECT id, song_id, report_type, reason, status, created_at, resolved_at
              FROM public.dmca_reports
             WHERE lower(reporter_email) = lower($1)
             ORDER BY created_at DESC`,

@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Copy,
   Check,
+  Pause,
   Shuffle,
   Sun,
   Sunrise,
@@ -111,6 +112,7 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
       type="button"
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
+      aria-current={isActive ? "true" : undefined}
       className={`group relative flex w-[74vw] sm:w-[260px] md:w-[275px] flex-shrink-0 snap-start items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 hover:-translate-y-0.5 ${
         isActive
           ? "border-2 border-accent bg-neutral-50 shadow-xs"
@@ -132,12 +134,12 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="rounded bg-accent px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
+            <span className="rounded bg-gold/10 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
               New
             </span>
           )}
         </div>
-        <p className="truncate text-[11px] font-medium text-neutral-500 mt-0.5">
+        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
       </div>
@@ -165,6 +167,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
       type="button"
       onClick={() => onClick(song)}
       onMouseEnter={() => prefetchSongAudio(song)}
+      aria-current={isActive ? "true" : undefined}
       className={`group relative flex w-[155px] md:w-[172px] flex-shrink-0 snap-start flex-col rounded-xl p-3 text-left transition-all duration-200 hover:-translate-y-0.5 ${
         isActive
           ? "border-2 border-accent bg-neutral-50 shadow-xs"
@@ -178,7 +181,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
       >
         {/* Top Tag: Clean monochromatic badge */}
         <div className="z-10 flex items-center justify-between">
-          <span className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
+          <span className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
             {categoryTag}
           </span>
           {isActive && (
@@ -196,7 +199,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
         </div>
 
         {/* Hover play trigger */}
-        <div className="absolute bottom-2.5 right-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-accent shadow-md opacity-0 translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0">
+        <div className="absolute bottom-2.5 right-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-accent shadow-md opacity-0 translate-y-1 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100 group-hover:translate-y-0 group-focus-within:translate-y-0">
           <Play size={13} fill="currentColor" className="ml-0.5" />
         </div>
       </div>
@@ -208,12 +211,12 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="shrink-0 rounded bg-accent px-1 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
+            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
               New
             </span>
           )}
         </div>
-        <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">
+        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
       </div>
@@ -228,6 +231,7 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
       type="button"
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
+      aria-current={isActive ? "true" : undefined}
       className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-150 border ${
         isActive
           ? "border-2 border-accent bg-neutral-50 shadow-2xs"
@@ -240,7 +244,7 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
             <span /><span /><span /><span />
           </div>
         ) : (
-          <span className="text-[11px] font-bold text-neutral-400 group-hover:hidden">
+          <span className="text-xs font-bold text-neutral-600 group-hover:hidden">
             {String(index + 1).padStart(2, "0")}
           </span>
         )}
@@ -255,13 +259,13 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
         <p className={`truncate text-xs font-bold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
           {song.title}
         </p>
-        <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">
+        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
       </div>
 
       {song.category && (
-        <span className="hidden sm:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[9px] font-semibold text-neutral-600">
+        <span className="hidden sm:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-600">
           {song.category}
         </span>
       )}
@@ -284,6 +288,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
       type="button"
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
+      aria-current={isActive ? "true" : undefined}
       className={`group flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-all duration-150 ${
         isActive
           ? "border-accent bg-accent/[0.04]"
@@ -296,7 +301,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
             <span /><span /><span /><span />
           </div>
         ) : (
-          <span className="text-[11px] font-black tabular-nums text-neutral-300 group-hover:hidden">
+          <span className="text-xs font-black tabular-nums text-neutral-600 group-hover:hidden">
             {String(index + 1).padStart(2, "0")}
           </span>
         )}
@@ -313,17 +318,17 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
             {song.title}
           </p>
           {index === 0 && isHistory && !isActive && (
-            <span className="shrink-0 rounded-md bg-neutral-900 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
+            <span className="shrink-0 rounded-md bg-neutral-900 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
               Last played
             </span>
           )}
           {isNew && (
-            <span className="shrink-0 rounded bg-accent px-1 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
+            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
               New
             </span>
           )}
         </div>
-        <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">
+        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
       </div>
@@ -357,10 +362,10 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, onPlayAl
                 <Icon size={13} />
               </div>
             )}
-            <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">{title}</h2>
+            <h2 className="text-base md:text-lg font-bold tracking-tight text-neutral-900">{title}</h2>
           </div>
           {subtitle && (
-            <p className="mt-0.5 text-[11px] font-medium text-neutral-500">{subtitle}</p>
+            <p className="mt-0.5 text-xs font-medium text-neutral-500">{subtitle}</p>
           )}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -368,16 +373,16 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, onPlayAl
             <button
               type="button"
               onClick={() => onPlayAll(items[0])}
-              className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
+              className="tap-sm flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15"
             >
-              <Play size={10} fill="currentColor" />
+              <Play size={12} fill="currentColor" />
               Play All
             </button>
           )}
           {cta && (
             <Link
               href={cta.href}
-              className="group flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-neutral-500 transition hover:text-neutral-900"
+              className="group flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-semibold text-neutral-500 transition hover:text-neutral-900"
             >
               <span>View all</span>
               <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
@@ -420,7 +425,7 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, onPlayAl
                 type="button"
                 onClick={() => scrollRail(-1)}
                 aria-label={`Scroll ${title} left`}
-                className="absolute left-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
+                className="absolute left-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 focus-visible:opacity-100 md:flex"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -428,7 +433,7 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, onPlayAl
                 type="button"
                 onClick={() => scrollRail(1)}
                 aria-label={`Scroll ${title} right`}
-                className="absolute right-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
+                className="absolute right-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 focus-visible:opacity-100 md:flex"
               >
                 <ChevronRight size={16} />
               </button>
@@ -443,10 +448,12 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, onPlayAl
 export default function Home() {
   const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed, activeSong, hasRealHistory } =
     usePlayer();
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const [loadError, setLoadError] = useState(false);
   const [verseIndex, setVerseIndex] = useState(0);
-  const [verseCopied, setVerseCopied] = useState(false);
+  const [verseCopyState, setVerseCopyState] = useState("idle");
+  const [versePaused, setVersePaused] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
   const jumpRailRef = useRef(null);
   const [scrollY, setScrollY] = useState(0);
@@ -467,13 +474,24 @@ export default function Home() {
     return () => scroller.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Rotate verse periodically when idle
+  // WCAG 2.2.2: the capsule updates on its own, so it needs a stop control and
+  // has to respect reduced motion. It also only rotates while it is on screen —
+  // a playing track replaces it with the Now Playing card.
   useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduceMotion(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (activeSong || versePaused || reduceMotion) return;
     const interval = setInterval(() => {
       setVerseIndex((prev) => (prev + 1) % verses.length);
     }, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeSong, versePaused, reduceMotion]);
 
   const [sessionSeed] = useState(() => Math.random().toString(36).slice(2));
 
@@ -548,7 +566,10 @@ export default function Home() {
   const spotifySong = useMemo(() => {
     if (sortedSongs.length === 0) return null;
     const rng = mulberry32(hashStr(`spotlight-${songIdsKey}-${sessionSeed}`));
-    return sortedSongs[Math.floor(rng() * Math.min(sortedSongs.length, 10))];
+    // The whole catalogue, not the 10 newest: sortedSongs is newest-first, so a
+    // capped pool left every older recording permanently unspotlighted once the
+    // library passed ten uploads.
+    return sortedSongs[Math.floor(rng() * sortedSongs.length)];
   }, [songIdsKey, sessionSeed, sortedSongs]);
 
   const recommendedSongs = useMemo(() => {
@@ -588,17 +609,22 @@ export default function Home() {
     const verse = verses[verseIndex];
     const text = `"${verse.text}" — ${verse.ref}`;
     try {
+      // navigator.clipboard is absent outside secure contexts, which throws
+      // here rather than failing the write quietly.
       await navigator.clipboard.writeText(text);
-      setVerseCopied(true);
-      setTimeout(() => setVerseCopied(false), 2000);
+      setVerseCopyState("copied");
     } catch {
-      // fallback
+      setVerseCopyState("failed");
     }
+    setTimeout(() => setVerseCopyState("idle"), 2500);
   }, [verseIndex]);
 
   const shuffleAll = useCallback(() => {
     if (sortedSongs.length > 0) {
-      const shuffled = [...sortedSongs].sort(() => Math.random() - 0.5);
+      // Seeded so the order is an unbiased Fisher-Yates rather than a
+      // comparator shuffle. The seed stays fresh per press, unlike the rails,
+      // which pin their order for the session.
+      const shuffled = seededShuffle(sortedSongs, `shuffle-all-${Math.random()}`);
       setActiveSong(shuffled[0], shuffled);
     }
   }, [sortedSongs, setActiveSong]);
@@ -624,7 +650,7 @@ export default function Home() {
             {/* Left side: Greeting, Title, Action Buttons, Metrics */}
             <div className="flex-1 min-w-0 space-y-2.5">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
+                <span className="inline-flex items-center gap-1.5 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-700">
                   <GreetingIcon size={12} className="text-accent" />
                   <span>
                     {greetingText}
@@ -647,23 +673,23 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={shuffleAll}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
+                  className="tap-lg inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-2xs transition hover:bg-accent/90"
                 >
-                  <Shuffle size={12} />
+                  <Shuffle size={14} />
                   <span>Shuffle All</span>
                 </button>
 
                 {recentlyPlayed.length > 0 && (
                   <a
                     href="#recently-played"
-                    className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition"
                   >
-                    <Clock size={12} className="text-neutral-500" />
+                    <Clock size={14} className="text-neutral-500" />
                     <span>Recent ({recentlyPlayed.length})</span>
                   </a>
                 )}
 
-                <div className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50/70 px-2.5 py-1.5 text-[11px] font-medium text-neutral-500">
+                <div className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50/70 px-3 py-2 text-[13px] font-medium text-neutral-500">
                   <span className="font-bold text-neutral-800">{stats.total}</span> tracks
                   <span className="text-neutral-300">•</span>
                   <span className="font-bold text-neutral-800">{stats.artists}</span> artists
@@ -683,13 +709,13 @@ export default function Home() {
                 <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-2.5 sm:w-64">
                   <SongAvatar title={activeSong.title} size="sm" variant="mono" />
                   <div className="min-w-0 flex-1">
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-accent">
+                    <span className="text-xs font-bold uppercase tracking-wider text-accent">
                       Now Playing
                     </span>
                     <p className="truncate text-xs font-bold text-neutral-900">
                       {activeSong.title}
                     </p>
-                    <p className="truncate text-[10px] text-neutral-500">
+                    <p className="truncate text-xs text-neutral-500">
                       {activeSong.author}
                     </p>
                   </div>
@@ -702,63 +728,47 @@ export default function Home() {
                   <div className="flex items-start gap-2 min-w-0">
                     <Quote size={12} className="text-accent shrink-0 mt-0.5" />
                     <div className="min-w-0">
-                      <p className="text-[11px] italic text-neutral-700 leading-snug line-clamp-2">
+                      <p className="text-xs italic text-neutral-700 leading-snug line-clamp-2">
                         “{verses[verseIndex].text}”
                       </p>
-                      <p className="text-[9px] font-bold text-accent mt-0.5">
+                      <p className="text-xs font-bold text-accent mt-0.5">
                         {verses[verseIndex].ref}
                       </p>
+                      {verseCopyState === "failed" && (
+                        <p role="alert" className="mt-1 text-xs font-semibold text-red-600">
+                          Couldn’t copy — select the verse and copy it by hand.
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={copyVerse}
-                    className="shrink-0 p-1 text-neutral-400 hover:text-neutral-700 transition"
-                    title="Copy verse"
-                  >
-                    {verseCopied ? <Check size={12} className="text-accent font-bold" /> : <Copy size={12} />}
-                  </button>
+                  <div className="flex shrink-0 items-center">
+                    {!reduceMotion && (
+                      <button
+                        type="button"
+                        onClick={() => setVersePaused((p) => !p)}
+                        aria-pressed={versePaused}
+                        aria-label={versePaused ? "Resume verse rotation" : "Pause verse rotation"}
+                        title={versePaused ? "Resume verse rotation" : "Pause verse rotation"}
+                        className="tap-sm shrink-0 rounded-lg p-1.5 text-neutral-400 hover:text-neutral-700 transition"
+                      >
+                        {versePaused ? <Play size={14} /> : <Pause size={14} />}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={copyVerse}
+                      aria-label={verseCopyState === "copied" ? "Verse copied" : "Copy verse"}
+                      className="tap-sm shrink-0 rounded-lg p-1.5 text-neutral-400 hover:text-neutral-700 transition"
+                      title="Copy verse"
+                    >
+                      {verseCopyState === "copied" ? <Check size={14} className="text-accent font-bold" /> : <Copy size={14} />}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
           </div>
-        </section>
-
-        {/* --- COMPACT CATEGORY FILTER PILLS (drive Curated for You below) --- */}
-        <section aria-label="Filter Curated for You" className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
-          <div className="flex items-center gap-1 shrink-0 pr-1 text-[11px] font-bold text-neutral-400">
-            <Compass size={13} />
-            <span className="hidden sm:inline">Filter Curated:</span>
-          </div>
-          {filterCategories.map((cat) => {
-            const isSelected = activeFilter === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                aria-pressed={isSelected}
-                onClick={(e) => {
-                  if (cat.id === activeFilter) return;
-                  setActiveFilter(cat.id);
-                  // Keep the tapped pill visible on small screens…
-                  e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-                  // …then jump to the Curated rail the pills drive,
-                  // so the tap has visible feedback.
-                  setTimeout(() => {
-                    document.getElementById("recommended")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }, 50);
-                }}
-                className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold transition-all duration-150 ${
-                  isSelected
-                    ? "bg-accent text-white shadow-2xs"
-                    : "bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
-                }`}
-              >
-                {cat.label}
-              </button>
-            );
-          })}
         </section>
 
         {/* --- MAIN CONTENT SECTIONS --- */}
@@ -794,12 +804,12 @@ export default function Home() {
                         {/* Metadata in pure, guaranteed white text */}
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 mb-1">
-                            <span className="inline-flex items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
+                            <span className="inline-flex items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
                               <Star size={9} fill="currentColor" />
                               Spotlight
                             </span>
                             {spotifySong.category && (
-                              <span className="rounded border border-white/15 px-1.5 py-0.5 text-[8px] font-semibold text-neutral-300 uppercase tracking-wider">
+                              <span className="rounded border border-white/15 px-1.5 py-0.5 text-xs font-semibold text-neutral-300 uppercase tracking-wider">
                                 {spotifySong.category}
                               </span>
                             )}
@@ -817,9 +827,9 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setActiveSong(spotifySong, sortedSongs)}
-                        className="inline-flex items-center justify-center gap-1.5 self-start sm:self-auto rounded-lg bg-white px-4 py-2 text-xs font-bold text-[#0f172a] shadow-sm transition hover:bg-neutral-100 active:scale-95 shrink-0"
+                        className="tap-lg inline-flex items-center justify-center gap-2 self-start sm:self-auto rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-[#0f172a] shadow-sm transition hover:bg-neutral-100 active:scale-95 shrink-0"
                       >
-                        <Play size={12} fill="currentColor" />
+                        <Play size={14} fill="currentColor" />
                         <span>Play Spotlight</span>
                       </button>
                     </div>
@@ -886,16 +896,16 @@ export default function Home() {
                       <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/8 text-accent">
                         {hasRealHistory ? <Clock size={13} /> : <Compass size={13} />}
                       </div>
-                      <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">
+                      <h2 className="text-base md:text-lg font-bold tracking-tight text-neutral-900">
                         {hasRealHistory ? "Jump Back In" : "Suggested Starters"}
                       </h2>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActiveSong(recentlyPlayed[0], recentlyPlayed)}
-                      className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
+                      className="tap-sm flex items-center gap-1.5 rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15"
                     >
-                      <Play size={10} fill="currentColor" />
+                      <Play size={12} fill="currentColor" />
                       {hasRealHistory ? "Resume" : "Play All"}
                     </button>
                   </div>
@@ -933,7 +943,7 @@ export default function Home() {
                           type="button"
                           onClick={() => jumpRailRef.current?.scrollBy({ left: -480, behavior: "smooth" })}
                           aria-label="Scroll Jump Back In left"
-                          className="absolute left-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
+                          className="absolute left-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 focus-visible:opacity-100 md:flex"
                         >
                           <ChevronLeft size={16} />
                         </button>
@@ -941,7 +951,7 @@ export default function Home() {
                           type="button"
                           onClick={() => jumpRailRef.current?.scrollBy({ left: 480, behavior: "smooth" })}
                           aria-label="Scroll Jump Back In right"
-                          className="absolute right-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 md:flex"
+                          className="absolute right-2 top-[calc(50%-6px)] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-neutral-200/80 bg-white/80 text-neutral-700 opacity-0 shadow-lg backdrop-blur-md transition-all duration-200 hover:bg-white hover:text-neutral-900 group-hover/rail:opacity-100 focus-visible:opacity-100 md:flex"
                         >
                           <ChevronRight size={16} />
                         </button>
@@ -961,7 +971,7 @@ export default function Home() {
                       <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/8 text-accent">
                         <ListMusic size={13} />
                       </div>
-                      <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">
+                      <h2 className="text-base md:text-lg font-bold tracking-tight text-neutral-900">
                         Curated for You
                       </h2>
                     </div>
@@ -970,15 +980,15 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => setActiveSong(recommendedSongs[0], recommendedSongs)}
-                          className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
+                          className="tap-sm flex items-center gap-1.5 rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15"
                         >
-                          <Play size={10} fill="currentColor" />
+                          <Play size={12} fill="currentColor" />
                           Play All
                         </button>
                       )}
                       <Link
                         href="/songs"
-                        className="group flex items-center gap-1 text-[11px] font-semibold text-neutral-500 transition hover:text-neutral-900"
+                        className="group flex items-center gap-1 text-xs font-semibold text-neutral-500 transition hover:text-neutral-900"
                       >
                         <span>View all</span>
                         <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
@@ -986,7 +996,37 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-8">
+                  {/* Moved out of the hero and into the section it filters: the
+                      pills sat ~1,000px above this list, which is why a tap had
+                      to force a scroll to #recommended to show any effect. With
+                      the control beside its result the tap needs no jump, so
+                      both scrollIntoView calls are gone. */}
+                  <div
+                    role="group"
+                    aria-label="Filter Curated for You"
+                    className="mb-3 flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar"
+                  >
+                    {filterCategories.map((cat) => {
+                      const isSelected = activeFilter === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          aria-pressed={isSelected}
+                          onClick={() => setActiveFilter(cat.id)}
+                          className={`tap-sm shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                            isSelected
+                              ? "bg-accent text-white shadow-2xs"
+                              : "bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
+                          }`}
+                        >
+                          {cat.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex flex-col gap-2">
                     {recommendedSongs.length > 0 ? (
                       [0, 1, 2, 3, 4].map((group) => {
                         const chunk = recommendedSongs.slice(group * 5, group * 5 + 5);
@@ -1022,18 +1062,22 @@ export default function Home() {
                   <Sparkles className="text-accent" size={24} />
                 </div>
                 <p className="text-base font-bold tracking-tight text-neutral-900">
-                  Your library is empty
+                  {isAdmin ? "Your library is empty" : "No songs yet"}
                 </p>
                 <p className="mt-1 max-w-xs text-xs leading-relaxed text-neutral-500">
-                  Upload your first worship song and start building your collection. Songs will appear here automatically.
+                  {isAdmin
+                    ? "Upload your first worship song and start building your collection. Songs will appear here automatically."
+                    : "The collection is still being built. New recordings appear here as soon as they are added."}
                 </p>
-                <Link
-                  href="/admin"
-                  className="mt-4 inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
-                >
-                  <Upload size={13} />
-                  Upload a Song
-                </Link>
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className="tap-lg mt-4 inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-2xs transition hover:bg-accent/90"
+                  >
+                    <Upload size={15} />
+                    Upload a Song
+                  </Link>
+                )}
               </div>
             )}
 
@@ -1051,7 +1095,7 @@ export default function Home() {
                   <p className="text-xs font-bold tracking-tight text-neutral-900">
                     You&apos;ve reached the end
                   </p>
-                  <p className="mt-0.5 text-[11px] font-medium text-neutral-500">
+                  <p className="mt-0.5 text-xs font-medium text-neutral-500">
                     Thanks for worshipping with us today.
                   </p>
                 </div>
@@ -1065,9 +1109,9 @@ export default function Home() {
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }
                   }}
-                  className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-xs font-bold text-neutral-700 shadow-2xs transition hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 active:scale-95"
+                  className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-bold text-neutral-700 shadow-2xs transition hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 active:scale-95"
                 >
-                  <ArrowUp size={13} />
+                  <ArrowUp size={14} />
                   <span>Back to top</span>
                 </button>
               </div>

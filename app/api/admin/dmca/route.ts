@@ -1,7 +1,11 @@
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFromRequest } from "@/lib/auth";
 import { logAdminAction } from "@/lib/adminAudit";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { getR2Client } from "@/lib/r2";
+import { getR2ObjectKey } from "@/lib/audioVerify";
+import { retractSongAnnouncements } from "@/lib/announcement";
 import { db } from "@/lib/neon";
 
 const STATUSES = new Set(["open", "reviewed", "resolved", "dismissed"]);
@@ -87,9 +91,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "A report id is required." }, { status: 400 });
     }
 
-    // Effective takedown: disable access to the track immediately, write the
-    // audit row, and close the report. Deleting the song is a separate action
-    // because it also removes the R2 object.
+    // Effective takedown mirrors song deletion: the public R2 object must go,
+    // or the direct URL keeps serving the audio after the row is rejected.
     if (body.action === "takedown") {
       const { rows: reports } = await db.query(
         "SELECT id, song_id, reason FROM public.dmca_reports WHERE id = $1",
@@ -101,7 +104,7 @@ export async function PATCH(request: NextRequest) {
       }
 
       const { rows: songs } = await db.query(
-        "SELECT id, title FROM public.songs WHERE id = $1",
+        "SELECT id, title, song_path FROM public.songs WHERE id = $1",
         [report.song_id]
       );
       const song = songs?.[0];
@@ -109,10 +112,26 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "Song not found." }, { status: 404 });
       }
 
+      const objectKey =
+        typeof song.song_path === "string" ? getR2ObjectKey(song.song_path) : null;
+      if (objectKey) {
+        try {
+          await getR2Client().send(new DeleteObjectCommand({
+            Bucket: process.env.R2BUCKETNAME,
+            Key: objectKey,
+          }));
+        } catch (r2Error) {
+          console.error("Unable to delete R2 object:", r2Error);
+          return NextResponse.json({ error: "Unable to delete the audio file. Please try again." }, { status: 500 });
+        }
+      }
+
       await db.query(
-        "UPDATE public.songs SET status = 'rejected' WHERE id = $1",
+        "UPDATE public.songs SET status = 'rejected', download_allowed = FALSE WHERE id = $1",
         [report.song_id]
       );
+
+      await retractSongAnnouncements(report.song_id);
 
       try {
         await db.query(

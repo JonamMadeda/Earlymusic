@@ -67,7 +67,7 @@ describe("pickNextSong", () => {
     expect([...playedIds]).toEqual([2]);
   });
 
-  it("returns null when the queue holds only the current track", () => {
+  it("wraps onto the current track when repeat-all has nothing else to play", () => {
     expect(
       pickNextSong({
         songs: [{ id: 1 }],
@@ -76,9 +76,10 @@ describe("pickNextSong", () => {
         isShuffle: true,
         playedIds: new Set(),
       })
-    ).toBeNull();
+    ).toEqual({ id: 1 });
     expect(
       pickNextSong({ songs: [{ id: 1 }], currentId: 1, repeatMode: "all" })
-    ).toBeNull();
+    ).toEqual({ id: 1 });
+    expect(pickNextSong({ songs: [{ id: 1 }], currentId: 1 })).toBeNull();
   });
 });

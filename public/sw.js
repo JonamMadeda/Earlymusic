@@ -1,6 +1,7 @@
 const CACHE_NAME = "lumbo-app-v7";
 const AUDIO_CACHE = "lumbo-audio-cache-v1";
 const MAX_AUDIO_ENTRIES = 30;
+const MAX_APP_ENTRIES = 120;
 const OFFLINE_HEADER = "x-luumbo-download";
 
 self.addEventListener("install", (event) => {
@@ -140,7 +141,13 @@ const fromNetwork = async (request) => {
     const response = await fetch(request);
     if (response.ok) {
       const cache = await caches.open(CACHE_NAME);
-      cache.put(request, response.clone());
+      // Not awaited: the response is already streaming to the page, and a
+      // quota rejection must not fail the navigation. fromCache chains this
+      // same put; leaving it bare logged an unhandled rejection every time.
+      cache
+        .put(request, response.clone())
+        .then(() => trimAppCache(cache))
+        .catch(() => {});
     }
     return response;
   } catch {
@@ -148,6 +155,16 @@ const fromNetwork = async (request) => {
     const cached = await cache.match(request);
     return cached || null;
   }
+};
+
+// Only the audio cache had a ceiling, so this one grew until the browser
+// evicted the whole origin — which also took the offline downloads with it.
+// Keys come back in insertion order, so the oldest cached page is what goes.
+const trimAppCache = async (cache) => {
+  const keys = await cache.keys();
+  const excess = keys.length - MAX_APP_ENTRIES;
+  if (excess <= 0) return;
+  await Promise.all(keys.slice(0, excess).map((key) => cache.delete(key)));
 };
 
 const offlinePage = async () => {
