@@ -51,7 +51,7 @@ const Sidebar = () => {
               <item.icon size={16} strokeWidth={item.active ? 2.5 : 2} />
               <span>{item.label}</span>
               {item.badge > 0 && (
-                <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-xs font-bold leading-none text-white">
+                <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold leading-none text-white">
                   {item.badge}
                 </span>
               )}
@@ -63,7 +63,7 @@ const Sidebar = () => {
         {recentlyPlayed.length > 0 && (
           <>
             <div className="my-3 border-t border-neutral-100" />
-            <p className="mb-1.5 px-3 text-xs font-bold uppercase tracking-wider text-neutral-500">
+            <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-neutral-500">
               Recent
             </p>
             <div className="flex flex-col gap-y-0.5">
@@ -81,7 +81,7 @@ const Sidebar = () => {
                   <SongAvatar title={song.title} size="xs" variant="mono" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-semibold">{song.title}</p>
-                    <p className="truncate text-xs text-neutral-500">{song.author}</p>
+                    <p className="truncate text-[11px] text-neutral-500">{song.author}</p>
                   </div>
                 </button>
               ))}
@@ -99,14 +99,14 @@ const Sidebar = () => {
               href="/account"
               className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-200 hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             >
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[11px] font-bold text-accent">
                 {profile?.first_name?.[0] || user.email?.[0]?.toUpperCase() || "U"}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-semibold text-neutral-900">
                   {profile?.first_name || user.email?.split("@")[0] || "User"}
                 </p>
-                <p className="truncate text-xs text-neutral-500 font-medium">
+                <p className="truncate text-[11px] text-neutral-500 font-medium">
                   {isAdmin ? "Admin" : "Member"}
                 </p>
               </div>

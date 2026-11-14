@@ -119,14 +119,8 @@ const ReplaceAudioModal = ({ isOpen, onClose, onSuccess, song }) => {
       }
       const data = await updateRes.json();
 
-      // The row points at the new file from here on, so it is live: a later
-      // throw must never delete it. Releasing the handle keeps the catch below
-      // limited to uploads that never reached the database.
-      const linkedStorageUrl = uploadedStorageUrl;
-      uploadedStorageUrl = null;
-
       // Old file is now unreferenced — remove it (best-effort).
-      if (oldStorageUrl && oldStorageUrl !== linkedStorageUrl) {
+      if (oldStorageUrl && oldStorageUrl !== uploadedStorageUrl) {
         setStatus("Removing the old file…");
         await deleteR2Object(oldStorageUrl);
         await evictCachedAudio(oldStorageUrl);

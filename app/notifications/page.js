@@ -231,7 +231,7 @@ export default function NotificationsPage() {
                   Notifications
                 </h1>
                 {hasUnread && (
-                  <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-accent">
+                  <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
                     {unreadCount} new
                   </span>
                 )}
@@ -244,7 +244,7 @@ export default function NotificationsPage() {
               <button
                 type="button"
                 onClick={handleMarkAllRead}
-                className="shrink-0 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300 hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                className="shrink-0 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-neutral-600 transition hover:border-neutral-300 hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
               >
                 Mark all read
               </button>
@@ -261,7 +261,7 @@ export default function NotificationsPage() {
                   type="button"
                   onClick={() => setFilter(entry.key)}
                   aria-pressed={active}
-                  className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                  className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
                     active
                       ? "border-accent bg-accent text-white shadow-sm"
                       : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50"
@@ -269,7 +269,7 @@ export default function NotificationsPage() {
                 >
                   {entry.label}
                   <span
-                    className={`rounded-full px-1.5 py-0.5 text-xs font-bold leading-none tabular-nums ${
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none tabular-nums ${
                       active ? "bg-white/20 text-white" : "bg-neutral-100 text-neutral-500"
                     }`}
                   >
@@ -351,11 +351,11 @@ export default function NotificationsPage() {
             {groupByDate(visibleItems).map((group) => (
               <section key={group.label}>
                 <div className="mb-3 flex items-center gap-2.5">
-                  <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-neutral-400">
+                  <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-400">
                     {group.label}
                   </h3>
                   <span className="h-px flex-1 bg-neutral-200/80" />
-                  <span className="text-xs font-semibold tabular-nums text-neutral-400">
+                  <span className="text-[10px] font-semibold tabular-nums text-neutral-400">
                     {group.items.length}
                   </span>
                 </div>
@@ -391,7 +391,7 @@ export default function NotificationsPage() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-0.5">
-                                <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                                   {KIND_LABELS[kind]}
                                 </span>
                                 <span
@@ -400,12 +400,12 @@ export default function NotificationsPage() {
                                 />
                                 <time
                                   dateTime={item.created_at}
-                                  className="text-xs font-medium text-neutral-400"
+                                  className="text-[11px] font-medium text-neutral-400"
                                 >
                                   {relativeTime(item.created_at)}
                                 </time>
                                 {unread && (
-                                  <span className="rounded-full bg-accent px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
+                                  <span className="rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
                                     New
                                   </span>
                                 )}

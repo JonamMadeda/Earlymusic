@@ -17,7 +17,6 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error("Sign-out-all error:", error);
-    return NextResponse.json({ error: "Unable to sign out. Please try again." }, { status: 500 });
   }
 
   const response = NextResponse.json({ success: true });

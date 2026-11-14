@@ -8,8 +8,6 @@ import { formatTime, sumDurations, toSeconds } from "@/lib/timeFormat";
 /**
  * The now-playing queue. Rows stay tappable to jump to a track; the trailing
  * actions edit what plays next without disturbing the current song.
- * Rendered only inside the full player, so it is styled for that dark surface:
- * white alphas throughout, because a navy focus ring or label would vanish.
  */
 const PlayerQueue = ({
   songs,
@@ -33,17 +31,17 @@ const PlayerQueue = ({
   }, [currentSongId]);
 
   const actionClass =
-    "flex h-8 w-8 items-center justify-center rounded-full text-white/45 transition hover:bg-white/10 hover:text-white";
+    "flex h-8 w-8 items-center justify-center rounded-full text-neutral-300 transition hover:bg-neutral-100 hover:text-neutral-700";
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+      <div className="flex items-center justify-between gap-2 border-b border-neutral-200 pb-2.5">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wider text-white/80">
+          <p className="text-xs font-bold uppercase tracking-wider text-neutral-700">
             Queue ({total})
           </p>
           {known > 0 && (
-            <p className="mt-0.5 truncate text-xs text-white/50">
+            <p className="mt-0.5 truncate text-[11px] text-neutral-500">
               {formatTime(seconds)}
               {known < total ? ` of ${total} tracks timed` : " total"}
             </p>
@@ -53,7 +51,7 @@ const PlayerQueue = ({
           <button
             type="button"
             onClick={onClear}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80 transition hover:bg-white/20 hover:text-white"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1.5 text-[11px] font-semibold text-neutral-600 transition hover:bg-neutral-200"
           >
             <ListX size={13} />
             Clear
@@ -62,9 +60,9 @@ const PlayerQueue = ({
       </div>
 
       {total === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center py-16 text-white/35">
+        <div className="flex flex-1 flex-col items-center justify-center py-16 text-neutral-300">
           <ListX size={26} strokeWidth={1.5} />
-          <p className="mt-3 text-[13px] font-medium text-white/60">
+          <p className="mt-3 text-[13px] font-medium text-neutral-400">
             Nothing queued. Pick a song to start.
           </p>
         </div>
@@ -82,35 +80,35 @@ const PlayerQueue = ({
                 data-current={isCurrent ? "true" : undefined}
                 className={`flex items-center gap-1 rounded-xl p-1 transition ${
                   isCurrent
-                    ? "border border-white/15 bg-white/10 shadow-sm"
-                    : "border border-transparent hover:bg-white/5"
+                    ? "border border-neutral-200 bg-neutral-100 shadow-sm"
+                    : "border border-transparent hover:bg-neutral-50"
                 }`}
               >
                 <button
                   type="button"
                   onClick={() => onSelect(item)}
                   aria-current={isCurrent ? "true" : undefined}
-                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                 >
-                  <span className="w-5 shrink-0 text-center text-xs text-white/55">
+                  <span className="w-5 shrink-0 text-center text-xs text-neutral-500">
                     {index + 1}
                   </span>
-                  <SongAvatar title={item.title} size="sm" variant="mono" dark />
+                  <SongAvatar title={item.title} size="sm" variant="mono" />
                   <span className="min-w-0 flex-1">
                     <span
                       className={`block truncate text-xs ${
-                        isCurrent ? "font-bold text-white" : "font-semibold text-white/90"
+                        isCurrent ? "font-bold text-neutral-900" : "font-semibold text-neutral-900"
                       }`}
                     >
                       {item.title}
                     </span>
-                    <span className="block truncate text-xs text-white/55">
+                    <span className="block truncate text-[11px] text-neutral-500">
                       {item.author}
                       {secondsValue != null && ` · ${formatTime(secondsValue)}`}
                     </span>
                   </span>
                   {isCurrent && isPlaying && (
-                    <span className="waveform flex h-3.5 items-center text-white" aria-hidden="true">
+                    <span className="waveform flex h-3.5 items-center text-accent" aria-hidden="true">
                       <span /><span /><span /><span />
                     </span>
                   )}

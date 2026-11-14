@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
-import { downloadSong, isSongDownloaded, onDownloadsChanged, removeDownload } from "@/lib/downloadManager";
+import { downloadSong, isSongDownloaded, removeDownload } from "@/lib/downloadManager";
 import ReportSongDialog from "@/app/components/ReportSongDialog";
 
 /**
@@ -72,12 +72,9 @@ const SongOverflowMenu = ({
 
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
-    const syncDownloaded = () => setDownloaded(isSongDownloaded(song?.id));
-    const unsubscribe = onDownloadsChanged(syncDownloaded);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
-      unsubscribe();
     };
   }, [open, view, song?.id]);
 
@@ -234,7 +231,7 @@ const SongOverflowMenu = ({
               >
                 <Gauge size={16} className="text-neutral-400" />
                 <span>Playback speed</span>
-                <span className="ml-auto rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-bold tabular-nums text-neutral-600">
+                <span className="ml-auto rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-bold tabular-nums text-neutral-600">
                   {playbackRate}×
                 </span>
               </button>
@@ -268,7 +265,7 @@ const SongOverflowMenu = ({
 
           {view === "playlists" && (
             <div className="p-1">
-              <p className="px-2 pb-2 text-xs font-bold uppercase tracking-widest text-neutral-400">
+              <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-widest text-neutral-400">
                 Add to playlist
               </p>
               <div className="max-h-52 space-y-0.5 overflow-y-auto custom-scrollbar">
@@ -310,7 +307,7 @@ const SongOverflowMenu = ({
           )}
 
           {error && (
-            <p role="status" className="px-3 pb-1.5 pt-2 text-xs font-medium text-neutral-500">
+            <p role="status" className="px-3 pb-1.5 pt-2 text-[11px] font-medium text-neutral-500">
               {error}
             </p>
           )}
@@ -322,7 +319,7 @@ const SongOverflowMenu = ({
                 setView("menu");
                 setError("");
               }}
-              className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-neutral-500 transition hover:bg-neutral-100"
+              className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-100"
             >
               <X size={12} />
               Back

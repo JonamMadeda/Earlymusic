@@ -132,12 +132,12 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="rounded bg-gold/10 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
+            <span className="rounded bg-accent px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
               New
             </span>
           )}
         </div>
-        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
+        <p className="truncate text-[11px] font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
       </div>
@@ -178,7 +178,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
       >
         {/* Top Tag: Clean monochromatic badge */}
         <div className="z-10 flex items-center justify-between">
-          <span className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
+          <span className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
             {categoryTag}
           </span>
           {isActive && (
@@ -196,7 +196,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
         </div>
 
         {/* Hover play trigger */}
-        <div className="absolute bottom-2.5 right-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-accent shadow-md opacity-0 translate-y-1 transition-all duration-200 group-hover:opacity-100 group-focus-within:opacity-100 group-hover:translate-y-0 group-focus-within:translate-y-0">
+        <div className="absolute bottom-2.5 right-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-accent shadow-md opacity-0 translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0">
           <Play size={13} fill="currentColor" className="ml-0.5" />
         </div>
       </div>
@@ -208,12 +208,12 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
+            <span className="shrink-0 rounded bg-accent px-1 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
               New
             </span>
           )}
         </div>
-        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
+        <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
       </div>
@@ -240,7 +240,7 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
             <span /><span /><span /><span />
           </div>
         ) : (
-          <span className="text-xs font-bold text-neutral-400 group-hover:hidden">
+          <span className="text-[11px] font-bold text-neutral-400 group-hover:hidden">
             {String(index + 1).padStart(2, "0")}
           </span>
         )}
@@ -255,13 +255,13 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
         <p className={`truncate text-xs font-bold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
           {song.title}
         </p>
-        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
+        <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
       </div>
 
       {song.category && (
-        <span className="hidden sm:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-600">
+        <span className="hidden sm:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[9px] font-semibold text-neutral-600">
           {song.category}
         </span>
       )}
@@ -296,7 +296,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
             <span /><span /><span /><span />
           </div>
         ) : (
-          <span className="text-xs font-black tabular-nums text-neutral-300 group-hover:hidden">
+          <span className="text-[11px] font-black tabular-nums text-neutral-300 group-hover:hidden">
             {String(index + 1).padStart(2, "0")}
           </span>
         )}
@@ -313,17 +313,17 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
             {song.title}
           </p>
           {index === 0 && isHistory && !isActive && (
-            <span className="shrink-0 rounded-md bg-neutral-900 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
+            <span className="shrink-0 rounded-md bg-neutral-900 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
               Last played
             </span>
           )}
           {isNew && (
-            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
+            <span className="shrink-0 rounded bg-accent px-1 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
               New
             </span>
           )}
         </div>
-        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
+        <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
       </div>
@@ -357,10 +357,10 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, onPlayAl
                 <Icon size={13} />
               </div>
             )}
-            <h2 className="text-base md:text-lg font-bold tracking-tight text-neutral-900">{title}</h2>
+            <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">{title}</h2>
           </div>
           {subtitle && (
-            <p className="mt-0.5 text-xs font-medium text-neutral-500">{subtitle}</p>
+            <p className="mt-0.5 text-[11px] font-medium text-neutral-500">{subtitle}</p>
           )}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -368,16 +368,16 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, onPlayAl
             <button
               type="button"
               onClick={() => onPlayAll(items[0])}
-              className="tap-sm flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15"
+              className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
             >
-              <Play size={12} fill="currentColor" />
+              <Play size={10} fill="currentColor" />
               Play All
             </button>
           )}
           {cta && (
             <Link
               href={cta.href}
-              className="group flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-semibold text-neutral-500 transition hover:text-neutral-900"
+              className="group flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-neutral-500 transition hover:text-neutral-900"
             >
               <span>View all</span>
               <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
@@ -624,7 +624,7 @@ export default function Home() {
             {/* Left side: Greeting, Title, Action Buttons, Metrics */}
             <div className="flex-1 min-w-0 space-y-2.5">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-700">
+                <span className="inline-flex items-center gap-1.5 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-700">
                   <GreetingIcon size={12} className="text-accent" />
                   <span>
                     {greetingText}
@@ -647,23 +647,23 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={shuffleAll}
-                  className="tap-lg inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-2xs transition hover:bg-accent/90"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
                 >
-                  <Shuffle size={14} />
+                  <Shuffle size={12} />
                   <span>Shuffle All</span>
                 </button>
 
                 {recentlyPlayed.length > 0 && (
                   <a
                     href="#recently-played"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition"
+                    className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition"
                   >
-                    <Clock size={14} className="text-neutral-500" />
+                    <Clock size={12} className="text-neutral-500" />
                     <span>Recent ({recentlyPlayed.length})</span>
                   </a>
                 )}
 
-                <div className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50/70 px-3 py-2 text-[13px] font-medium text-neutral-500">
+                <div className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50/70 px-2.5 py-1.5 text-[11px] font-medium text-neutral-500">
                   <span className="font-bold text-neutral-800">{stats.total}</span> tracks
                   <span className="text-neutral-300">•</span>
                   <span className="font-bold text-neutral-800">{stats.artists}</span> artists
@@ -683,13 +683,13 @@ export default function Home() {
                 <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-2.5 sm:w-64">
                   <SongAvatar title={activeSong.title} size="sm" variant="mono" />
                   <div className="min-w-0 flex-1">
-                    <span className="text-xs font-bold uppercase tracking-wider text-accent">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-accent">
                       Now Playing
                     </span>
                     <p className="truncate text-xs font-bold text-neutral-900">
                       {activeSong.title}
                     </p>
-                    <p className="truncate text-xs text-neutral-500">
+                    <p className="truncate text-[10px] text-neutral-500">
                       {activeSong.author}
                     </p>
                   </div>
@@ -702,10 +702,10 @@ export default function Home() {
                   <div className="flex items-start gap-2 min-w-0">
                     <Quote size={12} className="text-accent shrink-0 mt-0.5" />
                     <div className="min-w-0">
-                      <p className="text-xs italic text-neutral-700 leading-snug line-clamp-2">
+                      <p className="text-[11px] italic text-neutral-700 leading-snug line-clamp-2">
                         “{verses[verseIndex].text}”
                       </p>
-                      <p className="text-xs font-bold text-accent mt-0.5">
+                      <p className="text-[9px] font-bold text-accent mt-0.5">
                         {verses[verseIndex].ref}
                       </p>
                     </div>
@@ -713,10 +713,10 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={copyVerse}
-                    className="tap-sm shrink-0 rounded-lg p-1.5 text-neutral-400 hover:text-neutral-700 transition"
+                    className="shrink-0 p-1 text-neutral-400 hover:text-neutral-700 transition"
                     title="Copy verse"
                   >
-                    {verseCopied ? <Check size={14} className="text-accent font-bold" /> : <Copy size={14} />}
+                    {verseCopied ? <Check size={12} className="text-accent font-bold" /> : <Copy size={12} />}
                   </button>
                 </div>
               )}
@@ -727,7 +727,7 @@ export default function Home() {
 
         {/* --- COMPACT CATEGORY FILTER PILLS (drive Curated for You below) --- */}
         <section aria-label="Filter Curated for You" className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
-          <div className="flex items-center gap-1 shrink-0 pr-1 text-xs font-bold text-neutral-400">
+          <div className="flex items-center gap-1 shrink-0 pr-1 text-[11px] font-bold text-neutral-400">
             <Compass size={13} />
             <span className="hidden sm:inline">Filter Curated:</span>
           </div>
@@ -749,7 +749,7 @@ export default function Home() {
                     document.getElementById("recommended")?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }, 50);
                 }}
-                className={`tap-sm shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold transition-all duration-150 ${
                   isSelected
                     ? "bg-accent text-white shadow-2xs"
                     : "bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
@@ -794,12 +794,12 @@ export default function Home() {
                         {/* Metadata in pure, guaranteed white text */}
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 mb-1">
-                            <span className="inline-flex items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
+                            <span className="inline-flex items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
                               <Star size={9} fill="currentColor" />
                               Spotlight
                             </span>
                             {spotifySong.category && (
-                              <span className="rounded border border-white/15 px-1.5 py-0.5 text-xs font-semibold text-neutral-300 uppercase tracking-wider">
+                              <span className="rounded border border-white/15 px-1.5 py-0.5 text-[8px] font-semibold text-neutral-300 uppercase tracking-wider">
                                 {spotifySong.category}
                               </span>
                             )}
@@ -817,9 +817,9 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setActiveSong(spotifySong, sortedSongs)}
-                        className="tap-lg inline-flex items-center justify-center gap-2 self-start sm:self-auto rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-[#0f172a] shadow-sm transition hover:bg-neutral-100 active:scale-95 shrink-0"
+                        className="inline-flex items-center justify-center gap-1.5 self-start sm:self-auto rounded-lg bg-white px-4 py-2 text-xs font-bold text-[#0f172a] shadow-sm transition hover:bg-neutral-100 active:scale-95 shrink-0"
                       >
-                        <Play size={14} fill="currentColor" />
+                        <Play size={12} fill="currentColor" />
                         <span>Play Spotlight</span>
                       </button>
                     </div>
@@ -886,16 +886,16 @@ export default function Home() {
                       <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/8 text-accent">
                         {hasRealHistory ? <Clock size={13} /> : <Compass size={13} />}
                       </div>
-                      <h2 className="text-base md:text-lg font-bold tracking-tight text-neutral-900">
+                      <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">
                         {hasRealHistory ? "Jump Back In" : "Suggested Starters"}
                       </h2>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActiveSong(recentlyPlayed[0], recentlyPlayed)}
-                      className="tap-sm flex items-center gap-1.5 rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15"
+                      className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
                     >
-                      <Play size={12} fill="currentColor" />
+                      <Play size={10} fill="currentColor" />
                       {hasRealHistory ? "Resume" : "Play All"}
                     </button>
                   </div>
@@ -961,7 +961,7 @@ export default function Home() {
                       <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/8 text-accent">
                         <ListMusic size={13} />
                       </div>
-                      <h2 className="text-base md:text-lg font-bold tracking-tight text-neutral-900">
+                      <h2 className="text-sm md:text-base font-bold tracking-tight text-neutral-900">
                         Curated for You
                       </h2>
                     </div>
@@ -970,15 +970,15 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => setActiveSong(recommendedSongs[0], recommendedSongs)}
-                          className="tap-sm flex items-center gap-1.5 rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15"
+                          className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-[11px] font-bold text-accent transition hover:bg-accent/15"
                         >
-                          <Play size={12} fill="currentColor" />
+                          <Play size={10} fill="currentColor" />
                           Play All
                         </button>
                       )}
                       <Link
                         href="/songs"
-                        className="group flex items-center gap-1 text-xs font-semibold text-neutral-500 transition hover:text-neutral-900"
+                        className="group flex items-center gap-1 text-[11px] font-semibold text-neutral-500 transition hover:text-neutral-900"
                       >
                         <span>View all</span>
                         <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
@@ -986,7 +986,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-8">
                     {recommendedSongs.length > 0 ? (
                       [0, 1, 2, 3, 4].map((group) => {
                         const chunk = recommendedSongs.slice(group * 5, group * 5 + 5);
@@ -1029,9 +1029,9 @@ export default function Home() {
                 </p>
                 <Link
                   href="/admin"
-                  className="tap-lg mt-4 inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-2xs transition hover:bg-accent/90"
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
                 >
-                  <Upload size={15} />
+                  <Upload size={13} />
                   Upload a Song
                 </Link>
               </div>
@@ -1051,7 +1051,7 @@ export default function Home() {
                   <p className="text-xs font-bold tracking-tight text-neutral-900">
                     You&apos;ve reached the end
                   </p>
-                  <p className="mt-0.5 text-xs font-medium text-neutral-500">
+                  <p className="mt-0.5 text-[11px] font-medium text-neutral-500">
                     Thanks for worshipping with us today.
                   </p>
                 </div>
@@ -1065,9 +1065,9 @@ export default function Home() {
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }
                   }}
-                  className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-bold text-neutral-700 shadow-2xs transition hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 active:scale-95"
+                  className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-xs font-bold text-neutral-700 shadow-2xs transition hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 active:scale-95"
                 >
-                  <ArrowUp size={14} />
+                  <ArrowUp size={13} />
                   <span>Back to top</span>
                 </button>
               </div>

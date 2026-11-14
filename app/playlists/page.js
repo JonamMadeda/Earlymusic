@@ -135,7 +135,7 @@ export default function PlaylistsPage() {
         )}
 
         {playlists.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-neutral-200 bg-white shadow-sm">
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-3xl border border-dashed border-neutral-200 bg-white shadow-sm">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
               <ListMusic size={26} />
             </div>
@@ -167,7 +167,7 @@ export default function PlaylistsPage() {
                   </div>
                   <button
                     onClick={(e) => deletePlaylist(e, pl.id)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 hover:bg-accent hover:text-white"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 md:opacity-0 md:group-hover:opacity-100 hover:bg-accent hover:text-white"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -176,7 +176,7 @@ export default function PlaylistsPage() {
                   <h3 className="truncate text-sm font-semibold tracking-tight text-neutral-900">
                     {pl.name}
                   </h3>
-                  <p className="mt-0.5 text-xs font-medium text-neutral-400">
+                  <p className="mt-0.5 text-[11px] font-medium text-neutral-400">
                     Playlist
                   </p>
                 </div>

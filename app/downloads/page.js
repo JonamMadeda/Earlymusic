@@ -81,7 +81,7 @@ export default function DownloadsPage() {
                   <HardDrive size={13} />
                   <span>Device storage</span>
                 </div>
-                <span className={`text-xs font-semibold ${isFull ? "text-red-500" : "text-neutral-500"}`}>
+                <span className={`text-[11px] font-semibold ${isFull ? "text-red-500" : "text-neutral-500"}`}>
                   {formatBytes(storage.usage)} / {formatBytes(storage.quota)}
                 </span>
               </div>
@@ -93,7 +93,7 @@ export default function DownloadsPage() {
                   style={{ width: `${storagePercent}%` }}
                 />
               </div>
-              <p className={`mt-1.5 text-xs font-medium ${isFull ? "text-red-500" : "text-neutral-400"}`}>
+              <p className={`mt-1.5 text-[11px] font-medium ${isFull ? "text-red-500" : "text-neutral-400"}`}>
                 {isFull
                   ? "Storage is full — remove some downloads to free up space"
                   : `${formatBytes(storage.available)} available`}
@@ -121,11 +121,7 @@ export default function DownloadsPage() {
                 tabIndex={0}
                 onClick={() => handlePlay(song.id)}
                 onKeyDown={(e) => {
-                  if (e.target !== e.currentTarget) return;
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handlePlay(song.id);
-                  }
+                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handlePlay(song.id); }
                 }}
                 className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl bg-neutral-50/60 p-3 text-left transition-all duration-300 hover:bg-neutral-100/80 hover:shadow-sm hover:-translate-y-0.5"
               >
@@ -135,7 +131,7 @@ export default function DownloadsPage() {
                   <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
                     {song.title}
                   </p>
-                  <p className="truncate text-xs font-medium text-neutral-400 mt-0.5">
+                  <p className="truncate text-[11px] font-medium text-neutral-400 mt-0.5">
                     {song.author}
                   </p>
                 </div>

@@ -280,7 +280,7 @@ export default function UploadPage() {
             <ArrowLeft size={15} />
           </Link>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900">Upload Tracks</h1>
+            <h1 className="text-lg font-bold tracking-tight text-neutral-900">Upload Tracks</h1>
             <p className="truncate text-xs text-neutral-500">
               Queue files or a batch — artist, category, and compilation details apply to every track.
               New uploads start as pending and go public after an admin approves their rights metadata.
@@ -330,7 +330,7 @@ export default function UploadPage() {
               {/* Queue */}
           {queue.length > 0 && (
             <div className="mt-3 flex flex-col gap-y-2">
-              <p className="px-1 text-xs font-bold uppercase tracking-wider text-neutral-400">
+              <p className="px-1 text-[11px] font-bold uppercase tracking-wider text-neutral-400">
                 Queue ({queue.length})
               </p>
               <div className="flex max-h-[190px] flex-col gap-y-2 overflow-y-auto pr-1 custom-scrollbar">
@@ -446,14 +446,14 @@ export default function UploadPage() {
           {/* Original songs */}
           <div className="mt-3">
             <div className="mb-2 flex items-center justify-between px-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
                 Original Songs (Compilation)
               </span>
               <button
                 type="button"
                 onClick={handleAddOriginal}
                 disabled={isPublishing}
-                className="flex items-center gap-1 text-xs font-bold text-accent transition hover:text-neutral-900 disabled:opacity-60"
+                className="flex items-center gap-1 text-[11px] font-bold text-accent transition hover:text-neutral-900 disabled:opacity-60"
               >
                 <Plus size={14} /> Add Song
               </button>

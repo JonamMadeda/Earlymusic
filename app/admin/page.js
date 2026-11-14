@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { getAudioPublicUrl } from "@/lib/audioUrl";
 import { verifyAudioUrl, summarizeHealth } from "@/lib/audioHealth";
-import { groupSongs } from "@/lib/songGrouping";
 import { useRouter } from "next/navigation";
 import {
   Trash2,
@@ -66,12 +65,9 @@ import { useAuth } from "../context/AuthContext";
 import SongAvatar from "@/app/components/SongAvatar";
 
 export default function AdminDashboard() {
-  const { activeSong, setActiveSong } = usePlayer();
+  const { allSongs, setAllSongs, activeSong, setActiveSong } = usePlayer();
   const { user, loading: authLoading, isAdmin, roleLoading, signOut } = useAuth();
 
-  // The admin list includes pending/rejected rows, so it stays local instead
-  // of entering the shared player library that search and playlists read.
-  const [adminSongs, setAdminSongs] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("tracks");
   const [adminEmail, setAdminEmail] = useState("");
@@ -104,15 +100,10 @@ export default function AdminDashboard() {
   const [replaceSong, setReplaceSong] = useState(null);
 
   const router = useRouter();
-  const handleLogout = async () => {
+  const handleLogout = () => {
     // signOut clears the stored token + auth state; without it the "logout"
     // only navigated away and the session silently survived.
-    const { error } = await signOut();
-    if (error) {
-      showToast(error, "error");
-      return;
-    }
-    router.replace("/");
+    signOut().finally(() => router.replace("/"));
   };
 
   useEffect(() => {
@@ -217,7 +208,7 @@ export default function AdminDashboard() {
       const data = await response.json();
       const list = Array.isArray(data) ? data : data.songs;
       if (Array.isArray(list)) {
-        setAdminSongs(list);
+        setAllSongs(list);
         setHealth(null);
       }
     } catch (error) {
@@ -268,7 +259,7 @@ export default function AdminDashboard() {
           }
 
           // Update local state without redirecting
-          setAdminSongs((prev) => prev.filter((s) => s.id !== song.id));
+          setAllSongs((prev) => prev.filter((s) => s.id !== song.id));
           setSelectedIds((prev) => prev.filter((sid) => sid !== song.id));
           setHealth(null);
           showToast(`Deleted “${song.title}”.`);
@@ -312,7 +303,7 @@ export default function AdminDashboard() {
   // "Unreachable" = this browser couldn't reach storage (network/CORS) —
   // not proof the file is bad.
   const verifyAllAudio = async () => {
-    const list = Array.isArray(adminSongs) ? adminSongs : [];
+    const list = Array.isArray(allSongs) ? allSongs : [];
     if (list.length === 0 || verifyRunningRef.current) return;
     verifyRunningRef.current = true;
     verifyCancelRef.current = false;
@@ -406,7 +397,7 @@ export default function AdminDashboard() {
 
   const runBulkDelete = async () => {
 
-    const byId = new Map((Array.isArray(adminSongs) ? adminSongs : []).map((s) => [s.id, s]));
+    const byId = new Map((Array.isArray(allSongs) ? allSongs : []).map((s) => [s.id, s]));
     const ids = [...selectedIds];
     const failed = [];
     const deleted = [];
@@ -431,7 +422,7 @@ export default function AdminDashboard() {
 
     setBulkOp(null);
     if (deleted.length > 0) {
-      setAdminSongs((prev) => prev.filter((s) => !deleted.includes(s.id)));
+      setAllSongs((prev) => prev.filter((s) => !deleted.includes(s.id)));
       setHealth(null);
     }
     setSelectedIds((prev) => prev.filter((id) => !deleted.includes(id)));
@@ -463,7 +454,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({ ids: selectedIds, patch }),
       });
       if (!response.ok) throw new Error("Bulk update failed.");
-      setAdminSongs((prev) =>
+      setAllSongs((prev) =>
         prev.map((s) => (selectedIds.includes(s.id) ? { ...s, ...patch } : s))
       );
       setBulkMessage(`Updated ${selectedIds.length} track${selectedIds.length === 1 ? "" : "s"}.`);
@@ -479,7 +470,7 @@ export default function AdminDashboard() {
   };
 
   const groupedSongs = useMemo(() => {
-    const source = Array.isArray(adminSongs) ? adminSongs : [];
+    const source = Array.isArray(allSongs) ? allSongs : [];
     const filtered = source
       .filter(
         (s) =>
@@ -503,25 +494,29 @@ export default function AdminDashboard() {
       return (a.title || "").localeCompare(b.title || "");
     });
 
-    const sortField = adminSort === "author-az"
-      ? "author"
-      : adminSort === "newest" ? "created_at" : "title";
-    return groupSongs(sorted, sortField);
-  }, [adminSongs, searchQuery, adminCategory, adminSort]);
+    return sorted.reduce((groups, song) => {
+      const letter = song.title?.[0]?.toUpperCase() || "#";
+      if (!groups[letter]) groups[letter] = [];
+      groups[letter].push(song);
+      return groups;
+    }, {});
+  }, [allSongs, searchQuery, adminCategory, adminSort]);
+
+  const alphabet = Object.keys(groupedSongs).sort();
 
   const visibleIds = useMemo(
-    () => groupedSongs.flatMap((group) => group.songs.map((song) => song.id)),
+    () => Object.values(groupedSongs).flat().map((s) => s.id),
     [groupedSongs]
   );
 
   // Compute stats — placed before early returns to keep hook order consistent
   const stats = useMemo(() => {
-    const songs = Array.isArray(adminSongs) ? adminSongs : [];
+    const songs = Array.isArray(allSongs) ? allSongs : [];
     const artists = new Set(songs.map((s) => s.author?.toLowerCase().trim()).filter(Boolean));
     const categories = new Set(songs.map((s) => s.category || "Worship"));
     const recent = songs.filter((s) => s.created_at && Date.now() - new Date(s.created_at).getTime() < 30 * 24 * 60 * 60 * 1000);
     return { total: songs.length, artists: artists.size, categories: categories.size, recent: recent.length };
-  }, [adminSongs]);
+  }, [allSongs]);
 
   const healthSummary = useMemo(() => summarizeHealth(health?.results), [health]);
 
@@ -553,8 +548,8 @@ export default function AdminDashboard() {
         <div className="sticky top-2 z-40 mb-3 rounded-xl border border-neutral-200 bg-white/95 shadow-sm backdrop-blur-md">
           <div className="flex flex-col gap-2 px-4 py-2.5 md:flex-row md:items-center md:gap-3">
             <div className="flex items-center gap-2 px-1">
-              <h1 className="text-lg font-bold tracking-tight text-neutral-900">Vault</h1>
-              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-bold text-neutral-500">
+              <h1 className="text-base font-bold tracking-tight text-neutral-900">Vault</h1>
+              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-bold text-neutral-500">
                 {stats.total}
               </span>
             </div>
@@ -766,7 +761,7 @@ export default function AdminDashboard() {
                       setBulkMessage("");
                       setSelectedIds(selectedIds.length > 0 ? [] : visibleIds);
                     }}
-                    disabled={(Array.isArray(adminSongs) ? adminSongs : []).length === 0 || !!bulkOp}
+                    disabled={(Array.isArray(allSongs) ? allSongs : []).length === 0 || !!bulkOp}
                     className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-bold text-neutral-600 shadow-sm transition hover:border-neutral-300 hover:text-neutral-900 disabled:opacity-50"
                   >
                     Select
@@ -780,7 +775,7 @@ export default function AdminDashboard() {
                         verifyAllAudio();
                       }
                     }}
-                    disabled={(Array.isArray(adminSongs) ? adminSongs : []).length === 0}
+                    disabled={(Array.isArray(allSongs) ? allSongs : []).length === 0}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-bold text-neutral-600 shadow-sm transition hover:border-neutral-300 hover:text-neutral-900 disabled:opacity-50"
                     title="Check every track's audio file is reachable"
                   >
@@ -816,7 +811,7 @@ export default function AdminDashboard() {
           <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-5">
             <div className="mb-1 flex items-center gap-2">
               <ShieldCheck size={14} className="text-accent" />
-              <h2 className="text-base font-bold tracking-tight text-neutral-900">Team</h2>
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Team</h2>
             </div>
             <div>
             <p className="mb-3 text-xs leading-relaxed text-neutral-500">Grant dashboard access to an account that has already signed up.</p>
@@ -841,7 +836,7 @@ export default function AdminDashboard() {
             {adminMessage && <p role="status" className="mt-2 text-xs font-medium text-neutral-600">{adminMessage}</p>}
 
             <div className="mt-4 border-t border-neutral-100 pt-3">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
                 Current administrators
               </p>
               {adminsLoading ? (
@@ -857,12 +852,12 @@ export default function AdminDashboard() {
                         <p className="flex items-center gap-1.5 truncate text-xs font-bold text-neutral-800">
                           <span className="truncate">{entry.email}</span>
                           {isSelf && (
-                            <span className="shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-neutral-500">
+                            <span className="shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-neutral-500">
                               You
                             </span>
                           )}
                         </p>
-                        <p className="text-xs text-neutral-400">
+                        <p className="text-[11px] text-neutral-400">
                           Since {entry.created_at ? new Date(entry.created_at).toLocaleDateString() : "—"}
                         </p>
                       </div>
@@ -890,9 +885,9 @@ export default function AdminDashboard() {
           <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-5">
             <div className="mb-3 flex items-center gap-2">
               <HardDrive size={14} className="text-accent" />
-              <h2 className="text-base font-bold tracking-tight text-neutral-900">Storage</h2>
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Storage</h2>
               {storage && !storage.loading && typeof storage.totalBytes === "number" && (
-                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-bold text-neutral-500">
+                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-bold text-neutral-500">
                   {formatBytes(storage.totalBytes)} · {storage.fileCount} files
                 </span>
               )}
@@ -962,7 +957,7 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => { if (!health?.checking) verifyAllAudio(); }}
-                  disabled={(Array.isArray(adminSongs) ? adminSongs : []).length === 0 || health?.checking}
+                  disabled={(Array.isArray(allSongs) ? allSongs : []).length === 0 || health?.checking}
                   className="ml-auto rounded-full bg-neutral-900 px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-neutral-700 disabled:opacity-50"
                 >
                   {health?.checking ? `Checking ${health.done}/${health.total}…` : health ? "Run again" : "Run verification"}
@@ -1008,7 +1003,7 @@ export default function AdminDashboard() {
           <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-5">
             <div className="mb-3 flex items-center gap-2">
               <History size={14} className="text-accent" />
-              <h2 className="text-base font-bold tracking-tight text-neutral-900">Activity</h2>
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Activity</h2>
               <button
                 type="button"
                 onClick={fetchAudit}
@@ -1044,7 +1039,7 @@ export default function AdminDashboard() {
                           {meta.label}
                           {entry.target && <span className="font-medium text-neutral-500"> · {entry.target}</span>}
                         </p>
-                        <p className="truncate text-xs text-neutral-400">
+                        <p className="truncate text-[11px] text-neutral-400">
                           {actor} · {timeAgo(entry.created_at)}
                         </p>
                       </div>
@@ -1061,7 +1056,7 @@ export default function AdminDashboard() {
           <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-5">
             <div className="mb-3 flex items-center gap-2">
               <BarChart3 size={14} className="text-accent" />
-              <h2 className="text-base font-bold tracking-tight text-neutral-900">Insights</h2>
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Insights</h2>
               <button
                 type="button"
                 onClick={fetchMetrics}
@@ -1090,7 +1085,7 @@ export default function AdminDashboard() {
                   ].map((kpi) => (
                     <div key={kpi.label} className="rounded-xl border border-neutral-100 bg-neutral-50/60 px-3 py-2.5">
                       <p className="text-lg font-bold tracking-tight text-neutral-900">{kpi.value ?? 0}</p>
-                      <p className="text-xs font-medium text-neutral-500">{kpi.label}</p>
+                      <p className="text-[11px] font-medium text-neutral-500">{kpi.label}</p>
                     </div>
                   ))}
                 </div>
@@ -1100,7 +1095,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-bold text-neutral-900">Credential migration</p>
-                      <p className="mt-1 text-xs text-neutral-500">
+                      <p className="mt-1 text-[11px] text-neutral-500">
                         {metrics.credentials.native} native · {metrics.credentials.pending} still using the bcrypt fallback
                       </p>
                     </div>
@@ -1116,14 +1111,14 @@ export default function AdminDashboard() {
                   >
                     <div className="h-full rounded-full bg-accent" style={{ width: `${metrics.credentials.coveragePercent}%` }} />
                   </div>
-                  <p className="mt-2 text-xs text-neutral-400">
+                  <p className="mt-2 text-[10px] text-neutral-400">
                     Retire the fallback only after pending reaches zero. Password resets also create native credentials.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
                       Listening days · last 14d
                     </p>
                     {metrics.playsPerDay.length === 0 ? (
@@ -1143,12 +1138,12 @@ export default function AdminDashboard() {
                         })()}
                       </div>
                     )}
-                    <p className="mt-1 text-xs text-neutral-400">
+                    <p className="mt-1 text-[11px] text-neutral-400">
                       {metrics.active.totalListeners} listener{metrics.active.totalListeners === 1 ? "" : "s"} all-time · {metrics.totals.playlists} playlist{metrics.totals.playlists === 1 ? "" : "s"} created
                     </p>
                   </div>
                   <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
                       Signups · last 14d
                     </p>
                     {metrics.users.perDay.length === 0 ? (
@@ -1168,7 +1163,7 @@ export default function AdminDashboard() {
                         })()}
                       </div>
                     )}
-                    <p className="mt-1 text-xs text-neutral-400">
+                    <p className="mt-1 text-[11px] text-neutral-400">
                       {metrics.users.d30} new in the last 30 days
                     </p>
                   </div>
@@ -1176,7 +1171,7 @@ export default function AdminDashboard() {
 
                 {/* Top tracks */}
                 <div>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
                     Top tracks · by listeners
                   </p>
                   {metrics.topSongs.length === 0 ? (
@@ -1184,14 +1179,14 @@ export default function AdminDashboard() {
                   ) : (
                     metrics.topSongs.map((song, idx) => (
                       <div key={song.song_id} className="flex items-center gap-3 border-b border-neutral-50 py-2 last:border-0">
-                        <span className="w-6 shrink-0 text-center text-xs font-black tabular-nums text-neutral-300">
+                        <span className="w-6 shrink-0 text-center text-[11px] font-black tabular-nums text-neutral-300">
                           {String(idx + 1).padStart(2, "0")}
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-bold text-neutral-800">{song.title}</p>
-                          <p className="truncate text-xs text-neutral-400">{song.author}</p>
+                          <p className="truncate text-[11px] text-neutral-400">{song.author}</p>
                         </div>
-                        <span className="shrink-0 text-xs font-semibold text-neutral-500">
+                        <span className="shrink-0 text-[11px] font-semibold text-neutral-500">
                           {song.listeners} listener{song.listeners === 1 ? "" : "s"}
                         </span>
                       </div>
@@ -1199,7 +1194,7 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
-                <p className="text-xs leading-relaxed text-neutral-400">
+                <p className="text-[11px] leading-relaxed text-neutral-400">
                   Activity counts listeners with synced plays (signed-in plays only). Replays update the last-played stamp rather than adding new rows, so these measure reach, not raw play counts.
                 </p>
               </div>
@@ -1217,9 +1212,9 @@ export default function AdminDashboard() {
           <AdminLegalPanel
             onToast={showToast}
             onTakedown={(songId) =>
-              setAdminSongs((prev) =>
+              setAllSongs((prev) =>
                 prev.map((song) =>
-                  song.id === songId ? { ...song, status: "rejected", download_allowed: false } : song
+                  song.id === songId ? { ...song, status: "rejected" } : song
                 )
               )
             }
@@ -1230,7 +1225,7 @@ export default function AdminDashboard() {
         <div className="flex flex-col">
           {/* Song list */}
           {/* Column headers — desktop only */}
-          <div className="hidden md:grid md:grid-cols-[32px_minmax(0,1fr)_180px_110px_158px] gap-3 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-neutral-300">
+          <div className="hidden md:grid md:grid-cols-[32px_minmax(0,1fr)_180px_110px_158px] gap-3 px-4 py-2 text-[11px] font-semibold uppercase tracking-widest text-neutral-300">
             <span />
             <span>Track</span>
             <span>Artist</span>
@@ -1238,19 +1233,19 @@ export default function AdminDashboard() {
             <span className="text-right">Actions</span>
           </div>
 
-          {groupedSongs.length === 0 ? (
+          {alphabet.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-neutral-200 bg-white py-32 shadow-sm text-neutral-200">
               <Music size={48} strokeWidth={1.5} className="mb-4 opacity-20" />
               <p className="text-[13px] font-medium text-neutral-400">No matching tracks found</p>
             </div>
           ) : (
-            groupedSongs.map((group) => (
-              <div key={group.key} className="mb-2">
+            alphabet.map((letter) => (
+              <div key={letter} className="mb-2">
                 <div className="sticky top-0 z-10 bg-neutral-50/60 backdrop-blur-sm px-4 pb-1 pt-3">
-                  <span className="inline-flex h-5 min-w-5 px-1.5 items-center justify-center rounded-md border border-accent/10 bg-accent/[0.06] text-xs font-bold text-accent">{group.label}</span>
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-accent/10 bg-accent/[0.06] text-[10px] font-bold text-accent">{letter}</span>
                 </div>
                 <div className="flex flex-col gap-y-1">
-                  {group.songs.map((song) => {
+                  {groupedSongs[letter].map((song) => {
                     const audioResult = health?.results?.[song.id];
                     return (
                     <div
@@ -1283,7 +1278,7 @@ export default function AdminDashboard() {
                         <SongAvatar title={song.title} size="xs" variant="mono" />
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-neutral-900 leading-tight">{song.title}</p>
-                          <p className="truncate text-xs font-medium text-neutral-400 md:hidden">{song.author}</p>
+                          <p className="truncate text-[12px] font-medium text-neutral-400 md:hidden">{song.author}</p>
                         </div>
                       </div>
 
@@ -1293,11 +1288,11 @@ export default function AdminDashboard() {
                       {/* Category + duration */}
                       <div className="flex items-center gap-1.5">
                         {song.duration && (
-                          <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider ${song.duration === "Short" ? "bg-neutral-900 text-white border-neutral-900" : "bg-white text-neutral-700 border-neutral-300"}`}>
+                          <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${song.duration === "Short" ? "bg-neutral-900 text-white border-neutral-900" : "bg-white text-neutral-700 border-neutral-300"}`}>
                             {song.duration}
                           </span>
                         )}
-                        <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider ${song.category === "Praise" ? "bg-neutral-800 text-white border-neutral-800" : "bg-neutral-900 text-white border-neutral-900"}`}>
+                        <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${song.category === "Praise" ? "bg-neutral-800 text-white border-neutral-800" : "bg-neutral-900 text-white border-neutral-900"}`}>
                           {song.category || "Worship"}
                         </span>
                       </div>
@@ -1322,9 +1317,8 @@ export default function AdminDashboard() {
                             }`}
                           />
                         )}
-                        {/* Single-track queue: previewing must not push unapproved rows into the shared player queue. */}
                         <button
-                          onClick={() => setActiveSong(song, [song])}
+                          onClick={() => setActiveSong(song, allSongs)}
                           className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
                             activeSong?.id === song.id
                               ? "bg-accent/10 text-accent"
@@ -1390,7 +1384,7 @@ export default function AdminDashboard() {
         onClose={() => setEditModalSong(null)}
         song={editModalSong}
         onSuccess={(updatedSong) => {
-          setAdminSongs((prev) => 
+          setAllSongs((prev) => 
             prev.map(s => s.id === updatedSong.id ? updatedSong : s)
           );
         }}
@@ -1401,7 +1395,7 @@ export default function AdminDashboard() {
         onClose={() => setReplaceSong(null)}
         song={replaceSong}
         onSuccess={(updatedSong) => {
-          setAdminSongs((prev) =>
+          setAllSongs((prev) =>
             prev.map((s) => s.id === updatedSong.id ? updatedSong : s)
           );
           setHealth(null);

@@ -74,14 +74,6 @@ export async function POST(request: NextRequest) {
     )
       .map((code: unknown) => String(code).trim().toUpperCase())
       .filter((code: string) => /^[A-Z]{2}$/.test(code));
-    // A NULL allowlist with region_restricted hides the track everywhere geo
-    // is known but fails open where it is not — reject it instead.
-    if (region_restricted === true && countryCodes.length === 0) {
-      return NextResponse.json(
-        { error: "Region-restricted tracks require at least one valid two-letter country code." },
-        { status: 400 }
-      );
-    }
     const allowedCountriesValue = countryCodes.length
       ? `{${countryCodes.join(",")}}`
       : null;
@@ -122,19 +114,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unable to create song." }, { status: 500 });
     }
 
-    // Only approved tracks may be announced: the release tile links to
-    // /share/<id>, which 404s for pending/rejected rows.
-    if (song.status === "approved") {
-      const alreadyAnnounced = await hasSongAnnouncement(song.id);
-      if (!alreadyAnnounced) {
-        const posted = await announceNewSong(song);
-        await logAdminAction({
-          actorId: admin.user.id,
-          action: "song.announce",
-          target: String(song.id),
-          detail: { title: song.title, evicted: posted?.evicted },
-        });
-      }
+    // Listeners hear about a drop without an admin writing an announcement.
+    // A release announcement is only posted once per song.
+    const alreadyAnnounced = await hasSongAnnouncement(song.id);
+    if (!alreadyAnnounced) {
+      const posted = await announceNewSong(song);
+      await logAdminAction({
+        actorId: admin.user.id,
+        action: "song.announce",
+        target: String(song.id),
+        detail: { title: song.title, evicted: posted?.evicted },
+      });
     }
 
     return NextResponse.json({ song }, { status: 201 });

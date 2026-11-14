@@ -2,97 +2,10 @@
 
 @theme {
   --color-accent: #0f172a;
-  /* "New" badge only. Monochrome on purpose: the rest of the UI is accent
-     near-black plus neutral grays, and the chips this badge sits beside
-     (category tags) are neutral too. One step darker than their text so a
-     new track stays findable without being the loudest thing in the row.
-     Holds 8.8:1 on its own 10% tint and 10.4:1 reversed under white text. */
-  --color-gold: #404040;
 }
 
 :root {
   color-scheme: light;
-}
-
-/* Shared button patterns. Every variant carries a 44px minimum height so
-   the same class is safe on touch without per-page overrides. */
-@layer components {
-  .btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-accent/90 disabled:pointer-events-none disabled:opacity-50;
-  }
-
-  .btn-secondary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white px-5 py-2.5 text-sm font-bold text-neutral-700 transition hover:bg-neutral-50 disabled:pointer-events-none disabled:opacity-50;
-  }
-
-  .btn-tertiary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold text-neutral-600 transition hover:bg-neutral-100 disabled:pointer-events-none disabled:opacity-50;
-  }
-
-  .btn-destructive {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 disabled:pointer-events-none disabled:opacity-50;
-  }
-
-  .btn-destructive-outline {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:pointer-events-none disabled:opacity-50;
-  }
-
-  .card {
-    @apply rounded-2xl border border-neutral-200 bg-white shadow-sm;
-  }
-
-  .page-title {
-    @apply text-xl font-bold tracking-tight text-neutral-900 sm:text-2xl;
-  }
-
-  .section-title {
-    @apply text-base font-bold tracking-tight text-neutral-900 sm:text-lg;
-  }
-}
-
-/* Touch targets, sized by importance. Controls start at the 44px minimum and
-   step down deliberately — nothing drops below the floor (24px in WCAG 2.5.8,
-   and 34px here keeps a third of that as slack):
-     .tap-lg  52px  the page's primary action, paired with text-sm
-     default  44px  ordinary buttons
-     .tap-sm  34px  chips and icon buttons that sit inside dense rows
-   Size only reads as correct when the label matches it: a 10-12px label inside
-   a 44px box is what looked oversized, so pair .tap-lg with text-sm and keep
-   .tap-sm on text-xs. Inline text links are unaffected because min sizes don't
-   apply to inline boxes; block/flex controls (nav items, rows, rails) grow. */
-@media (pointer: coarse) {
-  button,
-  [role="button"] {
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  a,
-  select,
-  summary {
-    min-height: 44px;
-  }
-
-  input[type="range"] {
-    min-height: 44px;
-  }
-
-  .tap-lg {
-    min-height: 52px;
-  }
-
-  .tap-sm {
-    min-height: 34px;
-    min-width: 34px;
-  }
-}
-
-/* Exception: the player bar's progress strip is a 4px line drawn behind a
-   transparent range input. At the 44px minimum that input covers the top two
-   thirds of the mini-player card, so a tap meant for opening the player landed
-   on it and seeked instead. It keeps its own hit height. */
-input[type="range"].progress-strip {
-  min-height: 0;
 }
 
 html {
@@ -166,69 +79,6 @@ input[type="range"]:focus-visible {
   background: #0f172a;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
   cursor: pointer;
-}
-
-/* The full player's seek bar: the track is painted by the input's own
-   background, so the coarse-pointer 44px minimum would grow the visible line
-   into a slab on phones. Same treatment as the volume slider — the input stays
-   tall enough to land a thumb on, the painted track stays a thin line. */
-input[type="range"].seek-bar {
-  -webkit-appearance: none;
-  appearance: none;
-  min-height: 0;
-  height: 28px;
-  border-radius: 9999px;
-  background: linear-gradient(rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.28)) center / 100% 5px no-repeat;
-  cursor: pointer;
-}
-
-.seek-bar::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 15px;
-  height: 15px;
-  border-radius: 9999px;
-  background: #ffffff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
-}
-
-.seek-bar::-moz-range-thumb {
-  width: 15px;
-  height: 15px;
-  border: none;
-  border-radius: 9999px;
-  background: #ffffff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
-}
-
-/* The full player is the app's one dark surface. These are the handful of
-   treatments utility classes cannot reach: the slider track is a gradient, the
-   thumb is a pseudo-element, and every focus ring in the app is navy — which
-   would simply disappear on this background. */
-.player-dark {
-  color-scheme: dark;
-}
-
-.player-dark .volume-slider {
-  background: linear-gradient(rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.28)) center / 100% 6px no-repeat;
-}
-
-.player-dark .volume-slider::-webkit-slider-thumb {
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-}
-
-.player-dark .volume-slider::-moz-range-thumb {
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-}
-
-.player-dark :focus-visible {
-  outline-color: rgba(255, 255, 255, 0.85);
-}
-
-.player-dark input[type="range"]:focus-visible {
-  outline-color: rgba(255, 255, 255, 0.85);
 }
 
 /* The global search is one rounded field, so the ring belongs on the wrapper
@@ -366,15 +216,6 @@ input[type="range"].seek-bar {
   animation: fadeIn 0.25s ease-out;
 }
 
-@keyframes modalIn {
-  from { opacity: 0; transform: translateY(14px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.animate-modal-in {
-  animation: modalIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
 /* Spotlight gradient cycling */
 @keyframes gradientCycle {
   0%   { background-position: 0% 50%; }
@@ -438,10 +279,6 @@ input[type="range"].seek-bar {
   }
 
   .animate-fade-in {
-    animation: none;
-  }
-
-  .animate-modal-in {
     animation: none;
   }
 

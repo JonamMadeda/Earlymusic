@@ -157,13 +157,6 @@ function LibraryContent() {
     }, {});
   }, [savedSongs]);
 
-  // Queue must follow the rendered order (letter groups sorted, A-Z within),
-  // not the save-date order of savedSongs.
-  const savedQueue = useMemo(
-    () => Object.keys(groupedSaved).sort().flatMap((letter) => groupedSaved[letter]),
-    [groupedSaved]
-  );
-
   const createPlaylist = async () => {
     const name = newName.trim();
     if (!name) return;
@@ -243,7 +236,7 @@ function LibraryContent() {
             <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
               Library
             </h1>
-            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-400">
+            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-[11px] font-medium text-neutral-400">
               {savedSongs.length} saved · {playlists.length} playlist{playlists.length !== 1 ? "s" : ""} · {downloadedSongs.length} downloaded
             </span>
           </div>
@@ -283,14 +276,14 @@ function LibraryContent() {
                 {Object.keys(groupedSaved).sort().map((letter) => (
                     <div key={letter} className="flex flex-col gap-y-3">
                       <div className="flex items-center gap-3 border-b border-neutral-100 pb-2 px-1">
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/[0.06] border border-accent/10 text-xs font-bold text-accent">{letter}</span>
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/[0.06] border border-accent/10 text-[10px] font-bold text-accent">{letter}</span>
                       </div>
                     <div className="flex flex-col gap-y-2">
                       {groupedSaved[letter].map((song) => (
                         <SongItem
                           key={song.id}
                           song={song}
-                          onClick={() => setActiveSong(song, savedQueue)}
+                          onClick={() => setActiveSong(song, savedSongs)}
                           saved={true}
                           onToggleSave={handleToggleSaved}
                           isNew={newSongIds.has(song.id)}
@@ -301,7 +294,7 @@ function LibraryContent() {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-neutral-200 bg-white shadow-sm">
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-3xl border border-dashed border-neutral-200 bg-white shadow-sm">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
                   <Heart size={26} />
                 </div>
@@ -321,13 +314,13 @@ function LibraryContent() {
             {topSongs.length > 0 ? (
               <>
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-xs font-medium text-neutral-500">
+                  <p className="text-[11px] font-medium text-neutral-500">
                     Your most played tracks
                   </p>
                   <button
                     type="button"
                     onClick={() => setActiveSong(topSongs[0], topSongs)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
+                    className="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-[11px] font-bold text-white shadow-2xs transition hover:bg-accent/90"
                   >
                     <Play size={11} fill="currentColor" />
                     Play Top 10
@@ -340,25 +333,19 @@ function LibraryContent() {
                       role="button"
                       tabIndex={0}
                       onClick={() => setActiveSong(song, topSongs)}
-                      onKeyDown={(e) => {
-                        if (e.target !== e.currentTarget) return;
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          setActiveSong(song, topSongs);
-                        }
-                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActiveSong(song, topSongs); } }}
                       className="group flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-left shadow-2xs transition-all duration-150 hover:border-neutral-300 hover:bg-neutral-50/70"
                     >
-                      <span className="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-neutral-400">
+                      <span className="w-5 shrink-0 text-center text-[11px] font-bold tabular-nums text-neutral-400">
                         {String(idx + 1).padStart(2, "0")}
                       </span>
                       <SongAvatar title={song.title} size="sm" variant="mono" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-bold tracking-tight text-neutral-900">{song.title}</p>
-                        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">{song.author}</p>
+                        <p className="truncate text-[10px] font-medium text-neutral-500 mt-0.5">{song.author}</p>
                       </div>
                       {song.playCount > 0 && (
-                        <span className="shrink-0 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-bold text-neutral-600">
+                        <span className="shrink-0 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-bold text-neutral-600">
                           {song.playCount} {song.playCount === 1 ? "play" : "plays"}
                         </span>
                       )}
@@ -370,7 +357,7 @@ function LibraryContent() {
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-neutral-200 bg-white shadow-sm">
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-3xl border border-dashed border-neutral-200 bg-white shadow-sm">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
                   <Trophy size={26} />
                 </div>
@@ -419,7 +406,7 @@ function LibraryContent() {
             )}
 
             {playlists.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-neutral-200 bg-white shadow-sm">
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-3xl border border-dashed border-neutral-200 bg-white shadow-sm">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
                   <ListMusic size={26} />
                 </div>
@@ -447,14 +434,14 @@ function LibraryContent() {
                       </div>
                       <button
                         onClick={(e) => deletePlaylist(e, pl.id)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 hover:bg-accent hover:text-white"
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 md:opacity-0 md:group-hover:opacity-100 hover:bg-accent hover:text-white"
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
                     <div>
                       <h3 className="truncate text-sm font-semibold tracking-tight text-neutral-900">{pl.name}</h3>
-                      <p className="mt-0.5 text-xs font-medium text-neutral-400">Playlist</p>
+                      <p className="mt-0.5 text-[11px] font-medium text-neutral-400">Playlist</p>
                     </div>
                   </div>
                 ))}
@@ -473,7 +460,7 @@ function LibraryContent() {
                     <HardDrive size={13} />
                     <span>Device storage</span>
                   </div>
-                  <span className={`text-xs font-semibold ${(storage.usage / storage.quota) >= 0.95 ? "text-red-500" : "text-neutral-500"}`}>
+                  <span className={`text-[11px] font-semibold ${(storage.usage / storage.quota) >= 0.95 ? "text-red-500" : "text-neutral-500"}`}>
                     {formatBytes(storage.usage)} / {formatBytes(storage.quota)}
                   </span>
                 </div>
@@ -483,7 +470,7 @@ function LibraryContent() {
                     style={{ width: `${Math.min((storage.usage / storage.quota) * 100, 100)}%` }}
                   />
                 </div>
-                <p className={`mt-1.5 text-xs font-medium ${(storage.usage / storage.quota) >= 0.95 ? "text-red-500" : "text-neutral-400"}`}>
+                <p className={`mt-1.5 text-[11px] font-medium ${(storage.usage / storage.quota) >= 0.95 ? "text-red-500" : "text-neutral-400"}`}>
                   {(storage.usage / storage.quota) >= 0.95
                     ? "Storage is full — remove some downloads to free up space"
                     : `${formatBytes(storage.available)} available`}
@@ -492,7 +479,7 @@ function LibraryContent() {
             )}
 
             {downloadedSongs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-neutral-200 bg-white shadow-sm">
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-3xl border border-dashed border-neutral-200 bg-white shadow-sm">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
                   <Download size={26} />
                 </div>
@@ -513,19 +500,13 @@ function LibraryContent() {
                     role="button"
                     tabIndex={0}
                     onClick={() => setActiveSong(song, downloadedSongs)}
-                    onKeyDown={(e) => {
-                      if (e.target !== e.currentTarget) return;
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setActiveSong(song, downloadedSongs);
-                      }
-                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActiveSong(song, downloadedSongs); } }}
                     className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300"
                   >
                     <SongAvatar title={song.title} size="sm" variant="mono" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
-                      <p className="truncate text-xs font-medium text-neutral-400 mt-0.5">{song.author}</p>
+                      <p className="truncate text-[11px] font-medium text-neutral-400 mt-0.5">{song.author}</p>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-all group-hover:bg-accent group-hover:text-white">

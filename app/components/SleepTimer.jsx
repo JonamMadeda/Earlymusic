@@ -97,7 +97,7 @@ export function SleepTimerControl({ dark = false }) {
           }`}
         >
           <p
-            className={`px-2.5 pb-1.5 pt-1 text-xs font-bold uppercase tracking-widest ${
+            className={`px-2.5 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-widest ${
               dark ? "text-white/50" : "text-neutral-400"
             }`}
           >

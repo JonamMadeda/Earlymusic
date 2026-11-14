@@ -119,8 +119,8 @@ export default function AdminNotificationsPanel({ onToast }) {
     <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm md:p-5">
       <div className="mb-3 flex items-center gap-2">
         <BellRing size={14} className="text-accent" />
-        <h2 className="text-base font-bold tracking-tight text-neutral-900">Announcements</h2>
-        <span className="ml-auto rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-bold text-neutral-500">
+        <h2 className="text-sm font-bold tracking-tight text-neutral-900">Announcements</h2>
+        <span className="ml-auto rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-bold text-neutral-500">
           {items.length}/{MAX_NOTIFICATIONS}
         </span>
       </div>
@@ -189,7 +189,7 @@ export default function AdminNotificationsPanel({ onToast }) {
           </button>
         </div>
 
-        <p className="text-xs font-medium text-neutral-400">
+        <p className="text-[11px] font-medium text-neutral-400">
           {titleLeft} characters left in the headline · {bodyLeft} in the message
         </p>
 
@@ -205,7 +205,7 @@ export default function AdminNotificationsPanel({ onToast }) {
       </form>
 
       <div className="mt-4 border-t border-neutral-100 pt-3">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
           Live feed
         </p>
 
@@ -230,7 +230,7 @@ export default function AdminNotificationsPanel({ onToast }) {
                   <p className="truncate text-xs font-bold text-neutral-800">
                     {KIND_LABELS[kind]} · {item.title}
                   </p>
-                  <p className="text-xs text-neutral-400">
+                  <p className="text-[11px] text-neutral-400">
                     {new Date(item.created_at).toLocaleString()}
                     {item.url ? ` · ${item.url}` : ""}
                   </p>

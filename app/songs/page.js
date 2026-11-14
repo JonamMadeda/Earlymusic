@@ -9,7 +9,6 @@ import { PageSkeleton } from "../components/Skeleton";
 import SongAvatar from "../components/SongAvatar";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
 import { getNewestSongs } from "@/lib/newSongs";
-import { groupSongs } from "@/lib/songGrouping";
 import ReportSongDialog from "../components/ReportSongDialog";
 
 import {
@@ -60,7 +59,7 @@ const Chip = ({ label, active, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`whitespace-nowrap rounded-lg border px-3 py-1.5 md:px-3.5 md:py-2 text-xs md:text-xs font-semibold transition-all duration-150 ${
+    className={`whitespace-nowrap rounded-lg border px-3 py-1.5 md:px-3.5 md:py-2 text-[11px] md:text-xs font-semibold transition-all duration-150 ${
       active
         ? "border-accent bg-accent text-white shadow-2xs"
         : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 hover:border-neutral-300"
@@ -90,25 +89,9 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
   const shareTimeoutRef = useRef(null);
 
   useEffect(() => {
-    let cancelled = false;
-    let unsubscribe = () => {};
-    import("@/lib/downloadManager")
-      .then(({ isSongDownloaded, onDownloadsChanged }) => {
-        if (cancelled) return;
-        const sync = () => {
-          setDownloadStatus((current) => {
-            if (current === "downloading") return current;
-            return isSongDownloaded(song.id) ? "downloaded" : "idle";
-          });
-        };
-        sync();
-        unsubscribe = onDownloadsChanged(sync);
-      })
-      .catch((error) => console.error("Unable to check download status:", error));
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
+    import("@/lib/downloadManager").then(({ isSongDownloaded }) => {
+      if (isSongDownloaded(song.id)) setDownloadStatus("downloaded");
+    }).catch((error) => console.error("Unable to check download status:", error));
   }, [song.id]);
 
   useEffect(() => {
@@ -145,23 +128,14 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
     if (song.download_allowed === false) {
       setDownloadStatus("error");
       setDownloadError("Streaming only");
-      clearTimeout(dlTimeoutRef.current);
       dlTimeoutRef.current = setTimeout(() => { setDownloadStatus("idle"); setDownloadError(""); }, 3000);
       return;
     }
     if (downloadStatus === "downloaded") {
-      try {
-        const { removeDownload } = await import("@/lib/downloadManager");
-        await removeDownload(song.id);
-        setDownloadStatus("idle");
-        setShowMenu(false);
-      } catch (err) {
-        console.error("Unable to remove download:", err);
-        setDownloadStatus("error");
-        setDownloadError("Remove failed");
-        clearTimeout(dlTimeoutRef.current);
-        dlTimeoutRef.current = setTimeout(() => { setDownloadStatus("idle"); setDownloadError(""); }, 3000);
-      }
+      const { removeDownload } = await import("@/lib/downloadManager");
+      await removeDownload(song.id);
+      setDownloadStatus("idle");
+      setShowMenu(false);
       return;
     }
     setDownloadStatus("downloading");
@@ -282,13 +256,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
       tabIndex={0}
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick(e);
-        }
-      }}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(e); } }}
       className={`group relative flex w-full items-center gap-2.5 md:gap-3 rounded-xl p-2.5 md:p-3 text-left transition-all duration-200 hover:-translate-y-0.5 ${
         isActive
           ? "border-2 border-accent bg-neutral-50 shadow-xs"
@@ -313,7 +281,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
             </div>
           )}
           {isNew && !isActive && (
-            <span className="rounded bg-gold/10 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
+            <span className="rounded bg-accent px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white">
               New
             </span>
           )}
@@ -323,13 +291,13 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
                 e.stopPropagation();
                 onCategoryClick?.(song.category);
               }}
-              className="hidden md:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300"
+              className="hidden md:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[9px] font-semibold text-neutral-600 transition hover:border-neutral-300"
             >
               {song.category}
             </button>
           )}
         </div>
-        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
+        <p className="truncate text-[11px] font-medium text-neutral-500 mt-0.5">
           {song.author}
         </p>
       </div>
@@ -342,7 +310,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
             setShowInfo(false);
             setShowPlaylists(false);
           }}
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
           title="More"
           aria-label={`More actions for ${song.title || "this song"}`}
         >
@@ -443,7 +411,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
         >
           <div className="flex flex-col gap-y-4">
             <div className="flex items-center justify-between border-b border-neutral-50 pb-2">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
                 Compilation Details
               </h4>
               <button
@@ -460,7 +428,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
                     <p className="text-[14px] font-bold leading-tight text-neutral-900">
                       {entry.title || "Unknown Title"}
                     </p>
-                    <p className="text-xs font-medium text-neutral-500">
+                    <p className="text-[12px] font-medium text-neutral-500">
                       Original Artist:{" "}
                       <span className="text-neutral-900">
                         {entry.artist || "Unknown"}
@@ -469,7 +437,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
                   </div>
                 ))
               ) : (
-                <p className="py-2 text-xs italic text-neutral-400">
+                <p className="py-2 text-[12px] italic text-neutral-400">
                   No original song details available.
                 </p>
               )}
@@ -484,7 +452,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
           className={`absolute right-0 z-50 min-w-[240px] rounded-xl border border-neutral-100 bg-white p-4 shadow-lg ${menuPos}`}
         >
           <div className="mb-3 flex items-center justify-between border-b border-neutral-50 pb-2">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+            <h4 className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
               Add to Playlist
             </h4>
             <button
@@ -496,7 +464,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
           </div>
           <div className="custom-scrollbar flex max-h-[200px] flex-col gap-y-1 overflow-y-auto">
             {playlists.length === 0 ? (
-              <p className="py-2 text-center text-xs italic text-neutral-400">
+              <p className="py-2 text-center text-[12px] italic text-neutral-400">
                 No playlists yet
               </p>
             ) : (
@@ -683,8 +651,8 @@ useEffect(() => {
     if (activeFilter !== "All") {
       const filterObj = timeFilters.find((f) => f.label === activeFilter);
       if (filterObj?.recent) {
-        // Rank against the full catalogue, just like the NEW badges and stats.
-        songs = songs.filter((song) => newSongIds.has(song.id));
+        // "New" = 15 most recently added (rank-based, matches NEW badge).
+        songs = getNewestSongs(songs);
       } else if (filterObj?.days) {
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - filterObj.days);
@@ -714,19 +682,18 @@ useEffect(() => {
     });
 
     return sorted;
-  }, [allSongs, newSongIds, searchValue, activeFilter, activeCategory, activeDuration, sortBy, sortAsc]);
+  }, [allSongs, searchValue, activeFilter, activeCategory, activeDuration, sortBy, sortAsc]);
 
-  const songGroups = useMemo(
-    () => groupSongs(filteredSongs, sortBy),
-    [filteredSongs, sortBy]
-  );
+  const groupedSongs = useMemo(() => {
+    return filteredSongs.reduce((groups, song) => {
+        const letter = song.title?.[0]?.toUpperCase() || "#";
+        if (!groups[letter]) groups[letter] = [];
+        groups[letter].push(song);
+        return groups;
+      }, {});
+  }, [filteredSongs]);
 
-  // The rail is only a few characters wide, so date groups show the month and
-  // the sticky pill carries the year.
-  const railLabel = (group) => {
-    if (sortBy !== "created_at") return group.label;
-    return group.key === "unknown" ? "?" : group.label.slice(0, 3);
-  };
+  const alphabet = Object.keys(groupedSongs).sort();
   const hasFilters =
     searchValue.trim() ||
     activeFilter !== "All" ||
@@ -806,10 +773,10 @@ useEffect(() => {
       <div className="mx-auto max-w-5xl space-y-4 md:space-y-5">
         <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-neutral-900">
               Songs
             </h1>
-            <p className="mt-0.5 text-xs font-medium text-neutral-500">
+            <p className="mt-0.5 text-[11px] font-medium text-neutral-500">
               {isLoading ? (
                 <span className="inline-flex items-center gap-1.5 text-neutral-400">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
@@ -895,7 +862,7 @@ useEffect(() => {
                 onClick={() => setSortAsc((prev) => !prev)}
                 aria-label={sortAsc ? "Sorted A to Z, tap for Z to A" : "Sorted Z to A, tap for A to Z"}
                 title={sortAsc ? "Ascending" : "Descending"}
-                className="flex items-center gap-1 border-l border-neutral-200/80 px-2 text-xs font-semibold text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+                className="flex items-center gap-1 border-l border-neutral-200/80 px-2 text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
               >
                 {sortAsc ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
                 <span className="hidden sm:inline">{sortAsc ? "A-Z" : "Z-A"}</span>
@@ -919,17 +886,17 @@ useEffect(() => {
 
           {hasFilters && (
             <div className="flex flex-wrap items-center gap-2 px-1 pt-2.5">
-              <span className="text-xs font-medium text-neutral-500">
+              <span className="text-[11px] font-medium text-neutral-500">
                 <span className="font-bold text-neutral-800">{filteredSongs.length}</span> of {allSongs?.length || 0} songs
               </span>
-              <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-500">
+              <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-500">
                 {activeFilterCount} active
               </span>
               {searchValue.trim() && (
                 <button
                   type="button"
                   onClick={() => setSearchValue("")}
-                  className="rounded-md border border-neutral-200/80 bg-white px-2 py-0.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+                  className="rounded-md border border-neutral-200/80 bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
                 >
                   Clear search
                 </button>
@@ -941,7 +908,7 @@ useEffect(() => {
                   setActiveCategory("All");
                   setActiveDuration("All");
                 }}
-                className="rounded-md border border-neutral-200/80 bg-white px-2 py-0.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+                className="rounded-md border border-neutral-200/80 bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
               >
                 Reset
               </button>
@@ -954,7 +921,7 @@ useEffect(() => {
           <section className="rounded-xl border border-neutral-200 bg-white px-4 py-4 shadow-2xs md:px-5 md:py-5">
             <div className="flex flex-col gap-4 md:grid md:grid-cols-3 md:gap-6">
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-neutral-400">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-neutral-400">
                   Time
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -969,7 +936,7 @@ useEffect(() => {
                 </div>
               </div>
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-neutral-400">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-neutral-400">
                   Type
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -984,7 +951,7 @@ useEffect(() => {
                 </div>
               </div>
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-neutral-400">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-neutral-400">
                   Duration
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -1006,15 +973,15 @@ useEffect(() => {
       <div className="relative">
         {isLoading ? (
           <PageSkeleton />
-        ) : songGroups.length > 0 ? (
+        ) : alphabet.length > 0 ? (
           <div className="flex gap-3 sm:gap-4">
             {/* Songs */}
             <div className="min-w-0 flex-1">
               <div className="flex flex-col gap-y-5 md:gap-y-6">
-                {songGroups.map((group, groupIdx) => (
+                {alphabet.map((letter, letterIdx) => (
                   <div
-                    key={group.key}
-                    ref={(el) => { letterRefs.current[group.key] = el; }}
+                    key={letter}
+                    ref={(el) => { letterRefs.current[letter] = el; }}
                     style={{ scrollMarginTop: letterStickyTop + 34 }}
                     className="flex flex-col gap-y-2.5"
                   >
@@ -1023,25 +990,19 @@ useEffect(() => {
                       className="sticky z-10 flex justify-start pb-1"
                     >
                       <div className="flex items-center gap-2 rounded-full border border-neutral-200/70 bg-white/80 py-1 pl-1 pr-3 shadow-2xs backdrop-blur-md">
-                        {sortBy === "created_at" ? (
-                          <span className="rounded-full bg-accent/[0.07] px-2.5 py-1 text-xs font-bold text-accent">
-                            {group.label}
-                          </span>
-                        ) : (
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/[0.07] text-xs font-bold text-accent">
-                            {group.label}
-                          </div>
-                        )}
-                        <span className="text-xs font-medium text-neutral-500">
-                          {group.songs.length} {group.songs.length === 1 ? "song" : "songs"}
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/[0.07] text-xs font-bold text-accent">
+                          {letter}
+                        </div>
+                        <span className="text-[11px] font-medium text-neutral-500">
+                          {groupedSongs[letter].length} {groupedSongs[letter].length === 1 ? "song" : "songs"}
                         </span>
                       </div>
                     </div>
                     <div className="flex flex-col gap-y-1.5 md:gap-y-2">
-                      {group.songs.map((song, idx) => {
+                      {groupedSongs[letter].map((song, idx) => {
                         const menuUp =
-                          groupIdx === songGroups.length - 1 &&
-                          idx >= group.songs.length - 2;
+                          letterIdx === alphabet.length - 1 &&
+                          idx >= groupedSongs[letter].length - 2;
                         return (
                           <SongRow
                             key={song.id}
@@ -1067,22 +1028,22 @@ useEffect(() => {
                 top: letterStickyTop,
                 maxHeight: `calc(100dvh - ${letterStickyTop + 150}px)`,
               }}
-              aria-label={sortBy === "created_at" ? "Date index" : "Alphabet index"}
+              aria-label="Alphabet index"
               className="no-scrollbar sticky flex shrink-0 flex-col items-center gap-px self-start overflow-y-auto rounded-xl border border-neutral-200 bg-white/90 px-0.5 py-1 shadow-2xs backdrop-blur-md lg:gap-0.5 lg:rounded-none lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:pt-4 lg:shadow-none lg:backdrop-blur-none"
             >
-              {songGroups.map((group) => (
+              {alphabet.map((letter) => (
                 <button
-                  key={group.key}
+                  key={letter}
                   type="button"
-                  aria-label={`Jump to ${group.label}`}
-                  onClick={() => scrollToLetter(group.key)}
-                  className={`flex h-4 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold leading-none transition-all duration-200 select-none sm:h-[17px] sm:text-xs lg:h-[18px] lg:w-5 lg:text-xs ${
-                    jumpLetter === group.key
+                  aria-label={`Jump to ${letter}`}
+                  onClick={() => scrollToLetter(letter)}
+                  className={`flex h-4 w-5 shrink-0 items-center justify-center rounded-full text-[8.5px] font-bold leading-none transition-all duration-200 select-none sm:h-[17px] sm:text-[9px] lg:h-[18px] lg:w-5 lg:text-[10px] ${
+                    jumpLetter === letter
                       ? "bg-accent text-white scale-110"
                       : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 active:bg-neutral-100 active:text-neutral-700"
                   }`}
                 >
-                  {railLabel(group)}
+                  {letter}
                 </button>
               ))}
             </div>

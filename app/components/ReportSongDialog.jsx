@@ -20,8 +20,6 @@ export default function ReportSongDialog({ open, onClose, song, onSubmitted }) {
   const [submitted, setSubmitted] = useState(false);
   const dialogRef = useRef(null);
   const closeTimer = useRef(null);
-  const onCloseRef = useRef(onClose);
-  const busyRef = useRef(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -29,21 +27,13 @@ export default function ReportSongDialog({ open, onClose, song, onSubmitted }) {
   }, []);
 
   useEffect(() => {
-    onCloseRef.current = onClose;
-    busyRef.current = busy;
-  });
-
-  // Reset only when the dialog opens. Depending on `busy` here used to clear
-  // the submitting flag mid-request, and an inline `onClose` re-ran the reset
-  // on every parent render.
-  useEffect(() => {
     if (!open) return;
     setType("copyright");
     setError("");
     setSubmitted(false);
     setBusy(false);
     const onKey = (event) => {
-      if (event.key === "Escape" && !busyRef.current) onCloseRef.current();
+      if (event.key === "Escape" && !busy) onClose();
     };
     document.addEventListener("keydown", onKey);
     const focusTimer = setTimeout(() => {
@@ -54,7 +44,7 @@ export default function ReportSongDialog({ open, onClose, song, onSubmitted }) {
       clearTimeout(focusTimer);
       clearTimeout(closeTimer.current);
     };
-  }, [open]);
+  }, [open, busy, onClose]);
 
   if (!open || !song || !mounted) return null;
 
@@ -124,7 +114,7 @@ export default function ReportSongDialog({ open, onClose, song, onSubmitted }) {
 
   const inputClass =
     "w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm outline-none transition placeholder:text-neutral-300 focus:border-accent focus:bg-white";
-  const labelClass = "text-xs font-semibold text-neutral-500";
+  const labelClass = "text-[11px] font-semibold text-neutral-500";
 
   return createPortal(
     <div
@@ -138,7 +128,7 @@ export default function ReportSongDialog({ open, onClose, song, onSubmitted }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="report-song-title"
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-neutral-200 bg-white p-5 shadow-2xl sm:rounded-2xl sm:p-6"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-neutral-200 bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-6"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -199,7 +189,7 @@ export default function ReportSongDialog({ open, onClose, song, onSubmitted }) {
 
             {type === "copyright" ? (
               <>
-                <p className="text-xs leading-relaxed text-neutral-500">
+                <p className="text-[11px] leading-relaxed text-neutral-500">
                   A copyright notice needs the work, the link, your contact
                   details, a signature, and the statements below.{" "}
                   <Link
@@ -318,7 +308,7 @@ export default function ReportSongDialog({ open, onClose, song, onSubmitted }) {
                         "I understand that a copy of this notice may be sent to the person who uploaded the track.",
                     },
                   ].map((statement) => (
-                    <label key={statement.name} className="flex items-start gap-2 text-xs leading-relaxed text-neutral-600">
+                    <label key={statement.name} className="flex items-start gap-2 text-[11px] leading-relaxed text-neutral-600">
                       <input
                         type="checkbox"
                         name={statement.name}

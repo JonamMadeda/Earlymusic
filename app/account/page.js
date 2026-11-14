@@ -5,9 +5,6 @@ import { useRouter } from "next/navigation";
 import { Mail, Calendar, Disc, Heart, LogOut, LogIn, Save, Settings, Download, Library, ChevronRight, UserRoundPlus } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { useAuth } from "@/app/context/AuthContext";
-import StatusMessage from "@/app/components/StatusMessage";
-import AnalyticsConsentControl from "@/app/components/AnalyticsConsentControl";
-import { LEGAL_EMAIL, LEGAL_MAILTO } from "@/lib/legal";
 import Link from "next/link";
 import { KeyRound, ShieldCheck, MonitorSmartphone, Trash2 } from "lucide-react";
 
@@ -18,7 +15,7 @@ export default function AccountPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState(null);
+  const [saveMsg, setSaveMsg] = useState("");
   const saveMsgTimeoutRef = useRef(null);
   const [sessions, setSessions] = useState(null);
   const [sessionsError, setSessionsError] = useState("");
@@ -31,7 +28,6 @@ export default function AccountPage() {
   const [deleteError, setDeleteError] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
-  const [signOutError, setSignOutError] = useState("");
 
   useEffect(() => {
     return () => {
@@ -79,16 +75,6 @@ export default function AccountPage() {
     }
   };
 
-  const handleSignOut = async () => {
-    setSignOutError("");
-    const { error } = await signOut();
-    if (error) {
-      setSignOutError(error);
-      return false;
-    }
-    return true;
-  };
-
   const handleSignOutEverywhere = async () => {
     if (!confirmEverywhere) {
       setConfirmEverywhere(true);
@@ -98,13 +84,7 @@ export default function AccountPage() {
     }
     setConfirmEverywhere(false);
     setSigningOutEverywhere(true);
-    setSessionsError("");
-    const { error } = await signOut({ everywhere: true });
-    if (error) {
-      setSessionsError(error);
-      setSigningOutEverywhere(false);
-      return;
-    }
+    await signOut({ everywhere: true });
     router.push("/");
   };
 
@@ -181,36 +161,17 @@ export default function AccountPage() {
     });
   };
 
-  const isDirty =
-    firstName.trim() !== (profile?.first_name || "").trim() ||
-    lastName.trim() !== (profile?.last_name || "").trim();
-
   const handleSaveProfile = async () => {
     setSaving(true);
-    setSaveStatus(null);
-    clearTimeout(saveMsgTimeoutRef.current);
-    const trimmedFirst = firstName.trim();
-    const trimmedLast = lastName.trim();
-    try {
-      const { error } = await updateProfile({ first_name: trimmedFirst, last_name: trimmedLast });
-      if (error) {
-        setSaveStatus({
-          tone: "error",
-          text: "Couldn't save your name. Check your connection and try again.",
-        });
-      } else {
-        setFirstName(trimmedFirst);
-        setLastName(trimmedLast);
-        setSaveStatus({ tone: "success", text: "Saved" });
-        saveMsgTimeoutRef.current = setTimeout(() => setSaveStatus(null), 2500);
-      }
-    } catch {
-      setSaveStatus({
-        tone: "error",
-        text: "Couldn't save your name. Check your connection and try again.",
-      });
-    } finally {
-      setSaving(false);
+    setSaveMsg("");
+    const { error } = await updateProfile({ first_name: firstName, last_name: lastName });
+    setSaving(false);
+    if (error) {
+      setSaveMsg("Failed to save");
+    } else {
+      setSaveMsg("Saved");
+      clearTimeout(saveMsgTimeoutRef.current);
+      saveMsgTimeoutRef.current = setTimeout(() => setSaveMsg(""), 2000);
     }
   };
 
@@ -280,11 +241,11 @@ export default function AccountPage() {
                   <div className="flex items-center gap-3 mt-0.5">
                     <div className="flex items-center gap-1">
                       <Mail size={11} className="text-neutral-400" />
-                      <span className="text-xs font-medium text-neutral-400 truncate">{user.email}</span>
+                      <span className="text-[11px] font-medium text-neutral-400 truncate">{user.email}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Calendar size={11} className="text-neutral-400" />
-                      <span className="text-xs font-medium text-neutral-400">Joined {joinedDate}</span>
+                      <span className="text-[11px] font-medium text-neutral-400">Joined {joinedDate}</span>
                     </div>
                   </div>
                 </div>
@@ -295,7 +256,7 @@ export default function AccountPage() {
                   <UserRoundPlus size={15} className="mt-px shrink-0 text-accent" />
                   <div>
                     <p className="text-xs font-bold text-neutral-900">Add your name</p>
-                    <p className="mt-0.5 text-xs font-medium leading-relaxed text-neutral-500">
+                    <p className="mt-0.5 text-[11px] font-medium leading-relaxed text-neutral-500">
                       The home page greets you by name. Add yours below so we
                       know what to call you.
                     </p>
@@ -305,7 +266,7 @@ export default function AccountPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="ml-1 text-xs font-semibold uppercase tracking-wider text-neutral-400">First name</label>
+                  <label className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">First name</label>
                   <input
                     type="text"
                     value={firstName}
@@ -315,7 +276,7 @@ export default function AccountPage() {
                   />
                 </div>
                 <div>
-                  <label className="ml-1 text-xs font-semibold uppercase tracking-wider text-neutral-400">Last name</label>
+                  <label className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Last name</label>
                   <input
                     type="text"
                     value={lastName}
@@ -326,17 +287,17 @@ export default function AccountPage() {
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div className="mt-4 flex items-center gap-3">
                 <button
                   onClick={handleSaveProfile}
-                  disabled={saving || !isDirty}
-                  className="btn-primary"
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-accent/90 disabled:opacity-50"
                 >
-                  <Save size={15} aria-hidden="true" />
+                  <Save size={13} />
                   {saving ? "Saving..." : "Save"}
                 </button>
-                {saveStatus && (
-                  <StatusMessage tone={saveStatus.tone}>{saveStatus.text}</StatusMessage>
+                {saveMsg && (
+                  <span className="text-[11px] font-medium text-green-600">{saveMsg}</span>
                 )}
               </div>
             </div>
@@ -348,7 +309,7 @@ export default function AccountPage() {
           {/* Security */}
           <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
             <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50/60 flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Security</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Security</p>
               <ShieldCheck size={14} className="text-neutral-400" aria-hidden="true" />
             </div>
             <div className="divide-y divide-neutral-100">
@@ -361,7 +322,7 @@ export default function AccountPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold tracking-tight text-neutral-900">Change password</p>
-                  <p className="text-xs font-medium text-neutral-400">Update it with your current password</p>
+                  <p className="text-[11px] font-medium text-neutral-400">Update it with your current password</p>
                 </div>
                 <ChevronRight size={15} className="text-neutral-300 transition group-hover:text-neutral-500" aria-hidden="true" />
               </Link>
@@ -374,28 +335,28 @@ export default function AccountPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold tracking-tight text-neutral-900">Active sessions</p>
-                      <p className="text-xs font-medium text-neutral-400">Where you&rsquo;re signed in</p>
+                      <p className="text-[11px] font-medium text-neutral-400">Where you&rsquo;re signed in</p>
                     </div>
                   </div>
                   <button
                     onClick={handleSignOutEverywhere}
                     disabled={signingOutEverywhere}
-                    className="shrink-0 rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                    className="shrink-0 rounded-full border border-red-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
                   >
                     {signingOutEverywhere ? "Signing out…" : confirmEverywhere ? "Tap to confirm" : "Sign out everywhere"}
                   </button>
                 </div>
 
                 {sessionsError && (
-                  <p role="alert" className="mt-3 text-xs font-medium text-red-600">{sessionsError}</p>
+                  <p role="alert" className="mt-3 text-[11px] font-medium text-red-600">{sessionsError}</p>
                 )}
 
                 <div className="mt-3 flex flex-col gap-2">
                   {sessions === null && !sessionsError && (
-                    <p className="text-xs text-neutral-400">Loading sessions…</p>
+                    <p className="text-[11px] text-neutral-400">Loading sessions…</p>
                   )}
                   {Array.isArray(sessions) && sessions.length === 0 && (
-                    <p className="text-xs text-neutral-400">No active sessions.</p>
+                    <p className="text-[11px] text-neutral-400">No active sessions.</p>
                   )}
                   {Array.isArray(sessions) && sessions.map((session) => (
                     <div
@@ -403,18 +364,18 @@ export default function AccountPage() {
                       className="flex items-center gap-3 rounded-xl border border-neutral-100 bg-neutral-50/60 px-3 py-2.5"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-neutral-900 truncate">
+                        <p className="text-[12px] font-semibold text-neutral-900 truncate">
                           {describeDevice(session.user_agent)}{" "}
                           {describeBrowser(session.user_agent) && (
                             <span className="font-medium text-neutral-400">· {describeBrowser(session.user_agent)}</span>
                           )}
                           {session.current && (
-                            <span className="ml-2 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-accent align-middle">
+                            <span className="ml-2 rounded-full bg-accent/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-accent align-middle">
                               This device
                             </span>
                           )}
                         </p>
-                        <p className="text-xs font-medium text-neutral-400">
+                        <p className="text-[10px] font-medium text-neutral-400">
                           Last active {formatTimestamp(session.last_seen_at)}
                         </p>
                       </div>
@@ -438,18 +399,18 @@ export default function AccountPage() {
           {/* Your data */}
           <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
             <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50/60 flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Your data</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Your data</p>
               <Download size={14} className="text-neutral-400" aria-hidden="true" />
             </div>
             <div className="px-5 py-4">
               <p className="text-sm font-semibold tracking-tight text-neutral-900">Download a copy</p>
-              <p className="mt-1 text-xs font-medium leading-relaxed text-neutral-500">
+              <p className="mt-1 text-[11px] font-medium leading-relaxed text-neutral-500">
                 Export your profile, saved songs, playlists, listening history,
                 reports you filed, and consent records as JSON. Your password and
                 session tokens are never included.
               </p>
               {exportError && (
-                <p role="alert" className="mt-2 text-xs font-medium text-red-600">
+                <p role="alert" className="mt-2 text-[11px] font-medium text-red-600">
                   {exportError}
                 </p>
               )}
@@ -464,42 +425,10 @@ export default function AccountPage() {
             </div>
           </div>
 
-          {/* Privacy & analytics */}
-          <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
-            <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50/60 flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Privacy &amp; analytics</p>
-              <ShieldCheck size={14} className="text-neutral-400" aria-hidden="true" />
-            </div>
-            <div className="px-5 py-4">
-              <AnalyticsConsentControl />
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-neutral-100 pt-3 text-xs font-semibold">
-                <Link href="/privacy" className="text-accent hover:underline">
-                  Privacy Policy
-                </Link>
-                <Link href="/terms" className="text-accent hover:underline">
-                  Terms of Service
-                </Link>
-                <Link href="/privacy#choices" className="text-accent hover:underline">
-                  Your rights
-                </Link>
-                <Link href="/accessibility" className="text-accent hover:underline">
-                  Accessibility
-                </Link>
-                <a
-                  href={LEGAL_MAILTO}
-                  title={`Email ${LEGAL_EMAIL}`}
-                  className="text-accent hover:underline"
-                >
-                  DMCA / Legal Contact
-                </a>
-              </div>
-            </div>
-          </div>
-
           {/* Quick Links */}
           <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
             <div className="px-5 py-3 border-b border-neutral-200 bg-neutral-50/60">
-              <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Quick Links</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Quick Links</p>
             </div>
             <div className="divide-y divide-neutral-100">
               {quickLinks.map((link) => (
@@ -513,7 +442,7 @@ export default function AccountPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold tracking-tight text-neutral-900">{link.label}</p>
-                    <p className="text-xs font-medium text-neutral-400">{link.desc}</p>
+                    <p className="text-[11px] font-medium text-neutral-400">{link.desc}</p>
                   </div>
                   <ChevronRight size={15} className="text-neutral-300 transition group-hover:text-neutral-500" />
                 </Link>
@@ -522,34 +451,29 @@ export default function AccountPage() {
           </div>
 
           {/* Sign out */}
-          <div className="rounded-2xl border border-red-100 bg-red-50/40 px-5 py-4">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-neutral-900">Sign out</p>
-                <p className="text-xs font-medium text-red-500">You&apos;ll need to sign in again to manage your account</p>
-              </div>
-              <button
-                onClick={async () => {
-                  if (await handleSignOut()) router.push("/");
-                }}
-                className="shrink-0 inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-              >
-                <LogOut size={13} aria-hidden="true" />
-                Sign Out
-              </button>
+          <div className="flex items-center justify-between rounded-2xl border border-red-100 bg-red-50/40 px-5 py-4">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-neutral-900">Sign out</p>
+              <p className="text-[11px] font-medium text-red-500">You&apos;ll need to sign in again to manage your account</p>
             </div>
-            {signOutError && (
-              <p role="alert" className="mt-3 text-xs font-medium text-red-600">
-                {signOutError}
-              </p>
-            )}
+            <button
+              onClick={() => {
+                signOut()
+                  .then(() => router.push("/"))
+                  .catch((error) => console.error("Unable to sign out:", error));
+              }}
+              className="shrink-0 inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+            >
+              <LogOut size={13} aria-hidden="true" />
+              Sign Out
+            </button>
           </div>
 
           <div className="rounded-2xl border border-red-200 bg-white px-5 py-4 shadow-sm">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-red-700">Delete account</p>
-                <p className="mt-0.5 text-xs font-medium leading-relaxed text-neutral-500">
+                <p className="mt-0.5 text-[11px] font-medium leading-relaxed text-neutral-500">
                   Permanently remove your profile, saved songs, playlists, and listening history.
                 </p>
               </div>
@@ -630,12 +554,12 @@ function StatsCards() {
       <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300">
         <Heart size={18} className="text-accent" />
         <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">{stats.saved}</p>
-        <p className="mt-0.5 text-xs font-medium text-neutral-400">Saved songs</p>
+        <p className="mt-0.5 text-[11px] font-medium text-neutral-400">Saved songs</p>
       </div>
       <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300">
         <Disc size={18} className="text-accent" />
         <p className="mt-3 text-2xl font-bold tracking-tight text-neutral-900">{stats.playlists}</p>
-        <p className="mt-0.5 text-xs font-medium text-neutral-400">Playlists</p>
+        <p className="mt-0.5 text-[11px] font-medium text-neutral-400">Playlists</p>
       </div>
     </div>
   );

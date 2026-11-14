@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
+  Settings,
   HardDrive,
   Trash2,
   RotateCcw,
@@ -11,16 +12,7 @@ import {
   Timer,
   ShieldCheck,
 } from "lucide-react";
-import {
-  getDownloadedSongs,
-  getStorageEstimate,
-  stageClearDownloads,
-  undoClearDownloads,
-  commitClearDownloads,
-  pruneOrphanedDownloads,
-} from "@/lib/downloadManager";
-import ConfirmModal from "../components/ConfirmModal";
-import UndoToast from "../components/UndoToast";
+import { getDownloadedSongs, removeDownload, getStorageEstimate } from "@/lib/downloadManager";
 import { SleepTimerSettings } from "../components/SleepTimer";
 import AnalyticsConsentControl from "../components/AnalyticsConsentControl";
 
@@ -34,10 +26,8 @@ const formatBytes = (bytes) => {
 export default function SettingsPage() {
   const [storage, setStorage] = useState(null);
   const [downloadedSongs, setDownloadedSongs] = useState([]);
-  const [confirmAction, setConfirmAction] = useState(null);
-  const [undoSnapshot, setUndoSnapshot] = useState(null);
+  const [clearingDownloads, setClearingDownloads] = useState(false);
   const [clearingAll, setClearingAll] = useState(false);
-  const undoRef = useRef(null);
 
   const refresh = useCallback(() => {
     setDownloadedSongs(getDownloadedSongs());
@@ -45,54 +35,21 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    const timeout = setTimeout(async () => {
-      // A tab closed mid-undo-window can leave marked audio with no stored
-      // record; drop those orphans before showing storage numbers.
-      try {
-        await pruneOrphanedDownloads();
-      } catch {}
-      refresh();
-    }, 0);
+    const timeout = setTimeout(refresh, 0);
     return () => clearTimeout(timeout);
   }, [refresh]);
 
-  // Leaving the page closes the undo window: finalize the staged deletion.
-  useEffect(() => {
-    return () => {
-      if (undoRef.current) {
-        commitClearDownloads(undoRef.current);
-        undoRef.current = null;
-      }
-    };
-  }, []);
-
-  const confirmClearDownloads = () => {
-    const snapshot = stageClearDownloads();
-    undoRef.current = snapshot;
-    setUndoSnapshot(snapshot);
-    setConfirmAction(null);
+  const clearDownloads = async () => {
+    setClearingDownloads(true);
+    const songs = getDownloadedSongs();
+    for (const song of songs) {
+      await removeDownload(song.id);
+    }
     refresh();
-  };
-
-  const handleUndoClear = () => {
-    if (!undoRef.current) return;
-    undoClearDownloads(undoRef.current);
-    undoRef.current = null;
-    setUndoSnapshot(null);
-    refresh();
-  };
-
-  const commitClear = () => {
-    const snapshot = undoRef.current;
-    if (!snapshot) return;
-    undoRef.current = null;
-    setUndoSnapshot(null);
-    commitClearDownloads(snapshot).then(refresh);
+    setClearingDownloads(false);
   };
 
   const clearAllData = async () => {
-    undoRef.current = null;
-    setUndoSnapshot(null);
     setClearingAll(true);
     try {
       if (typeof caches !== "undefined") {
@@ -128,8 +85,6 @@ export default function SettingsPage() {
     ? Math.min((storage.usage / storage.quota) * 100, 100)
     : 0;
 
-  const downloadCount = downloadedSongs.length;
-
   return (
     <main className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-5xl">
@@ -147,10 +102,10 @@ export default function SettingsPage() {
 
         <div className="flex flex-col gap-4">
           {/* Storage */}
-          <div className="card p-5">
+          <div className="rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl hover:shadow-md">
             <div className="flex items-center gap-2 mb-3">
-              <HardDrive size={16} className="text-neutral-400" aria-hidden="true" />
-              <h2 className="section-title">Storage</h2>
+              <HardDrive size={15} className="text-neutral-400" />
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Storage</h2>
             </div>
             {storage && (
               <div className="mb-3">
@@ -158,7 +113,7 @@ export default function SettingsPage() {
                   <span className="text-xs text-neutral-500">
                     {formatBytes(storage.usage)} used
                   </span>
-                  <span className="text-xs text-neutral-400">
+                  <span className="text-[11px] text-neutral-400">
                     {formatBytes(storage.quota)} total
                   </span>
                 </div>
@@ -170,7 +125,7 @@ export default function SettingsPage() {
                     style={{ width: `${storagePercent}%` }}
                   />
                 </div>
-                <p className="mt-1 text-xs text-neutral-400">
+                <p className="mt-1 text-[11px] text-neutral-400">
                   {formatBytes(storage.available)} available
                 </p>
               </div>
@@ -179,34 +134,39 @@ export default function SettingsPage() {
               <p className="text-xs text-neutral-400">Storage info not available on this device.</p>
             )}
             <div className="mt-1 text-xs text-neutral-400 flex items-center gap-2">
-              <Download size={12} aria-hidden="true" />
-              <span>{downloadCount} downloaded songs</span>
+              <Download size={12} />
+              <span>{downloadedSongs.length} downloaded songs</span>
             </div>
           </div>
 
           {/* Sleep Timer */}
-          <div className="card p-5">
+          <div className="rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl hover:shadow-md">
             <div className="flex items-center gap-2 mb-2">
-              <Timer size={16} className="text-neutral-400" aria-hidden="true" />
-              <h2 className="section-title">Sleep Timer</h2>
+              <Timer size={15} className="text-neutral-400" />
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Sleep Timer</h2>
             </div>
-            <p className="text-sm text-neutral-500 mb-4">
+            <p className="text-xs text-neutral-500 mb-4">
               Automatically stop playback after a set time. Leave it off to play continuously.
             </p>
             <SleepTimerSettings />
           </div>
 
           {/* Privacy & consent */}
-          <div id="privacy" className="card scroll-mt-24 p-5">
+          <div
+            id="privacy"
+            className="scroll-mt-24 rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl hover:shadow-md"
+          >
             <div className="flex items-center gap-2 mb-2">
-              <ShieldCheck size={16} className="text-neutral-400" aria-hidden="true" />
-              <h2 className="section-title">Privacy &amp; consent</h2>
+              <ShieldCheck size={15} className="text-neutral-400" />
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">
+                Privacy &amp; consent
+              </h2>
             </div>
-            <p className="text-sm text-neutral-500 mb-4">
+            <p className="text-xs text-neutral-500 mb-4">
               Control analytics and review how your data is handled.
             </p>
             <AnalyticsConsentControl />
-            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-neutral-200/70 pt-3 text-xs font-semibold">
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-neutral-200/70 pt-3 text-[11px] font-semibold">
               <Link href="/privacy" className="text-accent hover:underline">
                 Privacy Policy
               </Link>
@@ -223,113 +183,70 @@ export default function SettingsPage() {
           </div>
 
           {/* Clear Downloads */}
-          <div className="card p-5">
+          <div className="rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl hover:shadow-md">
             <div className="flex items-center gap-2 mb-2">
-              <Trash2 size={16} className="text-neutral-400" aria-hidden="true" />
-              <h2 className="section-title">Downloads</h2>
+              <Trash2 size={15} className="text-neutral-400" />
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Downloads</h2>
             </div>
-            <p className="text-sm text-neutral-500 mb-4">
+            <p className="text-xs text-neutral-500 mb-4">
               Remove all downloaded songs and free up device storage.
             </p>
             <button
-              onClick={() => setConfirmAction("downloads")}
-              disabled={downloadCount === 0}
-              className="btn-destructive-outline"
+              onClick={clearDownloads}
+              disabled={clearingDownloads || downloadedSongs.length === 0}
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-accent/90 disabled:opacity-40"
             >
-              <Trash2 size={15} aria-hidden="true" />
-              Clear Downloads
+              <Trash2 size={13} />
+              {clearingDownloads ? "Clearing..." : "Clear Downloads"}
             </button>
           </div>
 
           {/* Clear All App Data */}
-          <div className="card p-5">
+          <div className="rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl">
             <div className="flex items-center gap-2 mb-2">
-              <RotateCcw size={16} className="text-neutral-400" aria-hidden="true" />
-              <h2 className="section-title">Reset App Data</h2>
+              <RotateCcw size={15} className="text-neutral-400" />
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Reset App Data</h2>
             </div>
-            <p className="text-sm text-neutral-500 mb-4">
+            <p className="text-xs text-neutral-500 mb-4">
               Clear downloads, cached songs, playback state, notification state,
               and consent preferences. The app will reload automatically.
             </p>
             <button
-              onClick={() => setConfirmAction("reset")}
+              onClick={clearAllData}
               disabled={clearingAll}
-              className="btn-destructive"
+              className="inline-flex items-center gap-2 rounded-full border border-red-200 px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40"
             >
-              <RotateCcw size={15} aria-hidden="true" />
+              <RotateCcw size={13} />
               {clearingAll ? "Resetting..." : "Reset All Data"}
             </button>
           </div>
 
           {/* Refresh App */}
-          <div className="card p-5">
+          <div className="rounded-2xl bg-neutral-50/60 p-5 backdrop-blur-2xl hover:shadow-md">
             <div className="flex items-center gap-2 mb-2">
-              <RefreshCw size={16} className="text-neutral-400" aria-hidden="true" />
-              <h2 className="section-title">Update App</h2>
+              <RefreshCw size={15} className="text-neutral-400" />
+              <h2 className="text-sm font-bold tracking-tight text-neutral-900">Update App</h2>
             </div>
-            <p className="text-sm text-neutral-500 mb-4">
+            <p className="text-xs text-neutral-500 mb-4">
               Check for the latest version and refresh to apply any pending updates.
             </p>
-            <button onClick={refreshApp} className="btn-primary">
-              <RefreshCw size={15} aria-hidden="true" />
+            <button
+              onClick={refreshApp}
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90"
+            >
+              <RefreshCw size={13} />
               Refresh Now
             </button>
           </div>
 
           {/* Version */}
-          <div className="card px-5 py-3">
-            <p className="text-xs font-medium text-neutral-400 text-center">
+          <div className="rounded-2xl bg-neutral-50/60 px-5 py-3 backdrop-blur-2xl hover:shadow-md">
+            <p className="text-[11px] font-medium text-neutral-400 text-center">
               Luumbo v1.0.0
             </p>
           </div>
         </div>
       </div>
-
-      <ConfirmModal
-        isOpen={confirmAction === "downloads"}
-        title="Clear all downloads?"
-        message="Offline copies will be removed from this device. You can undo for a few seconds afterwards."
-        details={{
-          removed: [
-            `${downloadCount} downloaded ${downloadCount === 1 ? "song" : "songs"} (offline audio)`,
-          ],
-          kept: ["Your saved songs and playlists", "Streaming playback while online"],
-        }}
-        confirmLabel="Clear Downloads"
-        onConfirm={confirmClearDownloads}
-        onClose={() => setConfirmAction(null)}
-      />
-
-      <ConfirmModal
-        isOpen={confirmAction === "reset"}
-        title="Reset all app data?"
-        message="Everything stored on this device will be cleared and the app will reload. This cannot be undone."
-        details={{
-          removed: [
-            "All downloaded songs and cached audio",
-            "Recently played and playback state",
-            "Notification and consent preferences",
-          ],
-          kept: [
-            "Your account and sign-in",
-            "Saved songs, playlists, and profile (stored online)",
-          ],
-        }}
-        confirmLabel="Reset All Data"
-        busy={clearingAll}
-        onConfirm={clearAllData}
-        onClose={() => setConfirmAction(null)}
-      />
-
-      {undoSnapshot && (
-        <UndoToast
-          key={undoSnapshot.id}
-          expiresAt={undoSnapshot.expiresAt}
-          message={`${undoSnapshot.songs.length} ${undoSnapshot.songs.length === 1 ? "download" : "downloads"} cleared`}
-          onAction={handleUndoClear}
-          onDismiss={commitClear}
-        />
-      )}
     </main>
   );
 }

@@ -117,19 +117,14 @@ export default function PlaylistDetailPage() {
       playlist_id: params.id,
       song_id: songId,
     }));
-    try {
-      await apiFetch("/api/data/playlist_songs", {
-        method: "POST",
-        body: JSON.stringify(inserts),
-      });
-      setSongIds((prev) => [...prev, ...newIds]);
-      setSelectedSongIds(new Set());
-      setSearchQuery("");
-    } catch (error) {
-      console.error("Unable to add songs to the playlist:", error);
-    } finally {
-      setAdding(false);
-    }
+    await apiFetch("/api/data/playlist_songs", {
+      method: "POST",
+      body: JSON.stringify(inserts),
+    });
+    setSongIds((prev) => [...prev, ...newIds]);
+    setSelectedSongIds(new Set());
+    setSearchQuery("");
+    setAdding(false);
   };
 
   const handleToggleSaved = async (songId) => {
@@ -254,7 +249,7 @@ export default function PlaylistDetailPage() {
                           />
                           <div className="flex-1 min-w-0">
                             <p className="text-[13px] font-semibold text-neutral-900 truncate">{s.title}</p>
-                            <p className="text-xs text-neutral-500 truncate">{s.author}</p>
+                            <p className="text-[11px] text-neutral-500 truncate">{s.author}</p>
                           </div>
                         </label>
                       ))
@@ -295,7 +290,7 @@ export default function PlaylistDetailPage() {
                 />
                 <button
                   onClick={(e) => removeSong(e, song.id)}
-                  className="absolute right-12 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 hover:bg-accent hover:text-white"
+                  className="absolute right-12 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 md:opacity-0 md:group-hover:opacity-100 hover:bg-accent hover:text-white"
                   title="Remove from playlist"
                 >
                   <Trash2 size={14} />

@@ -40,7 +40,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
       }`}
     >
       {/* freshness stamp — matches app meta type */}
-      <span className="mb-2 text-xs font-medium text-neutral-500">
+      <span className="mb-2 text-[10px] font-medium text-neutral-500">
         {added || (isNew ? "New" : "Fresh")}
       </span>
 
@@ -63,7 +63,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
         {/* Keep the new badge visible while the track is playing too; it sits
             above the pulsing active dot so the "N" text never disappears. */}
         {isNew && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-md bg-gold px-1 text-[10px] font-normal uppercase tracking-wider text-white ring-2 ring-white">
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-md bg-neutral-900 px-1 text-[7px] font-black uppercase tracking-wider text-white ring-2 ring-white">
             N
           </span>
         )}
@@ -72,7 +72,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
           className={`absolute -bottom-1.5 left-1/2 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-lg text-white shadow-md ring-2 ring-white transition-all duration-200 ${
             isActive
               ? "bg-accent"
-              : "bg-neutral-900 opacity-0 scale-75 group-hover:opacity-100 group-focus-within:opacity-100 group-hover:scale-100 group-focus-within:scale-100"
+              : "bg-neutral-900 opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100"
           }`}
         >
           {isActive ? (
@@ -90,7 +90,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
         <span className={`block truncate text-xs font-bold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
           {song.title}
         </span>
-        <span className="mt-0.5 block truncate text-xs font-medium text-neutral-500">
+        <span className="mt-0.5 block truncate text-[10px] font-medium text-neutral-500">
           {song.author}
         </span>
       </span>

@@ -135,15 +135,11 @@ const Player = () => {
   // Song id we auto-advanced to, so the song-change effect can tell an
   // automatic move apart from the user picking something new.
   const autoTargetRef = useRef(null);
-  // Queue navigation preserves the shuffle pass, independently of whether
-  // failed tracks should be retried after a user-initiated skip.
-  const queueTargetRef = useRef(null);
-  const loadedSourceRef = useRef(null);
   const handledSleepStopRef = useRef(sleepTimerStopSignal);
   const autoAdvanceTimerRef = useRef(null);
   const feedbackTimerRef = useRef(null);
   const lastPrevPressRef = useRef(0);
-  const resumePositionRef = useRef(null);
+  const resumePositionRef = useRef(0);
   const lastPositionSaveRef = useRef(0);
   const closeButtonRef = useRef(null);
   const modalRef = useRef(null);
@@ -162,9 +158,9 @@ const Player = () => {
     try {
       const saved = JSON.parse(localStorage.getItem(PLAYBACK_POSITION_KEY) || "null");
       if (!saved?.song?.id || !saved.song.song_path || !(saved.position > 5)) return;
-      resumePositionRef.current = { songId: saved.song.id, position: saved.position };
+      resumePositionRef.current = saved.position;
       skipWhilePausedRef.current = true;
-      restorePlayback(saved.song);
+      restorePlayback(saved.song, [saved.song]);
     } catch {
       localStorage.removeItem(PLAYBACK_POSITION_KEY);
     }
@@ -172,9 +168,6 @@ const Player = () => {
 
   const savePlaybackPosition = useCallback(() => {
     if (!song || audioSongId !== song.id || !audioRef.current) return;
-    // A restored session mounts paused at 0; saving now would delete the
-    // stored position before onLoadedMetadata can seek to it.
-    if (resumePositionRef.current) return;
     const position = audioRef.current.currentTime;
     const total = audioRef.current.duration;
     try {
@@ -252,7 +245,6 @@ const Player = () => {
     handledSleepStopRef.current = sleepTimerStopSignal;
 
     playRef.current = false;
-    isPlayingRef.current = false;
     setIsPlaying(false);
     setIsBuffering(false);
     clearAutoAdvanceTimer();
@@ -266,16 +258,6 @@ const Player = () => {
     }
   }, [sleepTimerStopSignal, clearAutoAdvanceTimer]);
 
-  useEffect(() => {
-    const target = queueTargetRef.current;
-    const isQueueMove = target?.song === song && target?.songs === songs;
-    queueTargetRef.current = null;
-    if (!isQueueMove) shuffleHistoryRef.current.clear();
-    // A fresh manual selection or queue starts a new pass, even for the same
-    // song id. Next/Previous and automatic advancement keep the existing pass.
-    if (song?.id) shuffleHistoryRef.current.add(song.id);
-  }, [song, songs]);
-
   // Reset error count when the song changes
   useEffect(() => {
     // A manual pick starts a fresh failure cycle; an automatic move keeps the
@@ -285,9 +267,7 @@ const Player = () => {
     autoTargetRef.current = null;
     if (!isAutoAdvance) {
       failedSongIdsRef.current.clear();
-    }
-    if (resumePositionRef.current && resumePositionRef.current.songId !== song?.id) {
-      resumePositionRef.current = null;
+      shuffleHistoryRef.current.clear();
     }
 
     errorCountRef.current = 0;
@@ -482,21 +462,9 @@ const Player = () => {
   const onPlayNext = useCallback(() => {
     const nextSong = selectNextSong();
     if (!nextSong) return;
-    // Repeat-all can wrap onto the current track; reselecting the same song
-    // wouldn't retrigger the load effect, so restart the element directly.
-    if (nextSong.id === song?.id) {
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        if (isPlayingRef.current) {
-          audioRef.current.play().catch(() => setIsPlaying(false));
-        }
-      }
-      return;
-    }
     skipWhilePausedRef.current = !isPlayingRef.current;
-    queueTargetRef.current = { song: nextSong, songs };
     onSongSelect(nextSong, songs);
-  }, [selectNextSong, songs, onSongSelect, song?.id]);
+  }, [selectNextSong, songs, onSongSelect]);
 
   // Auto-advance (track ended or unplayable): always resume playback, and
   // keep moving past tracks that fail so one dead URL can't stall the queue.
@@ -516,17 +484,7 @@ const Player = () => {
         return;
       }
 
-      // Same-song wrap (single-track repeat-all): restart without a reselect.
-      if (nextSong.id === song.id) {
-        if (audioRef.current) {
-          audioRef.current.currentTime = 0;
-          audioRef.current.play().catch(() => setIsPlaying(false));
-        }
-        return;
-      }
-
       autoTargetRef.current = nextSong.id;
-      queueTargetRef.current = { song: nextSong, songs };
       skipWhilePausedRef.current = false;
       onSongSelect(nextSong, songs);
     },
@@ -561,25 +519,16 @@ const Player = () => {
     }
     skipWhilePausedRef.current = !isPlayingRef.current;
     const prevIndex = index <= 0 ? songs.length - 1 : index - 1;
-    if (songs[prevIndex].id !== song.id) {
-      queueTargetRef.current = { song: songs[prevIndex], songs };
-    }
     onSongSelect(songs[prevIndex], songs);
   }, [song, songs, onSongSelect, repeatMode]);
 
   const setPlayState = useCallback((playing) => {
-    playRef.current = playing;
-    isPlayingRef.current = playing;
-    if (!playing) {
-      clearAutoAdvanceTimer();
-      audioRef.current?.pause();
-    }
     setIsPlaying(playing);
-  }, [clearAutoAdvanceTimer]);
+  }, []);
 
   const togglePlay = useCallback(() => {
-    setPlayState(!isPlayingRef.current);
-  }, [setPlayState]);
+    setIsPlaying((prev) => !prev);
+  }, []);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => !prev);
@@ -689,33 +638,23 @@ const Player = () => {
   const handlePlaybackError = useCallback(() => {
     clearAutoAdvanceTimer();
     errorCountRef.current += 1;
-    const loadId = loadIdRef.current;
-    const songId = song?.id;
-    const isCurrent = () =>
-      loadId === loadIdRef.current && songId === activeSongIdRef.current;
 
     if (errorCountRef.current <= MAX_AUTO_RETRIES) {
-      // Reload without losing the intent captured before the error. A later
-      // pause/stop cancels this timer and clears that intent.
+      // One quick reload in case the stream hiccuped.
       autoAdvanceTimerRef.current = setTimeout(() => {
-        if (!isCurrent()) return;
-        autoAdvanceTimerRef.current = null;
         if (audioRef.current && errorCountRef.current <= MAX_AUTO_RETRIES) {
-          loadIdRef.current += 1;
           audioRef.current.load();
         }
       }, 800);
     } else {
-      // Still failing: only advance if playback is still wanted.
+      // Still failing: mark it as broken and try the next playable track.
       autoAdvanceTimerRef.current = setTimeout(() => {
-        if (!isCurrent()) return;
         autoAdvanceTimerRef.current = null;
-        if (!playRef.current) return;
         errorCountRef.current = 0;
         advanceToNext({ reason: "error" });
       }, AUTO_ADVANCE_DELAY);
     }
-  }, [clearAutoAdvanceTimer, advanceToNext, song?.id]);
+  }, [clearAutoAdvanceTimer, advanceToNext]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("mediaSession" in navigator) || !song) return;
@@ -767,19 +706,7 @@ const Player = () => {
   useEffect(() => {
     if (!song) return;
 
-    const publicUrl = getAudioPublicUrl(song.song_path);
-    const loaded = loadedSourceRef.current;
-    if (publicUrl && loaded?.songId === song.id && loaded.publicUrl === publicUrl) {
-      // A fetched copy of the restored/current song is a selection, not a new
-      // source. Keep metadata and buffering intact; the URL effect won't run.
-      const shouldPlay = !skipWhilePausedRef.current;
-      skipWhilePausedRef.current = false;
-      setPlayState(shouldPlay);
-      return;
-    }
-
     const loadId = ++loadIdRef.current;
-    loadedSourceRef.current = null;
     let cancelled = false;
 
     const loadAudio = async () => {
@@ -789,6 +716,7 @@ const Player = () => {
       const loadingSongId = song.id;
 
       try {
+        const publicUrl = getAudioPublicUrl(song.song_path);
         if (!publicUrl) {
           // No playable source (missing file/URL): fail fast so auto-advance
           // can move on instead of leaving the player stuck buffering.
@@ -816,7 +744,6 @@ const Player = () => {
           setAudioUrl(publicUrl);
         }
         setAudioSongId(loadingSongId);
-        loadedSourceRef.current = { songId: loadingSongId, publicUrl };
 
         playRef.current = !skipWhilePausedRef.current;
         skipWhilePausedRef.current = false;
@@ -841,22 +768,17 @@ const Player = () => {
     return () => {
       cancelled = true;
     };
-  }, [song, setPlayState]);
+  }, [song]);
 
   // Eager attempt to play as soon as the audio URL is set
   useEffect(() => {
     if (!audioUrl || !audioRef.current || !playRef.current) return;
 
-    const loadId = loadIdRef.current;
     audioRef.current.play().then(() => {
-      if (loadId !== loadIdRef.current || !playRef.current) return;
       setIsPlaying(true);
       setIsBuffering(false);
       playRef.current = false;
     }).catch(() => {
-      // The media error may arrive before this rejection. Its retry owns the
-      // pending intent now; an older play promise must not erase it.
-      if (loadId !== loadIdRef.current || errorCountRef.current > 0) return;
       playRef.current = false;
       setIsPlaying(false);
       setIsBuffering(false);
@@ -871,12 +793,7 @@ const Player = () => {
     // A manual retry also heals a bad cached copy: drop it and stream fresh.
     if (audioUrl?.startsWith("blob:") && publicUrlRef.current && !networkFallbackTriedRef.current) {
       networkFallbackTriedRef.current = true;
-      const networkUrl = publicUrlRef.current;
-      const loadId = loadIdRef.current;
-      evictCachedAudio(networkUrl).finally(() => {
-        // An eviction can outlive the track it was started for. Bumping the
-        // load id and restoring a URL here would cancel the new track's load.
-        if (loadId !== loadIdRef.current) return;
+      evictCachedAudio(publicUrlRef.current).finally(() => {
         if (blobUrlRef.current) {
           URL.revokeObjectURL(blobUrlRef.current);
           blobUrlRef.current = null;
@@ -886,7 +803,7 @@ const Player = () => {
         errorCountRef.current = 0;
         clearAutoAdvanceTimer();
         playRef.current = true;
-        setAudioUrl(networkUrl);
+        setAudioUrl(publicUrlRef.current);
       });
       return;
     }
@@ -944,35 +861,29 @@ const Player = () => {
         onWaiting={() => setIsBuffering(true)}
         onPlaying={() => setIsBuffering(false)}
         onCanPlay={() => {
-          if (audioSongId !== song?.id || activeSongIdRef.current !== song?.id) return;
           setIsBuffering(false);
-          setAudioError(false);
-          errorCountRef.current = 0;
-          clearAutoAdvanceTimer();
           if (playRef.current) {
             playRef.current = false;
             audioRef.current?.play().catch(() => setIsPlaying(false));
             setIsPlaying(true);
+            errorCountRef.current = 0;
+            clearAutoAdvanceTimer();
           }
         }}
         onLoadedMetadata={() => {
-          const resume = resumePositionRef.current;
-          resumePositionRef.current = null;
           if (audioRef.current && Number.isFinite(audioRef.current.duration)) {
             const total = audioRef.current.duration;
             setDuration(total);
             audioRef.current.playbackRate = playbackRate;
-            if (resume && resume.songId === audioSongId && resume.position < total - 5) {
-              audioRef.current.currentTime = resume.position;
+            if (resumePositionRef.current > 0 && resumePositionRef.current < total - 5) {
+              audioRef.current.currentTime = resumePositionRef.current;
             }
+            resumePositionRef.current = 0;
             syncMediaPosition();
           }
         }}
         onRateChange={syncMediaPosition}
         onError={() => {
-          // An error from the previous source can arrive while the replacement
-          // is still loading; reacting to it would cancel the new load.
-          if (audioSongId !== song?.id || activeSongIdRef.current !== song?.id) return;
           const mediaError = audioRef.current?.error;
           console.error("Playback error:", {
             songId: song?.id,
@@ -985,25 +896,18 @@ const Player = () => {
           if (audioUrl?.startsWith("blob:") && publicUrlRef.current && !networkFallbackTriedRef.current) {
             networkFallbackTriedRef.current = true;
             setIsBuffering(true);
-            const networkUrl = publicUrlRef.current;
-            const loadId = loadIdRef.current;
-            evictCachedAudio(networkUrl).finally(() => {
-              // Advancing to another track mid-eviction revokes the new blob
-              // and restores a null URL here, since publicUrlRef is cleared on
-              // the song change.
-              if (loadId !== loadIdRef.current) return;
+            evictCachedAudio(publicUrlRef.current).finally(() => {
               if (blobUrlRef.current) {
                 URL.revokeObjectURL(blobUrlRef.current);
                 blobUrlRef.current = null;
               }
               playRef.current = true;
               setAudioError(false);
-              setAudioUrl(networkUrl);
+              setAudioUrl(publicUrlRef.current);
             });
             return;
           }
-          playRef.current = playRef.current || isPlayingRef.current;
-          isPlayingRef.current = false;
+          playRef.current = false;
           setIsPlaying(false);
           setIsBuffering(false);
           setAudioError(true);
@@ -1022,7 +926,7 @@ const Player = () => {
         id="now-playing-bar"
         inert={showFullPlayer}
         aria-hidden={showFullPlayer}
-        className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-[900] hidden min-[600px]:block md:bottom-0 cursor-pointer touch-manipulation select-none"
+        className="fixed bottom-14 left-0 right-0 z-[900] hidden min-[600px]:block md:bottom-0 cursor-pointer"
         onClick={openFullPlayer}
       >
         <div className="relative overflow-hidden border-t border-neutral-200 bg-white shadow-sm">
@@ -1047,11 +951,11 @@ const Player = () => {
                     {song.title}
                   </button>
                   {isBusy ? (
-                    <p className="truncate text-xs font-semibold text-accent">
+                    <p className="truncate text-[11px] font-semibold text-accent">
                       {isPreparing ? "Opening…" : "Buffering…"}
                     </p>
                   ) : (
-                    <p className="truncate text-xs font-medium text-neutral-400">
+                    <p className="truncate text-[11px] font-medium text-neutral-400">
                       {song.author}
                     </p>
                   )}
@@ -1069,7 +973,7 @@ const Player = () => {
                       e.stopPropagation();
                       setIsShuffle(!isShuffle);
                     }}
-                    className={`hidden rounded-full p-2 transition-colors active:scale-90 md:flex ${
+                    className={`rounded-full p-2 transition-colors active:scale-90 ${
                       isShuffle
                         ? "text-accent"
                         : "text-neutral-400 hover:text-neutral-900"
@@ -1116,7 +1020,7 @@ const Player = () => {
                     aria-label={REPEAT_LABELS[repeatMode]}
                     aria-pressed={repeatActive}
                     onClick={(e) => { e.stopPropagation(); cycleRepeat(); }}
-                    className={`hidden rounded-full p-2 transition-colors active:scale-90 md:flex ${
+                    className={`rounded-full p-2 transition-colors active:scale-90 ${
                       repeatActive
                         ? "text-accent"
                         : "text-neutral-400 hover:text-neutral-900"
@@ -1199,7 +1103,7 @@ const Player = () => {
       <div
         inert={showFullPlayer}
         aria-hidden={showFullPlayer}
-        className="fixed left-3 right-3 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-[900] min-[600px]:hidden cursor-pointer touch-manipulation select-none rounded-2xl border border-neutral-200/90 bg-white/95 shadow-xl backdrop-blur-2xl overflow-hidden transition active:scale-[0.99]"
+        className="fixed left-3 right-3 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-[900] min-[600px]:hidden cursor-pointer rounded-2xl border border-neutral-200/90 bg-white/95 shadow-xl backdrop-blur-2xl overflow-hidden transition-all active:scale-[0.99]"
         onClick={openFullPlayer}
       >
         <ThinProgress
@@ -1207,39 +1111,40 @@ const Player = () => {
           duration={duration}
           onSeek={handleSeek}
           trackClassName="rounded-r-full"
-          interactive={false}
         />
-        <div className="flex items-center gap-2 py-2 pl-3 pr-2">
-          {/* Whole left zone opens the player. When only the title line was the
-              target, a tap on the artwork or the row's padding did nothing. */}
-          <button
-            type="button"
-            aria-label={`Open now playing: ${song.title}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              openFullPlayer();
-            }}
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left"
-          >
-            <SongAvatar title={song.title} size="row" variant="mono" />
-            <div className="min-w-0">
-              <span className="block truncate text-sm font-semibold leading-tight tracking-tight text-neutral-900">
-                {song.title}
-              </span>
-              {isBusy ? (
-                <span className="block truncate text-xs font-semibold text-accent">
-                  {isPreparing ? "Opening…" : "Buffering…"}
-                </span>
-              ) : (
-                <span className="block truncate text-xs font-medium text-neutral-500">
-                  {song.author}
-                </span>
-              )}
-            </div>
-          </button>
-          {/* Play/Pause and Next only: Previous and Save live in the expanded
-              player, and every 44px target here came off the title. */}
-          <div className="flex shrink-0 items-center gap-1">
+        <div className="flex items-center gap-3 px-3.5 py-2.5">
+          <SongAvatar title={song.title} size="avatar-mini" variant="mono" />
+          <div className="min-w-0 flex-1">
+            <button
+              type="button"
+              aria-label={`Open now playing: ${song.title}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                openFullPlayer();
+              }}
+              className="block w-full truncate text-left text-sm font-semibold leading-tight tracking-tight text-neutral-900"
+            >
+              {song.title}
+            </button>
+            {isBusy ? (
+              <p className="truncate text-xs font-semibold text-accent">
+                {isPreparing ? "Opening…" : "Buffering…"}
+              </p>
+            ) : (
+              <p className="truncate text-xs font-medium text-neutral-500">
+                {song.author}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              aria-label="Previous track"
+              onClick={(e) => { e.stopPropagation(); onPlayPrevious(); }}
+              className="flex h-11 w-9 items-center justify-center rounded-full text-neutral-500 transition active:scale-90 hover:text-neutral-900"
+            >
+              <SkipBack size={14} fill="currentColor" />
+            </button>
             <button
               type="button"
               aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
@@ -1258,9 +1163,19 @@ const Player = () => {
               type="button"
               aria-label="Next track"
               onClick={(e) => { e.stopPropagation(); onPlayNext(); }}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-500 transition active:scale-90 hover:text-neutral-900"
+              className="flex h-11 w-9 items-center justify-center rounded-full text-neutral-500 transition active:scale-90 hover:text-neutral-900"
             >
-              <SkipForward size={16} fill="currentColor" />
+              <SkipForward size={14} fill="currentColor" />
+            </button>
+            <button
+              type="button"
+              aria-label={isLiked ? "Remove from saved songs" : "Save song"}
+              onClick={(e) => { e.stopPropagation(); toggleLike(); }}
+              className={`flex h-11 w-9 items-center justify-center rounded-full transition ${
+                isLiked ? "text-accent" : "text-neutral-400 hover:text-accent"
+              }`}
+            >
+              <Heart size={16} fill={isLiked ? "currentColor" : "none"} />
             </button>
           </div>
         </div>
@@ -1273,11 +1188,11 @@ const Player = () => {
           role="dialog"
           aria-modal="true"
           aria-labelledby="player-title"
-          className="player-dark fixed inset-0 z-[99999] flex flex-col animate-fade-in bg-[#0b1120] text-white"
+          className="fixed inset-0 z-[99999] flex flex-col animate-fade-in bg-white text-neutral-900"
         >
           {/* Atmospheric background glow */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-black opacity-95" />
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/20 rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white via-neutral-50 to-neutral-100" />
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/[0.06] rounded-full blur-[100px] pointer-events-none" />
 
           {/* Swipe-down grabber */}
           <div
@@ -1287,7 +1202,7 @@ const Player = () => {
             onPointerCancel={() => { swipeStartRef.current = null; }}
             className="relative z-10 flex h-7 shrink-0 touch-none items-center justify-center md:hidden"
           >
-            <span className="h-1.5 w-10 rounded-full bg-white/25" />
+            <span className="h-1.5 w-10 rounded-full bg-neutral-300" />
           </div>
 
           {/* Header. Above the body columns so the overflow menu is not painted
@@ -1298,12 +1213,12 @@ const Player = () => {
               type="button"
               aria-label="Close player"
               onClick={closeFullPlayer}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 transition"
             >
               <ChevronDown size={22} />
             </button>
-            <div className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 border border-white/10">
-              <span className="truncate text-xs font-bold uppercase tracking-widest text-white/70">
+            <div className="flex min-w-0 items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 border border-neutral-200">
+              <span className="truncate text-[10px] font-bold uppercase tracking-widest text-neutral-500">
                 {showQueue ? "Up Next" : "Now Playing"}
               </span>
             </div>
@@ -1312,12 +1227,12 @@ const Player = () => {
                 type="button"
                 aria-label="Share this song"
                 onClick={handleShare}
-                className={`flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-white/10 ${
+                className={`flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-neutral-100 ${
                   shareFeedback === "copied"
-                    ? "text-green-400"
+                    ? "text-green-600"
                     : shareFeedback === "failed"
-                      ? "text-red-400"
-                      : "text-white/60 hover:text-white"
+                      ? "text-red-600"
+                      : "text-neutral-500 hover:text-neutral-900"
                 }`}
               >
                 {shareFeedback === "copied" ? (
@@ -1332,7 +1247,7 @@ const Player = () => {
                 aria-pressed={isLiked}
                 onClick={toggleLike}
                 className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-                  isLiked ? "text-white bg-white/20" : "text-white/60 hover:text-white hover:bg-white/10"
+                  isLiked ? "text-white bg-accent" : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100"
                 }`}
               >
                 <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
@@ -1353,7 +1268,7 @@ const Player = () => {
                 className={`rounded-full px-4 py-2 text-xs font-semibold shadow-lg ${
                   shareFeedback === "failed"
                     ? "bg-red-50 text-red-700"
-                    : "bg-white text-neutral-900"
+                    : "bg-neutral-900 text-white"
                 }`}
               >
                 {shareFeedback === "copied"
@@ -1365,7 +1280,7 @@ const Player = () => {
 
           <div className="relative z-10 flex min-h-0 flex-1 flex-col md:flex-row">
             {/* Left column: artwork or queue */}
-            <div className="flex min-h-0 flex-1 flex-col px-5 py-2 md:basis-[45%] md:flex-none md:border-r md:border-white/10 md:px-8 md:py-6">
+            <div className="flex min-h-0 flex-1 flex-col px-5 py-2 md:basis-[45%] md:flex-none md:border-r md:border-neutral-200 md:px-8 md:py-6">
               {showQueue ? (
                 <PlayerQueue
                   songs={songs}
@@ -1390,15 +1305,15 @@ const Player = () => {
               <div className="px-6 pb-2 md:px-12 md:text-center lg:px-16">
                 <h2
                   id="player-title"
-                  className="text-xl font-bold tracking-tight text-white drop-shadow-sm md:text-2xl"
+                  className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl"
                 >
                   {song.title}
                 </h2>
-                <p className="mt-1 text-sm font-medium text-white/70 md:text-base">
+                <p className="mt-1 text-sm font-medium text-neutral-500 md:text-base">
                   {song.author}
                 </p>
                 {attribution && (
-                  <p className="mt-1 text-xs leading-relaxed text-white/55">
+                  <p className="mt-1 text-[11px] leading-relaxed text-neutral-400">
                     {song.copyright_holder && <>© {song.copyright_holder}</>}
                     {song.copyright_holder && song.license_type && " · "}
                     {song.license_type &&
@@ -1407,7 +1322,7 @@ const Player = () => {
                           href={song.license_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="underline transition hover:text-white/80"
+                          className="underline transition hover:text-neutral-600"
                         >
                           {song.license_type}
                         </a>
@@ -1418,13 +1333,13 @@ const Player = () => {
                 )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 md:justify-center">
                   {isOffline && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold text-white/70">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-500">
                       <Download size={10} />
                       Available offline
                     </span>
                   )}
                   {isBusy && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/80">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
                       <BusySpinner size={12} />
                       {isPreparing ? "Opening…" : "Buffering…"}
                     </span>
@@ -1434,7 +1349,7 @@ const Player = () => {
                   <button
                     type="button"
                     onClick={retryPlayback}
-                    className="mt-3 flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold text-white md:mx-auto"
+                    className="mt-3 flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2 text-xs font-semibold text-neutral-700 md:mx-auto"
                   >
                     <AlertTriangle size={14} />
                     {errorCountRef.current > MAX_AUTO_RETRIES
@@ -1445,7 +1360,7 @@ const Player = () => {
               </div>
 
               {/* Controls panel */}
-              <div className="rounded-t-2xl border-t border-white/15 bg-white/[0.08] px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] backdrop-blur-2xl md:rounded-none md:border-t-0 md:bg-transparent md:px-12 md:pb-8 md:backdrop-blur-none lg:px-16">
+              <div className="rounded-t-3xl border-t border-neutral-200 bg-white/80 px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] backdrop-blur-2xl md:rounded-none md:border-t-0 md:bg-transparent md:px-12 md:pb-8 md:backdrop-blur-none lg:px-16">
                 <SeekBar audioRef={audioRef} duration={duration} onSeek={handleSeek} />
 
                 <div className="flex items-center justify-center gap-4 py-2 sm:gap-6">
@@ -1455,7 +1370,7 @@ const Player = () => {
                     aria-pressed={isShuffle}
                     onClick={() => setIsShuffle(!isShuffle)}
                     className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
-                      isShuffle ? "text-white bg-white/20" : "text-white/50 hover:text-white"
+                      isShuffle ? "text-white bg-accent" : "text-neutral-500 hover:text-neutral-900"
                     }`}
                   >
                     <Shuffle size={18} />
@@ -1465,7 +1380,7 @@ const Player = () => {
                     type="button"
                     aria-label="Previous track"
                     onClick={onPlayPrevious}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/80 transition active:scale-90 hover:text-white"
+                    className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-600 transition active:scale-90 hover:text-neutral-900"
                   >
                     <SkipBack size={26} fill="currentColor" />
                   </button>
@@ -1474,7 +1389,7 @@ const Player = () => {
                     type="button"
                     aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
                     onClick={togglePlay}
-                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white text-neutral-900 shadow-xl transition active:scale-95 hover:scale-105"
+                    className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-white shadow-xl transition active:scale-95 hover:bg-accent/90 hover:scale-105"
                   >
                     {isBusy ? (
                       <BusySpinner size={26} />
@@ -1489,7 +1404,7 @@ const Player = () => {
                     type="button"
                     aria-label="Next track"
                     onClick={onPlayNext}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/80 transition active:scale-90 hover:text-white"
+                    className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-600 transition active:scale-90 hover:text-neutral-900"
                   >
                     <SkipForward size={26} fill="currentColor" />
                   </button>
@@ -1500,23 +1415,23 @@ const Player = () => {
                     aria-pressed={repeatActive}
                     onClick={cycleRepeat}
                     className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
-                      repeatActive ? "text-white bg-white/20" : "text-white/50 hover:text-white"
+                      repeatActive ? "text-white bg-accent" : "text-neutral-500 hover:text-neutral-900"
                     }`}
                   >
                     <RepeatIcon size={18} />
                   </button>
                 </div>
 
-                {/* Bottom utilities: one row at every width. The volume slider
-                    is the only flexible part, so a narrow phone shortens the
-                    track instead of pushing the buttons onto a second line. */}
-                <div className="mx-auto flex w-full max-w-md flex-nowrap items-center justify-between gap-3 pt-2">
-                  <div className="flex min-w-0 flex-1 items-center gap-1">
+                {/* Bottom utilities. Volume gets its own row on phones so the
+                    slider is always reachable; from sm up everything sits on
+                    one row. */}
+                <div className="mx-auto flex max-w-md flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-1.5">
+                  <div className="flex items-center justify-center gap-1">
                     <button
                       type="button"
                       aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
                       onClick={toggleMute}
-                      className="flex h-11 w-9 shrink-0 items-center justify-center rounded-full text-white/60 transition hover:text-white"
+                      className="flex h-11 w-9 items-center justify-center rounded-full text-neutral-500 transition hover:text-neutral-900"
                     >
                       {isMuted || volume === 0 ? (
                         <VolumeX size={17} />
@@ -1537,19 +1452,19 @@ const Player = () => {
                         setVolume(v);
                         if (v > 0) setIsMuted(false);
                       }}
-                      className="volume-slider w-full min-w-12 max-w-28"
+                      className="volume-slider w-32 sm:w-20 lg:w-24"
                     />
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <SleepTimerControl dark />
+                  <div className="flex items-center justify-center gap-1.5">
+                    <SleepTimerControl />
                     <button
                       type="button"
                       aria-label={showQueue ? "Show artwork" : "Show queue"}
                       aria-pressed={showQueue}
                       onClick={() => setShowQueue(!showQueue)}
-                      className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${
-                        showQueue ? "bg-white text-neutral-900" : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
+                      className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${
+                        showQueue ? "bg-accent text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
                       }`}
                     >
                       <ListMusic size={15} />
