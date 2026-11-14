@@ -871,7 +871,12 @@ const Player = () => {
     // A manual retry also heals a bad cached copy: drop it and stream fresh.
     if (audioUrl?.startsWith("blob:") && publicUrlRef.current && !networkFallbackTriedRef.current) {
       networkFallbackTriedRef.current = true;
-      evictCachedAudio(publicUrlRef.current).finally(() => {
+      const networkUrl = publicUrlRef.current;
+      const loadId = loadIdRef.current;
+      evictCachedAudio(networkUrl).finally(() => {
+        // An eviction can outlive the track it was started for. Bumping the
+        // load id and restoring a URL here would cancel the new track's load.
+        if (loadId !== loadIdRef.current) return;
         if (blobUrlRef.current) {
           URL.revokeObjectURL(blobUrlRef.current);
           blobUrlRef.current = null;
@@ -881,7 +886,7 @@ const Player = () => {
         errorCountRef.current = 0;
         clearAutoAdvanceTimer();
         playRef.current = true;
-        setAudioUrl(publicUrlRef.current);
+        setAudioUrl(networkUrl);
       });
       return;
     }
@@ -980,14 +985,20 @@ const Player = () => {
           if (audioUrl?.startsWith("blob:") && publicUrlRef.current && !networkFallbackTriedRef.current) {
             networkFallbackTriedRef.current = true;
             setIsBuffering(true);
-            evictCachedAudio(publicUrlRef.current).finally(() => {
+            const networkUrl = publicUrlRef.current;
+            const loadId = loadIdRef.current;
+            evictCachedAudio(networkUrl).finally(() => {
+              // Advancing to another track mid-eviction revokes the new blob
+              // and restores a null URL here, since publicUrlRef is cleared on
+              // the song change.
+              if (loadId !== loadIdRef.current) return;
               if (blobUrlRef.current) {
                 URL.revokeObjectURL(blobUrlRef.current);
                 blobUrlRef.current = null;
               }
               playRef.current = true;
               setAudioError(false);
-              setAudioUrl(publicUrlRef.current);
+              setAudioUrl(networkUrl);
             });
             return;
           }
@@ -1273,11 +1284,11 @@ const Player = () => {
           role="dialog"
           aria-modal="true"
           aria-labelledby="player-title"
-          className="fixed inset-0 z-[99999] flex flex-col animate-fade-in bg-white text-neutral-900"
+          className="player-dark fixed inset-0 z-[99999] flex flex-col animate-fade-in bg-[#0b1120] text-white"
         >
           {/* Atmospheric background glow */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white via-neutral-50 to-neutral-100" />
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/[0.06] rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-black opacity-95" />
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/20 rounded-full blur-[100px] pointer-events-none" />
 
           {/* Swipe-down grabber */}
           <div
@@ -1287,7 +1298,7 @@ const Player = () => {
             onPointerCancel={() => { swipeStartRef.current = null; }}
             className="relative z-10 flex h-7 shrink-0 touch-none items-center justify-center md:hidden"
           >
-            <span className="h-1.5 w-10 rounded-full bg-neutral-300" />
+            <span className="h-1.5 w-10 rounded-full bg-white/25" />
           </div>
 
           {/* Header. Above the body columns so the overflow menu is not painted
@@ -1298,12 +1309,12 @@ const Player = () => {
               type="button"
               aria-label="Close player"
               onClick={closeFullPlayer}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 transition"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
             >
               <ChevronDown size={22} />
             </button>
-            <div className="flex min-w-0 items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 border border-neutral-200">
-              <span className="truncate text-xs font-bold uppercase tracking-widest text-neutral-500">
+            <div className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 border border-white/10">
+              <span className="truncate text-xs font-bold uppercase tracking-widest text-white/70">
                 {showQueue ? "Up Next" : "Now Playing"}
               </span>
             </div>
@@ -1312,12 +1323,12 @@ const Player = () => {
                 type="button"
                 aria-label="Share this song"
                 onClick={handleShare}
-                className={`flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-neutral-100 ${
+                className={`flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-white/10 ${
                   shareFeedback === "copied"
-                    ? "text-green-600"
+                    ? "text-green-400"
                     : shareFeedback === "failed"
-                      ? "text-red-600"
-                      : "text-neutral-500 hover:text-neutral-900"
+                      ? "text-red-400"
+                      : "text-white/60 hover:text-white"
                 }`}
               >
                 {shareFeedback === "copied" ? (
@@ -1332,7 +1343,7 @@ const Player = () => {
                 aria-pressed={isLiked}
                 onClick={toggleLike}
                 className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-                  isLiked ? "text-white bg-accent" : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100"
+                  isLiked ? "text-white bg-white/20" : "text-white/60 hover:text-white hover:bg-white/10"
                 }`}
               >
                 <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
@@ -1353,7 +1364,7 @@ const Player = () => {
                 className={`rounded-full px-4 py-2 text-xs font-semibold shadow-lg ${
                   shareFeedback === "failed"
                     ? "bg-red-50 text-red-700"
-                    : "bg-neutral-900 text-white"
+                    : "bg-white text-neutral-900"
                 }`}
               >
                 {shareFeedback === "copied"
@@ -1365,7 +1376,7 @@ const Player = () => {
 
           <div className="relative z-10 flex min-h-0 flex-1 flex-col md:flex-row">
             {/* Left column: artwork or queue */}
-            <div className="flex min-h-0 flex-1 flex-col px-5 py-2 md:basis-[45%] md:flex-none md:border-r md:border-neutral-200 md:px-8 md:py-6">
+            <div className="flex min-h-0 flex-1 flex-col px-5 py-2 md:basis-[45%] md:flex-none md:border-r md:border-white/10 md:px-8 md:py-6">
               {showQueue ? (
                 <PlayerQueue
                   songs={songs}
@@ -1390,15 +1401,15 @@ const Player = () => {
               <div className="px-6 pb-2 md:px-12 md:text-center lg:px-16">
                 <h2
                   id="player-title"
-                  className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl"
+                  className="text-xl font-bold tracking-tight text-white drop-shadow-sm md:text-2xl"
                 >
                   {song.title}
                 </h2>
-                <p className="mt-1 text-sm font-medium text-neutral-500 md:text-base">
+                <p className="mt-1 text-sm font-medium text-white/70 md:text-base">
                   {song.author}
                 </p>
                 {attribution && (
-                  <p className="mt-1 text-xs leading-relaxed text-neutral-400">
+                  <p className="mt-1 text-xs leading-relaxed text-white/55">
                     {song.copyright_holder && <>© {song.copyright_holder}</>}
                     {song.copyright_holder && song.license_type && " · "}
                     {song.license_type &&
@@ -1407,7 +1418,7 @@ const Player = () => {
                           href={song.license_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="underline transition hover:text-neutral-600"
+                          className="underline transition hover:text-white/80"
                         >
                           {song.license_type}
                         </a>
@@ -1418,13 +1429,13 @@ const Player = () => {
                 )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 md:justify-center">
                   {isOffline && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-500">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold text-white/70">
                       <Download size={10} />
                       Available offline
                     </span>
                   )}
                   {isBusy && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/80">
                       <BusySpinner size={12} />
                       {isPreparing ? "Opening…" : "Buffering…"}
                     </span>
@@ -1434,7 +1445,7 @@ const Player = () => {
                   <button
                     type="button"
                     onClick={retryPlayback}
-                    className="mt-3 flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2 text-xs font-semibold text-neutral-700 md:mx-auto"
+                    className="mt-3 flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold text-white md:mx-auto"
                   >
                     <AlertTriangle size={14} />
                     {errorCountRef.current > MAX_AUTO_RETRIES
@@ -1445,7 +1456,7 @@ const Player = () => {
               </div>
 
               {/* Controls panel */}
-              <div className="rounded-t-2xl border-t border-neutral-200 bg-white/80 px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] backdrop-blur-2xl md:rounded-none md:border-t-0 md:bg-transparent md:px-12 md:pb-8 md:backdrop-blur-none lg:px-16">
+              <div className="rounded-t-2xl border-t border-white/15 bg-white/[0.08] px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] backdrop-blur-2xl md:rounded-none md:border-t-0 md:bg-transparent md:px-12 md:pb-8 md:backdrop-blur-none lg:px-16">
                 <SeekBar audioRef={audioRef} duration={duration} onSeek={handleSeek} />
 
                 <div className="flex items-center justify-center gap-4 py-2 sm:gap-6">
@@ -1455,7 +1466,7 @@ const Player = () => {
                     aria-pressed={isShuffle}
                     onClick={() => setIsShuffle(!isShuffle)}
                     className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
-                      isShuffle ? "text-white bg-accent" : "text-neutral-500 hover:text-neutral-900"
+                      isShuffle ? "text-white bg-white/20" : "text-white/50 hover:text-white"
                     }`}
                   >
                     <Shuffle size={18} />
@@ -1465,7 +1476,7 @@ const Player = () => {
                     type="button"
                     aria-label="Previous track"
                     onClick={onPlayPrevious}
-                    className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-600 transition active:scale-90 hover:text-neutral-900"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/80 transition active:scale-90 hover:text-white"
                   >
                     <SkipBack size={26} fill="currentColor" />
                   </button>
@@ -1474,7 +1485,7 @@ const Player = () => {
                     type="button"
                     aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
                     onClick={togglePlay}
-                    className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-white shadow-xl transition active:scale-95 hover:bg-accent/90 hover:scale-105"
+                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white text-neutral-900 shadow-xl transition active:scale-95 hover:scale-105"
                   >
                     {isBusy ? (
                       <BusySpinner size={26} />
@@ -1489,7 +1500,7 @@ const Player = () => {
                     type="button"
                     aria-label="Next track"
                     onClick={onPlayNext}
-                    className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-600 transition active:scale-90 hover:text-neutral-900"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/80 transition active:scale-90 hover:text-white"
                   >
                     <SkipForward size={26} fill="currentColor" />
                   </button>
@@ -1500,23 +1511,23 @@ const Player = () => {
                     aria-pressed={repeatActive}
                     onClick={cycleRepeat}
                     className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
-                      repeatActive ? "text-white bg-accent" : "text-neutral-500 hover:text-neutral-900"
+                      repeatActive ? "text-white bg-white/20" : "text-white/50 hover:text-white"
                     }`}
                   >
                     <RepeatIcon size={18} />
                   </button>
                 </div>
 
-                {/* Bottom utilities. Volume gets its own row on phones so the
-                    slider is always reachable; from sm up everything sits on
-                    one row. */}
-                <div className="mx-auto flex max-w-md flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-1.5">
-                  <div className="flex items-center justify-center gap-1">
+                {/* Bottom utilities: one row at every width. The volume slider
+                    is the only flexible part, so a narrow phone shortens the
+                    track instead of pushing the buttons onto a second line. */}
+                <div className="mx-auto flex w-full max-w-md flex-nowrap items-center justify-between gap-3 pt-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-1">
                     <button
                       type="button"
                       aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
                       onClick={toggleMute}
-                      className="flex h-11 w-9 items-center justify-center rounded-full text-neutral-500 transition hover:text-neutral-900"
+                      className="flex h-11 w-9 shrink-0 items-center justify-center rounded-full text-white/60 transition hover:text-white"
                     >
                       {isMuted || volume === 0 ? (
                         <VolumeX size={17} />
@@ -1537,19 +1548,19 @@ const Player = () => {
                         setVolume(v);
                         if (v > 0) setIsMuted(false);
                       }}
-                      className="volume-slider w-32 sm:w-20 lg:w-24"
+                      className="volume-slider w-full min-w-12 max-w-28"
                     />
                   </div>
 
-                  <div className="flex items-center justify-center gap-1.5">
-                    <SleepTimerControl />
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <SleepTimerControl dark />
                     <button
                       type="button"
                       aria-label={showQueue ? "Show artwork" : "Show queue"}
                       aria-pressed={showQueue}
                       onClick={() => setShowQueue(!showQueue)}
-                      className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${
-                        showQueue ? "bg-accent text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                      className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${
+                        showQueue ? "bg-white text-neutral-900" : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
                       }`}
                     >
                       <ListMusic size={15} />

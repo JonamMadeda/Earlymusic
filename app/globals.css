@@ -2,9 +2,12 @@
 
 @theme {
   --color-accent: #0f172a;
-  /* Warm highlight reserved for "New" badges and celebratory accents.
-     Dark enough to hold 4.5:1 contrast on white and on its own 10% tint. */
-  --color-gold: #b45309;
+  /* "New" badge only. Monochrome on purpose: the rest of the UI is accent
+     near-black plus neutral grays, and the chips this badge sits beside
+     (category tags) are neutral too. One step darker than their text so a
+     new track stays findable without being the loudest thing in the row.
+     Holds 8.8:1 on its own 10% tint and 10.4:1 reversed under white text. */
+  --color-gold: #404040;
 }
 
 :root {
@@ -139,6 +142,36 @@ input[type="range"]:focus-visible {
   background: #0f172a;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
   cursor: pointer;
+}
+
+/* The full player is the app's one dark surface. These are the handful of
+   treatments utility classes cannot reach: the slider track is a gradient, the
+   thumb is a pseudo-element, and every focus ring in the app is navy — which
+   would simply disappear on this background. */
+.player-dark {
+  color-scheme: dark;
+}
+
+.player-dark .volume-slider {
+  background: linear-gradient(rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.28)) center / 100% 6px no-repeat;
+}
+
+.player-dark .volume-slider::-webkit-slider-thumb {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.player-dark .volume-slider::-moz-range-thumb {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.player-dark :focus-visible {
+  outline-color: rgba(255, 255, 255, 0.85);
+}
+
+.player-dark input[type="range"]:focus-visible {
+  outline-color: rgba(255, 255, 255, 0.85);
 }
 
 /* The global search is one rounded field, so the ring belongs on the wrapper

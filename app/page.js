@@ -986,7 +986,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-8">
+                  <div className="flex flex-col gap-2">
                     {recommendedSongs.length > 0 ? (
                       [0, 1, 2, 3, 4].map((group) => {
                         const chunk = recommendedSongs.slice(group * 5, group * 5 + 5);

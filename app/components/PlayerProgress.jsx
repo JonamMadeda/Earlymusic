@@ -114,7 +114,8 @@ export const ThinProgress = ({ audioRef, duration, onSeek, trackClassName = "" }
   );
 };
 
-/** The full-screen player's slider with elapsed and remaining readouts. */
+/** The full-screen player's slider with elapsed and remaining readouts. Only
+ *  used there, so it is styled for that dark surface rather than the light app. */
 export const SeekBar = ({ audioRef, duration, onSeek }) => {
   const scrub = useScrub(audioRef, duration, onSeek);
 
@@ -123,14 +124,14 @@ export const SeekBar = ({ audioRef, duration, onSeek }) => {
       <div className="relative flex items-center py-2">
         <input
           {...seekProps(scrub, "Seek through song")}
-          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 accent-accent [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:shadow-lg"
+          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/25 accent-white [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg"
         />
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium tabular-nums text-neutral-500">
+        <span className="text-xs font-medium tabular-nums text-white/60">
           {formatTime(scrub.value)}
         </span>
-        <span className="text-xs font-medium tabular-nums text-neutral-500">
+        <span className="text-xs font-medium tabular-nums text-white/60">
           -{formatTime(Math.max(0, scrub.max - scrub.value))}
         </span>
       </div>
