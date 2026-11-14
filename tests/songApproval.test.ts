@@ -7,13 +7,14 @@ const mocks = vi.hoisted(() => ({
   getAdminFromRequest: vi.fn(),
   announceNewSong: vi.fn(),
   announceSongUpdate: vi.fn(),
+  r2Send: vi.fn(),
 }));
 
 vi.mock("@/lib/neon", () => ({ db: { query: mocks.query } }));
 vi.mock("@/lib/auth", () => ({ getAdminFromRequest: mocks.getAdminFromRequest }));
 vi.mock("@/lib/adminAudit", () => ({ logAdminAction: vi.fn() }));
 vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: vi.fn().mockResolvedValue(null) }));
-vi.mock("@/lib/r2", () => ({ getR2Client: vi.fn() }));
+vi.mock("@/lib/r2", () => ({ getR2Client: () => ({ send: mocks.r2Send }) }));
 vi.mock("@/lib/audioVerify", () => ({
   verifyStoredAudio: mocks.verifyStoredAudio,
   getR2ObjectKey: (path: string) => path.replace(/^\//, ""),
@@ -24,7 +25,7 @@ vi.mock("@/lib/announcement", () => ({
   retractSongAnnouncements: vi.fn(),
 }));
 
-import { PATCH } from "../app/api/admin/songs/[id]/route";
+import { DELETE, PATCH } from "../app/api/admin/songs/[id]/route";
 
 const existing = {
   id: "7",
@@ -107,5 +108,55 @@ describe("song approval audio verification", () => {
     expect((await patch({ song_path: "/audio/missing.mp3" })).status).toBe(400);
     expect(mocks.verifyStoredAudio).toHaveBeenCalledWith("/audio/missing.mp3");
     expect(mocks.query).toHaveBeenCalledTimes(1);
+  });
+});
+
+const del = () => DELETE(
+  new NextRequest("http://localhost:3000/api/admin/songs/7", {
+    method: "DELETE",
+    body: JSON.stringify({ songPath: existing.song_path }),
+  }),
+  { params: Promise.resolve({ id: "7" }) }
+);
+
+describe("song deletion ordering", () => {
+  it("removes the database row before deleting the audio object", async () => {
+    const order: string[] = [];
+    mocks.query.mockReset().mockImplementation(async (sql: string) => {
+      order.push(sql.includes("DELETE FROM public.songs") ? "row" : "query");
+      return { rows: [{ ...existing }] };
+    });
+    mocks.r2Send.mockReset().mockImplementation(async () => {
+      order.push("object");
+      return {};
+    });
+
+    expect((await del()).status).toBe(200);
+    expect(order.indexOf("row")).toBeLessThan(order.indexOf("object"));
+  });
+
+  it("still reports success when the row is gone but the file is stranded", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.query.mockReset().mockImplementation(async () => ({ rows: [{ ...existing }] }));
+    mocks.r2Send.mockReset().mockRejectedValue(new Error("R2 unavailable"));
+
+    const response = await del();
+
+    expect(response.status).toBe(200);
+    expect(mocks.query).toHaveBeenCalledWith(
+      expect.stringContaining("DELETE FROM public.songs"),
+      ["7"]
+    );
+    consoleError.mockRestore();
+  });
+
+  it("leaves storage untouched when the row no longer exists", async () => {
+    mocks.query.mockReset()
+      .mockResolvedValueOnce({ rows: [{ ...existing }] })
+      .mockResolvedValueOnce({ rows: [] });
+    mocks.r2Send.mockReset();
+
+    expect((await del()).status).toBe(404);
+    expect(mocks.r2Send).not.toHaveBeenCalled();
   });
 });
