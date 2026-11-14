@@ -103,8 +103,13 @@ export async function POST(request: NextRequest) {
       }
 
       if (!result.data.user.emailVerified) {
+        // Only accounts still authenticating against their bcrypt hash get a
+        // pass on verification. Once the account has been upgraded to a native
+        // Neon credential, Neon owns the verification state and an unverified
+        // address has to be proven before it can open a session.
         const { rows: legacyRows } = await db.query(
-          `SELECT 1 FROM public.legacy_credentials WHERE user_id = $1 LIMIT 1`,
+          `SELECT 1 FROM public.legacy_credentials
+            WHERE user_id = $1 AND upgraded_at IS NULL LIMIT 1`,
           [result.data.user.id]
         );
         if (!legacyRows.length) {
