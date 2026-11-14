@@ -1022,7 +1022,7 @@ const Player = () => {
         id="now-playing-bar"
         inert={showFullPlayer}
         aria-hidden={showFullPlayer}
-        className="fixed bottom-14 left-0 right-0 z-[900] hidden min-[600px]:block md:bottom-0 cursor-pointer"
+        className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-[900] hidden min-[600px]:block md:bottom-0 cursor-pointer touch-manipulation select-none"
         onClick={openFullPlayer}
       >
         <div className="relative overflow-hidden border-t border-neutral-200 bg-white shadow-sm">
@@ -1069,7 +1069,7 @@ const Player = () => {
                       e.stopPropagation();
                       setIsShuffle(!isShuffle);
                     }}
-                    className={`rounded-full p-2 transition-colors active:scale-90 ${
+                    className={`hidden rounded-full p-2 transition-colors active:scale-90 md:flex ${
                       isShuffle
                         ? "text-accent"
                         : "text-neutral-400 hover:text-neutral-900"
@@ -1116,7 +1116,7 @@ const Player = () => {
                     aria-label={REPEAT_LABELS[repeatMode]}
                     aria-pressed={repeatActive}
                     onClick={(e) => { e.stopPropagation(); cycleRepeat(); }}
-                    className={`rounded-full p-2 transition-colors active:scale-90 ${
+                    className={`hidden rounded-full p-2 transition-colors active:scale-90 md:flex ${
                       repeatActive
                         ? "text-accent"
                         : "text-neutral-400 hover:text-neutral-900"
@@ -1199,7 +1199,7 @@ const Player = () => {
       <div
         inert={showFullPlayer}
         aria-hidden={showFullPlayer}
-        className="fixed left-3 right-3 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-[900] min-[600px]:hidden cursor-pointer rounded-2xl border border-neutral-200/90 bg-white/95 shadow-xl backdrop-blur-2xl overflow-hidden transition-all active:scale-[0.99]"
+        className="fixed left-3 right-3 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-[900] min-[600px]:hidden cursor-pointer touch-manipulation select-none rounded-2xl border border-neutral-200/90 bg-white/95 shadow-xl backdrop-blur-2xl overflow-hidden transition active:scale-[0.99]"
         onClick={openFullPlayer}
       >
         <ThinProgress
@@ -1207,40 +1207,39 @@ const Player = () => {
           duration={duration}
           onSeek={handleSeek}
           trackClassName="rounded-r-full"
+          interactive={false}
         />
-        <div className="flex items-center gap-3 px-3.5 py-2.5">
-          <SongAvatar title={song.title} size="avatar-mini" variant="mono" />
-          <div className="min-w-0 flex-1">
-            <button
-              type="button"
-              aria-label={`Open now playing: ${song.title}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                openFullPlayer();
-              }}
-              className="block w-full truncate text-left text-sm font-semibold leading-tight tracking-tight text-neutral-900"
-            >
-              {song.title}
-            </button>
-            {isBusy ? (
-              <p className="truncate text-xs font-semibold text-accent">
-                {isPreparing ? "Opening…" : "Buffering…"}
-              </p>
-            ) : (
-              <p className="truncate text-xs font-medium text-neutral-500">
-                {song.author}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              aria-label="Previous track"
-              onClick={(e) => { e.stopPropagation(); onPlayPrevious(); }}
-              className="flex h-11 w-9 items-center justify-center rounded-full text-neutral-500 transition active:scale-90 hover:text-neutral-900"
-            >
-              <SkipBack size={14} fill="currentColor" />
-            </button>
+        <div className="flex items-center gap-2 py-2 pl-3 pr-2">
+          {/* Whole left zone opens the player. When only the title line was the
+              target, a tap on the artwork or the row's padding did nothing. */}
+          <button
+            type="button"
+            aria-label={`Open now playing: ${song.title}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              openFullPlayer();
+            }}
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left"
+          >
+            <SongAvatar title={song.title} size="row" variant="mono" />
+            <div className="min-w-0">
+              <span className="block truncate text-sm font-semibold leading-tight tracking-tight text-neutral-900">
+                {song.title}
+              </span>
+              {isBusy ? (
+                <span className="block truncate text-xs font-semibold text-accent">
+                  {isPreparing ? "Opening…" : "Buffering…"}
+                </span>
+              ) : (
+                <span className="block truncate text-xs font-medium text-neutral-500">
+                  {song.author}
+                </span>
+              )}
+            </div>
+          </button>
+          {/* Play/Pause and Next only: Previous and Save live in the expanded
+              player, and every 44px target here came off the title. */}
+          <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
               aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
@@ -1259,19 +1258,9 @@ const Player = () => {
               type="button"
               aria-label="Next track"
               onClick={(e) => { e.stopPropagation(); onPlayNext(); }}
-              className="flex h-11 w-9 items-center justify-center rounded-full text-neutral-500 transition active:scale-90 hover:text-neutral-900"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-500 transition active:scale-90 hover:text-neutral-900"
             >
-              <SkipForward size={14} fill="currentColor" />
-            </button>
-            <button
-              type="button"
-              aria-label={isLiked ? "Remove from saved songs" : "Save song"}
-              onClick={(e) => { e.stopPropagation(); toggleLike(); }}
-              className={`flex h-11 w-9 items-center justify-center rounded-full transition ${
-                isLiked ? "text-accent" : "text-neutral-400 hover:text-accent"
-              }`}
-            >
-              <Heart size={16} fill={isLiked ? "currentColor" : "none"} />
+              <SkipForward size={16} fill="currentColor" />
             </button>
           </div>
         </div>

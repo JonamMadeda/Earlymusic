@@ -91,16 +91,29 @@ const seekProps = (scrub, label) => ({
  * The 4px progress strip on the player bar and the floating mini card. The
  * visible track stays thin, but the input covers 16px so a thumb can actually
  * hit it — the empty padding below the track belongs to the seek target.
+ *
+ * `interactive={false}` paints the same strip without the input. The mini card
+ * is a tap-to-open surface and its whole width is the open target, so scrubbing
+ * lives on the expanded player's SeekBar instead.
  */
-export const ThinProgress = ({ audioRef, duration, onSeek, trackClassName = "" }) => {
+export const ThinProgress = ({
+  audioRef,
+  duration,
+  onSeek,
+  trackClassName = "",
+  interactive = true,
+}) => {
   const scrub = useScrub(audioRef, duration, onSeek);
 
   return (
     <div className="group relative h-1 bg-neutral-100">
       <input
         {...seekProps(scrub, "Seek through song")}
+        tabIndex={interactive ? undefined : -1}
         onClick={(event) => event.stopPropagation()}
-        className="absolute inset-x-0 top-0 z-20 h-4 w-full cursor-pointer opacity-0"
+        className={`progress-strip absolute inset-x-0 top-0 z-20 h-4 w-full cursor-pointer opacity-0 ${
+          interactive ? "" : "pointer-events-none"
+        }`}
       />
       <div
         className={`h-full bg-accent transition-[width] duration-150 ${trackClassName}`}
@@ -115,17 +128,16 @@ export const ThinProgress = ({ audioRef, duration, onSeek, trackClassName = "" }
 };
 
 /** The full-screen player's slider with elapsed and remaining readouts. Only
- *  used there, so it is styled for that dark surface rather than the light app. */
+ *  used there, so it is styled for that dark surface rather than the light app.
+ *  `.seek-bar` in globals.css owns the track and thumb sizes: as utilities they
+ *  lose to the unlayered range minimums and the track renders 44px tall. */
 export const SeekBar = ({ audioRef, duration, onSeek }) => {
   const scrub = useScrub(audioRef, duration, onSeek);
 
   return (
     <div className="mb-2">
       <div className="relative flex items-center py-2">
-        <input
-          {...seekProps(scrub, "Seek through song")}
-          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/25 accent-white [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg"
-        />
+        <input {...seekProps(scrub, "Seek through song")} className="seek-bar w-full" />
       </div>
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium tabular-nums text-white/60">

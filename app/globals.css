@@ -50,9 +50,16 @@
   }
 }
 
-/* Touch devices: every tappable control meets the 44px minimum target.
-   Inline text links are unaffected because min sizes don't apply to inline
-   boxes; block/flex controls (nav items, rows, rails) grow to finger size. */
+/* Touch targets, sized by importance. Controls start at the 44px minimum and
+   step down deliberately — nothing drops below the floor (24px in WCAG 2.5.8,
+   and 34px here keeps a third of that as slack):
+     .tap-lg  52px  the page's primary action, paired with text-sm
+     default  44px  ordinary buttons
+     .tap-sm  34px  chips and icon buttons that sit inside dense rows
+   Size only reads as correct when the label matches it: a 10-12px label inside
+   a 44px box is what looked oversized, so pair .tap-lg with text-sm and keep
+   .tap-sm on text-xs. Inline text links are unaffected because min sizes don't
+   apply to inline boxes; block/flex controls (nav items, rows, rails) grow. */
 @media (pointer: coarse) {
   button,
   [role="button"] {
@@ -69,6 +76,23 @@
   input[type="range"] {
     min-height: 44px;
   }
+
+  .tap-lg {
+    min-height: 52px;
+  }
+
+  .tap-sm {
+    min-height: 34px;
+    min-width: 34px;
+  }
+}
+
+/* Exception: the player bar's progress strip is a 4px line drawn behind a
+   transparent range input. At the 44px minimum that input covers the top two
+   thirds of the mini-player card, so a tap meant for opening the player landed
+   on it and seeked instead. It keeps its own hit height. */
+input[type="range"].progress-strip {
+  min-height: 0;
 }
 
 html {
@@ -142,6 +166,39 @@ input[type="range"]:focus-visible {
   background: #0f172a;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
   cursor: pointer;
+}
+
+/* The full player's seek bar: the track is painted by the input's own
+   background, so the coarse-pointer 44px minimum would grow the visible line
+   into a slab on phones. Same treatment as the volume slider — the input stays
+   tall enough to land a thumb on, the painted track stays a thin line. */
+input[type="range"].seek-bar {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 0;
+  height: 28px;
+  border-radius: 9999px;
+  background: linear-gradient(rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.28)) center / 100% 5px no-repeat;
+  cursor: pointer;
+}
+
+.seek-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.seek-bar::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border: none;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 }
 
 /* The full player is the app's one dark surface. These are the handful of

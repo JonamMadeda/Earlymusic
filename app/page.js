@@ -368,9 +368,9 @@ const SectionBlock = ({ id, title, subtitle, icon: Icon, items, onPlay, onPlayAl
             <button
               type="button"
               onClick={() => onPlayAll(items[0])}
-              className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md bg-accent/8 px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-accent/15"
+              className="tap-sm flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15"
             >
-              <Play size={10} fill="currentColor" />
+              <Play size={12} fill="currentColor" />
               Play All
             </button>
           )}
@@ -647,23 +647,23 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={shuffleAll}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
+                  className="tap-lg inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-2xs transition hover:bg-accent/90"
                 >
-                  <Shuffle size={12} />
+                  <Shuffle size={14} />
                   <span>Shuffle All</span>
                 </button>
 
                 {recentlyPlayed.length > 0 && (
                   <a
                     href="#recently-played"
-                    className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition"
                   >
-                    <Clock size={12} className="text-neutral-500" />
+                    <Clock size={14} className="text-neutral-500" />
                     <span>Recent ({recentlyPlayed.length})</span>
                   </a>
                 )}
 
-                <div className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50/70 px-2.5 py-1.5 text-xs font-medium text-neutral-500">
+                <div className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50/70 px-3 py-2 text-[13px] font-medium text-neutral-500">
                   <span className="font-bold text-neutral-800">{stats.total}</span> tracks
                   <span className="text-neutral-300">•</span>
                   <span className="font-bold text-neutral-800">{stats.artists}</span> artists
@@ -713,10 +713,10 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={copyVerse}
-                    className="shrink-0 p-1 text-neutral-400 hover:text-neutral-700 transition"
+                    className="tap-sm shrink-0 rounded-lg p-1.5 text-neutral-400 hover:text-neutral-700 transition"
                     title="Copy verse"
                   >
-                    {verseCopied ? <Check size={12} className="text-accent font-bold" /> : <Copy size={12} />}
+                    {verseCopied ? <Check size={14} className="text-accent font-bold" /> : <Copy size={14} />}
                   </button>
                 </div>
               )}
@@ -749,7 +749,7 @@ export default function Home() {
                     document.getElementById("recommended")?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }, 50);
                 }}
-                className={`shrink-0 rounded-lg px-3 py-1 text-xs font-semibold transition-all duration-150 ${
+                className={`tap-sm shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
                   isSelected
                     ? "bg-accent text-white shadow-2xs"
                     : "bg-white text-neutral-700 border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
@@ -817,9 +817,9 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setActiveSong(spotifySong, sortedSongs)}
-                        className="inline-flex items-center justify-center gap-1.5 self-start sm:self-auto rounded-lg bg-white px-4 py-2 text-xs font-bold text-[#0f172a] shadow-sm transition hover:bg-neutral-100 active:scale-95 shrink-0"
+                        className="tap-lg inline-flex items-center justify-center gap-2 self-start sm:self-auto rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-[#0f172a] shadow-sm transition hover:bg-neutral-100 active:scale-95 shrink-0"
                       >
-                        <Play size={12} fill="currentColor" />
+                        <Play size={14} fill="currentColor" />
                         <span>Play Spotlight</span>
                       </button>
                     </div>
@@ -893,9 +893,9 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => setActiveSong(recentlyPlayed[0], recentlyPlayed)}
-                      className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-accent/15"
+                      className="tap-sm flex items-center gap-1.5 rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15"
                     >
-                      <Play size={10} fill="currentColor" />
+                      <Play size={12} fill="currentColor" />
                       {hasRealHistory ? "Resume" : "Play All"}
                     </button>
                   </div>
@@ -970,9 +970,9 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => setActiveSong(recommendedSongs[0], recommendedSongs)}
-                          className="flex items-center gap-1 rounded-md bg-accent/8 px-2.5 py-1 text-xs font-bold text-accent transition hover:bg-accent/15"
+                          className="tap-sm flex items-center gap-1.5 rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15"
                         >
-                          <Play size={10} fill="currentColor" />
+                          <Play size={12} fill="currentColor" />
                           Play All
                         </button>
                       )}
@@ -1029,9 +1029,9 @@ export default function Home() {
                 </p>
                 <Link
                   href="/admin"
-                  className="mt-4 inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
+                  className="tap-lg mt-4 inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-2xs transition hover:bg-accent/90"
                 >
-                  <Upload size={13} />
+                  <Upload size={15} />
                   Upload a Song
                 </Link>
               </div>
@@ -1065,9 +1065,9 @@ export default function Home() {
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }
                   }}
-                  className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-xs font-bold text-neutral-700 shadow-2xs transition hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 active:scale-95"
+                  className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-bold text-neutral-700 shadow-2xs transition hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 active:scale-95"
                 >
-                  <ArrowUp size={13} />
+                  <ArrowUp size={14} />
                   <span>Back to top</span>
                 </button>
               </div>
