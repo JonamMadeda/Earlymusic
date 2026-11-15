@@ -9,23 +9,41 @@
  *   node scripts/apply-sql-migration.mjs --status
  *   node scripts/apply-sql-migration.mjs lib/migration-notifications.sql
  *   node scripts/apply-sql-migration.mjs --all
+ *   node scripts/apply-sql-migration.mjs --adopt
  *
- * --status prints which files public.schema_migrations has recorded; --all
- * applies every lib/migration*.sql not yet recorded, in filename order.
+ * Most of these files were applied to production by hand, in the Neon SQL
+ * editor, before this script existed — so "is it in public.schema_migrations?"
+ * is not the same question as "is it in the schema?". --status answers both by
+ * running the read-only presence probes in lib/migrationProbes.js and prints
+ * one of:
  *
- * Most files are additive (CREATE ... IF NOT EXISTS) so re-running them is
- * harmless, but the UPDATE-only ones (relative song paths, placeholder names)
- * are worth running once. schema_migrations exists so "has this actually run
- * against production?" has an answer that is not a guess.
+ *   recorded        this script ran it and wrote the row
+ *   present         the schema already matches; it predates the tracking table
+ *   missing         not applied
+ *   unknown         no probe for this file, so the script cannot tell
+ *   probe-failed    the probe errored; the file is left alone
+ *   supabase-only   cannot run against Neon at all (see migrationProbes.js)
  *
- * NOTE: lib/migration.sql is Supabase-era (auth.uid(), RLS policies,
- * uuid_generate_v4) and will not execute against Neon. It is kept for history.
+ * --all applies every file classified missing or unknown, in filename order,
+ * and skips recorded, present, probe-failed and supabase-only ones. --adopt
+ * writes tracking rows for the files classified present, without running them:
+ * the row then means "this schema state was verified", not "we watched it
+ * happen", which is why it is a separate command instead of a side effect.
+ *
+ * Files are order-dependent (later ones reference earlier tables), so a failure
+ * stops the run rather than pressing on into a half-built schema.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { neon } from "@neondatabase/serverless";
 import { executableStatements } from "../lib/sqlSplit.js";
+import {
+  SUPABASE_ONLY_MIGRATIONS,
+  classifyMigration,
+  presenceProbes,
+  shouldApply,
+} from "../lib/migrationProbes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -70,6 +88,55 @@ const repoMigrations = () =>
     .map((name) => `lib/${name}`)
     .sort();
 
+const recordedRows = async () => {
+  const rows = rowsOf(
+    await sql.query(
+      "SELECT filename, applied_at, statements FROM public.schema_migrations"
+    )
+  );
+  return new Map(rows.map((row) => [row.filename, row]));
+};
+
+// One round trip per probe: a single combined query would let one bad probe
+// take the whole report down with it.
+const probePresence = async () => {
+  const results = new Map();
+  for (const [file, probe] of Object.entries(presenceProbes)) {
+    try {
+      const rows = rowsOf(await sql.query(probe));
+      results.set(file, rows[0]?.present === true);
+    } catch {
+      results.set(file, null);
+    }
+  }
+  return results;
+};
+
+const classifyAll = async () => {
+  const recorded = await recordedRows();
+  const probes = await probePresence();
+  const classes = new Map();
+  for (const file of repoMigrations()) {
+    classes.set(file, {
+      kind: classifyMigration(file, {
+        recorded: recorded.has(file),
+        probeResult: probes.get(file),
+      }),
+      row: recorded.get(file),
+    });
+  }
+  return classes;
+};
+
+const NOTE = {
+  recorded: "run by this script",
+  present: "schema already matches; predates the tracking table",
+  missing: "not applied",
+  unknown: "no presence probe",
+  "probe-failed": "probe errored; left alone",
+  "supabase-only": "Supabase-era; cannot run against Neon",
+};
+
 const applyFile = async (file) => {
   let text;
   try {
@@ -101,6 +168,11 @@ const applyFile = async (file) => {
     }
   }
 
+  await recordFile(file, ran);
+  return { ok: true, ran };
+};
+
+const recordFile = async (file, ran) => {
   try {
     await sql.query(
       `INSERT INTO public.schema_migrations (filename, statements)
@@ -111,43 +183,73 @@ const applyFile = async (file) => {
   } catch (error) {
     console.error(`  warn  could not record ${file}: ${error.message}`);
   }
+};
 
-  return { ok: true, ran };
+const statementCount = (file) => {
+  try {
+    return executableStatements(readFileSync(join(root, file), "utf8")).statements.length;
+  } catch {
+    return 0;
+  }
 };
 
 const argv = process.argv.slice(2);
 
 await sql.query(TRACKING_DDL);
+const classes = await classifyAll();
 
 if (argv.includes("--status")) {
-  const applied = rowsOf(
-    await sql.query("SELECT filename, applied_at, statements FROM public.schema_migrations ORDER BY filename")
-  );
-  const known = new Map(applied.map((row) => [row.filename, row]));
+  const detail = ({ kind, row }) =>
+    kind === "recorded"
+      ? ` (${row.statements} statements, ${new Date(row.applied_at).toISOString().slice(0, 10)})`
+      : `  (${NOTE[kind]})`;
+
   console.log("\nmigrations:");
-  for (const file of repoMigrations()) {
-    const row = known.get(file);
-    console.log(`  ${row ? "applied" : "   never"}  ${file}${row ? ` (${row.statements} statements, ${new Date(row.applied_at).toISOString().slice(0, 10)})` : ""}`);
-    known.delete(file);
+  for (const [file, entry] of classes) {
+    console.log(`  ${entry.kind.padEnd(13)} ${file}${detail(entry)}`);
   }
-  for (const [file] of known) console.log(`  removed    ${file} (applied but no longer in lib/)`);
+  for (const file of SUPABASE_ONLY_MIGRATIONS) {
+    if (!classes.has(file)) {
+      console.log(`  ${"supabase-only".padEnd(13)} ${file}  (${NOTE["supabase-only"]})`);
+    }
+  }
+  process.exit(0);
+}
+
+if (argv.includes("--adopt")) {
+  const present = [...classes].filter(([, entry]) => entry.kind === "present");
+  if (!present.length) console.log("Nothing to adopt: no file is classified present.");
+  for (const [file] of present) {
+    await recordFile(file, statementCount(file));
+    console.log(`  adopted  ${file} (schema verified, not re-run)`);
+  }
   process.exit(0);
 }
 
 const explicit = argv.filter((arg) => arg.startsWith("lib/"));
+const refused = explicit.filter((file) => SUPABASE_ONLY_MIGRATIONS.includes(file));
+if (refused.length) {
+  console.error(
+    `Refusing ${refused.join(", ")}: ${NOTE["supabase-only"]}. ` +
+      "It is kept for history; see lib/migrationProbes.js."
+  );
+  process.exit(1);
+}
+
 let targets;
 if (argv.includes("--all")) {
-  const applied = new Set(
-    rowsOf(await sql.query("SELECT filename FROM public.schema_migrations")).map((r) => r.filename)
-  );
-  targets = repoMigrations().filter((file) => !applied.has(file));
-  if (!targets.length) console.log("Every lib/migration*.sql is already recorded.");
+  targets = [...classes].filter(([, entry]) => shouldApply(entry.kind)).map(([file]) => file);
+  const skipped = [...classes].filter(([, entry]) => !shouldApply(entry.kind));
+  for (const [file, entry] of skipped) {
+    console.log(`  skip    ${file} (${entry.kind}: ${NOTE[entry.kind]})`);
+  }
+  if (!targets.length) console.log("\nNothing to apply.");
 } else {
   targets = explicit;
 }
 
 if (!targets.length && !argv.includes("--all")) {
-  console.error("Give one or more lib/migration-*.sql files, or pass --all / --status.");
+  console.error("Give one or more lib/migration-*.sql files, or pass --all / --status / --adopt.");
   process.exit(1);
 }
 
