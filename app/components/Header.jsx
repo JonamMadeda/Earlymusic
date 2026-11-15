@@ -52,11 +52,12 @@ const Header = () => {
   return (
     <>
       {/* Icon sizes follow one scale so the bar reads as a set: 18px for a glyph
-          that is alone in its circle (search, bell), 14 for a glyph next to a
-          text label, and 12 for the status chip. The circles are .tap-sm (34px),
-          and 18/34 is the ratio that stops them looking empty. */}
-      <header className="sticky top-0 z-[200] border-b border-neutral-100 bg-white/90 px-4 py-2.5 backdrop-blur-xl md:px-6 md:py-3">
-        <div className="flex items-center justify-between gap-4">
+          that is alone in its circle (search, bell) and 14 for a glyph next to a
+          text label. The circles are .tap-sm (34px), and 18/34 is the ratio that
+          stops them looking empty. Nothing in this row changes width with the
+          connection state — see the offline row below it. */}
+      <header className="sticky top-0 z-[200] border-b border-neutral-100 bg-white/90 backdrop-blur-xl">
+        <div className="flex items-center justify-between gap-4 px-4 py-2.5 md:px-6 md:py-3">
           {/* Mobile brand / Desktop search trigger */}
           <div className="flex items-center gap-3">
             <Link href="/" className="md:hidden flex items-center">
@@ -106,17 +107,23 @@ const Header = () => {
                 Sign in
               </Link>
             )}
-
-            {!isOnline && (
-              <div className="flex items-center gap-x-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 animate-pulse">
-                <CloudOff size={12} className="text-amber-700" />
-                <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">
-                  Offline
-                </span>
-              </div>
-            )}
           </div>
         </div>
+
+        {/* Offline is a state of the whole app, not another control in the bar,
+            so it gets its own row instead of a pill that shoves Sign in leftward
+            on a 411px screen. role="status" announces the change in both
+            directions; no pulse, because a persistent warning that animates
+            forever reads as an alarm. */}
+        {!isOnline && (
+          <div
+            role="status"
+            className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-semibold text-amber-800 md:px-6"
+          >
+            <CloudOff size={12} aria-hidden="true" className="shrink-0" />
+            <span>Offline — playing from this device&rsquo;s cache.</span>
+          </div>
+        )}
       </header>
 
       {isSearchOpen && <GlobalSearchModal isOpen onClose={() => setIsSearchOpen(false)} />}
