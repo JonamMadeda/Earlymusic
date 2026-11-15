@@ -220,7 +220,13 @@ describe("global New catalogue membership", () => {
     change(find(page.tree, (node) => node.props.placeholder === "Search songs or artists..."), query);
     page.render();
     expect(songRows(page.tree)).toHaveLength(0);
-    expect(text(page.tree)).toContain("15 new");
+    // The New badge used to carry this proof; with one count in the title, the
+    // membership is proven by the rows the New filter yields once the search
+    // is gone — still all fifteen, none of them the archive track.
+    change(find(page.tree, (node) => node.props.placeholder === "Search songs or artists..."), "");
+    page.render();
+    expect(songRows(page.tree)).toHaveLength(15);
+    expect(songRows(page.tree).every((row) => row.props.isNew)).toBe(true);
   });
 
   it("intersects search, category and duration with global badges and the playback list", () => {

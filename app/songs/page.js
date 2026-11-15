@@ -56,11 +56,17 @@ const sortOptions = [
   { label: "Date Added", value: "created_at" },
 ];
 
+// The toolbar shows these; sortOptions keeps the longer wording for tooltips.
+const sortLabels = { title: "Title", author: "Artist", created_at: "Date" };
+
+// The panel's chips are the dense tier (.tap-sm, 34px on touch), not the
+// generic 44px button floor: at four wrapped rows the floor made the filter
+// panel taller than the few songs it was meant to reveal.
 const Chip = ({ label, active, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`whitespace-nowrap rounded-lg border px-3 py-1.5 md:px-3.5 md:py-2 text-xs md:text-xs font-semibold transition-all duration-150 ${
+    className={`tap-sm whitespace-nowrap rounded-lg border px-2 py-1 text-[11px] font-semibold transition-all duration-150 md:px-3.5 md:py-2 md:text-xs ${
       active
         ? "border-accent bg-accent text-white shadow-2xs"
         : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 hover:border-neutral-300"
@@ -289,10 +295,10 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
           onClick(e);
         }
       }}
-      className={`group relative flex w-full items-center gap-2.5 md:gap-3 rounded-xl p-2.5 md:p-3 text-left transition-all duration-200 hover:-translate-y-0.5 ${
+      className={`group relative flex w-full items-center gap-2.5 px-1.5 py-2.5 text-left transition-colors duration-150 md:gap-3 ${
         isActive
-          ? "border-2 border-accent bg-neutral-50 shadow-xs"
-          : "border border-neutral-200 bg-white hover:border-neutral-400/80 shadow-2xs"
+          ? "bg-accent/[0.07] shadow-[inset_2px_0_0_var(--color-accent)]"
+          : "hover:bg-neutral-50"
       }`}
     >
       <div className="relative shrink-0">
@@ -739,6 +745,19 @@ useEffect(() => {
     activeDuration !== "All" ? activeDuration : null,
   ].filter(Boolean).length;
 
+  // One line each in the open panel; keeping them as a list is what lets a
+  // label sit beside its chips instead of above them.
+  const filterGroups = [
+    {
+      title: "Time",
+      options: timeFilters.map((filter) => filter.label),
+      value: activeFilter,
+      setValue: setActiveFilter,
+    },
+    { title: "Type", options: categories, value: activeCategory, setValue: setActiveCategory },
+    { title: "Duration", options: durations, value: activeDuration, setValue: setActiveDuration },
+  ];
+
   const stats = useMemo(() => {
     const list = allSongs || [];
     return {
@@ -815,6 +834,13 @@ useEffect(() => {
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
                   Loading library…
                 </span>
+              ) : hasFilters ? (
+                // One count, in the one place it is read: while a filter is on,
+                // the catalogue breakdown is not what the listener is checking.
+                <>
+                  <span className="font-bold text-neutral-800">{filteredSongs.length}</span> of{" "}
+                  {stats.total} tracks
+                </>
               ) : (
                 <>
                   <span className="font-bold text-neutral-800">{stats.total}</span> tracks
@@ -882,20 +908,21 @@ useEffect(() => {
                     setSortAsc(true);
                   }
                 }}
-                className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900 md:px-3"
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900 md:gap-2 md:px-3 md:text-xs"
                 title={`Sort by: ${sortOptions.find((o) => o.value === sortBy)?.label}`}
               >
-                <ArrowUpDown size={14} />
-                <span className="hidden md:inline">
-                  {sortOptions.find((o) => o.value === sortBy)?.label}
-                </span>
+                <ArrowUpDown size={13} />
+                {/* The field name stays on the phone: an unlabelled ⇅ next to an
+                    unlabelled arrow is two mystery icons, which reads as clutter
+                    rather than as a control. */}
+                <span>{sortLabels[sortBy]}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSortAsc((prev) => !prev)}
                 aria-label={sortAsc ? "Sorted A to Z, tap for Z to A" : "Sorted Z to A, tap for A to Z"}
                 title={sortAsc ? "Ascending" : "Descending"}
-                className="flex items-center gap-1 border-l border-neutral-200/80 px-2 text-xs font-semibold text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+                className="flex shrink-0 items-center gap-1 border-l border-neutral-200/80 px-2 py-2 text-[11px] font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900 md:text-xs"
               >
                 {sortAsc ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
                 <span className="hidden sm:inline">{sortAsc ? "A-Z" : "Z-A"}</span>
@@ -905,26 +932,22 @@ useEffect(() => {
             <button
               type="button"
               onClick={() => setFiltersOpen((prev) => !prev)}
-              className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition md:gap-2 md:px-3.5 ${
+              className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-semibold transition md:gap-2 md:px-3.5 md:text-xs ${
                 activeFilterCount > 0
                   ? "border-accent bg-accent/8 text-accent hover:bg-accent/15"
-                  : "border-neutral-200/80 bg-white text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900"
+                  : "border-neutral-200/80 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
               }`}
             >
-              <Filter size={14} />
-              <span className="hidden sm:inline">Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
+              <Filter size={13} />
+              <span>Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
               {filtersOpen ? <ChevronUp size={14} className="shrink-0" /> : <ChevronDown size={14} className="shrink-0" />}
             </button>
           </div>
 
           {hasFilters && (
             <div className="flex flex-wrap items-center gap-2 px-1 pt-2.5">
-              <span className="text-xs font-medium text-neutral-500">
-                <span className="font-bold text-neutral-800">{filteredSongs.length}</span> of {allSongs?.length || 0} songs
-              </span>
-              <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-500">
-                {activeFilterCount} active
-              </span>
+              {/* The number of results is in the title line above, so this row
+                  carries only the two ways out. */}
               {searchValue.trim() && (
                 <button
                   type="button"
@@ -951,53 +974,29 @@ useEffect(() => {
       </div>
 
       {filtersOpen && (
-          <section className="rounded-xl border border-neutral-200 bg-white px-4 py-4 shadow-2xs md:px-5 md:py-5">
-            <div className="flex flex-col gap-4 md:grid md:grid-cols-3 md:gap-6">
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-neutral-400">
-                  Time
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {timeFilters.map((filter) => (
-                    <Chip
-                      key={filter.label}
-                      label={filter.label}
-                      active={activeFilter === filter.label}
-                      onClick={() => setActiveFilter(filter.label)}
-                    />
-                  ))}
+          <section className="rounded-xl border border-neutral-200 bg-white px-3 py-2.5 shadow-2xs md:px-5 md:py-4">
+            {/* One line per filter, with its name in front of the chips. The
+                stacked version — label alone on a line above each group —
+                measured 225px on a phone, so opening it hid a third of the
+                screen before a single song. */}
+            <div className="flex flex-col gap-1.5">
+              {filterGroups.map((group) => (
+                <div key={group.title} className="flex items-start gap-2">
+                  <p className="w-[64px] shrink-0 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
+                    {group.title}
+                  </p>
+                  <div className="flex flex-1 flex-wrap gap-1.5">
+                    {group.options.map((option) => (
+                      <Chip
+                        key={option}
+                        label={option}
+                        active={group.value === option}
+                        onClick={() => group.setValue(option)}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-neutral-400">
-                  Type
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((category) => (
-                    <Chip
-                      key={category}
-                      label={category}
-                      active={activeCategory === category}
-                      onClick={() => setActiveCategory(category)}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-neutral-400">
-                  Duration
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {durations.map((duration) => (
-                    <Chip
-                      key={duration}
-                      label={duration}
-                      active={activeDuration === duration}
-                      onClick={() => setActiveDuration(duration)}
-                    />
-                  ))}
-                </div>
-              </div>
+              ))}
             </div>
           </section>
       )}
@@ -1037,7 +1036,10 @@ useEffect(() => {
                         </span>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-y-1.5 md:gap-y-2">
+                    {/* A flat list with hairlines, not a stack of bordered cards:
+                        forty boxes each with a border and a shadow is what made
+                        the page read as clutter. */}
+                    <div className="flex flex-col divide-y divide-neutral-200/70">
                       {group.songs.map((song, idx) => {
                         const menuUp =
                           groupIdx === songGroups.length - 1 &&
