@@ -1007,7 +1007,7 @@ useEffect(() => {
         {isLoading ? (
           <PageSkeleton />
         ) : songGroups.length > 0 ? (
-          <div className="flex gap-3 sm:gap-4">
+          <div className="flex gap-1.5 sm:gap-4">
             {/* Songs */}
             <div className="min-w-0 flex-1">
               <div className="flex flex-col gap-y-5 md:gap-y-6">
@@ -1060,15 +1060,16 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* Alphabet Jump Bar — always visible beside the list, and sticky
-                under the toolbar while scrolling. */}
+            {/* Alphabet Jump Bar — letters only, flush against the list. It used
+                to be a bordered white card, which made a 26px column read as a
+                second sidebar next to the rows on a 411px screen. */}
             <div
               style={{
                 top: letterStickyTop,
                 maxHeight: `calc(100dvh - ${letterStickyTop + 150}px)`,
               }}
               aria-label={sortBy === "created_at" ? "Date index" : "Alphabet index"}
-              className="no-scrollbar sticky flex shrink-0 flex-col items-center gap-px self-start overflow-y-auto rounded-xl border border-neutral-200 bg-white/90 px-0.5 py-1 shadow-2xs backdrop-blur-md lg:gap-0.5 lg:rounded-none lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:pt-4 lg:shadow-none lg:backdrop-blur-none"
+              className="no-scrollbar sticky flex shrink-0 flex-col items-center self-start overflow-y-auto lg:gap-0.5 lg:pt-4"
             >
               {songGroups.map((group) => (
                 <button
@@ -1076,7 +1077,7 @@ useEffect(() => {
                   type="button"
                   aria-label={`Jump to ${group.label}`}
                   onClick={() => scrollToLetter(group.key)}
-                  className={`flex h-4 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold leading-none transition-all duration-200 select-none sm:h-[17px] sm:text-xs lg:h-[18px] lg:w-5 lg:text-xs ${
+                  className={`flex h-[18px] min-w-4 shrink-0 items-center justify-center whitespace-nowrap rounded-full text-[11px] font-bold leading-none transition-all duration-200 select-none sm:h-[17px] sm:min-w-5 sm:text-xs lg:h-[18px] lg:min-w-5 lg:text-xs ${
                     jumpLetter === group.key
                       ? "bg-accent text-white scale-110"
                       : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 active:bg-neutral-100 active:text-neutral-700"
