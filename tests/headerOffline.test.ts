@@ -34,3 +34,33 @@ describe("offline indicator", () => {
     expect(header).toMatch(/cache/);
   });
 });
+
+// The bar collapses away on a downward drag by giving its own height back as a
+// negative margin, so the scroll container grows into the space instead of
+// leaving a blank band where the bar was.
+describe("scroll collapse", () => {
+  it("leaves the bar in normal flow", () => {
+    // `sticky top-0` clamps the bar to the top of <main>, which cancels the
+    // negative margin and hides nothing — it looks fine until you scroll.
+    expect(header).not.toMatch(/sticky top-0/);
+    expect(header).toMatch(/relative z-\[200\]/);
+  });
+
+  it("watches #app-scroll, not the window", () => {
+    // layout.js scrolls inside #app-scroll under an h-dvh overflow-hidden
+    // shell, so window.scrollY is pinned at 0 and a window listener is dead code.
+    expect(header).toMatch(/getElementById\("app-scroll"\)/);
+    expect(header).not.toMatch(/window\.addEventListener\("scroll"/);
+  });
+
+  it("collapses by the measured height and takes its controls out of the tab order", () => {
+    expect(header).toMatch(/marginTop: -barHeight/);
+    expect(header).toMatch(/inert=\{barCollapsed\}/);
+    // The offline row is part of the bar, so the height cannot be a constant.
+    expect(header).toMatch(/el\.offsetHeight/);
+  });
+
+  it("keeps the mobile wordmark at the size the brand is elsewhere", () => {
+    expect(header).toMatch(/text-\[18px\][^>]*>\s*Luumbo/);
+  });
+});
