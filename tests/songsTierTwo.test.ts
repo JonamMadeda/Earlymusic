@@ -19,8 +19,9 @@ describe("songs clear control", () => {
     expect(view.match(/onClick=\{clearAll\}/g)).toHaveLength(2);
     expect(view).toMatch(/const clearAll = useCallback\(\(\) => \{/);
     // The three controls it replaced: Reset left the search alone, and
-    // "Clear search" duplicated the ✕ already inside the field.
-    expect(view).not.toMatch(/Clear search/);
+    // "Clear search" duplicated the ✕ already inside the field. The ✕ itself is
+    // now named "Clear search" for screen readers — a label, not a second button.
+    expect(view).not.toMatch(/>\s*Clear search\s*</);
     expect(view).not.toMatch(/>\s*Reset\s*</);
   });
 

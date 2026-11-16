@@ -105,12 +105,17 @@ const Chip = ({ label, active, onClick }) => (
   </button>
 );
 
-const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menuUp = false }) => {
-  const menuPos = menuUp ? "bottom-0 mb-10" : "top-0 mt-10";
+// Measured, not guessed: the ⋯ popup is ~235px tall and its top sits ~55px below
+// the row's top edge (it hangs off the ⋯ cluster, which is centred in the row).
+const MENU_ROOM = 300;
+
+const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) => {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const rowRef = useRef(null);
+  const menuButtonRef = useRef(null);
+  const menuRef = useRef(null);
   const [isSaved, setIsSaved] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
@@ -121,8 +126,77 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
   const [downloadStatus, setDownloadStatus] = useState("idle");
   const [downloadError, setDownloadError] = useState("");
   const [shareFeedback, setShareFeedback] = useState("");
+  // Decided when the menu opens, from where this row actually sits. The old rule
+  // flipped only the last two rows of the last group, so a menu opened anywhere
+  // else could land under the floating player.
+  const [menuUp, setMenuUp] = useState(false);
   const dlTimeoutRef = useRef(null);
   const shareTimeoutRef = useRef(null);
+  const menuId = `song-menu-${song.id}`;
+
+  const menuPos = menuUp ? "bottom-0 mb-10" : "top-0 mt-10";
+
+  // `#app-scroll` reserves the player's and the bottom nav's height as its own
+  // bottom padding, so that number is already the area a menu must not open into.
+  // The test is against the row's *top*, because that is where the popup hangs
+  // from: comparing the bottom flipped rows in the upper half of the screen, whose
+  // menus then went off the top instead.
+  const openMenu = () => {
+    const row = rowRef.current;
+    if (row) {
+      const scroller = row.closest("#app-scroll");
+      const reserved = scroller
+        ? parseFloat(window.getComputedStyle(scroller).paddingBottom) || 0
+        : 0;
+      setMenuUp(row.getBoundingClientRect().top + MENU_ROOM > window.innerHeight - reserved);
+    }
+    setShowMenu(true);
+    setShowInfo(false);
+    setShowPlaylists(false);
+  };
+
+  const closeMenus = () => {
+    setShowMenu(false);
+    setShowInfo(false);
+    setShowPlaylists(false);
+  };
+
+  // Escape belongs to whichever popup is open: the page-level handler clears the
+  // search, and leaving a menu should never also wipe the query.
+  useEffect(() => {
+    if (!showMenu && !showInfo && !showPlaylists && !showReport) return;
+    const handleEscape = (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setShowMenu(false);
+      setShowInfo(false);
+      setShowPlaylists(false);
+      setShowReport(false);
+      menuButtonRef.current?.focus();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showMenu, showInfo, showPlaylists, showReport]);
+
+  // role="menu" promises arrow keys, so they move between the items rather than
+  // leaving the popup to tab order alone.
+  const onMenuKeyDown = (e) => {
+    const items = menuRef.current
+      ? [...menuRef.current.querySelectorAll('[role="menuitem"]')]
+      : [];
+    if (items.length === 0) return;
+    const at = items.indexOf(document.activeElement);
+    const move = (next) => {
+      e.preventDefault();
+      items[(next + items.length) % items.length]?.focus();
+    };
+    if (e.key === "ArrowDown") move(at + 1);
+    else if (e.key === "ArrowUp") move(at <= 0 ? -1 : at - 1);
+    else if (e.key === "Home") move(0);
+    else if (e.key === "End") move(items.length - 1);
+    else if (e.key === "Tab") closeMenus();
+  };
+
 
   useEffect(() => {
     let cancelled = false;
@@ -313,17 +387,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
   return (
     <div
       ref={rowRef}
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick(e);
-        }
-      }}
       className={`group relative flex w-full items-center gap-2.5 px-1.5 py-2.5 text-left transition-colors duration-150 md:gap-3 ${
         isActive
           ? "bg-accent/[0.07] shadow-[inset_2px_0_0_var(--color-accent)]"
@@ -337,11 +401,25 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
         )}
       </div>
 
+      {/* The row is a container and the play control is the button inside it.
+          It used to be `role="button"` on the whole row, which is invalid once
+          the row also holds the category chip and the ⋯ menu — and a screen
+          reader announced every row as one long button whose name was the whole
+          line. The stretched ::after keeps the strip tappable end to end, so
+          nothing was lost when the row's own onClick went away. */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className={`truncate text-xs sm:text-sm font-semibold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
-            {song.title}
-          </p>
+          <button
+            type="button"
+            onClick={onClick}
+            aria-current={isActive ? "true" : undefined}
+            aria-label={`${isActive ? "Playing" : "Play"}: ${song.title || "this song"}`}
+            className="min-w-0 max-w-full rounded text-left after:absolute after:inset-0"
+          >
+            <p className={`truncate text-xs sm:text-sm font-semibold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
+              {song.title}
+            </p>
+          </button>
           {isActive && (
             <div className="waveform shrink-0 text-accent">
               <span /><span /><span /><span />
@@ -354,11 +432,13 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
           )}
           {song.category && (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onCategoryClick?.(song.category);
               }}
-              className="hidden md:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300"
+              aria-label={`Filter by ${song.category}`}
+              className="relative z-20 hidden md:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300"
             >
               {song.category}
             </button>
@@ -369,33 +449,50 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
         </p>
       </div>
 
-      <div className="relative flex items-center gap-1.5">
-        {/* The row has to explain the filter that can narrow it: Duration is a
-            control, and until now nothing on screen said which end of it a
-            track sits on. This corner of a phone row was empty anyway. */}
-        <span className="whitespace-nowrap text-[11px] font-medium text-neutral-500">
-          {song.duration || "Long"}
-        </span>
+      {/* The row has to explain the filter that can narrow it: Duration is a
+          control, and until now nothing on screen said which end of it a track
+          sits on. It stays under the play control's stretched layer, so a tap on
+          the length still plays the song the way a tap anywhere else does. */}
+      <span className="whitespace-nowrap text-[11px] font-medium text-neutral-500">
+        {song.duration || "Long"}
+      </span>
+
+      {/* The ⋯ and its popups sit above that layer, or the menu could never open. */}
+      <div className="relative z-20 flex items-center gap-1.5">
         <button
+          ref={menuButtonRef}
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
-            setShowMenu(!showMenu);
-            setShowInfo(false);
-            setShowPlaylists(false);
+            if (showMenu) {
+              setShowMenu(false);
+              return;
+            }
+            openMenu();
           }}
           className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
           title="More"
           aria-label={`More actions for ${song.title || "this song"}`}
+          aria-haspopup="menu"
+          aria-expanded={showMenu}
+          aria-controls={showMenu ? menuId : undefined}
         >
           <MoreHorizontal size={14} />
         </button>
 
         {showMenu && (
           <div
+            id={menuId}
+            ref={menuRef}
+            role="menu"
+            aria-label={`More actions for ${song.title || "this song"}`}
+            tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={onMenuKeyDown}
             className={`absolute right-0 z-50 min-w-[210px] rounded-xl border border-neutral-100 bg-white p-2 shadow-lg ${menuPos}`}
           >
             <button
+              role="menuitem"
               onClick={() => {
                 setShowInfo(true);
                 setShowMenu(false);
@@ -407,6 +504,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
               <span className="text-xs font-semibold">Compilation Details</span>
             </button>
             <button
+              role="menuitem"
               onClick={() => {
                 if (!user) {
                   router.push(`/auth?redirectTo=${encodeURIComponent(pathname)}`);
@@ -423,6 +521,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
             </button>
             {song.download_allowed !== false && (
               <button
+                role="menuitem"
                 onClick={toggleDownload}
                 className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
               >
@@ -439,6 +538,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
               </button>
             )}
             <button
+              role="menuitem"
               onClick={handleShare}
               className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
             >
@@ -452,6 +552,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
               </span>
             </button>
             <button
+              role="menuitem"
               onClick={toggleSave}
               className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
             >
@@ -464,6 +565,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick, menu
               </span>
             </button>
             <button
+              role="menuitem"
               onClick={() => {
                 setShowMenu(false);
                 setShowReport(true);
@@ -842,6 +944,51 @@ useEffect(() => {
     return () => clearTimeout(jumpTimeoutRef.current);
   }, []);
 
+  // The rail is a scrub surface, not twenty-six small buttons. Letters are 16×18
+  // — under WCAG 2.5.8's 24px floor — so precision used to decide whether a drag
+  // landed on "H" or its neighbour. Dragging anywhere along the column now picks
+  // the nearest group, which is what an index bar does everywhere else.
+  const railRef = useRef(null);
+  const railLettersRef = useRef({});
+  const railKeyRef = useRef(null);
+  const [railScrubbing, setRailScrubbing] = useState(false);
+
+  const jumpFromClientY = useCallback((clientY) => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    // The column scrolls when the groups don't fit (they are 44px tall under a
+    // coarse pointer), so pushing the finger past an end walks the rest of them.
+    const box = rail.getBoundingClientRect();
+    const EDGE = 14;
+    if (clientY < box.top + EDGE) rail.scrollTop -= 16;
+    else if (clientY > box.bottom - EDGE) rail.scrollTop += 16;
+
+    let nearest = null;
+    let nearestGap = Infinity;
+    for (const el of Object.values(railLettersRef.current)) {
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      const gap = Math.abs(rect.top + rect.height / 2 - clientY);
+      if (gap < nearestGap) {
+        nearestGap = gap;
+        nearest = el.dataset.railKey;
+      }
+    }
+    if (nearest && nearest !== railKeyRef.current) {
+      railKeyRef.current = nearest;
+      scrollToLetter(nearest);
+    }
+  }, [scrollToLetter]);
+
+  // A mouse keeps its clicks and a drag that leaves the column simply stops: no
+  // pointer capture, because capturing retargets the release away from the letter
+  // and throws for a pointer that is already gone.
+  const stopRailScrub = () => {
+    setRailScrubbing(false);
+    railKeyRef.current = null;
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -852,6 +999,9 @@ useEffect(() => {
         searchInputRef.current?.focus();
       }
       if (e.key === "Escape") {
+        // A row's own popup already handled this one (it preventDefaults so the
+        // query stays put while the menu closes).
+        if (e.defaultPrevented) return;
         if (searchValue) {
           setSearchValue("");
         }
@@ -950,12 +1100,14 @@ useEffect(() => {
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
                 placeholder="Search songs or artists..."
+                aria-label="Search songs or artists"
                 className="min-w-0 flex-1 bg-transparent text-xs font-medium text-neutral-900 outline-none placeholder:text-neutral-400"
               />
               {searchValue && (
                 <button
                   type="button"
                   onClick={() => setSearchValue("")}
+                  aria-label="Clear search"
                   className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500 transition hover:bg-neutral-300"
                 >
                   <X size={10} strokeWidth={3} />
@@ -979,6 +1131,7 @@ useEffect(() => {
                   }
                 }}
                 className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900 md:gap-2 md:px-3 md:text-xs"
+                aria-label={`Sort by ${sortOptions.find((o) => o.value === sortBy)?.label}, tap to change field`}
                 title={`Sort by: ${sortOptions.find((o) => o.value === sortBy)?.label}`}
               >
                 <ArrowUpDown size={13} />
@@ -1002,6 +1155,8 @@ useEffect(() => {
             <button
               type="button"
               onClick={() => setFiltersOpen((prev) => !prev)}
+              aria-expanded={filtersOpen}
+              aria-controls="songs-filter-panel"
               className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-semibold transition md:gap-2 md:px-3.5 md:text-xs ${
                 activeFilterCount > 0
                   ? "border-accent bg-accent/8 text-accent hover:bg-accent/15"
@@ -1035,7 +1190,7 @@ useEffect(() => {
       </div>
 
       {filtersOpen && (
-          <section className="rounded-xl border border-neutral-200 bg-white px-3 py-2.5 shadow-2xs md:px-5 md:py-4">
+          <section id="songs-filter-panel" className="rounded-xl border border-neutral-200 bg-white px-3 py-2.5 shadow-2xs md:px-5 md:py-4">
             {/* One line per filter, with its name in front of the chips. The
                 stacked version — label alone on a line above each group —
                 measured 225px on a phone, so opening it hid a third of the
@@ -1071,7 +1226,7 @@ useEffect(() => {
             {/* Songs */}
             <div className="min-w-0 flex-1">
               <div className="flex flex-col gap-y-5 md:gap-y-6">
-                {songGroups.map((group, groupIdx) => (
+                {songGroups.map((group) => (
                   <div
                     key={group.key}
                     ref={(el) => { letterRefs.current[group.key] = el; }}
@@ -1101,11 +1256,7 @@ useEffect(() => {
                         forty boxes each with a border and a shadow is what made
                         the page read as clutter. */}
                     <div className="flex flex-col divide-y divide-neutral-200/70">
-                      {group.songs.map((song, idx) => {
-                        const menuUp =
-                          groupIdx === songGroups.length - 1 &&
-                          idx >= group.songs.length - 2;
-                        return (
+                      {group.songs.map((song) => (
                           <SongRow
                             key={song.id}
                             song={song}
@@ -1113,10 +1264,8 @@ useEffect(() => {
                             isNew={newSongIds.has(song.id)}
                             onClick={() => setActiveSong(song, filteredSongs)}
                             onCategoryClick={handleCategoryClick}
-                            menuUp={menuUp}
                           />
-                        );
-                      })}
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -1127,17 +1276,32 @@ useEffect(() => {
                 to be a bordered white card, which made a 26px column read as a
                 second sidebar next to the rows on a 411px screen. */}
             <div
+              ref={railRef}
               style={{
                 top: letterStickyTop,
                 maxHeight: `calc(100dvh - ${letterStickyTop + 150}px)`,
+                touchAction: "none",
               }}
               aria-label={sortBy === "created_at" ? "Date index" : "Alphabet index"}
-              className="no-scrollbar sticky flex shrink-0 flex-col items-center self-start overflow-y-auto lg:gap-0.5 lg:pt-4"
+              onPointerDown={(e) => {
+                if (e.pointerType === "mouse" && e.button !== 0) return;
+                setRailScrubbing(true);
+                jumpFromClientY(e.clientY);
+              }}
+              onPointerMove={(e) => {
+                if (railScrubbing) jumpFromClientY(e.clientY);
+              }}
+              onPointerUp={stopRailScrub}
+              onPointerLeave={stopRailScrub}
+              onPointerCancel={stopRailScrub}
+              className="no-scrollbar sticky flex shrink-0 select-none flex-col items-center self-start overflow-y-auto lg:gap-0.5 lg:pt-4"
             >
               {songGroups.map((group) => (
                 <button
                   key={group.key}
                   type="button"
+                  data-rail-key={group.key}
+                  ref={(el) => { railLettersRef.current[group.key] = el; }}
                   aria-label={`Jump to ${group.label}`}
                   onClick={() => scrollToLetter(group.key)}
                   className={`flex h-[18px] min-w-4 shrink-0 items-center justify-center whitespace-nowrap rounded-full text-[11px] font-bold leading-none transition-all duration-200 select-none sm:h-[17px] sm:min-w-5 sm:text-xs lg:h-[18px] lg:min-w-5 lg:text-xs ${

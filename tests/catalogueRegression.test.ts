@@ -306,7 +306,9 @@ async function keyboardRow(kind: string) {
 }
 
 describe("playable row keyboard isolation", () => {
-  it.each(["SongItem", "SongRow", "library top", "library downloads", "downloads"])("activates only a directly focused %s", async (kind) => {
+  // SongRow is not in this list any more: it no longer has a row-level key
+  // handler to hijack anything (see "songs row is a container, not a button").
+  it.each(["SongItem", "library top", "library downloads", "downloads"])("activates only a directly focused %s", async (kind) => {
     const { h, row } = await keyboardRow(kind);
     for (const key of ["Enter", " "]) {
       const event = keyEvent(key, row(), row());
@@ -331,8 +333,8 @@ describe("playable row keyboard isolation", () => {
     expect(h.setActiveSong).not.toHaveBeenCalled();
   });
 
-  it.each(["SongItem", "SongRow"])("preserves nested menu and playlist input behavior in %s", async (kind) => {
-    const { h, page, row } = await keyboardRow(kind);
+  it("preserves nested menu and playlist input behavior in SongItem", async () => {
+    const { h, page, row } = await keyboardRow("SongItem");
     const more = find(page.tree, (node) => node.type === "button" && node.props.title === "More");
     const menuEvent = keyEvent("Enter", more, row());
     row().props.onKeyDown(menuEvent);
@@ -358,6 +360,73 @@ describe("playable row keyboard isolation", () => {
     }));
     expect(h.fetch).toHaveBeenCalledWith("/api/data/playlist_songs", expect.objectContaining({
       method: "POST", body: JSON.stringify({ playlist_id: "playlist", song_id: "song" }),
+    }));
+  });
+});
+
+// The songs-page row used to be one `role="button"` div holding the category chip
+// and the ⋯ menu inside it — invalid, and announced as a single control whose name
+// was the entire line. It is a container now, with a real button doing the playing.
+const playControl = (tree: Element) =>
+  find(tree, (node) => node.type === "button" && /^Play(ing)?: /.test(String(node.props["aria-label"] || "")));
+const interactive = (tree: any) =>
+  nodes(tree).filter((node) => node !== tree && ["button", "input", "a"].includes(node.type));
+
+describe("songs row is a container, not a button", () => {
+  it("plays through a real button and keeps nothing clickable inside it", async () => {
+    const { h, page } = await keyboardRow("SongRow");
+    expect(nodes(page.tree).some((node) => node.props.role === "button")).toBe(false);
+    expect(interactive(playControl(page.tree))).toEqual([]);
+    expect(interactive(page.tree).length).toBeGreaterThan(1);
+    // The row's own tap area comes from the stretched layer, not from a click
+    // handler on a div, so the whole strip still plays without a second control.
+    expect(playControl(page.tree).props.className).toMatch(/after:absolute after:inset-0/);
+    playControl(page.tree).props.onClick();
+    expect(h.setActiveSong).toHaveBeenCalledOnce();
+  });
+
+  it("names the control after what it does, and marks the row that is playing", async () => {
+    const h = harness([fixture("song")]);
+    const catalogue = h.mount(h.load("app/songs/songs-view.js"));
+    const row = songRows(catalogue.tree)[0];
+    expect(playControl(h.mount(row.type, row.props).tree).props["aria-current"]).toBeUndefined();
+
+    const playing = h.mount(row.type, { ...row.props, isActive: true });
+    expect(playControl(playing.tree).props["aria-label"]).toBe("Playing: song");
+    expect(playControl(playing.tree).props["aria-current"]).toBe("true");
+  });
+
+  it("opens the ⋯ as an expanded menu of items", async () => {
+    const { page } = await keyboardRow("SongRow");
+    const trigger = find(page.tree, (node) => node.type === "button" && node.props.title === "More");
+    expect(trigger.props["aria-haspopup"]).toBe("menu");
+    expect(trigger.props["aria-expanded"]).toBe(false);
+    expect(trigger.props["aria-controls"]).toBeUndefined();
+
+    trigger.props.onClick({ stopPropagation: vi.fn() });
+    page.render();
+    const open = find(page.tree, (node) => node.type === "button" && node.props.title === "More");
+    expect(open.props["aria-expanded"]).toBe(true);
+    expect(open.props["aria-controls"]).toBe("song-menu-song");
+    const menu = find(page.tree, (node) => node.props.role === "menu");
+    expect(menu.props["aria-label"]).toBe("More actions for song");
+    expect(nodes(menu).filter((node) => node.props.role === "menuitem")).toHaveLength(6);
+  });
+
+  it("still creates a playlist from the row menu", async () => {
+    const { h, page } = await keyboardRow("SongRow");
+    find(page.tree, (node) => node.type === "button" && node.props.title === "More")
+      .props.onClick({ stopPropagation: vi.fn() });
+    page.render();
+    button(page.tree, "Add to Playlist").props.onClick();
+    page.render();
+    const input = () => find(page.tree, (node) => node.props.placeholder === "New playlist...");
+    change(input(), "Sunday songs");
+    page.render();
+    await input().props.onKeyDown({ key: "Enter", stopPropagation: vi.fn() });
+    expect(h.setActiveSong).not.toHaveBeenCalled();
+    expect(h.fetch).toHaveBeenCalledWith("/api/data/playlists", expect.objectContaining({
+      method: "POST", body: JSON.stringify({ name: "Sunday songs", user_id: "user" }),
     }));
   });
 });
