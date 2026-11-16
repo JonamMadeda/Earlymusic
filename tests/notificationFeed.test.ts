@@ -68,6 +68,31 @@ describe("announcement feed store", () => {
     expect(store.getNotificationSnapshot().unread).toBe(0);
   });
 
+  it("drops one highlight when its announcement is opened", async () => {
+    const store = await loadStore();
+    await store.refreshNotifications();
+    store.markNotificationsSeen();
+
+    expect(store.getNotificationSnapshot().unreadIds).toEqual([3, 2]);
+    store.markNotificationRead(3);
+
+    const snapshot = store.getNotificationSnapshot();
+    expect(snapshot.unreadIds).toEqual([2]);
+    expect(snapshot.unread).toBe(0);
+  });
+
+  it("keeps this visit's highlights across a background refresh", async () => {
+    const store = await loadStore();
+    await store.refreshNotifications();
+    store.markNotificationsSeen();
+
+    await store.refreshNotifications({ force: true });
+
+    const snapshot = store.getNotificationSnapshot();
+    expect(snapshot.unread).toBe(0);
+    expect(snapshot.unreadIds).toEqual([3, 2]);
+  });
+
   it("counts only newer announcements as unread", async () => {
     const store = await loadStore();
     await store.refreshNotifications();

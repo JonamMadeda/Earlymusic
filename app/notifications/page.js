@@ -14,13 +14,13 @@ import {
   X,
 } from "lucide-react";
 import {
-  KIND_ACCENTS,
   KIND_LABELS,
   KIND_PILLS,
   NOTIFICATION_KINDS,
   normalizeNotificationKind,
 } from "@/lib/notifications";
 import {
+  markNotificationRead,
   markNotificationsSeen,
   refreshNotifications,
   useNotificationFeed,
@@ -33,8 +33,13 @@ const KIND_ICONS = {
   warning: AlertTriangle,
 };
 
+// The kind chip already says "Release", so the card does not need to repeat
+// "new" beside a "new" rail and a "new" badge.
+const KIND_CARD_LABELS = { ...KIND_LABELS, release: "Release" };
+
 const DISMISSED_KEY = "lumbo_notifications_dismissed";
 const UNDO_TIMEOUT_MS = 4000;
+const BODY_CLAMP_LENGTH = 200;
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -81,6 +86,33 @@ const groupByDate = (items) => {
   ].filter((group) => group.items.length > 0);
 };
 
+const NotificationBody = ({ body, unread }) => {
+  const [expanded, setExpanded] = useState(false);
+  const long = body.length > BODY_CLAMP_LENGTH;
+
+  return (
+    <>
+      <p
+        className={`mt-1.5 break-words whitespace-pre-line text-[13px] leading-relaxed md:text-sm ${
+          unread ? "text-neutral-600" : "text-neutral-500"
+        } ${long && !expanded ? "line-clamp-3" : ""}`}
+      >
+        {body}
+      </p>
+      {long && (
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          className="relative z-10 mt-1.5 inline-flex rounded text-xs font-semibold text-neutral-600 transition hover:text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      )}
+    </>
+  );
+};
+
 export default function NotificationsPage() {
   const { items, loading, error, unreadIds } = useNotificationFeed();
   const [filter, setFilter] = useState("all");
@@ -96,6 +128,13 @@ export default function NotificationsPage() {
   const undoTimerRef = useRef(null);
   const markedRef = useRef(false);
 
+  // Re-render once a minute so "23m ago" does not stay frozen on an open tab.
+  const [, setClock] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setClock((value) => value + 1), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem(DISMISSED_KEY, JSON.stringify([...dismissed]));
@@ -103,7 +142,8 @@ export default function NotificationsPage() {
   }, [dismissed]);
 
   // Opening the page clears the shared badge. The store keeps the unread ids so
-  // the "new" styling stays visible instead of flashing once and vanishing.
+  // the "unread" rail stays visible instead of flashing once and vanishing; it
+  // is removed per item when the listener opens or dismisses it.
   useEffect(() => {
     if (markedRef.current || loading || items.length === 0) return;
     markedRef.current = true;
@@ -152,6 +192,7 @@ export default function NotificationsPage() {
 
   const handleDismiss = (item) => {
     clearUndoTimer();
+    markNotificationRead(item.id);
     setDismissed((prev) => {
       const next = new Set(prev);
       next.add(item.id);
@@ -195,30 +236,32 @@ export default function NotificationsPage() {
           <div
             role="status"
             aria-live="polite"
-            className="sticky top-2 z-30 mb-4 flex items-center justify-between gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-3.5 py-2.5 text-white shadow-lg"
+            className="fixed bottom-[calc(9.5rem+env(safe-area-inset-bottom,0px))] left-3 right-3 z-[950] md:bottom-24 md:left-[calc(260px+2rem)] md:right-8"
           >
-            <div className="flex min-w-0 items-center gap-2">
-              <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />
-              <p className="truncate text-xs font-medium">
-                Dismissed “{undo.item.title}”
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={handleUndo}
-                className="rounded-lg px-2 py-1 text-xs font-bold text-emerald-300 transition hover:bg-white/10"
-              >
-                Undo
-              </button>
-              <button
-                type="button"
-                onClick={dismissUndo}
-                aria-label="Dismiss undo"
-                className="flex h-6 w-6 items-center justify-center rounded-full text-white/50 transition hover:bg-white/10 hover:text-white"
-              >
-                <X size={13} />
-              </button>
+            <div className="mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl border border-neutral-800 bg-neutral-900 px-3.5 py-2.5 text-white shadow-lg">
+              <div className="flex min-w-0 items-center gap-2">
+                <CheckCircle2 size={15} className="shrink-0 text-emerald-400" aria-hidden="true" />
+                <p className="truncate text-xs font-medium">
+                  Dismissed “{undo.item.title}”
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  className="rounded-lg px-2 py-1 text-xs font-bold text-emerald-300 transition hover:bg-white/10"
+                >
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissUndo}
+                  aria-label="Dismiss undo"
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white"
+                >
+                  <X size={13} aria-hidden="true" />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -232,7 +275,7 @@ export default function NotificationsPage() {
                 </h1>
                 {hasUnread && (
                   <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-accent">
-                    {unreadCount} new
+                    {unreadCount} unread
                   </span>
                 )}
               </div>
@@ -251,10 +294,17 @@ export default function NotificationsPage() {
             )}
           </div>
 
-          <div className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1 no-scrollbar">
+          <div
+            role="group"
+            aria-label="Filter notifications"
+            className="mt-4 flex flex-wrap gap-2 pb-1"
+          >
             {FILTERS.map((entry) => {
               const active = filter === entry.key;
               const count = counts[entry.key] ?? 0;
+              // A category with nothing in it is a dead end; keep the current
+              // one visible so the empty state can explain itself.
+              if (count === 0 && !active) return null;
               return (
                 <button
                   key={entry.key}
@@ -305,7 +355,7 @@ export default function NotificationsPage() {
         {!loading && error && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
             <div className="flex items-center gap-2">
-              <AlertTriangle size={16} className="text-amber-700" />
+              <AlertTriangle size={16} className="text-amber-700" aria-hidden="true" />
               <p className="text-sm font-medium text-amber-900">{error}</p>
             </div>
             <button
@@ -313,7 +363,7 @@ export default function NotificationsPage() {
               onClick={handleRetry}
               className="inline-flex items-center gap-1.5 rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-amber-800 active:scale-95"
             >
-              <RefreshCw size={12} />
+              <RefreshCw size={12} aria-hidden="true" />
               Retry
             </button>
           </div>
@@ -321,15 +371,15 @@ export default function NotificationsPage() {
 
         {!loading && !error && visibleItems.length === 0 && (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-white/70 px-6 py-20 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 text-neutral-400">
-              {filter === "all" ? <CheckCircle2 size={22} /> : <Bell size={22} />}
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
+              {filter === "all" ? <CheckCircle2 size={22} aria-hidden="true" /> : <Bell size={22} aria-hidden="true" />}
             </div>
             <p className="mt-3 text-sm font-semibold text-neutral-700">
               {filter === "all"
                 ? "You’re all caught up"
                 : `No ${filterLabel.toLowerCase()} announcements`}
             </p>
-            <p className="mt-1 max-w-xs text-xs leading-relaxed text-neutral-400">
+            <p className="mt-1 max-w-xs text-xs leading-relaxed text-neutral-500">
               {filter === "all"
                 ? "New releases, app updates and news from the team will show up here."
                 : "Try another category to see what you might have missed."}
@@ -351,11 +401,11 @@ export default function NotificationsPage() {
             {groupByDate(visibleItems).map((group) => (
               <section key={group.label}>
                 <div className="mb-3 flex items-center gap-2.5">
-                  <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-neutral-400">
+                  <h2 className="text-xs font-bold uppercase tracking-[0.16em] text-neutral-500">
                     {group.label}
-                  </h3>
+                  </h2>
                   <span className="h-px flex-1 bg-neutral-200/80" />
-                  <span className="text-xs font-semibold tabular-nums text-neutral-400">
+                  <span className="text-xs font-semibold tabular-nums text-neutral-500">
                     {group.items.length}
                   </span>
                 </div>
@@ -365,18 +415,26 @@ export default function NotificationsPage() {
                     const kind = normalizeNotificationKind(item.kind);
                     const Icon = KIND_ICONS[kind];
                     const href = item.url || null;
+                    const external = href ? !isInternal(href) : false;
                     const unread = unreadSet.has(item.id);
+                    const actionLabel =
+                      kind === "release" || kind === "update" ? "Listen to" : "Read";
+                    const titleClass = `mt-1.5 text-sm font-bold leading-snug tracking-tight md:text-[15px] ${
+                      unread ? "text-neutral-900" : "text-neutral-700"
+                    }`;
+                    const linkClass =
+                      "rounded outline-none transition hover:text-accent focus-visible:ring-2 focus-visible:ring-accent/50 after:absolute after:inset-0 after:rounded-2xl";
 
                     return (
                       <article
                         key={item.id}
-                        className={`group relative overflow-hidden rounded-2xl border bg-white transition-all duration-200 hover:shadow-md ${
+                        className={`group relative overflow-hidden rounded-2xl border bg-white transition-all duration-200 focus-within:border-neutral-300 hover:border-neutral-300 hover:shadow-md ${
                           unread ? "border-neutral-200 shadow-sm" : "border-neutral-100"
                         }`}
                       >
                         {unread && (
                           <span
-                            className={`absolute inset-y-0 left-0 w-1 ${KIND_ACCENTS[kind]}`}
+                            className="absolute inset-y-0 left-0 w-1 bg-accent"
                             aria-hidden="true"
                           />
                         )}
@@ -385,14 +443,15 @@ export default function NotificationsPage() {
                           <div
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${KIND_PILLS[kind]}`}
                           >
-                            <Icon size={16} strokeWidth={2} />
+                            <Icon size={16} strokeWidth={2} aria-hidden="true" />
                           </div>
 
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-0.5">
-                                <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-                                  {KIND_LABELS[kind]}
+                                <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                                  {unread && <span className="sr-only">Unread · </span>}
+                                  {KIND_CARD_LABELS[kind]}
                                 </span>
                                 <span
                                   className="h-0.5 w-0.5 rounded-full bg-neutral-300"
@@ -400,66 +459,63 @@ export default function NotificationsPage() {
                                 />
                                 <time
                                   dateTime={item.created_at}
-                                  className="text-xs font-medium text-neutral-400"
+                                  title={new Date(item.created_at).toLocaleString()}
+                                  suppressHydrationWarning
+                                  className="text-xs font-medium text-neutral-500"
                                 >
                                   {relativeTime(item.created_at)}
                                 </time>
-                                {unread && (
-                                  <span className="rounded-full bg-accent px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
-                                    New
-                                  </span>
-                                )}
                               </div>
                               <button
                                 type="button"
                                 onClick={() => handleDismiss(item)}
                                 aria-label={`Dismiss announcement: ${item.title}`}
-                                className="-mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-neutral-300 transition hover:bg-neutral-100 hover:text-neutral-600"
+                                className="relative z-10 -mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                               >
-                                <X size={14} />
+                                <X size={15} aria-hidden="true" />
                               </button>
                             </div>
 
-                            <h2
-                              className={`mt-1.5 text-sm font-bold leading-snug tracking-tight md:text-[15px] ${
-                                unread ? "text-neutral-900" : "text-neutral-700"
-                              }`}
-                            >
-                              {item.title}
-                            </h2>
-
-                            {item.body && (
-                              <p
-                                className={`mt-1.5 whitespace-pre-line text-[13px] leading-relaxed md:text-sm ${
-                                  unread ? "text-neutral-600" : "text-neutral-500"
-                                }`}
-                              >
-                                {item.body}
-                              </p>
-                            )}
-
-                            {href && (
-                              <div className="mt-3">
-                                {isInternal(href) ? (
-                                  <Link
-                                    href={href}
-                                    className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-neutral-800 active:scale-95"
-                                  >
-                                    Open
-                                    <ArrowUpRight size={12} />
-                                  </Link>
-                                ) : (
+                            <h3 className={titleClass}>
+                              {href ? (
+                                external ? (
                                   <a
                                     href={href}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-neutral-800 active:scale-95"
+                                    onClick={() => markNotificationRead(item.id)}
+                                    className={linkClass}
                                   >
-                                    Learn more
-                                    <ArrowUpRight size={12} />
+                                    <span className="sr-only">{actionLabel}: </span>
+                                    {item.title}
+                                    <ArrowUpRight
+                                      size={13}
+                                      className="ml-0.5 inline-block align-baseline text-neutral-400 transition group-hover:text-neutral-700"
+                                      aria-hidden="true"
+                                    />
                                   </a>
-                                )}
-                              </div>
+                                ) : (
+                                  <Link
+                                    href={href}
+                                    onClick={() => markNotificationRead(item.id)}
+                                    className={linkClass}
+                                  >
+                                    <span className="sr-only">{actionLabel}: </span>
+                                    {item.title}
+                                    <ArrowUpRight
+                                      size={13}
+                                      className="ml-0.5 inline-block align-baseline text-neutral-400 transition group-hover:text-neutral-700"
+                                      aria-hidden="true"
+                                    />
+                                  </Link>
+                                )
+                              ) : (
+                                item.title
+                              )}
+                            </h3>
+
+                            {item.body && (
+                              <NotificationBody body={item.body} unread={unread} />
                             )}
                           </div>
                         </div>
