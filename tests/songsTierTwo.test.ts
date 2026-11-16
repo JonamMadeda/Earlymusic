@@ -8,7 +8,7 @@ const view = readFileSync(new URL("../app/songs/songs-view.js", import.meta.url)
 const page = readFileSync(new URL("../app/songs/page.js", import.meta.url), "utf8");
 const row = view.slice(view.indexOf("const SongRow = "), view.indexOf("const ScrollProgress = "));
 const toolbar = view.slice(
-  view.indexOf("Sticky Search / Filter Bar"),
+  view.indexOf("Search / Filter Bar"),
   view.indexOf("{filtersOpen && ("),
 );
 const strip = toolbar.slice(toolbar.indexOf("{hasFilters && ("));
@@ -78,6 +78,27 @@ describe("songs view in the address bar", () => {
   });
 });
 
+describe("songs toolbar is page content", () => {
+  it("does not stick, so the list scrolls past it", () => {
+    expect(toolbar).not.toMatch(/sticky/);
+    // The blur and the /95 fill only existed because rows scrolled underneath.
+    expect(toolbar).not.toMatch(/backdrop-blur/);
+    expect(toolbar).not.toMatch(/bg-white\/95/);
+    // No sticky box any more, so the progress line needs the bar to be the
+    // containing block it resolves against.
+    expect(toolbar).toMatch(/className="relative rounded-xl/);
+  });
+
+  it("clears only the scroll container's top edge, not a sticky bar", () => {
+    // The app header sits outside #app-scroll, so its height is already gone.
+    expect(view).toMatch(/const STICKY_TOP = 0;/);
+    // Measuring the bar's height existed only to park things under it.
+    expect(view).not.toMatch(/ResizeObserver|toolbarHeight|toolbarRef/);
+    const rail = view.slice(view.indexOf("Alphabet Jump Bar"), view.indexOf("</main>"));
+    expect(rail).toMatch(/top: STICKY_TOP/);
+    expect(rail).toMatch(/sticky/);
+  });
+});
 describe("songs scroll progress", () => {
   it("is drawn on the toolbar, not across the app header", () => {
     expect(progress).not.toMatch(/fixed top-0/);

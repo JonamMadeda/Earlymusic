@@ -1,16 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useSyncExternalStore } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { CloudOff, LogIn, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import GlobalSearchModal from "./GlobalSearchModal";
 import NotificationBell from "./NotificationBell";
-
-// A drag shorter than this is a flick at the end of the list or a jitter, not
-// an intention to move down the page.
-const SCROLL_SLOP = 8;
 
 const subscribeToOnlineStatus = (onChange) => {
   window.addEventListener("online", onChange);
@@ -29,20 +25,6 @@ const Header = () => {
     () => true
   );
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const headerRef = useRef(null);
-  // The bar collapses into the top edge, so the space it occupied has to go with
-  // it — that is measured, not assumed, because the offline row changes it.
-  const [barHeight, setBarHeight] = useState(0);
-  const [scrollingDown, setScrollingDown] = useState(false);
-  const isWide = useSyncExternalStore(
-    (onChange) => {
-      const mq = window.matchMedia("(min-width: 768px)");
-      mq.addEventListener("change", onChange);
-      return () => mq.removeEventListener("change", onChange);
-    },
-    () => window.matchMedia("(min-width: 768px)").matches,
-    () => false
-  );
   // The header search bar is the home page's entry point into search. Every
   // other section either has its own field (songs, playlists, admin) or is a
   // signed-out screen where it reads as broken, so it appears on "/" only.
@@ -55,34 +37,10 @@ const Header = () => {
   const { user, loading: authLoading } = useAuth();
   const showSignIn = !authLoading && !user && pathname !== "/auth";
 
-  // Scrolling happens inside #app-scroll (see layout), not on the window, so
-  // window.scrollY would read 0 here. The bar only gets out of the way on a
-  // phone: desktop has the sidebar and is not short of vertical space.
-  useEffect(() => {
-    if (isWide) return;
-    const scroller = document.getElementById("app-scroll");
-    const el = headerRef.current;
-    if (!scroller || !el) return;
-    let lastY = scroller.scrollTop;
-    const handleScroll = () => {
-      const y = scroller.scrollTop;
-      const delta = y - lastY;
-      // A flick at the end of the list is not an intention to leave.
-      if (Math.abs(delta) < SCROLL_SLOP) return;
-      lastY = y;
-      // Measured at decision time because the offline row changes the bar's
-      // height, and the bar has to give that exact space back as it goes.
-      const height = el.offsetHeight;
-      setBarHeight(height);
-      // At the top of a page there is nothing to give back; hiding the bar
-      // there only puts the search and bell out of reach.
-      setScrollingDown(y > height && delta > 0);
-    };
-    scroller.addEventListener("scroll", handleScroll, { passive: true });
-    return () => scroller.removeEventListener("scroll", handleScroll);
-  }, [isWide]);
-
-  const barCollapsed = scrollingDown && barHeight > 0 && !isWide;
+  // The bar is a row of the flex column in layout.js and sits *outside*
+  // #app-scroll, so it is pinned by structure rather than by positioning: it
+  // never scrolls, needs no `position` to keep it there, and takes its space
+  // with it — the older negative-margin collapse is gone on purpose.
 
   // Keyboard shortcut Cmd/Ctrl + K to open search
   useEffect(() => {
@@ -103,12 +61,7 @@ const Header = () => {
           text label. The circles are .tap-sm (34px), and 18/34 is the ratio that
           stops them looking empty. Nothing in this row changes width with the
           connection state — see the offline row below it. */}
-      <header
-        ref={headerRef}
-        inert={barCollapsed}
-        style={barCollapsed ? { marginTop: -barHeight } : undefined}
-        className="relative z-[200] border-b border-neutral-100 bg-white/90 backdrop-blur-xl transition-[margin-top] duration-200 ease-out motion-reduce:transition-none"
-      >
+      <header className="relative z-[200] border-b border-neutral-100 bg-white/90 backdrop-blur-xl">
         <div className="flex items-center justify-between gap-4 px-4 py-1.5 md:px-6 md:py-2.5">
           {/* Mobile brand / Desktop search trigger */}
           <div className="flex items-center gap-3">

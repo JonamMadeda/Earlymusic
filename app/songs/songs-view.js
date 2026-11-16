@@ -756,26 +756,14 @@ export default function SongsView() {
   const jumpTimeoutRef = useRef(null);
   const letterRefs = useRef({});
   const searchInputRef = useRef(null);
-  const toolbarRef = useRef(null);
-  const [toolbarHeight, setToolbarHeight] = useState(0);
   const [scrollY, setScrollY] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
 
-  // The toolbar is sticky below the app header, so the alphabet rail and the
-  // sticky letter chips need its real height to sit flush under it (the bar
-  // grows when active filters are shown).
-  useEffect(() => {
-    const el = toolbarRef.current;
-    if (!el) return;
-    const measure = () => setToolbarHeight(el.offsetHeight);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const TOOLBAR_GAP = 8; // toolbar sticks at `top-2`
-  const letterStickyTop = toolbarHeight + TOOLBAR_GAP + 6;
+  // The app header sits outside #app-scroll, so the top edge of the scroll
+  // container is already below it — that is where the sticky letter chips and
+  // the alphabet rail park. The search/filter bar used to occupy the same
+  // space, which is why these offsets once measured its height.
+  const STICKY_TOP = 0;
 
   // Track the app scroll container (layout scrolls in #app-scroll, not window)
   // for the progress bar + scroll-to-top button.
@@ -1088,8 +1076,8 @@ useEffect(() => {
           )}
         </section>
 
-      {/* Sticky Search / Filter Bar */}
-      <div ref={toolbarRef} className="sticky top-2 z-40 rounded-xl border border-neutral-200 bg-white/95 shadow-2xs backdrop-blur-md">
+      {/* Search / Filter Bar — page content, it scrolls away with the list */}
+      <div className="relative rounded-xl border border-neutral-200 bg-white shadow-2xs">
         <div className="px-3 py-2.5">
           <div className="flex flex-row flex-nowrap items-center gap-2">
             <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-transparent bg-neutral-100/80 px-3 py-2 text-neutral-500 transition focus-within:border-accent focus-within:bg-white focus-within:shadow-2xs">
@@ -1230,11 +1218,11 @@ useEffect(() => {
                   <div
                     key={group.key}
                     ref={(el) => { letterRefs.current[group.key] = el; }}
-                    style={{ scrollMarginTop: letterStickyTop + 34 }}
+                    style={{ scrollMarginTop: STICKY_TOP + 34 }}
                     className="flex flex-col gap-y-2.5"
                   >
                     <div
-                      style={{ top: letterStickyTop }}
+                      style={{ top: STICKY_TOP }}
                       className="sticky z-10 flex justify-start pb-1"
                     >
                       <div className="flex items-center gap-2 rounded-full border border-neutral-200/70 bg-white/80 py-1 pl-1 pr-3 shadow-2xs backdrop-blur-md">
@@ -1278,8 +1266,8 @@ useEffect(() => {
             <div
               ref={railRef}
               style={{
-                top: letterStickyTop,
-                maxHeight: `calc(100dvh - ${letterStickyTop + 150}px)`,
+                top: STICKY_TOP,
+                maxHeight: `calc(100dvh - ${STICKY_TOP + 150}px)`,
                 touchAction: "none",
               }}
               aria-label={sortBy === "created_at" ? "Date index" : "Alphabet index"}

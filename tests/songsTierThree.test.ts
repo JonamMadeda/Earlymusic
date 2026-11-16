@@ -12,7 +12,7 @@ const row = view.slice(rowStart, view.indexOf("const ScrollProgress = "));
 const rowBody = row.slice(row.indexOf("ref={rowRef}"));
 const menu = rowBody.slice(rowBody.indexOf("{showMenu && ("), rowBody.indexOf("{showInfo && ("));
 const toolbar = view.slice(
-  view.indexOf("Sticky Search / Filter Bar"),
+  view.indexOf("Search / Filter Bar"),
   view.indexOf("{filtersOpen && ("),
 );
 const rail = view.slice(view.indexOf("Alphabet Jump Bar"), view.indexOf("</main>"));

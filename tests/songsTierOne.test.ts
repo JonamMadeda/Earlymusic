@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 const songs = readFileSync(new URL("../app/songs/songs-view.js", import.meta.url), "utf8");
 const panelStart = songs.indexOf("{filtersOpen && (");
 const panel = songs.slice(panelStart, songs.indexOf("</section>", panelStart));
-const toolbar = songs.slice(songs.indexOf("Sticky Search / Filter Bar"), panelStart);
+const toolbar = songs.slice(songs.indexOf("Search / Filter Bar"), panelStart);
 const strip = toolbar.slice(toolbar.indexOf("{hasFilters && ("));
 const groups = songs.slice(
   songs.indexOf("const filterGroups = ["),
