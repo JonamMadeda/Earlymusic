@@ -36,7 +36,7 @@ const button = (tree: Element, label: string) =>
 const change = (node: Element, value: string) => node.props.onChange({ target: { value } });
 const songRows = (tree: Element) => nodes(tree).filter((node) => node.props.song && "isNew" in node.props);
 
-function harness(songs: Song[], tab = "top") {
+function harness(songs: Song[], tab = "top", search: Record<string, string> | null = null) {
   let current: { cells: any[]; cursor: number; effects: (() => void)[] };
   const hooks = {
     useState(initial: any) {
@@ -74,7 +74,7 @@ function harness(songs: Song[], tab = "top") {
   const modules: Record<string, any> = {
     react: hooks,
     "react/jsx-runtime": jsxRuntime,
-    "next/navigation": { useRouter: () => ({}), usePathname: () => "/songs", useSearchParams: () => new URLSearchParams({ tab }) },
+    "next/navigation": { useRouter: () => ({}), usePathname: () => "/songs", useSearchParams: () => new URLSearchParams(search ?? { tab }) },
     "next/link": { default: "a" },
     "lucide-react": new Proxy({}, { get: (_, name) => `icon:${String(name)}` }),
     "@/lib/newSongs": newSongs,
@@ -205,7 +205,7 @@ newFixtures[15] = { ...newFixtures[15], title: "Shared title archive", category:
 
 function newCatalogue() {
   const h = harness(newFixtures);
-  const page = h.mount(h.load("app/songs/page.js"));
+  const page = h.mount(h.load("app/songs/songs-view.js"));
   button(page.tree, "Filters").props.onClick();
   page.render();
   find(page.tree, (node) => node.props.label === "New").props.onClick();
@@ -238,10 +238,12 @@ describe("global New catalogue membership", () => {
     expect(songRows(page.tree).map((row) => [row.props.song.id, row.props.isNew])).toEqual([["s0", true]]);
     button(page.tree, "Play All (1)").props.onClick();
     expect(h.setActiveSong).toHaveBeenCalledWith(newFixtures[0], [newFixtures[0]]);
-    button(page.tree, "Reset").props.onClick();
+    button(page.tree, "Clear").props.onClick();
     page.render();
-    expect(songRows(page.tree).map((row) => [row.props.song.id, row.props.isNew])).toEqual([
-      ["s0", true], ["s15", false], ["s1", true],
+    // One control, one meaning: everything goes, the search included.
+    expect(songRows(page.tree)).toHaveLength(newFixtures.length);
+    expect(songRows(page.tree).slice(0, 4).map((row) => [row.props.song.id, row.props.isNew])).toEqual([
+      ["old", false], ["s0", true], ["s15", false], ["s1", true],
     ]);
   });
 
@@ -257,6 +259,25 @@ describe("global New catalogue membership", () => {
   });
 });
 
+describe("songs view from the address bar", () => {
+  it("opens on the slice the URL describes", () => {
+    const h = harness(newFixtures, "top", { q: "shared", time: "New", type: "Praise", duration: "Short" });
+    const page = h.mount(h.load("app/songs/songs-view.js"));
+    expect(songRows(page.tree).map((row) => row.props.song.id)).toEqual(["s0"]);
+    expect(text(page.tree)).toContain("1 of 17 tracks");
+  });
+
+  it("falls back instead of half-applying a value no control can produce", () => {
+    const h = harness(newFixtures, "top", { time: "Yesterday", sort: "plays", dir: "desc" });
+    const page = h.mount(h.load("app/songs/songs-view.js"));
+    // A time filter that had been accepted would make the button read "Filters (1)".
+    expect(button(page.tree, "Filters")).toBeDefined();
+    // A sort field that had been accepted would make the other button read "plays".
+    expect(button(page.tree, "Title")).toBeDefined();
+    expect(songRows(page.tree)).toHaveLength(newFixtures.length);
+  });
+});
+
 function keyEvent(key: string, target: any, currentTarget: any) {
   return { key, target, currentTarget, preventDefault: vi.fn(), stopPropagation: vi.fn() };
 }
@@ -268,7 +289,7 @@ async function keyboardRow(kind: string) {
   if (kind === "SongItem") {
     page = h.mount(h.load("app/components/SongItem.jsx"), { song: songs[0], onClick: h.setActiveSong, saved: false });
   } else if (kind === "SongRow") {
-    const catalogue = h.mount(h.load("app/songs/page.js"));
+    const catalogue = h.mount(h.load("app/songs/songs-view.js"));
     const row = songRows(catalogue.tree)[0];
     page = h.mount(row.type, row.props);
   } else if (kind.startsWith("library")) {

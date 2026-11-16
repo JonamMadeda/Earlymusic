@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 // The A-Z rail shares the row with the song list, so every pixel of its column
 // and of the gap beside it comes off the rows. It was a bordered white card
 // (25px column + 12px gap at 411px) around 20px letters.
-const songs = readFileSync(new URL("../app/songs/page.js", import.meta.url), "utf8");
+const songs = readFileSync(new URL("../app/songs/songs-view.js", import.meta.url), "utf8");
 const rail = songs.slice(
   songs.indexOf("Alphabet Jump Bar"),
   songs.indexOf("{railLabel(group)}"),

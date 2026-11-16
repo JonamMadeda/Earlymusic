@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 // Tier 1 was a de-cluttering pass with four decisions, each of which is a
 // regression risk: a "nicer" card on every row or a count back in the
 // clear-everything strip would put the clutter there again by accident.
-const songs = readFileSync(new URL("../app/songs/page.js", import.meta.url), "utf8");
+const songs = readFileSync(new URL("../app/songs/songs-view.js", import.meta.url), "utf8");
 const panelStart = songs.indexOf("{filtersOpen && (");
 const panel = songs.slice(panelStart, songs.indexOf("</section>", panelStart));
 const toolbar = songs.slice(songs.indexOf("Sticky Search / Filter Bar"), panelStart);
@@ -76,11 +76,10 @@ describe("songs result count", () => {
     expect(songs).toMatch(/\{stats\.total\} tracks/);
   });
 
-  it("leaves the clear-everything strip to the two ways out", () => {
+  it("keeps the clear-everything strip free of counts", () => {
     expect(strip.length, "clear strip slice not found").toBeGreaterThan(100);
     expect(strip).not.toMatch(/filteredSongs/);
     expect(strip).not.toMatch(/activeFilterCount/);
-    expect(strip).toContain("Clear search");
-    expect(strip).toContain("Reset");
+    expect(strip).not.toMatch(/stats\.total/);
   });
 });
