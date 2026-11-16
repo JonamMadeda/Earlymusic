@@ -62,7 +62,10 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
   };
   const setActiveSong = vi.fn();
   const alert = vi.fn();
-  const player = { allSongs: songs, setAllSongs: vi.fn(), setActiveSong, isLoading: false, setIsLoading: vi.fn() };
+  const player = {
+    allSongs: songs, setAllSongs: vi.fn(), setActiveSong, isLoading: false, setIsLoading: vi.fn(),
+    recentlyPlayed: [] as Song[], activeSong: null as Song | null, hasRealHistory: false,
+  };
   const fetch = vi.fn(async (url: string, options?: any) => {
     let body: any;
     if (url === "/api/admin/songs") body = songs;
@@ -75,6 +78,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
   });
   const apiFetch = vi.fn(async (url: string, options?: any) => {
     if (options?.method === "POST") return (await fetch(url, options)).json();
+    if (url.startsWith("/api/data/songs?")) return songs;
     if (url.startsWith("/api/data/recently_played?")) return songs.map((song) => ({ song_id: song.id, play_count: 2 }));
     if (url.startsWith("/api/data/saved_songs?") || url.startsWith("/api/data/playlists?")) return [];
     throw new Error(`Unexpected API request: ${url}`);
@@ -113,13 +117,17 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       require: (id: string) => {
         if (id.endsWith("/context/PlayerContext")) return { usePlayer: () => player };
         if (id.endsWith("/context/AuthContext")) return { useAuth: () => auth };
+        if (id.endsWith("/SongAvatar")) return { default: "avatar", initialLetter: (title: string) => title[0], hashStr: (value: string) => [...value].reduce((hash, char) => hash * 31 + char.charCodeAt(0) | 0, 0) };
         if (id.includes("/components/")) return { default: id, PageSkeleton: "skeleton" };
         if (id in modules) return modules[id];
         throw new Error(`Unexpected import: ${id}`);
       },
       fetch,
       alert,
-      window: { addEventListener: vi.fn(), removeEventListener: vi.fn() },
+      window: { addEventListener: vi.fn(), removeEventListener: vi.fn(), matchMedia: () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }) },
+      document: { getElementById: () => null },
+      setInterval: () => 0,
+      clearInterval: () => {},
       console,
       setTimeout: (callback: () => void, delay: number) => { if (delay === 0) callback(); return 0; },
       clearTimeout: () => {},
@@ -149,6 +157,78 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
   }
   return { load, mount, player, setActiveSong, fetch, alert, auth, connection, apiFetch, localSongs, downloadsChanged: () => downloadsChanged() };
 }
+
+describe("homepage navigation and recovery", () => {
+  it("does not present seeded suggestions as listening history", () => {
+    const h = harness([fixture("one"), fixture("two")]);
+    h.player.recentlyPlayed = h.player.allSongs;
+    const page = h.mount(h.load("app/page.js"));
+    expect(nodes(page.tree).some((node) => node.props.id === "recently-played")).toBe(false);
+    expect(nodes(page.tree).some((node) => node.props.id === "suggested-starters")).toBe(true);
+    expect(nodes(page.tree).some((node) => node.props.href === "#recently-played")).toBe(false);
+    button(page.tree, "Shuffle All").props.onClick();
+    const [song, queue] = h.setActiveSong.mock.calls[0];
+    expect(queue.map((item: Song) => item.id).sort()).toEqual(["one", "two"]);
+    expect(song).toBe(queue[0]);
+  });
+
+  it("puts real history first and plays its own queue", () => {
+    const h = harness([fixture("one"), fixture("two")]);
+    h.player.recentlyPlayed = [h.player.allSongs[1]];
+    h.player.hasRealHistory = true;
+    const page = h.mount(h.load("app/page.js"));
+    const shelves = nodes(page.tree).filter((node) => node.props.items);
+    expect(shelves[0].props.id).toBe("recently-played");
+    const history = h.mount(shelves[0].type, shelves[0].props);
+    button(history.tree, " Play all").props.onClick();
+    expect(h.setActiveSong).toHaveBeenCalledWith(h.player.allSongs[1], h.player.recentlyPlayed);
+  });
+
+  it("does not claim a selected track is currently playing", () => {
+    const h = harness([fixture("one")]);
+    h.player.activeSong = h.player.allSongs[0];
+    const page = h.mount(h.load("app/page.js"));
+    expect(text(page.tree)).toContain("In your player");
+    expect(text(page.tree)).not.toContain("Now Playing");
+  });
+
+  it("offers retry without a contradictory empty-library message", async () => {
+    const h = harness([]);
+    h.apiFetch.mockRejectedValueOnce(new Error("offline"));
+    const page = h.mount(h.load("app/page.js"));
+    await page.startEffects();
+    expect(text(page.tree)).toContain("Songs could not be loaded");
+    expect(text(page.tree)).not.toContain("Your library is empty");
+    button(page.tree, "Try again").props.onClick();
+    page.render();
+    await page.startEffects();
+    expect(h.apiFetch).toHaveBeenCalledTimes(2);
+    expect(text(page.tree)).not.toContain("Songs could not be loaded");
+    expect(text(page.tree)).toContain("Your library is empty");
+  });
+
+  it("disables empty shuffle and routes admin uploads to the uploader", () => {
+    const h = harness([]);
+    const page = h.mount(h.load("app/page.js"));
+    expect(button(page.tree, "Shuffle All").props.disabled).toBe(true);
+    expect(find(page.tree, (node) => node.props.href === "/upload")).toBeDefined();
+    const shelves = nodes(page.tree).filter((node) => node.props.items);
+    for (const shelf of shelves) expect(h.mount(shelf.type, shelf.props).tree).toBeNull();
+  });
+
+  it("filters only curated tracks and retains a recoverable empty state", () => {
+    const h = harness([fixture("one")]);
+    const page = h.mount(h.load("app/page.js"));
+    button(page.tree, "Short").props.onClick();
+    page.render();
+    expect(text(page.tree)).toContain("No songs match this filter");
+    expect(button(page.tree, "Short").props["aria-pressed"]).toBe(true);
+    button(page.tree, "All").props.onClick();
+    page.render();
+    expect(text(page.tree)).not.toContain("No songs match this filter");
+    expect(button(page.tree, "All").props["aria-pressed"]).toBe(true);
+  });
+});
 
 const adminFixtures = [
   fixture("alpha", "Alpha", "Zoe", "2026-09-12"),

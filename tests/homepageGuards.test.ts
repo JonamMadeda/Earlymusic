@@ -24,11 +24,15 @@ describe("shuffle all", () => {
 });
 
 describe("rail scroll arrows", () => {
-  it("shows every hover-revealed arrow on keyboard focus too", () => {
-    const hoverRevealed = source.match(/group-hover\/rail:opacity-100/g) ?? [];
-    expect(hoverRevealed.length, "no rail arrows found to guard").toBeGreaterThan(0);
-    const hoverOnly = source.match(/group-hover\/rail:opacity-100(?! focus-visible:opacity-100)/g) ?? [];
-    expect(hoverOnly).toHaveLength(0);
+  it("uses measured overflow and visible controls instead of hover-only arrows", () => {
+    const rail = source.slice(source.indexOf("const SectionBlock"), source.indexOf("export default function Home"));
+    expect(rail).toContain("new ResizeObserver(updateEdges)");
+    expect(rail).toContain("onScroll={updateEdges}");
+    expect(rail).toContain("disabled={!edges.left}");
+    expect(rail).toContain("disabled={!edges.right}");
+    expect(rail).not.toMatch(/opacity-0|md:flex|mask-image|items.length > 3/);
+    expect(rail).toContain("e.preventDefault()");
+    expect(rail).toContain('matches ? "instant" : "smooth"');
   });
 });
 
@@ -42,6 +46,7 @@ describe("curated filter pills", () => {
 
   it("leaves the page still when a pill is tapped", () => {
     expect(source).not.toMatch(/\.scrollIntoView\(/);
+    expect(source).toContain("min-h-[60dvh]");
   });
 });
 
@@ -69,6 +74,22 @@ describe("verse capsule", () => {
     const copyVerse = source.match(/const copyVerse = useCallback\(async \(\) => \{[\s\S]*?\n {2}\},/);
     expect(copyVerse, "copyVerse callback not found").not.toBeNull();
     expect(copyVerse![0]).toContain('setVerseCopyState("failed")');
+  });
+});
+
+describe("homepage layout", () => {
+  it("uses the shell main landmark without a second main or progress overlay", () => {
+    expect(source).not.toMatch(/<main|ScrollProgress|z-\[600\]/);
+    expect(source).toContain('className="page-title"');
+    expect(source).toContain('disabled={sortedSongs.length === 0}');
+  });
+
+  it("keeps title space and card borders stable when selected", () => {
+    expect(source).not.toContain("border-2 border-accent");
+    expect(featuredCard).not.toContain("border-2 border-accent");
+    expect(source).toContain("line-clamp-2 min-h-10");
+    expect(featuredCard).toContain("line-clamp-2 min-h-10");
+    expect(source).not.toContain("mask-image:");
   });
 });
 

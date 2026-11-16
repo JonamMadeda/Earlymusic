@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { useOnlineStatus } from "@/lib/useOnlineStatus";
 import { CloudOff, LogIn, Search } from "lucide-react";
 import Link from "next/link";
@@ -9,31 +9,29 @@ import { useAuth } from "@/app/context/AuthContext";
 import GlobalSearchModal from "./GlobalSearchModal";
 import NotificationBell from "./NotificationBell";
 
+const sectionNames = {
+  songs: "Songs", library: "Library", playlists: "Playlists", account: "Account",
+  notifications: "Notifications", auth: "Welcome", admin: "Admin", upload: "Upload",
+  settings: "Settings", search: "Search", privacy: "Privacy", terms: "Terms",
+  accessibility: "Accessibility", downloads: "Downloads",
+};
+
+const subscribePlatform = () => () => {};
+
 const Header = () => {
   const pathname = usePathname();
   const isOnline = useOnlineStatus();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  // The header search bar is the home page's entry point into search. Every
-  // other section either has its own field (songs, playlists, admin) or is a
-  // signed-out screen where it reads as broken, so it appears on "/" only.
-  // ⌘K still opens the modal anywhere.
+  const isApple = useSyncExternalStore(subscribePlatform, () => /Mac|iPhone|iPad/.test(navigator.platform), () => false);
+  const shortcut = isApple ? "⌘ K" : "Ctrl K";
   const isHomePage = pathname === "/";
-
-  // The sidebar that carries Sign In is desktop-only, so mobile needs the
-  // call to action here. Waiting on the session check keeps it from flashing
-  // at someone who is already signed in.
   const { user, loading: authLoading } = useAuth();
   const showSignIn = isOnline && !authLoading && !user && pathname !== "/auth";
+  const sectionName = sectionNames[pathname?.split("/")[1]] || "Luumbo";
 
-  // The bar is a row of the flex column in layout.js and sits *outside*
-  // #app-scroll, so it is pinned by structure rather than by positioning: it
-  // never scrolls, needs no `position` to keep it there, and takes its space
-  // with it — the older negative-margin collapse is gone on purpose.
-
-  // Keyboard shortcut Cmd/Ctrl + K to open search
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if (!e.defaultPrevented && !e.repeat && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setIsSearchOpen((prev) => !prev);
       }
@@ -44,79 +42,62 @@ const Header = () => {
 
   return (
     <>
-      {/* Icon sizes follow one scale so the bar reads as a set: 18px for a glyph
-          that is alone in its circle (search, bell) and 14 for a glyph next to a
-          text label. The circles are .tap-sm (34px), and 18/34 is the ratio that
-          stops them looking empty. Nothing in this row changes width with the
-          connection state — see the offline row below it. */}
-      <header className="relative z-[200] border-b border-neutral-100 bg-white/90 backdrop-blur-xl">
-        <div className="flex items-center justify-between gap-4 px-4 py-1.5 md:px-6 md:py-2.5">
-          {/* Mobile brand / Desktop search trigger */}
-          <div className="flex items-center gap-3">
-            <Link href="/" className="md:hidden flex items-center">
-              {/* 18px is the size the wordmark carries everywhere it has room —
-                  the sidebar brand — so the mobile bar reads as the same name
-                  rather than a shrunken copy of it. */}
+      <header className="relative z-[200] shrink-0 border-b border-neutral-200/70 bg-white">
+        <div className="mx-auto flex min-h-11 items-center justify-between gap-3 px-3 py-1.5 sm:px-6 md:min-h-14 md:px-8 md:py-2.5">
+          <div className="flex min-w-0 flex-1 items-center">
+            <Link href="/" aria-label="Luumbo home" className="tap-sm inline-flex h-8.5 shrink-0 items-center rounded-md md:hidden">
               <span className="text-[18px] leading-none font-bold tracking-tight text-neutral-900">
                 Luumbo
               </span>
             </Link>
-
-            {/* Desktop quick search button (home page only) */}
-            {isHomePage && (
+            {isHomePage ? (
               <button
                 type="button"
+                aria-label="Search songs and artists"
+                aria-haspopup="dialog"
+                aria-expanded={isSearchOpen}
                 onClick={() => setIsSearchOpen(true)}
-                className="tap-sm hidden md:flex items-center gap-2.5 rounded-full border border-neutral-200 bg-neutral-50/80 px-3.5 py-1.5 text-xs text-neutral-400 hover:border-neutral-300 hover:bg-neutral-100/80 hover:text-neutral-700 transition shadow-sm w-64 lg:w-80"
+                className="tap-sm hidden min-h-9 w-full max-w-sm items-center gap-2.5 rounded-full border border-neutral-200 bg-neutral-50 px-3.5 py-1.5 text-sm text-neutral-500 transition hover:border-neutral-300 hover:bg-neutral-100 md:flex"
               >
-                <Search size={14} className="text-neutral-400" />
-                <span className="flex-1 text-left">Search songs, artists...</span>
-                <kbd className="rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-neutral-400">
-                  ⌘K
+                <Search size={16} className="shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate text-left">Search songs, artists...</span>
+                <kbd className="shrink-0 rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-neutral-500">
+                  {shortcut}
                 </kbd>
               </button>
+            ) : (
+              <span className="hidden truncate text-sm font-semibold text-neutral-600 md:block">{sectionName}</span>
             )}
           </div>
-
-          {/* Right side: Mobile search + announcements bell + sign-in prompt */}
-          <div className="flex items-center gap-2">
-            {/* Mobile search button (home page only) */}
+          <nav aria-label="Quick access" className="flex shrink-0 items-center gap-2 md:hidden">
             {isHomePage && (
               <button
                 type="button"
-                aria-label="Search"
+                aria-label="Search songs and artists"
+                aria-haspopup="dialog"
+                aria-expanded={isSearchOpen}
                 onClick={() => setIsSearchOpen(true)}
-                className="tap-sm flex md:hidden h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 active:scale-95 transition"
+                className="tap-sm flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition hover:bg-neutral-200 active:scale-95"
               >
-                <Search size={18} />
+                <Search size={18} aria-hidden="true" />
               </button>
             )}
-
             <NotificationBell />
-
             {showSignIn && (
               <Link
                 href={`/auth?redirectTo=${encodeURIComponent(pathname || "/")}`}
-                className="tap-sm md:hidden inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-[13px] font-bold text-white shadow-sm transition active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                className="tap-sm inline-flex min-h-8.5 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-white transition hover:bg-accent/90 active:scale-95"
               >
                 <LogIn size={14} aria-hidden="true" />
                 Sign in
               </Link>
             )}
-          </div>
+          </nav>
         </div>
-
-        {/* Offline is a state of the whole app, not another control in the bar,
-            so it gets its own row instead of a pill that shoves Sign in leftward
-            on a 411px screen. role="status" announces the change in both
-            directions; no pulse, because a persistent warning that animates
-            forever reads as an alarm. */}
+        {/* Offline is a state of the whole app, separate from navigation. */}
         {!isOnline && (
-          <div
-            role="status"
-            className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-semibold text-amber-800 md:px-6"
-          >
-            <CloudOff size={12} aria-hidden="true" className="shrink-0" />
+          <div role="status" className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 sm:px-6 md:px-8">
+            <CloudOff size={14} aria-hidden="true" className="shrink-0" />
             <span className="min-w-0 flex-1">Offline — downloaded songs are available.</span>
             <a href="/library?tab=downloads" className="tap-sm inline-flex shrink-0 items-center rounded-lg px-2 font-bold underline underline-offset-2">
               Downloads
@@ -124,7 +105,6 @@ const Header = () => {
           </div>
         )}
       </header>
-
       {isSearchOpen && <GlobalSearchModal isOpen onClose={() => setIsSearchOpen(false)} />}
     </>
   );

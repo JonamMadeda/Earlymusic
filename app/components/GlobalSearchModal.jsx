@@ -9,11 +9,35 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
   const { allSongs, setActiveSong } = usePlayer();
   const [query, setQuery] = useState("");
   const inputRef = useRef(null);
+  const dialogRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen) return;
-    const timeout = setTimeout(() => inputRef.current?.focus(), 50);
-    return () => clearTimeout(timeout);
+    const trigger = document.activeElement;
+    inputRef.current?.focus();
+    const trapFocus = (event) => {
+      if (event.key !== "Tab") return;
+      const controls = [...dialogRef.current.querySelectorAll('button:not([disabled]), input, a[href]')];
+      const first = controls[0];
+      const last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    const keepFocus = (event) => {
+      if (!dialogRef.current?.contains(event.target)) inputRef.current?.focus();
+    };
+    document.addEventListener("keydown", trapFocus);
+    document.addEventListener("focusin", keepFocus);
+    return () => {
+      document.removeEventListener("keydown", trapFocus);
+      document.removeEventListener("focusin", keepFocus);
+      if (trigger?.isConnected) trigger.focus();
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -43,15 +67,17 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
       <div
         className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
+        aria-hidden="true"
       />
 
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Search songs"
-        className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl animate-fade-in"
+        className="relative z-10 flex max-h-[calc(100dvh-5rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl animate-fade-in"
       >
-        <div className="search-field flex items-center gap-3 border-b border-neutral-100 px-4 py-3.5">
+        <div className="search-field flex shrink-0 items-center gap-2 border-b border-neutral-100 px-3 py-3 sm:px-4">
           <Search size={18} className="text-neutral-400 shrink-0" />
           <input
             ref={inputRef}
@@ -60,14 +86,14 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search songs and artists"
             placeholder="Search songs, artists..."
-            className="flex-1 bg-transparent text-sm md:text-base font-medium text-neutral-900 placeholder:text-neutral-400 outline-none"
+            className="min-w-0 flex-1 bg-transparent text-base font-medium text-neutral-900 placeholder:text-neutral-400 outline-none"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery("")}
               aria-label="Clear search"
-              className="rounded-full p-1 text-neutral-400 hover:text-neutral-700 transition"
+              className="tap-sm flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-700"
             >
               <X size={15} />
             </button>
@@ -76,9 +102,9 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
             type="button"
             onClick={onClose}
             aria-label="Close search"
-            className="rounded-lg border border-neutral-200 px-2 py-1 text-xs font-semibold text-neutral-500 hover:bg-neutral-50"
+            className="tap-sm flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-full text-neutral-600 transition hover:bg-neutral-100"
           >
-            ESC
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
 
@@ -90,7 +116,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
             : `${filteredSongs.length} ${filteredSongs.length === 1 ? "song" : "songs"} found`}
         </p>
 
-        <div className="max-h-[60vh] overflow-y-auto p-2">
+        <div className="min-h-0 overflow-y-auto overscroll-contain p-2">
           {query.trim() === "" ? (
             <div className="py-10 text-center">
               <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-400">

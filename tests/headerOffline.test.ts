@@ -35,6 +35,25 @@ describe("offline indicator", () => {
   });
 });
 
+describe("header controls and search", () => {
+  it("keeps the wordmark and compact controls from growing on touch", () => {
+    expect(header).toMatch(/className="tap-sm inline-flex h-8.5 shrink-0/);
+    expect(header).toContain('aria-label="Quick access"');
+    expect(header.match(/aria-haspopup="dialog"/g)).toHaveLength(2);
+    expect(header).toContain('const shortcut = isApple ? "⌘ K" : "Ctrl K"');
+  });
+
+  it("keeps search focus inside and restores the trigger on close", () => {
+    const search = readFileSync(new URL("../app/components/GlobalSearchModal.jsx", import.meta.url), "utf8");
+    expect(search).toContain('document.addEventListener("keydown", trapFocus)');
+    expect(search).toContain('document.removeEventListener("keydown", trapFocus)');
+    expect(search).toContain("trigger?.isConnected");
+    expect(search).toContain("trigger.focus()");
+    expect(search).toContain('className="min-w-0 flex-1 bg-transparent text-base');
+    expect(search).toContain("max-h-[calc(100dvh-5rem)]");
+  });
+});
+
 // The bar is pinned by structure, not by behaviour: layout.js puts it in the
 // flex column *above* #app-scroll, so it never scrolls and needs no collapse,
 // no negative margin and no `position` to hold it in place.

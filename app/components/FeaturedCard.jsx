@@ -34,10 +34,11 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
       aria-current={isActive ? "true" : undefined}
-      className={`group relative flex w-[140px] md:w-[156px] flex-shrink-0 snap-start flex-col items-center rounded-2xl px-3 pb-3 pt-4 text-center transition-all duration-200 hover:-translate-y-0.5 ${
+      aria-label={`Play: ${song.title} by ${song.author || "Unknown artist"}`}
+      className={`group relative flex w-[152px] max-w-full shrink-0 snap-start flex-col items-center rounded-xl border px-3 pb-3 pt-4 text-center transition-colors md:w-[168px] ${
         isActive
-          ? "border-2 border-accent bg-neutral-50 shadow-xs"
-          : "border border-neutral-200 bg-white hover:border-neutral-400/70 shadow-2xs"
+          ? "border-accent bg-neutral-50 ring-1 ring-inset ring-accent"
+          : "border-neutral-200 bg-white hover:border-neutral-400/70"
       }`}
     >
       {/* freshness stamp — matches app meta type */}
@@ -73,7 +74,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
           className={`absolute -bottom-1.5 left-1/2 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-lg text-white shadow-md ring-2 ring-white transition-all duration-200 ${
             isActive
               ? "bg-accent"
-              : "bg-neutral-900 opacity-0 scale-75 group-hover:opacity-100 group-focus-within:opacity-100 group-hover:scale-100 group-focus-within:scale-100"
+              : "bg-neutral-900"
           }`}
         >
           {isActive ? (
@@ -88,7 +89,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
 
       {/* track info */}
       <span className="mt-3.5 block w-full min-w-0">
-        <span className={`block truncate text-xs font-bold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
+        <span className={`line-clamp-2 min-h-10 text-sm font-semibold leading-5 break-words ${isActive ? "text-accent" : "text-neutral-900"}`}>
           {song.title}
         </span>
         <span className="mt-0.5 block truncate text-xs font-medium text-neutral-500">

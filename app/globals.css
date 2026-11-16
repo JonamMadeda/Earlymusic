@@ -239,7 +239,8 @@ input[type="range"].seek-bar {
 
 /* The global search is one rounded field, so the ring belongs on the wrapper
    rather than the bare input inside it. */
-.search-field input:focus-visible {
+.search-field input:focus-visible,
+.search-field:focus-within input[type="text"]:focus-visible {
   outline: none;
   box-shadow: none;
 }

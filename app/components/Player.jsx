@@ -1274,11 +1274,9 @@ const Player = () => {
           role="dialog"
           aria-modal="true"
           aria-labelledby="player-title"
-          className="player-dark fixed inset-0 z-[99999] flex flex-col animate-fade-in bg-[#0b1120] text-white"
+          className="player-dark fixed inset-0 z-[1000] flex flex-col overflow-hidden animate-fade-in bg-[#0b1120] text-white"
         >
-          {/* Atmospheric background glow */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] via-[#0b1120] to-black opacity-95" />
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/20 rounded-full blur-[100px] pointer-events-none" />
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0f172a] to-[#0b1120]" />
 
           {/* Swipe-down grabber */}
           <div
@@ -1291,61 +1289,26 @@ const Player = () => {
             <span className="h-1.5 w-10 rounded-full bg-white/25" />
           </div>
 
-          {/* Header. Above the body columns so the overflow menu is not painted
-              over by them — z-index inside a stacking context cannot escape it. */}
-          <div className="relative z-30 flex shrink-0 items-center justify-between gap-1 px-3 pt-[env(safe-area-inset-top,0px)] pb-2 md:px-6 md:pt-4">
+          <div className="relative z-30 mx-auto grid w-full max-w-6xl shrink-0 grid-cols-[2.25rem_1fr_2.25rem] items-center gap-3 px-4 pt-[env(safe-area-inset-top,0px)] pb-2 md:px-8 md:pt-4">
             <button
               ref={closeButtonRef}
               type="button"
               aria-label="Close player"
               onClick={closeFullPlayer}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
+              className="tap-sm flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
             >
-              <ChevronDown size={22} />
+              <ChevronDown size={22} aria-hidden="true" />
             </button>
-            <div className="flex min-w-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 border border-white/10">
-              <span className="truncate text-xs font-bold uppercase tracking-widest text-white/70">
-                {showQueue ? "Up Next" : "Now Playing"}
-              </span>
-            </div>
-            <div className="flex shrink-0 items-center">
-              <button
-                type="button"
-                aria-label="Share this song"
-                onClick={handleShare}
-                className={`flex h-11 w-11 items-center justify-center rounded-full transition hover:bg-white/10 ${
-                  shareFeedback === "copied"
-                    ? "text-green-400"
-                    : shareFeedback === "failed"
-                      ? "text-red-400"
-                      : "text-white/60 hover:text-white"
-                }`}
-              >
-                {shareFeedback === "copied" ? (
-                  <Check size={18} strokeWidth={3} />
-                ) : (
-                  <Share2 size={18} />
-                )}
-              </button>
-              <button
-                type="button"
-                aria-label={isLiked ? "Remove from saved songs" : "Save song"}
-                aria-pressed={isLiked}
-                onClick={toggleLike}
-                className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-                  isLiked ? "text-white bg-white/20" : "text-white/60 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
-              </button>
-              <SongOverflowMenu
-                song={song}
-                playbackRate={playbackRate}
-                onCyclePlaybackRate={cyclePlaybackRate}
-                onStatus={announce}
-                onOfflineChange={setIsOffline}
-              />
-            </div>
+            <p className="text-center text-xs font-semibold tracking-wide text-white/60">Now playing</p>
+            <SongOverflowMenu
+              key={song.id}
+              song={song}
+              playbackRate={playbackRate}
+              onCyclePlaybackRate={cyclePlaybackRate}
+              onShare={handleShare}
+              onStatus={announce}
+              onOfflineChange={setIsOffline}
+            />
           </div>
 
           {shareFeedback && (
@@ -1364,10 +1327,12 @@ const Player = () => {
             </div>
           )}
 
-          <div className="relative z-10 flex min-h-0 flex-1 flex-col md:flex-row">
-            {/* Left column: artwork or queue */}
-            <div className="flex min-h-0 flex-1 flex-col px-5 py-2 md:basis-[45%] md:flex-none md:border-r md:border-white/10 md:px-8 md:py-6">
-              {showQueue ? (
+          <div className="full-player-body relative z-10" data-queue={showQueue}>
+            <div className="full-player-artwork" aria-hidden="true">
+              <VinylArtwork title={song.title} isPlaying={isPlaying} />
+            </div>
+            {showQueue && (
+              <section id="player-queue" aria-label="Playback queue" className="full-player-queue">
                 <PlayerQueue
                   songs={songs}
                   currentSongId={song.id}
@@ -1379,25 +1344,31 @@ const Player = () => {
                   onMove={moveInQueue}
                   onClear={clearQueue}
                 />
-              ) : (
-                <div className="flex flex-1 items-center justify-center">
-                  <VinylArtwork title={song.title} isPlaying={isPlaying} />
-                </div>
-              )}
-            </div>
+              </section>
+            )}
 
-            {/* Right column: song info and controls */}
-            <div className="relative z-10 flex shrink-0 flex-col md:min-h-0 md:flex-1 md:justify-center">
-              <div className="px-6 pb-2 md:px-12 md:text-center lg:px-16">
-                <h2
-                  id="player-title"
-                  className="text-xl font-bold tracking-tight text-white drop-shadow-sm md:text-2xl"
-                >
-                  {song.title}
-                </h2>
-                <p className="mt-1 text-sm font-medium text-white/70 md:text-base">
-                  {song.author}
-                </p>
+            <div className="full-player-controls min-w-0">
+              <div className="mb-3">
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h2 id="player-title" title={song.title} className="line-clamp-2 break-words text-xl font-bold leading-snug tracking-tight text-white md:text-2xl">
+                      {song.title}
+                    </h2>
+                    <p title={song.author} className="mt-1 line-clamp-2 break-words text-sm leading-relaxed text-white/65">
+                      {song.author}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={isLiked ? "Remove from saved songs" : "Save song"}
+                    aria-pressed={isLiked}
+                    disabled={isLikePending}
+                    onClick={toggleLike}
+                    className={`tap-sm mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition disabled:opacity-50 ${isLiked ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/10 hover:text-white"}`}
+                  >
+                    <Heart size={20} fill={isLiked ? "currentColor" : "none"} aria-hidden="true" />
+                  </button>
+                </div>
                 {attribution && (
                   <p className="mt-1 text-xs leading-relaxed text-white/55">
                     {song.copyright_holder && <>© {song.copyright_holder}</>}
@@ -1445,11 +1416,10 @@ const Player = () => {
                 )}
               </div>
 
-              {/* Controls panel */}
-              <div className="rounded-t-2xl border-t border-white/15 bg-white/[0.08] px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] backdrop-blur-2xl md:rounded-none md:border-t-0 md:bg-transparent md:px-12 md:pb-8 md:backdrop-blur-none lg:px-16">
+              <div>
                 <SeekBar audioRef={audioRef} duration={duration} onSeek={handleSeek} />
 
-                <div className="flex items-center justify-center gap-4 py-2 sm:gap-6">
+                <div className="mx-auto flex w-full max-w-sm items-center justify-between gap-2 py-2">
                   <button
                     type="button"
                     aria-label="Toggle shuffle"

@@ -19,7 +19,7 @@ const NotificationBell = () => {
           ? `Announcements, ${unread} unread`
           : "Announcements"
       }
-      className="tap-sm relative flex md:hidden h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 active:scale-95 transition outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+      className="tap-sm relative flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition hover:bg-neutral-200 active:scale-95 md:hidden"
     >
       <Bell size={18} />
       {unread > 0 && (
