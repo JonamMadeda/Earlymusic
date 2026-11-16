@@ -690,9 +690,11 @@ export default function Home() {
                 )}
 
                 <div className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50/70 px-3 py-2 text-[13px] font-medium text-neutral-500">
-                  <span className="font-bold text-neutral-800">{stats.total}</span> tracks
+                  <span className="font-bold text-neutral-800">{stats.total}</span>{" "}
+                  {stats.total === 1 ? "track" : "tracks"}
                   <span className="text-neutral-300">•</span>
-                  <span className="font-bold text-neutral-800">{stats.artists}</span> artists
+                  <span className="font-bold text-neutral-800">{stats.artists}</span>{" "}
+                  {stats.artists === 1 ? "artist" : "artists"}
                   {stats.new > 0 && (
                     <>
                       <span className="text-neutral-300">•</span>

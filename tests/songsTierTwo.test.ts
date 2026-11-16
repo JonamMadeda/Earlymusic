@@ -89,8 +89,9 @@ describe("songs toolbar is page content", () => {
     expect(toolbar).not.toMatch(/backdrop-blur/);
     expect(toolbar).not.toMatch(/bg-white\/95/);
     // No sticky box any more, so the progress line needs the bar to be the
-    // containing block it resolves against.
-    expect(toolbar).toMatch(/className="relative rounded-xl/);
+    // containing block it resolves against. The right margin keeps the bar
+    // clear of the fixed index track pinned to the page's right edge.
+    expect(toolbar).toMatch(/className="relative mr-7 rounded-xl/);
   });
 
   it("clears only the scroll container's top edge, not a sticky bar", () => {
@@ -100,8 +101,16 @@ describe("songs toolbar is page content", () => {
     // Measuring the bar's height existed only to park things under it.
     expect(view).not.toMatch(/ResizeObserver|toolbarHeight|toolbarRef/);
     const rail = view.slice(view.indexOf("Alphabet Jump Bar"), view.indexOf("</main>"));
-    expect(rail).toMatch(/top: STICKY_TOP/);
-    expect(rail).toMatch(/sticky/);
+    // The index is a fixed overlay measured against the scroller, so it can
+    // never park its tail behind the player the way an in-flow column did.
+    expect(rail).toMatch(/fixed z-30/);
+    expect(rail).toMatch(/top: railBox\.top/);
+    // Section headers pin as full-width opaque bars, not pills floating over
+    // the row text beneath them.
+    const header = view.slice(view.indexOf("ref={(el) => { letterRefs.current[group.key] = el; }}"), view.indexOf("A flat list with hairlines"));
+    expect(header).toMatch(/sticky z-10 -mx-1\.5/);
+    expect(header).toMatch(/bg-white\/95/);
+    expect(header).toMatch(/border-b border-neutral-200\/70/);
   });
 });
 describe("songs scroll progress", () => {

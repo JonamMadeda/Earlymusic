@@ -23,27 +23,29 @@ describe("songs alphabet rail", () => {
     expect(songs).toMatch(/className="flex gap-1\.5 sm:gap-4"/);
   });
 
-  it("reserves one glyph of width on a phone and grows only when the label needs it", () => {
-    // Date sort labels are three characters ("Jan"), so a fixed w-4 clips them.
-    // The phone column is one glyph wide (14px) because every pixel of it comes
-    // off the rows beside it.
-    expect(rail).toMatch(/min-w-3\.5/);
+  it("reserves the track's width in flow and pins the track itself", () => {
+    // Date sort labels are three characters ("Jan"), so the track is two glyphs
+    // wide; the placeholder keeps the rows clear of the fixed overlay.
+    expect(rail).toMatch(/w-6 shrink-0 sm:w-7/);
+    expect(rail).toMatch(/fixed z-30/);
     expect(rail).toMatch(/whitespace-nowrap/);
     expect(rail).not.toMatch(/(?<!min-)w-4/);
-    expect(rail).not.toMatch(/(?<!min-)w-5/);
-    expect(rail).not.toMatch(/min-w-4/);
   });
 
   it("keeps the letters stacked without gaps to tap between", () => {
     expect(rail).not.toMatch(/gap-px/);
   });
 
-  it("fits the screen instead of becoming a second scroll area", () => {
+  it("fits the safe area instead of becoming a second scroll area", () => {
     // A touch on the column is a scrub, never a flick that scrolls it, so the
-    // letters have to compress rather than hide below the fold.
-    expect(rail).toMatch(/overflow-hidden/);
-    expect(rail).not.toMatch(/overflow-y-auto|shrink-0 items-center/);
-    expect(rail).toMatch(/min-h-0/);
-    expect(rail).toMatch(/maxHeight: `calc\(100dvh - \$\{STICKY_TOP \+ 150\}px\)`/);
+    // letters share the measured height rather than hide below the fold. The
+    // budget is the scroller's bottom minus the player chrome minus the rail's
+    // top — in flow the tail used to sit behind the mini-player.
+    expect(songs).toMatch(/const measureRail = useCallback/);
+    expect(songs).toMatch(/scRect\.bottom - chrome - top/);
+    expect(rail).toMatch(/justify-between/);
+    expect(rail).toMatch(/min-h-0 w-full flex-1/);
+    expect(rail).not.toMatch(/overflow-y-auto|no-scrollbar/);
+    expect(songs).not.toMatch(/rail\.scrollTop/);
   });
 });

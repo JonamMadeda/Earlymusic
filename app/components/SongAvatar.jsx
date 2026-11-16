@@ -20,7 +20,7 @@ export const pastelGradient = (seed) => {
 };
 
 export const initialLetter = (title) => {
-  const match = String(title || "").match(/[\p{L}]/u);
+  const match = String(title || "").trim().match(/[\p{L}\p{N}]/u);
   return match ? match[0].toUpperCase() : "?";
 };
 

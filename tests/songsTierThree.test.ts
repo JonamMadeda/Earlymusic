@@ -99,12 +99,15 @@ describe("alphabet rail as a scrub surface", () => {
   });
 
   it("shows every group at once instead of scrolling to reach them", () => {
-    // The column used to be a scroll box with an edge nudge; letters give up
-    // height against the rail's max-height now, so nothing can be out of reach.
-    expect(rail).toMatch(/overflow-hidden/);
+    // The track is pinned to the safe area (below the app bar, above the player)
+    // and the letters share its measured height, so nothing is out of reach and
+    // nothing hides behind the chrome at the top of the page.
+    expect(rail).toMatch(/fixed z-30/);
+    expect(rail).toMatch(/height: railBox\.height/);
+    expect(rail).toMatch(/justify-between/);
     expect(rail).not.toMatch(/overflow-y-auto|no-scrollbar/);
     expect(view).not.toMatch(/rail\.scrollTop/);
-    expect(view).toMatch(/h-\[18px\] min-h-0/);
+    expect(rail).toMatch(/min-h-0 w-full flex-1/);
   });
 });
 

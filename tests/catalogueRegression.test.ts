@@ -51,6 +51,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
     useMemo(compute: () => any) { return compute(); },
     useCallback(callback: any) { return callback; },
     useEffect(effect: () => void) { current.effects.push(effect); },
+    useLayoutEffect(effect: () => void) { current.effects.push(effect); },
     Suspense: "suspense",
   };
   const setActiveSong = vi.fn();

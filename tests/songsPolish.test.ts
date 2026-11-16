@@ -188,7 +188,7 @@ describe("songs rows answer the pointer", () => {
     expect(row).toMatch(/cursor-pointer rounded text-left after:absolute after:inset-0/);
     expect(row).toMatch(/hover:bg-neutral-50 active:bg-neutral-100/);
     const rail = view.slice(view.indexOf("Alphabet Jump Bar"), view.indexOf("</main>"));
-    expect(rail).toMatch(/min-w-3\.5 cursor-pointer/);
+    expect(rail).toMatch(/min-h-0 w-full flex-1 cursor-pointer/);
   });
 
   it("gives the toolbar and the row menu the same hand as the rows", () => {
