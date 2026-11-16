@@ -394,7 +394,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
     <div
       ref={rowRef}
       onMouseEnter={() => prefetchSongAudio(song)}
-      className={`group relative flex w-full items-center gap-3 px-2 py-3 text-left transition-colors duration-150 sm:px-3 sm:gap-3.5 ${
+      className={`group relative flex w-full items-center gap-2.5 px-2 py-2 text-left transition-colors duration-150 sm:px-3 sm:py-2.5 sm:gap-3.5 ${
         isActive
           ? "bg-accent/[0.07] shadow-[inset_2px_0_0_var(--color-accent)]"
           : "hover:bg-neutral-50 active:bg-neutral-100"
@@ -420,7 +420,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
             onClick={onClick}
             aria-current={isActive ? "true" : undefined}
             aria-label={`${isActive ? "Playing" : "Play"}: ${song.title || "this song"}`}
-            className="min-w-0 max-w-full cursor-pointer rounded text-left after:absolute after:inset-0"
+            className="tap-sm min-w-0 max-w-full cursor-pointer rounded text-left after:absolute after:inset-0"
           >
             <p className={`truncate text-sm sm:text-[15px] font-semibold tracking-tight transition-colors ${isActive ? "text-accent font-bold" : "text-neutral-900 group-hover:text-accent"}`}>
               {song.title}
@@ -463,7 +463,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
               onCategoryClick?.(song.category);
             }}
             aria-label={`Filter by ${song.category}`}
-            className="hidden sm:inline-flex cursor-pointer items-center rounded-full border border-neutral-200/80 bg-neutral-50 px-2.5 py-0.5 text-[11px] font-medium text-neutral-600 transition hover:border-neutral-300 hover:bg-neutral-100"
+            className="hidden sm:inline-flex tap-sm cursor-pointer items-center rounded-full border border-neutral-200/80 bg-neutral-50 px-2.5 py-0.5 text-[11px] font-medium text-neutral-600 transition hover:border-neutral-300 hover:bg-neutral-100"
           >
             {song.category}
           </button>
@@ -479,7 +479,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
             }
             openMenu();
           }}
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
+          className="tap-sm flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
           title="More"
           aria-label={`More actions for ${song.title || "this song"}`}
           aria-haspopup="menu"
@@ -1382,7 +1382,7 @@ export default function SongsView() {
           <div ref={listRowRef} className="flex gap-1.5 sm:gap-4">
             {/* Songs */}
             <div className="min-w-0 flex-1">
-              <div className="flex flex-col gap-y-5 md:gap-y-6">
+              <div className="flex flex-col gap-y-3 sm:gap-y-4 md:gap-y-6">
                 {songGroups.map((group) => (
                   <div
                     key={group.key}
@@ -1485,7 +1485,7 @@ export default function SongsView() {
                     ref={(el) => { railLettersRef.current[group.key] = el; }}
                     aria-label={`Jump to ${group.label}`}
                     onClick={() => scrollToLetter(group.key)}
-                    className={`flex min-h-0 w-full flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-full text-[11px] font-bold leading-none transition-colors duration-150 select-none ${
+                    className={`tap-sm flex min-h-0 w-full flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-full text-[11px] font-bold leading-none transition-colors duration-150 select-none ${
                       jumpLetter === group.key
                         ? "bg-accent text-white"
                         : "text-neutral-500 hover:bg-neutral-200 hover:text-neutral-800 active:bg-neutral-200 active:text-neutral-800"
