@@ -98,9 +98,13 @@ describe("alphabet rail as a scrub surface", () => {
     expect(rail).toMatch(/touchAction: "none"/);
   });
 
-  it("reaches the groups the column cannot show at once", () => {
-    expect(view).toMatch(/rail\.scrollTop -= 16/);
-    expect(view).toMatch(/rail\.scrollTop \+= 16/);
+  it("shows every group at once instead of scrolling to reach them", () => {
+    // The column used to be a scroll box with an edge nudge; letters give up
+    // height against the rail's max-height now, so nothing can be out of reach.
+    expect(rail).toMatch(/overflow-hidden/);
+    expect(rail).not.toMatch(/overflow-y-auto|no-scrollbar/);
+    expect(view).not.toMatch(/rail\.scrollTop/);
+    expect(view).toMatch(/h-\[18px\] min-h-0/);
   });
 });
 

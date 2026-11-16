@@ -90,8 +90,9 @@ describe("songs toolbar is page content", () => {
   });
 
   it("clears only the scroll container's top edge, not a sticky bar", () => {
-    // The app header sits outside #app-scroll, so its height is already gone.
-    expect(view).toMatch(/const STICKY_TOP = 0;/);
+    // The app header sits outside #app-scroll, so only an 8px breathing gap
+    // separates these from it — flush against the edge read as part of the bar.
+    expect(view).toMatch(/const STICKY_TOP = 8;/);
     // Measuring the bar's height existed only to park things under it.
     expect(view).not.toMatch(/ResizeObserver|toolbarHeight|toolbarRef/);
     const rail = view.slice(view.indexOf("Alphabet Jump Bar"), view.indexOf("</main>"));

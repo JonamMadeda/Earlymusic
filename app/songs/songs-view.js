@@ -760,10 +760,11 @@ export default function SongsView() {
   const [scrollProgress, setScrollProgress] = useState(0);
 
   // The app header sits outside #app-scroll, so the top edge of the scroll
-  // container is already below it — that is where the sticky letter chips and
-  // the alphabet rail park. The search/filter bar used to occupy the same
-  // space, which is why these offsets once measured its height.
-  const STICKY_TOP = 0;
+  // container is already below it. The sticky letter chips and the alphabet
+  // rail park 8px under that edge: flush against it read as part of the nav
+  // bar, and the search/filter bar is page content now, so nothing above
+  // these needs its height measured any more.
+  const STICKY_TOP = 8;
 
   // Track the app scroll container (layout scrolls in #app-scroll, not window)
   // for the progress bar + scroll-to-top button.
@@ -945,12 +946,10 @@ useEffect(() => {
     const rail = railRef.current;
     if (!rail) return;
 
-    // The column scrolls when the groups don't fit (they are 44px tall under a
-    // coarse pointer), so pushing the finger past an end walks the rest of them.
+    // The column never scrolls: the letters give up height instead (min-h-0
+    // against the rail's max-height), so every group is on screen at once and
+    // the nearest one to the finger is the whole answer.
     const box = rail.getBoundingClientRect();
-    const EDGE = 14;
-    if (clientY < box.top + EDGE) rail.scrollTop -= 16;
-    else if (clientY > box.bottom - EDGE) rail.scrollTop += 16;
 
     let nearest = null;
     let nearestGap = Infinity;
@@ -1282,7 +1281,7 @@ useEffect(() => {
               onPointerUp={stopRailScrub}
               onPointerLeave={stopRailScrub}
               onPointerCancel={stopRailScrub}
-              className="no-scrollbar sticky flex shrink-0 select-none flex-col items-center self-start overflow-y-auto lg:gap-0.5 lg:pt-4"
+              className="sticky flex shrink-0 select-none flex-col items-center self-start overflow-hidden lg:gap-0.5 lg:pt-4"
             >
               {songGroups.map((group) => (
                 <button
@@ -1292,7 +1291,7 @@ useEffect(() => {
                   ref={(el) => { railLettersRef.current[group.key] = el; }}
                   aria-label={`Jump to ${group.label}`}
                   onClick={() => scrollToLetter(group.key)}
-                  className={`flex h-[18px] min-w-4 shrink-0 items-center justify-center whitespace-nowrap rounded-full text-[11px] font-bold leading-none transition-all duration-200 select-none sm:h-[17px] sm:min-w-5 sm:text-xs lg:h-[18px] lg:min-w-5 lg:text-xs ${
+                  className={`flex h-[18px] min-h-0 min-w-3.5 items-center justify-center whitespace-nowrap rounded-full text-[11px] font-bold leading-none transition-all duration-200 select-none sm:h-[17px] sm:min-w-5 sm:text-xs lg:h-[18px] lg:min-w-5 lg:text-xs ${
                     jumpLetter === group.key
                       ? "bg-accent text-white scale-110"
                       : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 active:bg-neutral-100 active:text-neutral-700"
