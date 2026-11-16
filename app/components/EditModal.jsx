@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 
 import { X, Plus, Trash2, ShieldCheck } from "lucide-react";
 
-const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
+const EditModal = ({ isOpen, onClose, onSuccess, song, approveOnOpen = false }) => {
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [originalSongs, setOriginalSongs] = useState([{ title: "", artist: "" }]);
@@ -52,7 +52,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
           ? String(song.rights_clearance_date).slice(0, 10)
           : ""
       );
-      setStatus(song.status || "pending");
+      setStatus(approveOnOpen ? "approved" : song.status || "pending");
       setRegionRestricted(Boolean(song.region_restricted));
       setAllowedCountries(
         Array.isArray(song.allowed_countries)
@@ -62,7 +62,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
       setDownloadAllowed(song.download_allowed !== false);
       setRightsAttested(false);
     }
-  }, [song, isOpen]);
+  }, [song, isOpen, approveOnOpen]);
 
   if (!isOpen || !song) return null;
 
@@ -152,22 +152,41 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
 
   return (
     <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center z-[1000] p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md p-8 relative shadow-2xl border border-neutral-100 animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div role="dialog" aria-modal="true" aria-label={approveOnOpen ? "Approve Track" : "Edit Track"} className="bg-white rounded-2xl w-full max-w-md p-8 relative shadow-2xl border border-neutral-100 animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
         <button
           onClick={onClose}
+          disabled={isLoading}
+          aria-label="Close track editor"
           className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900 transition"
         >
           <X size={24} />
         </button>
 
         <h2 className="text-2xl font-semibold mb-1 text-neutral-900 tracking-tight">
-          Edit Track
+          {approveOnOpen ? "Approve Track" : "Edit Track"}
         </h2>
         <p className="text-neutral-500 mb-6 text-sm">
-          Update the metadata for this song.
+          {approveOnOpen ? "Confirm the rights below, then approve to make this track public." : "Update this song’s details and publication status."}
         </p>
 
         <form onSubmit={handleUpdate} className="flex flex-col gap-y-5">
+          <div className="flex flex-col gap-y-1">
+            <label htmlFor="edit-publication-status" className="text-xs font-medium text-neutral-500">
+              Publication status
+            </label>
+            <select
+              id="edit-publication-status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              disabled={isLoading}
+              className={smallInputClass}
+            >
+              <option value="approved">Approved (public)</option>
+              <option value="pending">Pending review</option>
+              <option value="rejected">Rejected / taken down</option>
+            </select>
+            <p className="text-xs text-neutral-500">Only approved tracks appear in Songs.</p>
+          </div>
           <div className="flex flex-col gap-y-1">
             <label className="text-xs font-medium text-neutral-500 ml-1">
               Track Title
@@ -357,21 +376,6 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
                 />
               </div>
 
-              <div className="flex flex-col gap-y-1">
-                <label className="text-xs font-medium text-neutral-500">
-                  Publication status
-                </label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className={smallInputClass}
-                >
-                  <option value="pending">Pending review</option>
-                  <option value="approved">Approved (public)</option>
-                  <option value="rejected">Rejected / taken down</option>
-                </select>
-              </div>
-
               <label className="flex items-center gap-2 text-xs font-medium text-neutral-600">
                 <input
                   type="checkbox"
@@ -431,7 +435,7 @@ const EditModal = ({ isOpen, onClose, onSuccess, song }) => {
             disabled={isLoading}
             className="bg-accent py-3.5 rounded-xl text-white font-bold hover:bg-accent/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed mt-1 text-sm uppercase tracking-tight"
           >
-            {isLoading ? `Saving...` : "Save Changes"}
+            {isLoading ? "Saving..." : approveOnOpen && status === "approved" ? "Approve & publish" : "Save Changes"}
           </button>
         </form>
       </div>

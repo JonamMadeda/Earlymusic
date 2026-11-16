@@ -1197,6 +1197,7 @@ const Player = () => {
 
       {/* Mobile floating mini-player card */}
       <div
+        id="mobile-now-playing-bar"
         inert={showFullPlayer}
         aria-hidden={showFullPlayer}
         className="fixed left-3 right-3 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-[900] min-[600px]:hidden cursor-pointer touch-manipulation select-none rounded-2xl border border-neutral-200/90 bg-white/95 shadow-xl backdrop-blur-2xl overflow-hidden transition active:scale-[0.99]"

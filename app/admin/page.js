@@ -84,6 +84,7 @@ export default function AdminDashboard() {
   const [bulkOp, setBulkOp] = useState(null);
   const [bulkMessage, setBulkMessage] = useState("");
   const [adminCategory, setAdminCategory] = useState("All");
+  const [adminStatus, setAdminStatus] = useState("all");
   const [adminSort, setAdminSort] = useState("title-az");
   const [confirmState, setConfirmState] = useState(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
@@ -101,6 +102,7 @@ export default function AdminDashboard() {
 
   // Edit State
   const [editModalSong, setEditModalSong] = useState(null);
+  const [editForApproval, setEditForApproval] = useState(false);
   const [replaceSong, setReplaceSong] = useState(null);
 
   const router = useRouter();
@@ -225,7 +227,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleEditClick = (song) => {
+  const handleEditClick = (song, approve = false) => {
+    setEditForApproval(approve);
     setEditModalSong(song);
   };
 
@@ -488,7 +491,8 @@ export default function AdminDashboard() {
       )
       .filter((s) =>
         adminCategory === "All" ? true : (s.category || "Worship") === adminCategory
-      );
+      )
+      .filter((s) => adminStatus === "all" || s.status === adminStatus);
 
     const sorted = [...filtered].sort((a, b) => {
       if (adminSort === "author-az") {
@@ -507,7 +511,7 @@ export default function AdminDashboard() {
       ? "author"
       : adminSort === "newest" ? "created_at" : "title";
     return groupSongs(sorted, sortField);
-  }, [adminSongs, searchQuery, adminCategory, adminSort]);
+  }, [adminSongs, searchQuery, adminCategory, adminStatus, adminSort]);
 
   const visibleIds = useMemo(
     () => groupedSongs.flatMap((group) => group.songs.map((song) => song.id)),
@@ -748,7 +752,18 @@ export default function AdminDashboard() {
                     {cat}
                   </button>
                 ))}
-                <div className="ml-auto flex items-center gap-2">
+                <select
+                  value={adminStatus}
+                  onChange={(e) => setAdminStatus(e.target.value)}
+                  aria-label="Filter by publication status"
+                  className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-600 outline-none transition focus:border-accent"
+                >
+                  <option value="all">All statuses</option>
+                  <option value="pending">Pending review ({adminSongs.filter((song) => song.status === "pending").length})</option>
+                  <option value="approved">Public</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <div className="ml-auto flex flex-wrap items-center gap-2">
                   <select
                     value={adminSort}
                     onChange={(e) => setAdminSort(e.target.value)}
@@ -1272,7 +1287,7 @@ export default function AdminDashboard() {
                         />
                       </span>
                       {/* Track */}
-                      <div className="flex items-center gap-3 min-w-0">
+                      <div className="col-span-2 flex min-w-0 items-center gap-3 md:col-span-1">
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(song.id)}
@@ -1284,6 +1299,21 @@ export default function AdminDashboard() {
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-neutral-900 leading-tight">{song.title}</p>
                           <p className="truncate text-xs font-medium text-neutral-400 md:hidden">{song.author}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${song.status === "approved" ? "bg-green-50 text-green-700" : song.status === "rejected" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-800"}`}>
+                              {song.status === "approved" ? "Public" : song.status === "rejected" ? "Rejected" : "Pending review"}
+                            </span>
+                            {song.status !== "approved" && (
+                              <button
+                                type="button"
+                                onClick={() => handleEditClick(song, true)}
+                                aria-label={`Approve ${song.title}`}
+                                className="tap-sm inline-flex min-h-8.5 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-accent transition hover:bg-accent/10"
+                              >
+                                <ShieldCheck size={13} aria-hidden="true" /> Approve
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -1291,7 +1321,7 @@ export default function AdminDashboard() {
                       <span className="hidden md:block truncate text-[13px] font-medium text-neutral-500">{song.author}</span>
 
                       {/* Category + duration */}
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {song.duration && (
                           <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider ${song.duration === "Short" ? "bg-neutral-900 text-white border-neutral-900" : "bg-white text-neutral-700 border-neutral-300"}`}>
                             {song.duration}
@@ -1325,7 +1355,7 @@ export default function AdminDashboard() {
                         {/* Single-track queue: previewing must not push unapproved rows into the shared player queue. */}
                         <button
                           onClick={() => setActiveSong(song, [song])}
-                          className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
+                          className={`tap-sm flex h-8 w-8 items-center justify-center rounded-lg transition ${
                             activeSong?.id === song.id
                               ? "bg-accent/10 text-accent"
                               : "text-neutral-400 hover:bg-accent/10 hover:text-accent"
@@ -1336,21 +1366,21 @@ export default function AdminDashboard() {
                         </button>
                         <button
                           onClick={() => handleEditClick(song)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-accent/10 hover:text-accent"
+                          className="tap-sm flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-accent/10 hover:text-accent"
                           title="Edit details"
                         >
                           <Edit3 size={15} />
                         </button>
                         <button
                           onClick={() => setReplaceSong(song)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-accent/10 hover:text-accent"
+                          className="tap-sm flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-accent/10 hover:text-accent"
                           title="Replace audio file"
                         >
                           <FileUp size={15} />
                         </button>
                         <button
                           onClick={() => requestDelete(song)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+                          className="tap-sm flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
                           title="Delete"
                         >
                           <Trash2 size={15} />
@@ -1389,6 +1419,7 @@ export default function AdminDashboard() {
         isOpen={!!editModalSong}
         onClose={() => setEditModalSong(null)}
         song={editModalSong}
+        approveOnOpen={editForApproval}
         onSuccess={(updatedSong) => {
           setAdminSongs((prev) => 
             prev.map(s => s.id === updatedSong.id ? updatedSong : s)

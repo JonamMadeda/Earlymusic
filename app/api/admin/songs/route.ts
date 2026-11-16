@@ -86,11 +86,10 @@ export async function POST(request: NextRequest) {
       ? `{${countryCodes.join(",")}}`
       : null;
 
-    // New uploads are pending by default: a track should not go public until
-    // an admin has checked its rights metadata.
-    const songStatus = ["pending", "approved", "rejected"].includes(status)
-      ? status
-      : "pending";
+    const songStatus = status === undefined ? "approved" : status;
+    if (!["pending", "approved", "rejected"].includes(songStatus)) {
+      return NextResponse.json({ error: "Invalid publication status." }, { status: 400 });
+    }
 
     const { rows } = await db.query(
       `INSERT INTO public.songs

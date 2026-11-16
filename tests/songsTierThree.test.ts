@@ -76,6 +76,17 @@ describe("songs row structure", () => {
     expect(rowBody).toMatch(/relative z-20 flex items-center gap-1\.5/);
   });
 
+  it("puts title and artist in one touch target instead of padding the title alone", () => {
+    const play = rowBody.slice(rowBody.indexOf("<button"), rowBody.indexOf("</button>"));
+    expect(play).toContain("song.title");
+    expect(play).toContain("song.author");
+    expect(play).toContain("min-h-11");
+    expect(play).toContain("flex-col justify-center gap-0.5");
+    expect(play).not.toContain("tap-sm");
+    expect(play).toContain("text-sm font-semibold leading-5");
+    expect(play).toContain("text-xs leading-4");
+  });
+
   it("still says which row is playing, in markup a screen reader reads", () => {
     expect(rowBody).toMatch(/aria-current=\{isActive \? "true" : undefined\}/);
   });

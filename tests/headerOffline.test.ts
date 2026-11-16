@@ -27,11 +27,11 @@ describe("offline indicator", () => {
     expect(header).not.toMatch(/uppercase tracking-wider/);
   });
 
-  it("describes the cache, not only downloads", () => {
-    // public/sw.js caches full (non-Range) audio responses, so a track that was
-    // merely streamed still plays offline. "Saved songs" would be a lie.
-    expect(header).not.toMatch(/only songs saved/);
-    expect(header).toMatch(/cache/);
+  it("offers a full navigation to downloads without claiming playback is active", () => {
+    expect(header).toContain('href="/library?tab=downloads"');
+    expect(header).toContain("downloaded songs are available");
+    expect(header).not.toContain("playing from");
+    expect(header).toMatch(/showSignIn = isOnline &&/);
   });
 });
 

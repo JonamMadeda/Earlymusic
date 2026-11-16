@@ -91,7 +91,7 @@ describe("songs toolbar is page content", () => {
     // No sticky box any more, so the progress line needs the bar to be the
     // containing block it resolves against. The right margin keeps the bar
     // clear of the fixed index track pinned to the page's right edge.
-    expect(toolbar).toMatch(/className="relative mr-7 rounded-xl/);
+    expect(toolbar).toMatch(/className="relative mr-7 sm:mr-8"/);
   });
 
   it("clears only the scroll container's top edge, not a sticky bar", () => {
@@ -99,7 +99,7 @@ describe("songs toolbar is page content", () => {
     // separates these from it — flush against the edge read as part of the bar.
     expect(view).toMatch(/const STICKY_TOP = 8;/);
     // Measuring the bar's height existed only to park things under it.
-    expect(view).not.toMatch(/ResizeObserver|toolbarHeight|toolbarRef/);
+    expect(view).not.toMatch(/toolbarHeight|toolbarRef/);
     const rail = view.slice(view.indexOf("Alphabet Jump Bar"), view.indexOf("</main>"));
     // The index is a fixed overlay measured against the scroller, so it can
     // never park its tail behind the player the way an in-flow column did.

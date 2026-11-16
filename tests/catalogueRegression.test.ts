@@ -37,6 +37,12 @@ const change = (node: Element, value: string) => node.props.onChange({ target: {
 const songRows = (tree: Element) => nodes(tree).filter((node) => node.props.song && "isNew" in node.props);
 
 function harness(songs: Song[], tab = "top", search: Record<string, string> | null = null) {
+  const connection = { online: true };
+  const auth: { user: { id: string } | null; isAdmin: boolean; loading: boolean; roleLoading: boolean } = {
+    user: { id: "user" }, isAdmin: true, loading: false, roleLoading: false,
+  };
+  let downloadsChanged: () => void = () => {};
+  const localSongs = { songs };
   let current: { cells: any[]; cursor: number; effects: (() => void)[] };
   const hooks = {
     useState(initial: any) {
@@ -55,6 +61,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
     Suspense: "suspense",
   };
   const setActiveSong = vi.fn();
+  const alert = vi.fn();
   const player = { allSongs: songs, setAllSongs: vi.fn(), setActiveSong, isLoading: false, setIsLoading: vi.fn() };
   const fetch = vi.fn(async (url: string, options?: any) => {
     let body: any;
@@ -84,10 +91,12 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
     "@/lib/audioUrl": { getAudioPublicUrl: vi.fn() },
     "@/lib/audioHealth": { summarizeHealth: () => ({}), verifyAudioUrl: vi.fn() },
     "@/lib/prefetchAudio": { prefetchSongAudio: vi.fn() },
+    "@/lib/useOnlineStatus": { useOnlineStatus: () => connection.online },
     "@/lib/downloadManager": {
-      getDownloadedSongs: () => songs,
+      getDownloadedSongs: () => localSongs.songs,
       getStorageEstimate: async () => null,
       removeDownload: vi.fn(),
+      onDownloadsChanged: (listener: () => void) => { downloadsChanged = listener; return () => {}; },
     },
   };
   function load(relativePath: string): Component {
@@ -103,12 +112,14 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       exports,
       require: (id: string) => {
         if (id.endsWith("/context/PlayerContext")) return { usePlayer: () => player };
-        if (id.endsWith("/context/AuthContext")) return { useAuth: () => ({ user: { id: "user" }, isAdmin: true, loading: false, roleLoading: false }) };
+        if (id.endsWith("/context/AuthContext")) return { useAuth: () => auth };
         if (id.includes("/components/")) return { default: id, PageSkeleton: "skeleton" };
         if (id in modules) return modules[id];
         throw new Error(`Unexpected import: ${id}`);
       },
       fetch,
+      alert,
+      window: { addEventListener: vi.fn(), removeEventListener: vi.fn() },
       console,
       setTimeout: (callback: () => void, delay: number) => { if (delay === 0) callback(); return 0; },
       clearTimeout: () => {},
@@ -136,7 +147,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       },
     };
   }
-  return { load, mount, player, setActiveSong, fetch };
+  return { load, mount, player, setActiveSong, fetch, alert, auth, connection, apiFetch, localSongs, downloadsChanged: () => downloadsChanged() };
 }
 
 const adminFixtures = [
@@ -193,6 +204,117 @@ describe("admin catalogue grouping", () => {
     page.render();
     expect(checkboxes(page.tree)).toHaveLength(0);
     expect(text(page.tree)).toContain("No matching tracks found");
+  });
+});
+
+describe("admin publication controls", () => {
+  const tracks = [
+    { ...fixture("pending", "Pending track"), status: "pending" },
+    { ...fixture("public", "Public track"), status: "approved" },
+    { ...fixture("rejected", "Rejected track"), status: "rejected" },
+  ];
+
+  it("shows statuses and filters pending tracks without losing manual approval", async () => {
+    const h = harness(tracks);
+    const page = h.mount(h.load("app/admin/page.js"));
+    await page.startEffects();
+    expect(nodes(page.tree).filter((node) => node.props["aria-label"]?.startsWith("Approve "))).toHaveLength(2);
+    change(find(page.tree, (node) => node.props["aria-label"] === "Filter by publication status"), "pending");
+    page.render();
+    expect(checkboxes(page.tree).map((node) => node.props["aria-label"])).toEqual(["Select Pending track", "Select Pending track"]);
+    find(page.tree, (node) => node.props["aria-label"] === "Approve Pending track").props.onClick();
+    page.render();
+    const editor = find(page.tree, (node) => "approveOnOpen" in node.props);
+    expect(editor.props.approveOnOpen).toBe(true);
+    expect(editor.props.song.status).toBe("pending");
+    editor.props.onSuccess({ ...tracks[0], status: "approved" });
+    page.render();
+    expect(text(page.tree)).toContain("No matching tracks found");
+    change(find(page.tree, (node) => node.props["aria-label"] === "Filter by publication status"), "approved");
+    page.render();
+    expect(checkboxes(page.tree)).toHaveLength(4);
+  });
+
+  it("opens approval preselected but requires rights confirmation before saving", async () => {
+    const h = harness([]);
+    const onSuccess = vi.fn();
+    const onClose = vi.fn();
+    h.fetch.mockImplementation(async () => ({ ok: true, json: async () => ({ song: { ...tracks[0], status: "approved" } }) }));
+    const editor = h.mount(h.load("app/components/EditModal.jsx"), { isOpen: true, song: tracks[0], approveOnOpen: true, onSuccess, onClose });
+    await editor.startEffects();
+    expect(find(editor.tree, (node) => node.props.id === "edit-publication-status").props.value).toBe("approved");
+    expect(text(editor.tree)).toContain("Approve & publish");
+    await find(editor.tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
+    expect(h.alert).toHaveBeenCalledOnce();
+    expect(h.fetch).not.toHaveBeenCalled();
+    const attestation = find(editor.tree, (node) => node.type === "label" && text(node).includes("I confirm Luumbo owns"));
+    find(attestation, (node) => node.type === "input").props.onChange({ target: { checked: true } });
+    editor.render();
+    await find(editor.tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
+    expect(JSON.parse(h.fetch.mock.calls[0][1].body).status).toBe("approved");
+    expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({ status: "approved" }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("preserves pending when opening ordinary edit details", async () => {
+    const h = harness([]);
+    const editor = h.mount(h.load("app/components/EditModal.jsx"), { isOpen: true, song: tracks[0] });
+    await editor.startEffects();
+    expect(find(editor.tree, (node) => node.props.id === "edit-publication-status").props.value).toBe("pending");
+    expect(text(editor.tree)).toContain("Save Changes");
+  });
+});
+
+describe("upload publication feedback", () => {
+  function uploadHarness(statusOverride?: string, fail = false) {
+    const h = harness([]);
+    h.fetch.mockImplementation(async (url: string, options?: any) => {
+      if (url === "/api/upload") return { ok: true, json: async () => ({ presignedUrl: "/test-storage", publicStorageUrl: "/audio/test.mp3" }) };
+      if (url === "/api/admin/songs") return {
+        ok: !fail,
+        json: async () => fail ? { error: "Audio verification failed." } : { song: { status: statusOverride ?? JSON.parse(options.body).status } },
+      };
+      return { ok: true, json: async () => ({}) };
+    });
+    const page = h.mount(h.load("app/upload/page.tsx"));
+    find(page.tree, (node) => node.props.type === "file").props.onChange({ target: { files: [{ name: "Track.mp3", size: 100, lastModified: 1, type: "audio/mpeg" }] } });
+    page.render();
+    return { h, page };
+  }
+
+  it.each(["approved", "pending"])("saves the selected %s status and reports its visibility", async (status) => {
+    const { h, page } = uploadHarness();
+    const select = find(page.tree, (node) => node.props.id === "upload-publication-status");
+    expect(select.props.value).toBe("approved");
+    change(select, status);
+    page.render();
+    await find(page.tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
+    page.render();
+    const request = h.fetch.mock.calls.find(([url]) => url === "/api/admin/songs");
+    expect(JSON.parse(request![1].body).status).toBe(status);
+    expect(text(page.tree)).toContain(status === "approved" ? "Published 1 track — now available in Songs." : "Pending review — not public");
+    expect(h.fetch.mock.calls.some(([, options]) => options?.method === "DELETE")).toBe(false);
+    button(page.tree, "Start over").props.onClick();
+    page.render();
+    expect(find(page.tree, (node) => node.props.id === "upload-publication-status").props.value).toBe("approved");
+  });
+
+  it("reports the server's returned status rather than assuming publication", async () => {
+    const { page } = uploadHarness("pending");
+    await find(page.tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
+    page.render();
+    expect(text(page.tree)).toContain("Pending review — not public");
+    expect(text(page.tree)).toContain("0 public, 1 not public");
+  });
+
+  it("does not claim failed saves are public and leaves them retryable", async () => {
+    const { h, page } = uploadHarness(undefined, true);
+    await find(page.tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
+    page.render();
+    expect(text(page.tree)).toContain("Audio verification failed.");
+    expect(text(page.tree)).toContain("0 public");
+    expect(button(page.tree, "Upload 1 track").props.disabled).toBe(false);
+    expect(h.fetch.mock.calls.some(([url, options]) => url === "/api/admin/storage" && options?.method === "DELETE")).toBe(true);
   });
 });
 
@@ -276,6 +398,52 @@ describe("songs view from the address bar", () => {
     // A sort field that had been accepted would make the other button read "plays".
     expect(button(page.tree, "Title")).toBeDefined();
     expect(songRows(page.tree)).toHaveLength(newFixtures.length);
+  });
+});
+
+describe("offline library downloads", () => {
+  it.each([
+    [false, false, "saved"],
+    [false, true, "top"],
+    [true, true, "downloads"],
+    [true, false, "downloads"],
+  ])("shows local songs online=%s authLoading=%s tab=%s without remote data", async (online, loading, tab) => {
+    const tracks = [fixture("cached", "Downloaded track")];
+    const h = harness(tracks, tab as string);
+    h.auth.user = null;
+    h.auth.loading = loading as boolean;
+    h.connection.online = online as boolean;
+    h.player.allSongs = [];
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+    expect(text(page.tree)).toContain("Downloaded track");
+    expect(text(page.tree)).not.toContain("Sign in to see your library");
+    expect(h.apiFetch).not.toHaveBeenCalled();
+    find(page.tree, node => node.props.role === "button").props.onClick();
+    expect(h.setActiveSong).toHaveBeenCalledWith(tracks[0], tracks);
+    h.localSongs.songs = [];
+    h.downloadsChanged();
+    page.render();
+    expect(text(page.tree)).toContain("No downloaded songs");
+    if (!online) expect(text(page.tree)).toContain("Reconnect");
+  });
+
+  it("does not wait for signed-in library requests on the downloads tab", async () => {
+    const h = harness([fixture("cached")], "downloads");
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+    expect(text(page.tree)).toContain("cached");
+    expect(h.apiFetch).not.toHaveBeenCalled();
+  });
+
+  it("still protects online saved songs from signed-out access", async () => {
+    const h = harness([], "saved");
+    h.auth.user = null;
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    expect(text(page.tree)).toContain("Sign in to see your library");
   });
 });
 

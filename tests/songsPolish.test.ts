@@ -78,10 +78,8 @@ describe("songs empty state speaks to whoever is reading it", () => {
 describe("songs primary action matches the app's primary tier", () => {
   it("is the home page's button, not a smaller cousin of it", () => {
     const play = view.slice(view.indexOf("onClick={playAll}"), view.indexOf("</section>"));
-    expect(play).toMatch(/tap-lg/);
-    expect(play).toMatch(/text-sm font-bold text-white shadow-2xs/);
+    expect(play).toMatch(/btn-primary/);
     expect(play).toMatch(/active:scale-95/);
-    expect(play).toMatch(/rounded-lg bg-accent/);
   });
 
   it("names what it plays instead of repeating the count", () => {
@@ -185,7 +183,7 @@ describe("songs rows answer the pointer", () => {
   it("shows a hand over the strip that plays, and a press state under the finger", () => {
     // Tailwind v4's preflight leaves buttons at cursor: default, so 102 tappable
     // rows looked like plain text on a desktop.
-    expect(row).toMatch(/cursor-pointer rounded text-left after:absolute after:inset-0/);
+    expect(row).toMatch(/cursor-pointer[^"\n]*rounded text-left after:absolute after:inset-0/);
     expect(row).toMatch(/hover:bg-neutral-50 active:bg-neutral-100/);
     const rail = view.slice(view.indexOf("Alphabet Jump Bar"), view.indexOf("</main>"));
     expect(rail).toMatch(/min-h-0 w-full flex-1 cursor-pointer/);
@@ -194,12 +192,12 @@ describe("songs rows answer the pointer", () => {
   it("gives the toolbar and the row menu the same hand as the rows", () => {
     // A pointer over the list but an arrow over Play all reads as half-disabled.
     const anchors = [
-      "tap-lg inline-flex shrink-0 cursor-pointer",
-      "tap-sm cursor-pointer whitespace-nowrap",
+      "btn-primary shrink-0 cursor-pointer",
+      "tap-sm min-h-8.5 cursor-pointer whitespace-nowrap",
       "shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-l-lg",
-      "shrink-0 cursor-pointer items-center gap-1 rounded-r-lg",
+      "shrink-0 cursor-pointer items-center justify-center gap-1 rounded-r-lg",
       "shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border",
-      "inline-flex cursor-pointer items-center gap-1 rounded-md",
+      "inline-flex h-8.5 cursor-pointer items-center gap-1 rounded-full",
       "h-10 w-10 cursor-pointer",
       "mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent",
     ];

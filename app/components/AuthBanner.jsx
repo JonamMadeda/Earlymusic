@@ -4,14 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CircleAlert, LogIn, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 // Shown when an API call discovers the session is dead. The alternative is
 // failing silently, which is how users end up half-signed-out.
 export default function AuthBanner() {
   const { sessionExpired, setSessionExpired, authError } = useAuth();
   const pathname = usePathname();
+  const isOnline = useOnlineStatus();
 
-  if (!sessionExpired && !authError) return null;
+  if (!isOnline || (!sessionExpired && !authError)) return null;
 
   if (authError) {
     return (

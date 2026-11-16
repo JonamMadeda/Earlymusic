@@ -23,7 +23,7 @@ describe("songs filters panel", () => {
 
   it("puts each group's name beside its chips, not on a line above them", () => {
     expect(panel).toMatch(/filterGroups\.map/);
-    expect(panel).toMatch(/w-\[64px\] shrink-0/);
+    expect(panel).toMatch(/w-14 shrink-0/);
     // The stacked headings are what made the open panel 225px tall on a phone.
     expect(panel).not.toMatch(/mb-2/);
     expect(panel).toMatch(/px-3 py-2\.5/);
@@ -31,7 +31,8 @@ describe("songs filters panel", () => {
 
   it("sizes its chips at the dense tier, not the generic button floor", () => {
     // 44px chips made the open panel taller than the few songs it filters.
-    expect(songs).toMatch(/tap-sm cursor-pointer whitespace-nowrap rounded-lg border px-2 py-1 text-\[11px\]/);
+    expect(songs).toMatch(/tap-sm min-h-8\.5 cursor-pointer whitespace-nowrap rounded-full border px-2\.5 py-1 text-xs/);
+    expect(songs).toMatch(/aria-pressed=\{active\}/);
     expect(songs).not.toMatch(/rounded-lg border px-2\.5 py-1\.5/);
   });
 

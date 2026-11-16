@@ -10,7 +10,7 @@ const activateWaiting = (reg) => {
 
 export default function SWRegister() {
   useEffect(() => {
-    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") return;
+    if (process.env.NODE_ENV !== "production") return;
 
     if (!("serviceWorker" in navigator)) return;
 
@@ -62,7 +62,7 @@ export default function SWRegister() {
 
       // Discover updates during long-lived sessions.
       intervalId = setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL_MS);
-    });
+    }).catch((error) => console.error("Unable to prepare offline mode:", error));
 
     return () => {
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);

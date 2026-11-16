@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getAdminFromRequest: vi.fn(),
   announceNewSong: vi.fn(),
   announceSongUpdate: vi.fn(),
+  hasSongAnnouncement: vi.fn(),
   r2Send: vi.fn(),
 }));
 
@@ -22,10 +23,12 @@ vi.mock("@/lib/audioVerify", () => ({
 vi.mock("@/lib/announcement", () => ({
   announceNewSong: mocks.announceNewSong,
   announceSongUpdate: mocks.announceSongUpdate,
+  hasSongAnnouncement: mocks.hasSongAnnouncement,
   retractSongAnnouncements: vi.fn(),
 }));
 
 import { DELETE, PATCH } from "../app/api/admin/songs/[id]/route";
+import { POST } from "../app/api/admin/songs/route";
 
 const existing = {
   id: "7",
@@ -51,6 +54,69 @@ beforeEach(() => {
   mocks.query.mockResolvedValueOnce({ rows: [{ ...existing }] });
   mocks.query.mockResolvedValue({ rows: [{ ...existing, status: "approved" }] });
   mocks.verifyStoredAudio.mockResolvedValue({ ok: true });
+});
+
+const create = (body: Record<string, unknown> = {}) => POST(
+  new NextRequest("http://localhost:3000/api/admin/songs", {
+    method: "POST",
+    body: JSON.stringify({ title: existing.title, song_path: existing.song_path, ...body }),
+  })
+);
+
+describe("admin upload publication", () => {
+  beforeEach(() => {
+    mocks.hasSongAnnouncement.mockResolvedValue(false);
+    mocks.query.mockReset().mockImplementation(async (_sql: string, params: unknown[]) => ({
+      rows: [{ ...existing, status: params[10] }],
+    }));
+  });
+
+  it("publishes verified admin uploads by default and announces them", async () => {
+    const response = await create();
+
+    expect(response.status).toBe(201);
+    expect((await response.json()).song.status).toBe("approved");
+    expect(mocks.query.mock.calls[0][1][10]).toBe("approved");
+    expect(mocks.verifyStoredAudio).toHaveBeenCalledExactlyOnceWith(existing.song_path);
+    expect(mocks.announceNewSong).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ status: "approved" }));
+  });
+
+  it.each(["pending", "rejected"])("keeps an explicit %s upload private without announcing it", async (status) => {
+    const response = await create({ status });
+
+    expect(response.status).toBe(201);
+    expect((await response.json()).song.status).toBe(status);
+    expect(mocks.query.mock.calls[0][1][10]).toBe(status);
+    expect(mocks.hasSongAnnouncement).not.toHaveBeenCalled();
+    expect(mocks.announceNewSong).not.toHaveBeenCalled();
+  });
+
+  it("accepts explicit approval without duplicating an existing announcement", async () => {
+    mocks.hasSongAnnouncement.mockResolvedValue(true);
+    expect((await create({ status: "approved" })).status).toBe(201);
+    expect(mocks.hasSongAnnouncement).toHaveBeenCalledWith(existing.id);
+    expect(mocks.announceNewSong).not.toHaveBeenCalled();
+  });
+
+  it.each(["invalid", "", null])("does not silently publish an invalid status %s", async (status) => {
+    expect((await create({ status })).status).toBe(400);
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.announceNewSong).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-admin creation before verifying audio or writing data", async () => {
+    mocks.getAdminFromRequest.mockResolvedValue(null);
+    expect((await create()).status).toBe(403);
+    expect(mocks.verifyStoredAudio).not.toHaveBeenCalled();
+    expect(mocks.query).not.toHaveBeenCalled();
+  });
+
+  it("does not publish or announce uploads with unverified audio", async () => {
+    mocks.verifyStoredAudio.mockResolvedValue({ ok: false, error: "Missing audio" });
+    expect((await create()).status).toBe(400);
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.announceNewSong).not.toHaveBeenCalled();
+  });
 });
 
 describe("song approval audio verification", () => {

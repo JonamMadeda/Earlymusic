@@ -32,17 +32,38 @@ describe("songs alphabet rail", () => {
     expect(rail).not.toMatch(/(?<!min-)w-4/);
   });
 
+  it("overrides the unlayered touch floor for the continuous index only", () => {
+    const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+    expect(rail).toContain("songs-index");
+    expect(rail).not.toContain("tap-sm");
+    expect(css).toMatch(/\.songs-index button\s*\{\s*min-height: 0;\s*min-width: 0;/);
+    expect(css).toMatch(/@media \(pointer: coarse\)[\s\S]*?min-height: 44px/);
+  });
+
+  it("does not stretch a single result into a full-height index", () => {
+    expect(rail).toContain("songGroups.length > 1");
+    expect(songs).toContain("Math.min(available, songGroups.length * 24 + 12)");
+  });
+
+  it("scrubs immediately and respects reduced motion", () => {
+    expect(songs).toContain('scrollToLetter(nearest, "instant")');
+    expect(songs).toContain('(prefers-reduced-motion: reduce)');
+    expect(rail).toContain('if (e.detail === 0) scrollToLetter(group.key)');
+    expect(rail).toContain('aria-current={(jumpLetter || activeGroupKey) === group.key ? "location" : undefined}');
+  });
+
   it("keeps the letters stacked without gaps to tap between", () => {
     expect(rail).not.toMatch(/gap-px/);
   });
 
   it("fits the safe area instead of becoming a second scroll area", () => {
-    // A touch on the column is a scrub, never a flick that scrolls it, so the
-    // letters share the measured height rather than hide below the fold. The
-    // budget is the scroller's bottom minus the player chrome minus the rail's
-    // top — in flow the tail used to sit behind the mini-player.
-    expect(songs).toMatch(/const measureRail = useCallback/);
-    expect(songs).toMatch(/scRect\.bottom - chrome - top/);
+    expect(songs).toMatch(/const measureRail = \(\) =>/);
+    expect(songs).toMatch(/bottom = Math\.min\(bottom, rect\.top\)/);
+    expect(songs).toMatch(/Math\.max\(0, bottom - STICKY_TOP - top\)/);
+    expect(songs).toMatch(/new ResizeObserver\(measureRail\)/);
+    expect(songs).toMatch(/viewport\?\.addEventListener\("resize", measureRail\)/);
+    expect(songs).toMatch(/observer\.disconnect\(\)/);
+    expect(songs).toMatch(/"bottom-nav", "now-playing-bar", "mobile-now-playing-bar"/);
     expect(rail).toMatch(/justify-between/);
     expect(rail).toMatch(/min-h-0 w-full flex-1/);
     expect(rail).not.toMatch(/overflow-y-auto|no-scrollbar/);

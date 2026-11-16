@@ -1,24 +1,53 @@
-const CACHE_NAME = "lumbo-app-v7";
+const CACHE_NAME = "lumbo-app-v8";
+const SHELL_CACHE = `${CACHE_NAME}-offline`;
+const OFFLINE_URL = "/library?tab=downloads";
 const AUDIO_CACHE = "lumbo-audio-cache-v1";
 const MAX_AUDIO_ENTRIES = 30;
 const MAX_APP_ENTRIES = 120;
 const OFFLINE_HEADER = "x-luumbo-download";
 
 self.addEventListener("install", (event) => {
-  self.skipWaiting();
+  event.waitUntil(prepareOfflineShell().then(() => self.skipWaiting()));
 });
+
+const prepareOfflineShell = async () => {
+  const cache = await caches.open(SHELL_CACHE);
+  const page = await fetch(OFFLINE_URL, { cache: "reload" });
+  if (!page.ok || !page.headers.get("content-type")?.includes("text/html")) {
+    throw new Error("Unable to prepare offline downloads");
+  }
+  const html = await page.clone().text();
+  const assets = new Set();
+  const addAsset = (value, base = self.location.origin) => {
+    const url = new URL(value.replaceAll("&amp;", "&"), base);
+    if (url.origin === self.location.origin && url.pathname.startsWith("/_next/static/")) {
+      assets.add(url.href);
+    }
+  };
+  for (const match of html.matchAll(/(?:src|href)="([^"]+)"/g)) addAsset(match[1]);
+  // The shell must retain its own build's chunks even when the browsing cache is trimmed.
+  for (const url of assets) {
+    const response = await fetch(url, { cache: "reload" });
+    if (!response.ok) throw new Error("Unable to prepare offline assets");
+    if (response.headers.get("content-type")?.includes("text/css")) {
+      const css = await response.clone().text();
+      for (const match of css.matchAll(/url\(["']?([^"'()]+)["']?\)/g)) addAsset(match[1], url);
+    }
+    await cache.put(url, response);
+  }
+  await cache.put(OFFLINE_URL, page);
+};
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key !== CACHE_NAME && key !== AUDIO_CACHE)
+          .filter((key) => key !== CACHE_NAME && key !== AUDIO_CACHE && key !== SHELL_CACHE)
           .map((key) => caches.delete(key))
       )
-    )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener("message", (event) => {
@@ -59,10 +88,6 @@ self.addEventListener("fetch", (event) => {
 
   if (request.method !== "GET") return;
 
-  if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
-    return;
-  }
-
   // Never cache API responses. They are authenticated (cookie or bearer)
   // and Cache Storage is plaintext, origin-readable, and survives logout.
   if (url.pathname.startsWith("/api/")) return;
@@ -81,27 +106,29 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (url.origin !== self.location.origin) return;
+
   if (url.pathname.startsWith("/_next/static/")) {
-    event.respondWith(
-      fromCache(request).then((res) => res || offlinePage())
-    );
+    event.respondWith(fromCache(request).then((res) => res || Response.error()));
     return;
   }
 
   if (request.mode === "navigate") {
-    event.respondWith(
-      fromNetwork(request).then((res) => res || offlinePage())
-    );
+    event.respondWith(fromNetwork(request, true));
     return;
   }
 
-  event.respondWith(
-    fromNetwork(request).then((res) => res || offlinePage())
-  );
+  // RSC and scripts must fail as requests, not receive a document they cannot parse.
+  event.respondWith(fromNetwork(request).then((res) => res || Response.error()));
 });
 
 const fromCache = async (request, cacheName = CACHE_NAME) => {
   try {
+    if (cacheName === CACHE_NAME) {
+      const shell = await caches.open(SHELL_CACHE);
+      const asset = await shell.match(request);
+      if (asset) return asset;
+    }
     const cache = await caches.open(cacheName);
     const cached = await cache.match(request);
     if (cached) return cached;
@@ -111,7 +138,7 @@ const fromCache = async (request, cacheName = CACHE_NAME) => {
       const stored = response.clone();
       cache
         .put(request, stored)
-        .then(() => (cacheName === AUDIO_CACHE ? trimAudioCache(cache) : null))
+        .then(() => (cacheName === AUDIO_CACHE ? trimAudioCache(cache) : trimAppCache(cache)))
         .catch(() => {});
     }
     return response;
@@ -136,7 +163,7 @@ const trimAudioCache = async (cache) => {
   }
 };
 
-const fromNetwork = async (request) => {
+const fromNetwork = async (request, navigation = false) => {
   try {
     const response = await fetch(request);
     if (response.ok) {
@@ -151,6 +178,7 @@ const fromNetwork = async (request) => {
     }
     return response;
   } catch {
+    if (navigation) return offlineNavigation(request);
     const cache = await caches.open(CACHE_NAME);
     const cached = await cache.match(request);
     return cached || null;
@@ -167,14 +195,11 @@ const trimAppCache = async (cache) => {
   await Promise.all(keys.slice(0, excess).map((key) => cache.delete(key)));
 };
 
-const offlinePage = async () => {
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    const root = await cache.match("/");
-    if (root) return root;
-  } catch {}
-  return new Response(
-    `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline</title><style>body{font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fafafa;color:#1a1a1a}div{text-align:center;padding:2rem}h1{font-size:1.25rem;margin:0 0 0.5rem}p{font-size:0.875rem;color:#666;margin:0}</style></head><body><div><h1>You're offline</h1><p>Connect to the internet and try again.</p></div></body></html>`,
-    { status: 503, headers: { "Content-Type": "text/html" } }
-  );
+const offlineNavigation = async (request) => {
+  const cache = await caches.open(SHELL_CACHE);
+  const page = await cache.match(OFFLINE_URL);
+  if (!page) return Response.error();
+  const destination = new URL(OFFLINE_URL, self.location.origin);
+  if (request.url !== destination.href) return Response.redirect(destination.href, 302);
+  return page;
 };

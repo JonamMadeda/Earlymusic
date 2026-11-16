@@ -87,6 +87,12 @@
   }
 }
 
+/* The alphabet is one continuous scrub target; individual letters must share its available height. */
+.songs-index button {
+  min-height: 0;
+  min-width: 0;
+}
+
 /* Exception: the player bar's progress strip is a 4px line drawn behind a
    transparent range input. At the 44px minimum that input covers the top two
    thirds of the mini-player card, so a tap meant for opening the player landed

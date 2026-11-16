@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useSyncExternalStore } from "react";
+import { useState, useEffect } from "react";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 import { CloudOff, LogIn, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,22 +9,9 @@ import { useAuth } from "@/app/context/AuthContext";
 import GlobalSearchModal from "./GlobalSearchModal";
 import NotificationBell from "./NotificationBell";
 
-const subscribeToOnlineStatus = (onChange) => {
-  window.addEventListener("online", onChange);
-  window.addEventListener("offline", onChange);
-  return () => {
-    window.removeEventListener("online", onChange);
-    window.removeEventListener("offline", onChange);
-  };
-};
-
 const Header = () => {
   const pathname = usePathname();
-  const isOnline = useSyncExternalStore(
-    subscribeToOnlineStatus,
-    () => navigator.onLine,
-    () => true
-  );
+  const isOnline = useOnlineStatus();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   // The header search bar is the home page's entry point into search. Every
   // other section either has its own field (songs, playlists, admin) or is a
@@ -35,7 +23,7 @@ const Header = () => {
   // call to action here. Waiting on the session check keeps it from flashing
   // at someone who is already signed in.
   const { user, loading: authLoading } = useAuth();
-  const showSignIn = !authLoading && !user && pathname !== "/auth";
+  const showSignIn = isOnline && !authLoading && !user && pathname !== "/auth";
 
   // The bar is a row of the flex column in layout.js and sits *outside*
   // #app-scroll, so it is pinned by structure rather than by positioning: it
@@ -129,7 +117,10 @@ const Header = () => {
             className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-semibold text-amber-800 md:px-6"
           >
             <CloudOff size={12} aria-hidden="true" className="shrink-0" />
-            <span>Offline — playing from this device&rsquo;s cache.</span>
+            <span className="min-w-0 flex-1">Offline — downloaded songs are available.</span>
+            <a href="/library?tab=downloads" className="tap-sm inline-flex shrink-0 items-center rounded-lg px-2 font-bold underline underline-offset-2">
+              Downloads
+            </a>
           </div>
         )}
       </header>

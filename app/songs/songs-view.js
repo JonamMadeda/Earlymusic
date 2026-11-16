@@ -101,7 +101,8 @@ const Chip = ({ label, active, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`tap-sm cursor-pointer whitespace-nowrap rounded-lg border px-2 py-1 text-[11px] font-semibold transition-all duration-150 md:px-3.5 md:py-2 md:text-xs ${
+    aria-pressed={active}
+    className={`tap-sm min-h-8.5 cursor-pointer whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
       active
         ? "border-accent bg-accent text-white shadow-2xs"
         : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 hover:border-neutral-300"
@@ -393,6 +394,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
   return (
     <div
       ref={rowRef}
+      style={{ zIndex: showMenu || showInfo || showPlaylists ? 40 : undefined }}
       onMouseEnter={() => prefetchSongAudio(song)}
       className={`group relative flex w-full items-center gap-2.5 px-2 py-2 text-left transition-colors duration-150 sm:px-3 sm:py-2.5 sm:gap-3.5 ${
         isActive
@@ -407,50 +409,42 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
         )}
       </div>
 
-      {/* The row is a container and the play control is the button inside it.
-          It used to be `role="button"` on the whole row, which is invalid once
-          the row also holds the category chip and the ⋯ menu — and a screen
-          reader announced every row as one long button whose name was the whole
-          line. The stretched ::after keeps the strip tappable end to end, so
-          nothing was lost when the row's own onClick went away. */}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onClick}
-            aria-current={isActive ? "true" : undefined}
-            aria-label={`${isActive ? "Playing" : "Play"}: ${song.title || "this song"}`}
-            className="tap-sm min-w-0 max-w-full cursor-pointer rounded text-left after:absolute after:inset-0"
-          >
-            <p className={`truncate text-sm sm:text-[15px] font-semibold tracking-tight transition-colors ${isActive ? "text-accent font-bold" : "text-neutral-900 group-hover:text-accent"}`}>
-              {song.title}
-            </p>
-          </button>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-current={isActive ? "true" : undefined}
+        aria-label={`${isActive ? "Playing" : "Play"}: ${song.title || "this song"}`}
+        className="flex min-h-11 min-w-0 flex-1 cursor-pointer flex-col justify-center gap-0.5 rounded text-left after:absolute after:inset-0"
+      >
+        <span className="flex w-full min-w-0 items-center gap-1.5">
+          <span className={`truncate text-sm font-semibold leading-5 tracking-tight ${isActive ? "text-accent" : "text-neutral-900 group-hover:text-accent"}`}>
+            {song.title}
+          </span>
           {isActive && (
-            <div className="waveform shrink-0 text-accent">
+            <span className="waveform shrink-0 text-accent" aria-hidden="true">
               <span /><span /><span /><span />
-            </div>
+            </span>
           )}
           {isNew && !isActive && (
-            <span className="shrink-0 rounded-full bg-gold/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-gold">
+            <span className="shrink-0 rounded-full bg-gold/10 px-1.5 py-0.5 text-[10px] font-semibold leading-3 text-gold">
               New
             </span>
           )}
-        </div>
-        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-neutral-500">
-          <p className="truncate font-medium text-neutral-500">
+        </span>
+        <span className="flex w-full min-w-0 items-center gap-1.5 text-xs leading-4 text-neutral-500">
+          <span className="truncate font-medium">
             {song.author || "Unknown Artist"}
-          </p>
+          </span>
           {song.category && (
             <>
-              <span className="sm:hidden text-neutral-300">•</span>
-              <span className="sm:hidden shrink-0 font-medium text-neutral-400">
+              <span className="sm:hidden text-neutral-300" aria-hidden="true">•</span>
+              <span className="sm:hidden shrink-0">
                 {song.category}
               </span>
             </>
           )}
-        </div>
-      </div>
+        </span>
+      </button>
 
       {/* The ⋯ and category action sit above the play control's stretched layer,
           or the menu could never open. */}
@@ -479,14 +473,14 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
             }
             openMenu();
           }}
-          className="tap-sm flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
+          className="tap-sm flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-accent"
           title="More"
           aria-label={`More actions for ${song.title || "this song"}`}
           aria-haspopup="menu"
           aria-expanded={showMenu}
           aria-controls={showMenu ? menuId : undefined}
         >
-          <MoreHorizontal size={14} />
+          <MoreHorizontal size={18} />
         </button>
 
         {showMenu && (
@@ -768,6 +762,7 @@ export default function SongsView() {
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [jumpLetter, setJumpLetter] = useState(null);
+  const [activeGroupKey, setActiveGroupKey] = useState(null);
   const jumpTimeoutRef = useRef(null);
   const letterRefs = useRef({});
   const searchInputRef = useRef(null);
@@ -900,6 +895,23 @@ export default function SongsView() {
     [filteredSongs, sortBy]
   );
 
+  useEffect(() => {
+    const scroller = document.getElementById("app-scroll");
+    if (!scroller) return;
+    const updateActiveGroup = () => {
+      const top = scroller.getBoundingClientRect().top + STICKY_TOP + 34;
+      let key = songGroups[0]?.key;
+      for (const group of songGroups) {
+        const element = letterRefs.current[group.key];
+        if (element && element.getBoundingClientRect().top <= top) key = group.key;
+      }
+      setActiveGroupKey(key || null);
+    };
+    updateActiveGroup();
+    scroller.addEventListener("scroll", updateActiveGroup, { passive: true });
+    return () => scroller.removeEventListener("scroll", updateActiveGroup);
+  }, [songGroups, STICKY_TOP]);
+
   // The rail is only a few characters wide, so date groups show the month and
   // the sticky pill carries the year.
   const railLabel = (group) => {
@@ -943,14 +955,14 @@ export default function SongsView() {
     };
   }, [allSongs]);
 
-  const scrollToLetter = useCallback((letter) => {
+  const scrollToLetter = useCallback((letter, behavior = "smooth") => {
     setJumpLetter(letter);
     clearTimeout(jumpTimeoutRef.current);
     jumpTimeoutRef.current = setTimeout(() => setJumpLetter(null), 800);
 
     const el = letterRefs.current[letter];
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : behavior, block: "start" });
     }
   }, []);
 
@@ -969,41 +981,48 @@ export default function SongsView() {
   const listRowRef = useRef(null);
   const [railBox, setRailBox] = useState(null);
 
-  // The index is pinned to the list's right edge, from below the app bar to
-  // above the player chrome, so every letter is on screen at any scroll depth.
-  // In flow it started ~144px down and its tail sat behind the mini-player, so
-  // the last letters could not be reached without scrolling into a scrub.
-  const measureRail = useCallback(() => {
+  useLayoutEffect(() => {
     const row = listRowRef.current;
     const scroller = document.getElementById("app-scroll");
     if (!row || !scroller) return;
-    const rowRect = row.getBoundingClientRect();
-    const scRect = scroller.getBoundingClientRect();
-    // Shell chrome: 56px bottom nav, plus the 65px mini-player and a gap when
-    // something is playing (app/layout.js reserves the same stack).
-    const chrome = (activeSong ? 129 : 56) + 8;
-    const top = scRect.top + STICKY_TOP;
-    setRailBox({
-      top,
-      height: Math.max(160, scRect.bottom - chrome - top),
-      right: Math.max(8, window.innerWidth - rowRect.right),
-    });
-  }, [activeSong, STICKY_TOP]);
-
-  useLayoutEffect(() => {
+    const chrome = ["bottom-nav", "now-playing-bar", "mobile-now-playing-bar"]
+      .map((id) => document.getElementById(id)).filter(Boolean);
+    const viewport = window.visualViewport;
+    const measureRail = () => {
+      const rowRect = row.getBoundingClientRect();
+      const scRect = scroller.getBoundingClientRect();
+      const top = Math.max(scRect.top, viewport?.offsetTop || 0) + STICKY_TOP;
+      let bottom = Math.min(scRect.bottom, viewport ? viewport.offsetTop + viewport.height : window.innerHeight);
+      for (const element of chrome) {
+        const rect = element.getBoundingClientRect();
+        if (rect.height > 0) bottom = Math.min(bottom, rect.top);
+      }
+      const available = Math.max(0, bottom - STICKY_TOP - top);
+      const height = Math.min(available, songGroups.length * 24 + 12);
+      const next = {
+        top: top + (available - height) / 2,
+        height,
+        right: Math.max(8, window.innerWidth - rowRect.right),
+      };
+      setRailBox((previous) => previous && previous.top === next.top && previous.height === next.height && previous.right === next.right ? previous : next);
+    };
     measureRail();
+    const observer = new ResizeObserver(measureRail);
+    [scroller, row, ...chrome].forEach((element) => observer.observe(element));
     window.addEventListener("resize", measureRail);
-    return () => window.removeEventListener("resize", measureRail);
-  }, [measureRail, isLoading, songGroups.length, filtersOpen, sortBy]);
+    viewport?.addEventListener("resize", measureRail);
+    viewport?.addEventListener("scroll", measureRail);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measureRail);
+      viewport?.removeEventListener("resize", measureRail);
+      viewport?.removeEventListener("scroll", measureRail);
+    };
+  }, [activeSong, isLoading, songGroups.length, STICKY_TOP]);
 
   const jumpFromClientY = useCallback((clientY) => {
     const rail = railRef.current;
     if (!rail) return;
-
-    // The column never scrolls: the letters give up height instead (min-h-0
-    // against the rail's max-height), so every group is on screen at once and
-    // the nearest one to the finger is the whole answer.
-    const box = rail.getBoundingClientRect();
 
     let nearest = null;
     let nearestGap = Infinity;
@@ -1018,7 +1037,7 @@ export default function SongsView() {
     }
     if (nearest && nearest !== railKeyRef.current) {
       railKeyRef.current = nearest;
-      scrollToLetter(nearest);
+      scrollToLetter(nearest, "instant");
     }
   }, [scrollToLetter]);
 
@@ -1144,12 +1163,12 @@ export default function SongsView() {
   return (
     <main className="min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pt-3 md:pt-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
       <div className="mx-auto max-w-5xl space-y-4 md:space-y-5">
-        <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pr-7 sm:pr-8">
+        <section className="flex items-center justify-between gap-3 pr-7 sm:pr-8">
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
+            <h1 className="page-title">
               Songs
             </h1>
-            <p className="mt-1 text-sm font-medium text-neutral-500">
+            <p className="mt-1 text-xs leading-5 font-medium text-neutral-500 sm:text-sm">
               {isLoading ? (
                 <span className="inline-flex items-center gap-1.5 text-neutral-400">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
@@ -1183,7 +1202,7 @@ export default function SongsView() {
             <button
               type="button"
               onClick={playAll}
-              className="tap-lg inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-white shadow-2xs transition hover:bg-accent/90 active:scale-95"
+              className="btn-primary shrink-0 cursor-pointer active:scale-95"
             >
               <Play size={14} fill="currentColor" />
               {/* The count is already the subtitle's job, and it is the same
@@ -1195,10 +1214,10 @@ export default function SongsView() {
         </section>
 
       {/* Search / Filter Bar — page content, it scrolls away with the list */}
-      <div className="relative mr-7 rounded-xl border border-neutral-200 bg-white shadow-2xs sm:mr-8">
-        <div className="px-3 py-2.5">
+      <div className="relative mr-7 sm:mr-8">
+        <div className="pb-2">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-transparent bg-neutral-100/80 px-3 py-2 text-neutral-500 transition focus-within:border-accent focus-within:bg-white focus-within:shadow-2xs">
+            <div className="search-field flex h-11 min-h-11 min-w-0 shrink-0 sm:flex-1 items-center gap-2 rounded-xl border border-neutral-200/80 bg-neutral-50 px-3 text-neutral-500 transition focus-within:border-neutral-300 focus-within:bg-white">
               <Search size={15} className="shrink-0 text-neutral-400" />
               <input
                 ref={searchInputRef}
@@ -1211,7 +1230,7 @@ export default function SongsView() {
                 enterKeyHint="search"
                 autoComplete="off"
                 spellCheck={false}
-                className="min-w-0 flex-1 bg-transparent text-xs font-medium text-neutral-900 outline-none placeholder:text-neutral-400"
+                className="w-full min-w-0 flex-1 bg-transparent text-base sm:text-sm font-medium text-neutral-900 outline-none placeholder:text-neutral-400"
               />
               {/* The page already answers "/" — the header advertises ⌘K the same
                   way, so the shortcut is legible instead of folklore. Phones have
@@ -1229,7 +1248,7 @@ export default function SongsView() {
                   type="button"
                   onClick={() => setSearchValue("")}
                   aria-label="Clear search"
-                  className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full bg-neutral-200 text-neutral-500 transition hover:bg-neutral-300"
+                  className="tap-sm flex h-8.5 w-8.5 shrink-0 cursor-pointer items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-200"
                 >
                   <X size={10} strokeWidth={3} />
                 </button>
@@ -1252,7 +1271,7 @@ export default function SongsView() {
                 aria-haspopup="menu"
                 aria-expanded={sortOpen}
                 aria-controls={sortOpen ? "songs-sort-menu" : undefined}
-                className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-l-lg px-2 py-2 text-[11px] font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900 md:gap-2 md:px-3 md:text-xs"
+                className="tap-sm inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-l-lg px-3 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900"
                 aria-label={`Sort by ${sortOptions.find((o) => o.value === sortBy)?.label}`}
                 title={`Sort by: ${sortOptions.find((o) => o.value === sortBy)?.label}`}
               >
@@ -1271,7 +1290,7 @@ export default function SongsView() {
                 onClick={() => setSortAsc((prev) => !prev)}
                 aria-label={dirName}
                 title={sortAsc ? "Ascending" : "Descending"}
-                className="flex shrink-0 cursor-pointer items-center gap-1 rounded-r-lg border-l border-neutral-200/80 px-2 py-2 text-[11px] font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900 md:text-xs"
+                className="tap-sm flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-r-lg border-l border-neutral-200/80 px-2.5 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900"
               >
                 {sortAsc ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
                 <span className="hidden sm:inline">{dirLabel}</span>
@@ -1313,7 +1332,7 @@ export default function SongsView() {
               onClick={() => setFiltersOpen((prev) => !prev)}
               aria-expanded={filtersOpen}
               aria-controls="songs-filter-panel"
-              className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-semibold transition md:gap-2 md:px-3.5 md:text-xs ${
+              className={`tap-sm inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition ${
                 activeFilterCount > 0
                   ? "border-accent bg-accent/8 text-accent hover:bg-accent/15"
                   : "border-neutral-200/80 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
@@ -1334,7 +1353,7 @@ export default function SongsView() {
               <button
                 type="button"
                 onClick={clearAll}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-neutral-200/80 bg-white px-2 py-0.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+                className="tap-sm inline-flex h-8.5 cursor-pointer items-center gap-1 rounded-full px-2 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
               >
                 <X size={10} strokeWidth={3} />
                 Clear
@@ -1355,7 +1374,7 @@ export default function SongsView() {
             <div className="flex flex-col gap-1.5">
               {filterGroups.map((group) => (
                 <div key={group.title} className="flex items-start gap-2">
-                  <p className="w-[64px] shrink-0 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
+                  <p className="w-14 shrink-0 pt-2 text-xs font-medium text-neutral-500">
                     {group.title}
                   </p>
                   <div className="flex flex-1 flex-wrap gap-1.5">
@@ -1388,7 +1407,7 @@ export default function SongsView() {
                     key={group.key}
                     ref={(el) => { letterRefs.current[group.key] = el; }}
                     style={{ scrollMarginTop: STICKY_TOP + 34 }}
-                    className="flex flex-col gap-y-2.5"
+                    className="flex flex-col gap-y-1"
                   >
                     <div
                       style={{ top: STICKY_TOP }}
@@ -1453,7 +1472,7 @@ export default function SongsView() {
                 so every letter is visible and reachable at any scroll depth.
                 The placeholder keeps the rows clear of it. */}
             <div aria-hidden="true" className="w-6 shrink-0 sm:w-7" />
-            {railBox && (
+            {railBox && railBox.height > 0 && songGroups.length > 1 && (
               <div
                 ref={railRef}
                 style={{
@@ -1475,7 +1494,7 @@ export default function SongsView() {
                 onPointerUp={stopRailScrub}
                 onPointerLeave={stopRailScrub}
                 onPointerCancel={stopRailScrub}
-                className="fixed z-30 flex w-6 select-none flex-col items-stretch justify-between rounded-full bg-neutral-100/80 py-1.5 sm:w-7"
+                className="songs-index fixed z-30 flex w-6 select-none flex-col items-stretch justify-between rounded-full bg-neutral-100/80 py-1.5 sm:w-7"
               >
                 {songGroups.map((group) => (
                   <button
@@ -1484,9 +1503,12 @@ export default function SongsView() {
                     data-rail-key={group.key}
                     ref={(el) => { railLettersRef.current[group.key] = el; }}
                     aria-label={`Jump to ${group.label}`}
-                    onClick={() => scrollToLetter(group.key)}
-                    className={`tap-sm flex min-h-0 w-full flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-full text-[11px] font-bold leading-none transition-colors duration-150 select-none ${
-                      jumpLetter === group.key
+                    aria-current={(jumpLetter || activeGroupKey) === group.key ? "location" : undefined}
+                    onClick={(e) => {
+                      if (e.detail === 0) scrollToLetter(group.key);
+                    }}
+                    className={`flex min-h-0 w-full flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-full text-[11px] font-bold leading-none transition-colors duration-150 select-none ${
+                      (jumpLetter || activeGroupKey) === group.key
                         ? "bg-accent text-white"
                         : "text-neutral-500 hover:bg-neutral-200 hover:text-neutral-800 active:bg-neutral-200 active:text-neutral-800"
                     }`}

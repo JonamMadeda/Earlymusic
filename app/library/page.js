@@ -9,6 +9,7 @@ import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { getNewSongIds } from "@/lib/newSongs";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 import {
   Disc, LogIn, Heart, ListMusic, Download, Play, Trash2, Plus, HardDrive, Trophy,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import {
   getDownloadedSongs,
   removeDownload,
   getStorageEstimate,
+  onDownloadsChanged,
 } from "@/lib/downloadManager";
 
 const formatBytes = (bytes) => {
@@ -38,10 +40,12 @@ function LibraryContent() {
   const { allSongs, setAllSongs, setActiveSong } = usePlayer();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState(() => {
+  const isOnline = useOnlineStatus();
+  const [selectedTab, setActiveTab] = useState(() => {
     const tab = searchParams.get("tab");
     return ["saved", "top", "playlists", "downloads"].includes(tab) ? tab : "saved";
   });
+  const activeTab = isOnline ? selectedTab : "downloads";
   const [loading, setLoading] = useState(true);
 
   // Saved songs
@@ -68,11 +72,15 @@ function LibraryContent() {
 
   useEffect(() => {
     const timeout = setTimeout(refreshDownloads, 0);
-    return () => clearTimeout(timeout);
+    const unsubscribe = onDownloadsChanged(refreshDownloads);
+    return () => {
+      clearTimeout(timeout);
+      unsubscribe();
+    };
   }, [refreshDownloads]);
 
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (!isOnline || authLoading || !user || activeTab === "downloads") return;
 
     let cancelled = false;
     // Play counts need lib/migration-play-count.sql; on databases without
@@ -100,13 +108,13 @@ function LibraryContent() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [user, authLoading]);
+  }, [user, authLoading, isOnline, activeTab]);
 
   const songsFetchedRef = useRef(false);
   useEffect(() => {
     // Public catalog: fetch regardless of auth so saved-song titles resolve
     // for fresh sign-ins / new browsers.
-    if (authLoading) return;
+    if (!isOnline || authLoading || activeTab === "downloads") return;
     if (allSongs.length > 0) return;
 
     const fetchSongs = async () => {
@@ -124,7 +132,7 @@ function LibraryContent() {
     };
 
     fetchSongs();
-  }, [allSongs.length, setAllSongs, authLoading]);
+  }, [allSongs.length, setAllSongs, authLoading, isOnline, activeTab]);
 
   const savedSongs = useMemo(() => {
     if (savedSongIds.length === 0 || allSongs.length === 0) return [];
@@ -213,7 +221,7 @@ function LibraryContent() {
     }
   };
 
-  if (authLoading || (user && loading)) {
+  if (activeTab !== "downloads" && (authLoading || (user && loading))) {
     return (
       <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
         <div className="max-w-5xl mx-auto"><PageSkeleton /></div>
@@ -221,7 +229,7 @@ function LibraryContent() {
     );
   }
 
-  if (!user) {
+  if (!user && activeTab !== "downloads") {
     return (
       <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
         <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-32 text-center">
@@ -230,6 +238,9 @@ function LibraryContent() {
           <Link href="/auth" className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90">
             <LogIn size={14} /> Sign In
           </Link>
+          <button type="button" onClick={() => setActiveTab("downloads")} className="mt-3 text-xs font-semibold text-accent underline underline-offset-2">
+            View downloads on this device
+          </button>
         </div>
       </main>
     );
@@ -256,13 +267,15 @@ function LibraryContent() {
 
         {/* Tabs */}
         <div className="mb-6 flex gap-1 overflow-x-auto no-scrollbar overscroll-x-contain rounded-2xl border border-neutral-200 bg-white p-1 shadow-sm">
-          {tabs.map((tab) => {
+          {tabs.filter((tab) => isOnline || tab.key === "downloads").map((tab) => {
             const isActive = activeTab === tab.key;
             return (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold whitespace-nowrap transition ${
+                aria-pressed={isActive}
+                disabled={!user && tab.key !== "downloads"}
+                className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold whitespace-nowrap transition disabled:opacity-40 disabled:cursor-not-allowed ${
                   isActive
                     ? "bg-accent text-white shadow-sm"
                     : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50"
@@ -497,13 +510,17 @@ function LibraryContent() {
                   <Download size={26} />
                 </div>
                 <h3 className="text-sm md:text-base font-bold text-neutral-900">No downloaded songs</h3>
-                <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">Save songs to your device for smooth listening without an internet connection.</p>
-                <Link
-                  href="/songs"
-                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition"
-                >
-                  Browse Songs to Download
-                </Link>
+                <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">
+                  {isOnline ? "Save songs to your device for smooth listening without an internet connection." : "Reconnect to download songs, then listen here without an internet connection."}
+                </p>
+                {isOnline && (
+                  <Link
+                    href="/songs"
+                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition"
+                  >
+                    Browse Songs to Download
+                  </Link>
+                )}
               </div>
             ) : (
               <div className="flex flex-col gap-y-2 md:gap-y-3">

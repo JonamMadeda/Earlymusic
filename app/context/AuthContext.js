@@ -213,6 +213,12 @@ export const AuthProvider = ({ children }) => {
   }, [invalidateSession, commitUser, refreshRole]);
 
   useEffect(() => {
+    const revalidate = () => { void refreshUser(); };
+    window.addEventListener("online", revalidate);
+    return () => window.removeEventListener("online", revalidate);
+  }, [refreshUser]);
+
+  useEffect(() => {
     if (!userId) { setProfile(null); return; }
     let cancelled = false;
     const generation = authGeneration.current;

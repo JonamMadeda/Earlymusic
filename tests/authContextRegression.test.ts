@@ -136,6 +136,22 @@ describe("confirmed auth invalidation", () => {
     expect(state().sessionExpired).toBe(false);
   });
 
+  it("keeps downloads through an offline bootstrap and revalidates on reconnect", async () => {
+    seedPrivate();
+    fetchMock.mockRejectedValueOnce(new Error("offline"));
+    await mount();
+    expect(state().user).toBeNull();
+    expect(state().loading).toBe(false);
+    expect(storage.get("lumbo_downloaded_songs")).toBe("a");
+    expect(cacheStorage.delete).not.toHaveBeenCalled();
+    windowTarget.dispatchEvent(new Event("online"));
+    await frame.flush();
+    expect(state().user).toEqual(A);
+    expect(state().authError).toBeNull();
+    expect(storage.get("lumbo_downloaded_songs")).toBe("a");
+    expect(cacheStorage.delete).not.toHaveBeenCalled();
+  });
+
   it.each(["network", "server"])("preserves identity and private data on a %s refresh failure", async (failure) => {
     await mount();
     seedPrivate();

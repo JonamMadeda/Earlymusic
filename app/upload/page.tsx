@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 type OriginalSong = { title: string; artist: string };
+type SongStatus = "approved" | "pending" | "rejected";
 
 type UploadUrlResponse = {
   presignedUrl: string;
@@ -54,6 +55,7 @@ export default function UploadPage() {
   const [originalSongs, setOriginalSongs] = useState<OriginalSong[]>([{ title: "", artist: "" }]);
   const [category, setCategory] = useState("Worship");
   const [duration, setDuration] = useState("Long");
+  const [publicationStatus, setPublicationStatus] = useState<SongStatus>("approved");
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [isPublishing, setIsPublishing] = useState(false);
   const [doneCount, setDoneCount] = useState(0);
@@ -143,7 +145,7 @@ export default function UploadPage() {
 
   const publishOne = async (
     item: QueueItem,
-    shared: { author: string; originals: OriginalSong[]; category: string; duration: string }
+    shared: { author: string; originals: OriginalSong[]; category: string; duration: string; status: SongStatus }
   ) => {
     let uploadedStorageUrl: string | null = null;
     try {
@@ -182,6 +184,7 @@ export default function UploadPage() {
           original_songs: shared.originals,
           category: shared.category,
           duration: shared.duration,
+          status: shared.status,
           song_path: publicStorageUrl,
         }),
       });
@@ -190,8 +193,14 @@ export default function UploadPage() {
         throw new Error(body?.error || "Failed to save song metadata.");
       }
 
-      patchItem(item.key, { phase: "done", note: "Pending review" });
-      return true;
+      uploadedStorageUrl = null;
+      const { song } = await insertResponse.json();
+      const savedStatus: SongStatus = song.status;
+      patchItem(item.key, {
+        phase: "done",
+        note: savedStatus === "approved" ? "Public — available in Songs" : savedStatus === "pending" ? "Pending review — not public" : "Rejected — not public",
+      });
+      return savedStatus;
     } catch (error) {
       if (uploadedStorageUrl) {
         await cleanupOrphanedUpload(uploadedStorageUrl);
@@ -233,20 +242,25 @@ export default function UploadPage() {
         originals: originalSongs.filter((s) => s.title || s.artist),
         category: category.trim(),
         duration,
+        status: publicationStatus,
       };
 
       let succeeded = 0;
+      let published = 0;
       for (const item of pending) {
-        const ok = await publishOne(item, shared);
-        if (ok) succeeded += 1;
+        const savedStatus = await publishOne(item, shared);
+        if (savedStatus) succeeded += 1;
+        if (savedStatus === "approved") published += 1;
         setDoneCount((n) => n + 1);
       }
 
       const failed = pending.length - succeeded;
       setSummary(
         failed === 0
-          ? `Uploaded ${succeeded} track${succeeded === 1 ? "" : "s"} for review.`
-          : `Uploaded ${succeeded} of ${pending.length} — ${failed} failed. Fix the titles or retry them.`
+          ? published === succeeded
+            ? `Published ${succeeded} track${succeeded === 1 ? "" : "s"} — now available in Songs.`
+            : `Uploaded ${succeeded} track${succeeded === 1 ? "" : "s"} — ${published} public, ${succeeded - published} not public.`
+          : `Uploaded ${succeeded} of ${pending.length} (${published} public) — ${failed} failed. Check the errors and retry.`
       );
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Publishing failed. Please try again.");
@@ -258,6 +272,7 @@ export default function UploadPage() {
   const resetAll = () => {
     setQueue([]);
     setAuthor("Pastor Marita Mbae");
+    setPublicationStatus("approved");
     setOriginalSongs([{ title: "", artist: "" }]);
     setDoneCount(0);
     setPublishTotal(0);
@@ -266,6 +281,7 @@ export default function UploadPage() {
   };
 
   const pendingCount = queue.filter((item) => item.phase !== "done").length;
+  const hasUploadErrors = queue.some((item) => item.phase === "error");
 
   return (
     <main className="bg-neutral-50/60 px-3 pb-28 pt-3 md:px-8 md:pt-4">
@@ -281,20 +297,19 @@ export default function UploadPage() {
           </Link>
           <div className="min-w-0">
             <h1 className="text-xl font-bold tracking-tight text-neutral-900">Upload Tracks</h1>
-            <p className="truncate text-xs text-neutral-500">
-              Queue files or a batch — artist, category, and compilation details apply to every track.
-              New uploads start as pending and go public after an admin approves their rights metadata.
+            <p className="text-xs leading-5 text-neutral-500">
+              Admin uploads are public by default. Choose Hold for review to approve them later in the Vault.
             </p>
           </div>
         </div>
 
         {/* Summary banner */}
         {summary && !isPublishing && (
-          <div className="mb-3 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-3 shadow-sm">
-            <CheckCircle2 size={20} className="shrink-0 text-green-600" />
+          <div role="status" className={`mb-3 flex flex-wrap items-center gap-3 rounded-2xl border p-3 shadow-sm ${hasUploadErrors ? "border-amber-200 bg-amber-50 text-amber-900" : "border-green-200 bg-green-50 text-green-900"}`}>
+            {hasUploadErrors ? <XCircle size={20} className="shrink-0 text-amber-600" /> : <CheckCircle2 size={20} className="shrink-0 text-green-600" />}
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-green-900">{summary}</p>
-              <p className="text-xs text-green-700">Queue more files below, or head back to the Vault.</p>
+              <p className="text-sm font-bold">{summary}</p>
+              <p className="text-xs">{hasUploadErrors ? "Failed tracks remain in the queue for retry." : "Queue more files below, or head back to the Vault."}</p>
             </div>
             <Link
               href="/admin"
@@ -443,6 +458,25 @@ export default function UploadPage() {
             </div>
           </div>
 
+          <div className="mt-3 flex flex-col gap-1.5">
+            <label htmlFor="upload-publication-status" className="text-xs font-semibold text-neutral-500">
+              Publication (applies to all)
+            </label>
+            <select
+              id="upload-publication-status"
+              value={publicationStatus}
+              onChange={(e) => setPublicationStatus(e.target.value as SongStatus)}
+              disabled={isPublishing}
+              className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm font-medium text-neutral-900 outline-none focus:border-accent disabled:opacity-60"
+            >
+              <option value="approved">Publish now (public)</option>
+              <option value="pending">Hold for review (not public)</option>
+            </select>
+            <p className="text-xs leading-5 text-neutral-500">
+              Only publish recordings you have permission to share. Held tracks can be approved in Vault → Tracks.
+            </p>
+          </div>
+
           {/* Original songs */}
           <div className="mt-3">
             <div className="mb-2 flex items-center justify-between px-1">
@@ -502,7 +536,7 @@ export default function UploadPage() {
           {isPublishing && (
             <div className="mt-3 space-y-2">
               <p className="text-xs font-semibold text-accent">
-                Publishing {doneCount} of {publishTotal}…
+                Uploading {doneCount} of {publishTotal}…
               </p>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
                 <div
