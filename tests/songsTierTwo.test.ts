@@ -39,8 +39,12 @@ describe("songs clear control", () => {
 });
 
 describe("songs track length", () => {
-  it("states the length the Duration filter sorts on", () => {
-    expect(row).toMatch(/\{song\.duration \|\| "Long"\}/);
+  it("is not a tag in the row any more", () => {
+    // The owner took the Long/Short label back out (2026-11-16): it repeated a
+    // filter control rather than describing the track. The filter itself stays.
+    expect(row).not.toMatch(/song\.duration/);
+    expect(view).toMatch(/const durations = \["All", "Long", "Short"\];/);
+    expect(view).toMatch(/\(song\) => \(song\.duration \|\| "Long"\) === activeDuration/);
   });
 });
 

@@ -449,15 +449,8 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
         </p>
       </div>
 
-      {/* The row has to explain the filter that can narrow it: Duration is a
-          control, and until now nothing on screen said which end of it a track
-          sits on. It stays under the play control's stretched layer, so a tap on
-          the length still plays the song the way a tap anywhere else does. */}
-      <span className="whitespace-nowrap text-[11px] font-medium text-neutral-500">
-        {song.duration || "Long"}
-      </span>
-
-      {/* The ⋯ and its popups sit above that layer, or the menu could never open. */}
+      {/* The ⋯ and its popups sit above the play control's stretched layer,
+          or the menu could never open. */}
       <div className="relative z-20 flex items-center gap-1.5">
         <button
           ref={menuButtonRef}
