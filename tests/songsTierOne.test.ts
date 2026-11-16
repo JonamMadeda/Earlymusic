@@ -31,7 +31,7 @@ describe("songs filters panel", () => {
 
   it("sizes its chips at the dense tier, not the generic button floor", () => {
     // 44px chips made the open panel taller than the few songs it filters.
-    expect(songs).toMatch(/tap-sm whitespace-nowrap rounded-lg border px-2 py-1 text-\[11px\]/);
+    expect(songs).toMatch(/tap-sm cursor-pointer whitespace-nowrap rounded-lg border px-2 py-1 text-\[11px\]/);
     expect(songs).not.toMatch(/rounded-lg border px-2\.5 py-1\.5/);
   });
 
@@ -73,7 +73,7 @@ describe("songs rows as a flat list", () => {
 describe("songs result count", () => {
   it("states the count once, in the title line, only while a filter is on", () => {
     expect(songs).toMatch(/\{filteredSongs\.length\}<\/span> of\{" "\}/);
-    expect(songs).toMatch(/\{stats\.total\} tracks/);
+    expect(songs).toMatch(/\{stats\.total\}<\/span>\{" "\}/);
   });
 
   it("keeps the clear-everything strip free of counts", () => {

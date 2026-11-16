@@ -62,7 +62,7 @@ describe("songs view in the address bar", () => {
   it("writes through the History API, not a navigation", () => {
     const writer = view.slice(
       view.indexOf("const url = writeViewToUrl"),
-      view.indexOf("const fetchedRef"),
+      view.indexOf("const retryLoad"),
     );
     expect(writer.length, "url writer effect not found").toBeGreaterThan(100);
     expect(writer).toMatch(/window\.history\.replaceState\(window\.history\.state/);

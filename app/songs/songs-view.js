@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/apiFetch";
 import { usePlayer } from "../context/PlayerContext";
@@ -16,10 +17,12 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronLeft,
+  CloudOff,
   Disc,
   Download,
   Filter,
   MoreHorizontal,
+  Music,
   Search,
   Info,
   Heart,
@@ -34,6 +37,7 @@ import {
   ArrowUp,
   Share2,
   Flag,
+  Upload,
   Loader as SpinnerIcon,
 } from "lucide-react";
 
@@ -44,7 +48,6 @@ const timeFilters = [
   { label: "New", days: null, recent: true },
   { label: "1 Month", days: 30 },
   { label: "3 Months", days: 90 },
-  { label: "1 Year", days: 365 },
 ];
 
 const categories = ["All", "Worship", "Praise"];
@@ -91,11 +94,14 @@ const writeViewToUrl = (view, pathname) => {
 // The panel's chips are the dense tier (.tap-sm, 34px on touch), not the
 // generic 44px button floor: at four wrapped rows the floor made the filter
 // panel taller than the few songs it was meant to reveal.
+// Tailwind v4's preflight leaves buttons at cursor: default, so each control on
+// this page opts into the pointer itself — a row that answers the pointer next to
+// a toolbar that doesn't reads as half-disabled.
 const Chip = ({ label, active, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`tap-sm whitespace-nowrap rounded-lg border px-2 py-1 text-[11px] font-semibold transition-all duration-150 md:px-3.5 md:py-2 md:text-xs ${
+    className={`tap-sm cursor-pointer whitespace-nowrap rounded-lg border px-2 py-1 text-[11px] font-semibold transition-all duration-150 md:px-3.5 md:py-2 md:text-xs ${
       active
         ? "border-accent bg-accent text-white shadow-2xs"
         : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 hover:border-neutral-300"
@@ -391,7 +397,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
       className={`group relative flex w-full items-center gap-2.5 px-1.5 py-2.5 text-left transition-colors duration-150 md:gap-3 ${
         isActive
           ? "bg-accent/[0.07] shadow-[inset_2px_0_0_var(--color-accent)]"
-          : "hover:bg-neutral-50"
+          : "hover:bg-neutral-50 active:bg-neutral-100"
       }`}
     >
       <div className="relative shrink-0">
@@ -414,7 +420,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
             onClick={onClick}
             aria-current={isActive ? "true" : undefined}
             aria-label={`${isActive ? "Playing" : "Play"}: ${song.title || "this song"}`}
-            className="min-w-0 max-w-full rounded text-left after:absolute after:inset-0"
+            className="min-w-0 max-w-full cursor-pointer rounded text-left after:absolute after:inset-0"
           >
             <p className={`truncate text-xs sm:text-sm font-semibold tracking-tight ${isActive ? "text-accent" : "text-neutral-900"}`}>
               {song.title}
@@ -438,7 +444,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
                 onCategoryClick?.(song.category);
               }}
               aria-label={`Filter by ${song.category}`}
-              className="relative z-20 hidden md:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300"
+              className="relative z-20 hidden cursor-pointer md:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300"
             >
               {song.category}
             </button>
@@ -463,7 +469,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
             }
             openMenu();
           }}
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white"
           title="More"
           aria-label={`More actions for ${song.title || "this song"}`}
           aria-haspopup="menu"
@@ -491,7 +497,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
                 setShowMenu(false);
                 setShowPlaylists(false);
               }}
-              className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+              className="flex w-full cursor-pointer items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
             >
               <Info size={15} className="text-neutral-400" />
               <span className="text-xs font-semibold">Compilation Details</span>
@@ -507,7 +513,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
                 setShowInfo(false);
                 setShowMenu(false);
               }}
-              className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+              className="flex w-full cursor-pointer items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
             >
               <ListPlus size={15} className="text-neutral-400" />
               <span className="text-xs font-semibold">Add to Playlist</span>
@@ -516,7 +522,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
               <button
                 role="menuitem"
                 onClick={toggleDownload}
-                className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+                className="flex w-full cursor-pointer items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
               >
                 {downloadStatus === "downloading" ? (
                   <SpinnerIcon size={15} className="animate-spin text-neutral-400" />
@@ -533,7 +539,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
             <button
               role="menuitem"
               onClick={handleShare}
-              className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+              className="flex w-full cursor-pointer items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
             >
               {shareFeedback ? (
                 <Check size={15} className="text-green-500" strokeWidth={3} />
@@ -547,7 +553,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
             <button
               role="menuitem"
               onClick={toggleSave}
-              className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+              className="flex w-full cursor-pointer items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
             >
               <Heart
                 size={15}
@@ -563,7 +569,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
                 setShowMenu(false);
                 setShowReport(true);
               }}
-              className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-red-600 transition hover:bg-red-50 hover:text-red-700"
+              className="flex w-full cursor-pointer items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-red-600 transition hover:bg-red-50 hover:text-red-700"
             >
               <Flag size={15} className="text-red-500" />
               <span className="text-xs font-semibold">Report this song</span>
@@ -584,7 +590,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
               </h4>
               <button
                 onClick={() => setShowInfo(false)}
-                className="text-neutral-300 transition hover:text-neutral-900"
+                className="cursor-pointer text-neutral-300 transition hover:text-neutral-900"
               >
                 <X size={14} />
               </button>
@@ -625,7 +631,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
             </h4>
             <button
               onClick={() => setShowPlaylists(false)}
-              className="text-neutral-300 transition hover:text-neutral-900"
+              className="cursor-pointer text-neutral-300 transition hover:text-neutral-900"
             >
               <X size={14} />
             </button>
@@ -640,7 +646,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
                 <button
                   key={pl.id}
                   onClick={(e) => addToPlaylist(e, pl.id)}
-                  className="flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+                  className="flex w-full cursor-pointer items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
                 >
                   <ListMusic size={15} className="text-neutral-400" />
                   <span className="flex-1 truncate text-xs font-semibold">
@@ -664,7 +670,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
               <button
                 onClick={createAndAdd}
                 disabled={!newPlaylistName.trim()}
-                className="flex-shrink-0 rounded-lg bg-accent p-2 text-white transition hover:bg-accent/90 disabled:opacity-50"
+                className="flex-shrink-0 cursor-pointer rounded-lg bg-accent p-2 text-white transition hover:bg-accent/90 disabled:opacity-50"
                 title="Create & Add"
               >
                 <Plus size={14} />
@@ -711,8 +717,9 @@ const ScrollToTop = ({ scrollY }) => {
   return (
     <button
       type="button"
+      aria-label="Back to top"
       onClick={scrollToTop}
-      className={`fixed z-50 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-lg transition hover:bg-accent/90 left-4 lg:left-auto lg:right-8 ${
+      className={`fixed z-50 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-accent text-white shadow-lg transition hover:bg-accent/90 active:scale-95 left-4 lg:left-auto lg:right-8 ${
         activeSong ? "bottom-40 md:bottom-24" : "bottom-24 md:bottom-8"
       }`}
     >
@@ -730,6 +737,7 @@ export default function SongsView() {
     isLoading,
     setIsLoading,
   } = usePlayer();
+  const { isAdmin } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   // The query string is read once, here, and written back on every change
@@ -744,7 +752,11 @@ export default function SongsView() {
   const [sortBy, setSortBy] = useState(view.sortBy);
   const [sortAsc, setSortAsc] = useState(view.sortAsc);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef(null);
+  const sortTriggerRef = useRef(null);
   const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [jumpLetter, setJumpLetter] = useState(null);
   const jumpTimeoutRef = useRef(null);
   const letterRefs = useRef({});
@@ -788,30 +800,37 @@ export default function SongsView() {
     window.history.replaceState(window.history.state, "", url);
   }, [searchValue, activeFilter, activeCategory, activeDuration, sortBy, sortAsc, pathname]);
 
-useEffect(() => {
-    const fetchedRef = { current: false };
-    const fetchSongs = async () => {
-      if (fetchedRef.current) return;
-      fetchedRef.current = true;
+  // A failed load used to be a dead end: the page said "check your connection"
+  // and offered no way to check it again short of reloading the whole app.
+  const retryLoad = useCallback(() => {
+    setLoadError(false);
+    setLoadAttempt((n) => n + 1);
+  }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const fetchSongs = async () => {
       try {
         setIsLoading(true);
 
         const data = await apiFetch("/api/data/songs?order=title&ascending=true");
 
-        if (data) {
+        if (!cancelled && data) {
           setAllSongs(data);
         }
       } catch (error) {
         console.error("Error:", error);
-        setLoadError(true);
+        if (!cancelled) setLoadError(true);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     fetchSongs();
-  }, [setAllSongs, setIsLoading]);
+    return () => {
+      cancelled = true;
+    };
+  }, [setAllSongs, setIsLoading, loadAttempt]);
 
   const newSongIds = useMemo(
     () => new Set(getNewestSongs(allSongs || []).map((s) => s.id)),
@@ -882,8 +901,11 @@ useEffect(() => {
     activeFilter !== "All" ||
     activeCategory !== "All" ||
     activeDuration !== "All";
+  // The button is named "Filters", so it counts the panel's three groups and not
+  // the query: a search alone used to read "Filters (1)" while every chip inside
+  // the panel still said All. `hasFilters` above still includes the search,
+  // because that is what the Clear strip undoes.
   const activeFilterCount = [
-    searchValue.trim() ? "search" : null,
     activeFilter !== "All" ? activeFilter : null,
     activeCategory !== "All" ? activeCategory : null,
     activeDuration !== "All" ? activeDuration : null,
@@ -969,6 +991,56 @@ useEffect(() => {
     railKeyRef.current = null;
   };
 
+  // The sort field used to cycle Title → Artist → Date on every tap: reaching
+  // "Date" meant tapping past two fields you did not want, and nothing on the
+  // control admitted it would cycle. It opens the three options instead.
+  // Listens on document, like the row menus, so it answers Escape before the
+  // page-level window handler can read it as "clear the search".
+  useEffect(() => {
+    if (!sortOpen) return;
+    // Open on the choice in force, so the arrow keys move from somewhere real
+    // and a screen reader hears what is already selected.
+    sortRef.current?.querySelector('[aria-checked="true"]')?.focus();
+    const onPointerDown = (e) => {
+      if (sortRef.current && !sortRef.current.contains(e.target)) setSortOpen(false);
+    };
+    const onKeyDown = (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setSortOpen(false);
+      sortTriggerRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [sortOpen]);
+
+  const onSortMenuKeyDown = (e) => {
+    const items = sortRef.current
+      ? [...sortRef.current.querySelectorAll('[role="menuitemradio"]')]
+      : [];
+    if (items.length === 0) return;
+    const at = items.indexOf(document.activeElement);
+    const move = (next) => {
+      e.preventDefault();
+      items[(next + items.length) % items.length]?.focus();
+    };
+    if (e.key === "ArrowDown") move(at + 1);
+    else if (e.key === "ArrowUp") move(at <= 0 ? -1 : at - 1);
+    else if (e.key === "Home") move(0);
+    else if (e.key === "End") move(items.length - 1);
+    else if (e.key === "Tab") {
+      // Tab leaves the menu, so focus has to land on something that still
+      // exists — otherwise it falls to the body and the next Tab restarts the
+      // page from the top.
+      setSortOpen(false);
+      sortTriggerRef.current?.focus();
+    }
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1014,14 +1086,24 @@ useEffect(() => {
     setActiveDuration("All");
   }, []);
 
+  // "A-Z" says nothing about a date sort, where the direction is oldest/newest.
+  const byDate = sortBy === "created_at";
+  const dirLabel = byDate ? (sortAsc ? "Old" : "New") : sortAsc ? "A-Z" : "Z-A";
+  const dirName = byDate
+    ? sortAsc
+      ? "Sorted oldest first, tap for newest first"
+      : "Sorted newest first, tap for oldest first"
+    : sortAsc
+      ? "Sorted A to Z, tap for Z to A"
+      : "Sorted Z to A, tap for A to Z";
+
+  // #app-scroll already reserves the player and the bottom nav as its own bottom
+  // padding (176px). A second, page-level reserve on top of it left 319–383px of
+  // blank white below the last row, so the list read as unfinished. This adds
+  // only breathing room and the iOS inset the scroller's fixed padding cannot
+  // know about.
   return (
-    <main
-      className={`min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pt-3 md:pt-5 ${
-        activeSong
-          ? "pb-[calc(11rem+env(safe-area-inset-bottom,0px))] md:pb-32"
-          : "pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-16"
-      }`}
-    >
+    <main className="min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pt-3 md:pt-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
       <div className="mx-auto max-w-5xl space-y-4 md:space-y-5">
         <section className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
@@ -1039,13 +1121,15 @@ useEffect(() => {
                 // the catalogue breakdown is not what the listener is checking.
                 <>
                   <span className="font-bold text-neutral-800">{filteredSongs.length}</span> of{" "}
-                  {stats.total} tracks
+                  {stats.total} {stats.total === 1 ? "track" : "tracks"}
                 </>
               ) : (
                 <>
-                  <span className="font-bold text-neutral-800">{stats.total}</span> tracks
+                  <span className="font-bold text-neutral-800">{stats.total}</span>{" "}
+                  {stats.total === 1 ? "track" : "tracks"}
                   <span className="text-neutral-300"> • </span>
-                  <span className="font-bold text-neutral-800">{stats.artists}</span> artists
+                  <span className="font-bold text-neutral-800">{stats.artists}</span>{" "}
+                  {stats.artists === 1 ? "artist" : "artists"}
                   {stats.new > 0 && (
                     <>
                       <span className="text-neutral-300"> • </span>
@@ -1060,10 +1144,13 @@ useEffect(() => {
             <button
               type="button"
               onClick={playAll}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
+              className="tap-lg inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-white shadow-2xs transition hover:bg-accent/90 active:scale-95"
             >
-              <Play size={11} fill="currentColor" />
-              <span>Play All ({filteredSongs.length})</span>
+              <Play size={14} fill="currentColor" />
+              {/* The count is already the subtitle's job, and it is the same
+                  number whether a filter is on or not. What changes is what the
+                  button plays, so the label says that instead. */}
+              <span>{hasFilters ? "Play results" : "Play all"}</span>
             </button>
           )}
         </section>
@@ -1081,37 +1168,52 @@ useEffect(() => {
                 onChange={(e) => setSearchValue(e.target.value)}
                 placeholder="Search songs or artists..."
                 aria-label="Search songs or artists"
+                aria-keyshortcuts="/"
+                enterKeyHint="search"
+                autoComplete="off"
+                spellCheck={false}
                 className="min-w-0 flex-1 bg-transparent text-xs font-medium text-neutral-900 outline-none placeholder:text-neutral-400"
               />
+              {/* The page already answers "/" — the header advertises ⌘K the same
+                  way, so the shortcut is legible instead of folklore. Phones have
+                  no keyboard to press it on, hence max-md:hidden. */}
+              {!searchValue && (
+                <kbd
+                  aria-hidden="true"
+                  className="max-md:hidden shrink-0 rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-neutral-400"
+                >
+                  /
+                </kbd>
+              )}
               {searchValue && (
                 <button
                   type="button"
                   onClick={() => setSearchValue("")}
                   aria-label="Clear search"
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-neutral-500 transition hover:bg-neutral-300"
+                  className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full bg-neutral-200 text-neutral-500 transition hover:bg-neutral-300"
                 >
                   <X size={10} strokeWidth={3} />
                 </button>
               )}
             </div>
 
-            {/* Sort: field toggle + direction toggle as one compact control */}
-            <div className="flex shrink-0 items-stretch overflow-hidden rounded-lg border border-neutral-200/80 bg-white">
+            {/* Sort: the field opens its three options, the direction stays a
+                one-tap toggle because it is the half you flip repeatedly. The
+                container cannot clip (overflow-hidden) any more — the menu hangs
+                out of it — so each button carries its own corner radius. */}
+            <div
+              ref={sortRef}
+              className="relative flex shrink-0 items-stretch rounded-lg border border-neutral-200/80 bg-white"
+            >
               <button
+                ref={sortTriggerRef}
                 type="button"
-                onClick={() => {
-                  if (sortBy === "title") {
-                    setSortBy("author");
-                  } else if (sortBy === "author") {
-                    setSortBy("created_at");
-                    setSortAsc(false);
-                  } else {
-                    setSortBy("title");
-                    setSortAsc(true);
-                  }
-                }}
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900 md:gap-2 md:px-3 md:text-xs"
-                aria-label={`Sort by ${sortOptions.find((o) => o.value === sortBy)?.label}, tap to change field`}
+                onClick={() => setSortOpen((prev) => !prev)}
+                aria-haspopup="menu"
+                aria-expanded={sortOpen}
+                aria-controls={sortOpen ? "songs-sort-menu" : undefined}
+                className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-l-lg px-2 py-2 text-[11px] font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900 md:gap-2 md:px-3 md:text-xs"
+                aria-label={`Sort by ${sortOptions.find((o) => o.value === sortBy)?.label}`}
                 title={`Sort by: ${sortOptions.find((o) => o.value === sortBy)?.label}`}
               >
                 <ArrowUpDown size={13} />
@@ -1119,17 +1221,51 @@ useEffect(() => {
                     unlabelled arrow is two mystery icons, which reads as clutter
                     rather than as a control. */}
                 <span>{sortLabels[sortBy]}</span>
+                <ChevronDown
+                  size={12}
+                  className={`shrink-0 text-neutral-400 transition-transform duration-200 ${sortOpen ? "rotate-180" : ""}`}
+                />
               </button>
               <button
                 type="button"
                 onClick={() => setSortAsc((prev) => !prev)}
-                aria-label={sortAsc ? "Sorted A to Z, tap for Z to A" : "Sorted Z to A, tap for A to Z"}
+                aria-label={dirName}
                 title={sortAsc ? "Ascending" : "Descending"}
-                className="flex shrink-0 items-center gap-1 border-l border-neutral-200/80 px-2 py-2 text-[11px] font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900 md:text-xs"
+                className="flex shrink-0 cursor-pointer items-center gap-1 rounded-r-lg border-l border-neutral-200/80 px-2 py-2 text-[11px] font-semibold text-neutral-600 transition hover:bg-neutral-50 hover:text-neutral-900 md:text-xs"
               >
                 {sortAsc ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
-                <span className="hidden sm:inline">{sortAsc ? "A-Z" : "Z-A"}</span>
+                <span className="hidden sm:inline">{dirLabel}</span>
               </button>
+
+              {sortOpen && (
+                <div
+                  id="songs-sort-menu"
+                  role="menu"
+                  aria-label="Sort songs by"
+                  onKeyDown={onSortMenuKeyDown}
+                  className="absolute right-0 top-full z-50 mt-1.5 min-w-[172px] rounded-xl border border-neutral-100 bg-white p-1.5 shadow-lg"
+                >
+                  {sortOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      role="menuitemradio"
+                      aria-checked={sortBy === option.value}
+                      onClick={() => {
+                        setSortBy(option.value);
+                        // A date sort reads newest-first, a text sort A-Z; those
+                        // are the defaults the old cycle applied on the way past.
+                        setSortAsc(option.value !== "created_at");
+                        setSortOpen(false);
+                        sortTriggerRef.current?.focus();
+                      }}
+                      className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+                    >
+                      <span>{option.label}</span>
+                      {sortBy === option.value && <Check size={14} strokeWidth={3} className="text-accent" />}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <button
@@ -1137,7 +1273,7 @@ useEffect(() => {
               onClick={() => setFiltersOpen((prev) => !prev)}
               aria-expanded={filtersOpen}
               aria-controls="songs-filter-panel"
-              className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-semibold transition md:gap-2 md:px-3.5 md:text-xs ${
+              className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-semibold transition md:gap-2 md:px-3.5 md:text-xs ${
                 activeFilterCount > 0
                   ? "border-accent bg-accent/8 text-accent hover:bg-accent/15"
                   : "border-neutral-200/80 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
@@ -1157,7 +1293,7 @@ useEffect(() => {
               <button
                 type="button"
                 onClick={clearAll}
-                className="inline-flex items-center gap-1 rounded-md border border-neutral-200/80 bg-white px-2 py-0.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
+                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-neutral-200/80 bg-white px-2 py-0.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900"
               >
                 <X size={10} strokeWidth={3} />
                 Clear
@@ -1250,6 +1386,27 @@ useEffect(() => {
                   </div>
                 ))}
               </div>
+
+              {/* The list ends on a line, not on blank white — the same terminus
+                  the home feed uses. Back to top is already floating at this
+                  scroll depth, so it is not offered a second time here. */}
+              <div className="flex flex-col items-center gap-2.5 pt-6 pb-1 text-center">
+                <div className="flex w-full items-center gap-3">
+                  <div className="h-px flex-1 bg-neutral-200" />
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 text-neutral-400">
+                    <Music size={12} />
+                  </div>
+                  <div className="h-px flex-1 bg-neutral-200" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold tracking-tight text-neutral-900">
+                    You&apos;ve reached the end
+                  </p>
+                  <p className="mt-0.5 text-xs font-medium text-neutral-500">
+                    Thanks for worshipping with us today.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Alphabet Jump Bar — letters only, flush against the list. It used
@@ -1263,6 +1420,7 @@ useEffect(() => {
                 touchAction: "none",
               }}
               aria-label={sortBy === "created_at" ? "Date index" : "Alphabet index"}
+              role="group"
               onPointerDown={(e) => {
                 if (e.pointerType === "mouse" && e.button !== 0) return;
                 setRailScrubbing(true);
@@ -1284,7 +1442,7 @@ useEffect(() => {
                   ref={(el) => { railLettersRef.current[group.key] = el; }}
                   aria-label={`Jump to ${group.label}`}
                   onClick={() => scrollToLetter(group.key)}
-                  className={`flex h-[18px] min-h-0 min-w-3.5 items-center justify-center whitespace-nowrap rounded-full text-[11px] font-bold leading-none transition-all duration-200 select-none sm:h-[17px] sm:min-w-5 sm:text-xs lg:h-[18px] lg:min-w-5 lg:text-xs ${
+                  className={`flex h-[18px] min-h-0 min-w-3.5 cursor-pointer items-center justify-center whitespace-nowrap rounded-full text-[11px] font-bold leading-none transition-all duration-200 select-none sm:h-[17px] sm:min-w-5 sm:text-xs lg:h-[18px] lg:min-w-5 lg:text-xs ${
                     jumpLetter === group.key
                       ? "bg-accent text-white scale-110"
                       : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 active:bg-neutral-100 active:text-neutral-700"
@@ -1299,36 +1457,63 @@ useEffect(() => {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-neutral-100 border border-neutral-200">
               {loadError ? (
-                <Download className="text-accent" size={24} />
+                <CloudOff className="text-accent" size={24} />
               ) : hasFilters ? (
                 <Search className="text-accent" size={24} />
               ) : (
                 <Disc className="text-accent" size={24} />
               )}
             </div>
-            <p className="text-base font-bold tracking-tight text-neutral-900">
+            <p
+              role={loadError ? "alert" : undefined}
+              className="text-base font-bold tracking-tight text-neutral-900"
+            >
               {loadError
                 ? "Songs could not be loaded"
                 : hasFilters
                   ? "No matching songs"
-                  : "No songs yet"}
+                  : isAdmin
+                    ? "Your library is empty"
+                    : "No songs yet"}
             </p>
             <p className="mt-1 max-w-xs text-xs leading-relaxed text-neutral-500">
               {loadError
                 ? "Check your connection and try again."
                 : hasFilters
                   ? "Try adjusting your search or clearing the filters."
-                  : "Upload your first worship song and it will appear here automatically."}
+                  : isAdmin
+                    ? "Upload your first worship song and start building your collection. Songs will appear here automatically."
+                    : "The collection is still being built. New recordings appear here as soon as they are added."}
             </p>
-            {hasFilters && (
+            {loadError ? (
+              // A failed load is the one state that must offer its own way out:
+              // reloading the app loses the queue and the scroll position.
+              <button
+                type="button"
+                onClick={retryLoad}
+                className="mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90 active:scale-95"
+              >
+                Try again
+              </button>
+            ) : hasFilters ? (
               <button
                 type="button"
                 onClick={clearAll}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
+                className="mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50 active:scale-95"
               >
                 <X size={12} />
                 Clear all filters
               </button>
+            ) : (
+              isAdmin && (
+                <Link
+                  href="/admin"
+                  className="tap-lg mt-4 inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-2xs transition hover:bg-accent/90 active:scale-95"
+                >
+                  <Upload size={15} />
+                  Upload a Song
+                </Link>
+              )
             )}
           </div>
         )}

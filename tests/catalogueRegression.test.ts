@@ -236,7 +236,7 @@ describe("global New catalogue membership", () => {
     find(page.tree, (node) => node.props.label === "Short").props.onClick();
     page.render();
     expect(songRows(page.tree).map((row) => [row.props.song.id, row.props.isNew])).toEqual([["s0", true]]);
-    button(page.tree, "Play All (1)").props.onClick();
+    button(page.tree, "Play results").props.onClick();
     expect(h.setActiveSong).toHaveBeenCalledWith(newFixtures[0], [newFixtures[0]]);
     button(page.tree, "Clear").props.onClick();
     page.render();
