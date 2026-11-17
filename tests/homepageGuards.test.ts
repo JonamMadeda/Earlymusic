@@ -87,8 +87,13 @@ describe("homepage layout", () => {
   it("keeps title space and card borders stable when selected", () => {
     expect(source).not.toContain("border-2 border-accent");
     expect(featuredCard).not.toContain("border-2 border-accent");
-    expect(source).toContain("line-clamp-2 min-h-10");
-    expect(featuredCard).toContain("line-clamp-2 min-h-10");
+    // Song names stay on one line and end in an ellipsis, so the author line
+    // never drifts away from a wrapped second line and every card is the same
+    // height whether or not its title is long.
+    expect(source).toContain("truncate text-sm font-semibold leading-5");
+    expect(featuredCard).toContain("truncate text-sm font-semibold leading-5");
+    expect(source).not.toContain("line-clamp-2 min-h-10");
+    expect(featuredCard).not.toContain("line-clamp-2 min-h-10");
     expect(source).not.toContain("mask-image:");
   });
 });

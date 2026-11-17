@@ -197,7 +197,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
       {/* Track Info */}
       <div className="w-full min-w-0 px-0.5">
         <div className="flex items-start gap-2">
-          <p className={`line-clamp-2 min-h-10 min-w-0 flex-1 text-sm font-semibold leading-5 break-words ${isActive ? "text-accent" : "text-neutral-900"}`}>
+          <p className={`min-w-0 flex-1 truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
             {song.title}
           </p>
           {isNew && (
@@ -777,7 +777,7 @@ export default function Home() {
                               </span>
                             )}
                           </div>
-                          <h2 className="line-clamp-2 text-sm font-bold leading-5 text-white sm:text-base">
+                          <h2 className="truncate text-sm font-bold leading-5 text-white sm:text-base">
                             {spotifySong.title}
                           </h2>
                           <p className="mt-1 truncate text-xs leading-4 text-neutral-300">
