@@ -78,6 +78,7 @@ const seekProps = (scrub, label) => ({
   max: scrub.max,
   step: "any",
   value: scrub.value,
+  disabled: scrub.max === 0,
   "aria-label": label,
   "aria-valuetext": `${formatTime(scrub.value)} of ${formatTime(scrub.max)}`,
   onPointerDown: scrub.begin,
@@ -137,7 +138,11 @@ export const SeekBar = ({ audioRef, duration, onSeek }) => {
   return (
     <div className="mb-2">
       <div className="relative flex items-center py-2">
-        <input {...seekProps(scrub, "Seek through song")} className="seek-bar w-full" />
+        <input
+          {...seekProps(scrub, "Seek through song")}
+          className="seek-bar w-full"
+          style={{ "--seek-progress": `${scrub.percent}%` }}
+        />
       </div>
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium tabular-nums text-white/60">

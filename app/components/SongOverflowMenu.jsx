@@ -11,6 +11,7 @@ import {
   Loader2,
   MoreHorizontal,
   Plus,
+  Share2,
   Trash2,
   X,
 } from "lucide-react";
@@ -30,6 +31,8 @@ const SongOverflowMenu = ({
   onCyclePlaybackRate,
   onStatus,
   onOfflineChange,
+  onShare,
+  dark = false,
 }) => {
   const { user } = useAuth();
   const router = useRouter();
@@ -200,7 +203,13 @@ const SongOverflowMenu = ({
           setError("");
         }}
         className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
-          open ? "bg-neutral-200 text-neutral-900" : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
+          open
+            ? dark
+              ? "bg-white/15 text-white"
+              : "bg-neutral-200 text-neutral-900"
+            : dark
+              ? "text-white/60 hover:bg-white/10 hover:text-white"
+              : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
         }`}
       >
         <MoreHorizontal size={20} />
@@ -226,6 +235,19 @@ const SongOverflowMenu = ({
                 <ListPlus size={16} className="text-neutral-400" />
                 Add to playlist
               </button>
+              {onShare && (
+                <button
+                  type="button"
+                  className={itemClass}
+                  onClick={(event) => {
+                    setOpen(false);
+                    onShare(event);
+                  }}
+                >
+                  <Share2 size={16} className="text-neutral-400" />
+                  Share this song
+                </button>
+              )}
               <button
                 type="button"
                 className={itemClass}

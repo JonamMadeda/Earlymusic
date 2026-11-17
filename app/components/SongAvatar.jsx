@@ -52,7 +52,11 @@ const sizeMap = {
   lg: "h-12 w-12 text-sm md:h-14 md:w-14 md:text-base rounded-md",
 };
 
-export const VinylArtwork = ({ title, isPlaying = false }) => {
+export const VinylArtwork = ({
+  title,
+  isPlaying = false,
+  sizeClassName = "w-52 sm:w-64 md:w-72 lg:w-80",
+}) => {
   const letter = initialLetter(title);
   return (
     <div className="relative flex items-center justify-center py-4">
@@ -60,7 +64,7 @@ export const VinylArtwork = ({ title, isPlaying = false }) => {
           would orbit with the rotation, and the old dark-theme value read as a
           smudge against the light player. */}
       <div
-        className="relative aspect-square w-52 sm:w-64 md:w-72 lg:w-80 rounded-full"
+        className={`relative aspect-square rounded-full ${sizeClassName}`}
         style={{ boxShadow: "0 18px 36px -20px rgba(15,23,42,0.35), 0 6px 14px -8px rgba(15,23,42,0.14)" }}
       >
         {/* Vinyl record: animation always applied, play state toggles so pause freezes the angle */}

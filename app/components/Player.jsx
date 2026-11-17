@@ -1274,7 +1274,7 @@ const Player = () => {
           role="dialog"
           aria-modal="true"
           aria-labelledby="player-title"
-          className="player-dark fixed inset-0 z-[1000] flex flex-col overflow-hidden animate-fade-in bg-[#0b1120] text-white"
+          className="player-dark fixed inset-0 z-[1000] flex h-dvh flex-col overflow-hidden animate-fade-in bg-[#0b1120] text-white"
         >
           <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0f172a] to-[#0b1120]" />
 
@@ -1284,7 +1284,7 @@ const Player = () => {
             onPointerDown={onGrabberDown}
             onPointerUp={onGrabberUp}
             onPointerCancel={() => { swipeStartRef.current = null; }}
-            className="relative z-10 flex h-7 shrink-0 touch-none items-center justify-center md:hidden"
+            className="player-grabber relative z-10 flex h-7 shrink-0 touch-none items-center justify-center md:hidden"
           >
             <span className="h-1.5 w-10 rounded-full bg-white/25" />
           </div>
@@ -1299,7 +1299,9 @@ const Player = () => {
             >
               <ChevronDown size={22} aria-hidden="true" />
             </button>
-            <p className="text-center text-xs font-semibold tracking-wide text-white/60">Now playing</p>
+            <p className="text-center text-xs font-semibold uppercase tracking-[0.16em] text-white/50">
+              {showQueue ? "Up next" : "Now playing"}
+            </p>
             <SongOverflowMenu
               key={song.id}
               song={song}
@@ -1308,6 +1310,7 @@ const Player = () => {
               onShare={handleShare}
               onStatus={announce}
               onOfflineChange={setIsOffline}
+              dark
             />
           </div>
 
@@ -1327,12 +1330,18 @@ const Player = () => {
             </div>
           )}
 
-          <div className="full-player-body relative z-10" data-queue={showQueue}>
-            <div className="full-player-artwork" aria-hidden="true">
-              <VinylArtwork title={song.title} isPlaying={isPlaying} />
-            </div>
+          <div className="full-player-body relative z-10 mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col md:grid md:grid-cols-[minmax(0,1fr)_minmax(20rem,0.85fr)] md:items-center md:gap-12 md:px-8 md:py-6 lg:gap-20">
+            {!showQueue && (
+              <div className="full-player-artwork flex min-h-0 flex-1 items-center justify-center overflow-hidden px-6 md:h-full md:px-0" aria-hidden="true">
+                <VinylArtwork
+                  title={song.title}
+                  isPlaying={isPlaying}
+                  sizeClassName="w-[clamp(9rem,30vh,20rem)] md:w-[clamp(14rem,38vh,20rem)]"
+                />
+              </div>
+            )}
             {showQueue && (
-              <section id="player-queue" aria-label="Playback queue" className="full-player-queue">
+              <section id="player-queue" aria-label="Playback queue" className="min-h-0 flex-1 px-5 py-2 sm:px-8 md:h-full md:px-0 md:py-0">
                 <PlayerQueue
                   songs={songs}
                   currentSongId={song.id}
@@ -1347,11 +1356,11 @@ const Player = () => {
               </section>
             )}
 
-            <div className="full-player-controls min-w-0">
-              <div className="mb-3">
+            <div className="full-player-controls w-full min-w-0 shrink-0 px-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-2 sm:px-8 md:max-w-md md:justify-self-center md:px-0 md:pb-0 md:pt-0">
+              <div className="mb-4 md:mb-6">
                 <div className="flex items-start gap-3">
                   <div className="min-w-0 flex-1">
-                    <h2 id="player-title" title={song.title} className="line-clamp-2 break-words text-xl font-bold leading-snug tracking-tight text-white md:text-2xl">
+                    <h2 id="player-title" title={song.title} className="line-clamp-2 break-words text-2xl font-bold leading-tight tracking-tight text-white md:text-3xl">
                       {song.title}
                     </h2>
                     <p title={song.author} className="mt-1 line-clamp-2 break-words text-sm leading-relaxed text-white/65">
@@ -1419,7 +1428,7 @@ const Player = () => {
               <div>
                 <SeekBar audioRef={audioRef} duration={duration} onSeek={handleSeek} />
 
-                <div className="mx-auto flex w-full max-w-sm items-center justify-between gap-2 py-2">
+                <div className="player-transport mx-auto flex w-full max-w-sm items-center justify-between gap-2 py-2">
                   <button
                     type="button"
                     aria-label="Toggle shuffle"
@@ -1481,7 +1490,7 @@ const Player = () => {
                 {/* Bottom utilities: one row at every width. The volume slider
                     is the only flexible part, so a narrow phone shortens the
                     track instead of pushing the buttons onto a second line. */}
-                <div className="mx-auto flex w-full max-w-md flex-nowrap items-center justify-between gap-3 pt-2">
+                <div className="player-utilities mx-auto flex w-full max-w-md flex-nowrap items-center justify-between gap-3 pt-2">
                   <div className="flex min-w-0 flex-1 items-center gap-1">
                     <button
                       type="button"
@@ -1517,6 +1526,7 @@ const Player = () => {
                     <button
                       type="button"
                       aria-label={showQueue ? "Show artwork" : "Show queue"}
+                      aria-controls="player-queue"
                       aria-pressed={showQueue}
                       onClick={() => setShowQueue(!showQueue)}
                       className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${

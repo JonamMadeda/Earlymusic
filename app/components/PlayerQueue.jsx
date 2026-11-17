@@ -28,8 +28,11 @@ const PlayerQueue = ({
   // Opening the queue used to land at the top of the library while the playing
   // track sat hundreds of rows down.
   useEffect(() => {
-    const current = listRef.current?.querySelector('[data-current="true"]');
-    current?.scrollIntoView({ block: "center", behavior: "auto" });
+    const list = listRef.current;
+    const current = list?.querySelector('[data-current="true"]');
+    if (!list || !current) return;
+    const top = current.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
+    list.scrollTop = Math.max(0, top - (list.clientHeight - current.clientHeight) / 2);
   }, [currentSongId]);
 
   const actionClass =

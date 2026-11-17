@@ -184,7 +184,13 @@ input[type="range"].seek-bar {
   min-height: 0;
   height: 28px;
   border-radius: 9999px;
-  background: linear-gradient(rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.28)) center / 100% 5px no-repeat;
+  background: linear-gradient(
+    to right,
+    #ffffff 0%,
+    #ffffff var(--seek-progress, 0%),
+    rgba(255, 255, 255, 0.24) var(--seek-progress, 0%),
+    rgba(255, 255, 255, 0.24) 100%
+  ) center / 100% 4px no-repeat;
   cursor: pointer;
 }
 
@@ -205,6 +211,11 @@ input[type="range"].seek-bar {
   border-radius: 9999px;
   background: #ffffff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.seek-bar:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 /* The full player is the app's one dark surface. These are the handful of
@@ -235,6 +246,44 @@ input[type="range"].seek-bar {
 
 .player-dark input[type="range"]:focus-visible {
   outline-color: rgba(255, 255, 255, 0.85);
+}
+
+/* Short landscape phones need the artwork and controls side by side. */
+@media (max-height: 540px) and (orientation: landscape) {
+  .player-grabber {
+    display: none;
+  }
+
+  .full-player-body {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(20rem, 1fr);
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0 1.5rem;
+  }
+
+  .full-player-artwork {
+    height: 100%;
+  }
+
+  .full-player-controls {
+    max-width: 28rem;
+    justify-self: center;
+    padding: 0 0 env(safe-area-inset-bottom, 0px);
+  }
+
+  .full-player-controls > div:first-child {
+    margin-bottom: 0.5rem;
+  }
+
+  .player-transport {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .player-utilities {
+    padding-top: 0.25rem;
+  }
 }
 
 /* The global search is one rounded field, so the ring belongs on the wrapper
