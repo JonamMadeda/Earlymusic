@@ -34,15 +34,15 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
       aria-current={isActive ? "true" : undefined}
-      aria-label={`Play: ${song.title} by ${song.author || "Unknown artist"}`}
-      className={`group relative flex w-[152px] max-w-full shrink-0 snap-start flex-col items-center rounded-xl border px-3 pb-3 pt-4 text-center transition-colors md:w-[168px] ${
+      className={`group relative flex w-[152px] max-w-full shrink-0 snap-start flex-col items-center rounded-xl border px-3 pb-4 pt-4 text-center transition-colors md:w-[168px] ${
         isActive
           ? "border-accent bg-neutral-50 ring-1 ring-inset ring-accent"
           : "border-neutral-200 bg-white hover:border-neutral-400/70"
       }`}
     >
+      <span className="sr-only">Play: </span>
       {/* freshness stamp — matches app meta type */}
-      <span className="mb-2 text-xs font-medium text-neutral-500">
+      <span className="mb-2.5 text-xs font-medium leading-4 text-neutral-500">
         {added || (isNew ? "New" : "Fresh")}
       </span>
 
@@ -88,11 +88,11 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
       </span>
 
       {/* track info */}
-      <span className="mt-3.5 block w-full min-w-0">
+      <span className="mt-5 block w-full min-w-0">
         <span className={`line-clamp-2 min-h-10 text-sm font-semibold leading-5 break-words ${isActive ? "text-accent" : "text-neutral-900"}`}>
           {song.title}
         </span>
-        <span className="mt-0.5 block truncate text-xs font-medium text-neutral-500">
+        <span className="mt-1 block truncate text-xs font-medium leading-4 text-neutral-500">
           {song.author}
         </span>
       </span>

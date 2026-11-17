@@ -53,7 +53,6 @@ const Header = () => {
             {isHomePage ? (
               <button
                 type="button"
-                aria-label="Search songs and artists"
                 aria-haspopup="dialog"
                 aria-expanded={isSearchOpen}
                 onClick={() => setIsSearchOpen(true)}

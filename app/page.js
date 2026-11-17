@@ -101,13 +101,13 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
       aria-current={isActive ? "true" : undefined}
-      aria-label={`Play: ${song.title} by ${song.author || "Unknown artist"}`}
       className={`group relative flex w-[74vw] sm:w-[260px] md:w-[275px] flex-shrink-0 snap-start items-center gap-3 rounded-xl p-3 text-left transition-all duration-200 hover:-translate-y-0.5 ${
         isActive
           ? "border border-accent bg-neutral-50 ring-1 ring-inset ring-accent"
           : "border border-neutral-200 bg-white hover:border-neutral-400/80 shadow-2xs"
       }`}
     >
+      <span className="sr-only">Play: </span>
       <div className="relative shrink-0">
         <SongAvatar title={song.title} size="md" variant="mono" />
         {isActive && (
@@ -118,17 +118,17 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <p className={`min-w-0 flex-1 truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
             {song.title}
           </p>
           {isNew && (
-            <span className="rounded bg-gold/10 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
+            <span className="shrink-0 rounded bg-gold/10 px-1.5 py-0.5 text-[10px] font-normal uppercase leading-none tracking-wider text-gold">
               New
             </span>
           )}
         </div>
-        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
+        <p className="mt-1 truncate text-xs font-medium leading-4 text-neutral-500">
           {song.author}
         </p>
       </div>
@@ -157,16 +157,16 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
       onClick={() => onClick(song)}
       onMouseEnter={() => prefetchSongAudio(song)}
       aria-current={isActive ? "true" : undefined}
-      aria-label={`Play: ${song.title} by ${song.author || "Unknown artist"}`}
       className={`group relative flex w-[160px] max-w-full md:w-[184px] shrink-0 snap-start flex-col rounded-xl p-3 text-left transition-colors ${
         isActive
           ? "border border-accent bg-neutral-50 ring-1 ring-inset ring-accent"
           : "border border-neutral-200 bg-white hover:border-neutral-400/80 shadow-2xs"
       }`}
     >
+      <span className="sr-only">Play: </span>
       {/* Retro Lined Cover Art with Concentric Grooves */}
       <div
-        className="relative mb-2.5 aspect-square w-full overflow-hidden rounded-lg border border-neutral-800 flex flex-col justify-between p-2.5 retro-grooves shadow-inner"
+        className="relative mb-3 aspect-square w-full overflow-hidden rounded-lg border border-neutral-800 flex flex-col justify-between p-2.5 retro-grooves shadow-inner"
         style={{ backgroundColor: "#0f172a" }}
       >
         {/* Top Tag: Clean monochromatic badge */}
@@ -196,17 +196,17 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
 
       {/* Track Info */}
       <div className="w-full min-w-0 px-0.5">
-        <div className="flex items-start gap-1.5">
+        <div className="flex items-start gap-2">
           <p className={`line-clamp-2 min-h-10 min-w-0 flex-1 text-sm font-semibold leading-5 break-words ${isActive ? "text-accent" : "text-neutral-900"}`}>
             {song.title}
           </p>
           {isNew && (
-            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
+            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-[10px] font-normal uppercase leading-none tracking-wider text-gold">
               New
             </span>
           )}
         </div>
-        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
+        <p className="mt-1 truncate text-xs font-medium leading-4 text-neutral-500">
           {song.author}
         </p>
       </div>
@@ -222,13 +222,13 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
       aria-current={isActive ? "true" : undefined}
-      aria-label={`Play: ${song.title} by ${song.author || "Unknown artist"}`}
       className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-150 border ${
         isActive
           ? "border-accent bg-neutral-50 ring-1 ring-inset ring-accent"
           : "border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50/70 shadow-2xs"
       }`}
     >
+      <span className="sr-only">Play: </span>
       <div className="w-5 shrink-0 text-center">
         {isActive ? (
           <div className="waveform text-accent flex h-3.5 justify-center items-end">
@@ -250,13 +250,13 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
         <p className={`truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
           {song.title}
         </p>
-        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
+        <p className="mt-1 truncate text-xs font-medium leading-4 text-neutral-500">
           {song.author}
         </p>
       </div>
 
       {song.category && (
-        <span className="hidden sm:inline-block rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-600">
+        <span className="hidden shrink-0 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold leading-none text-neutral-600 sm:inline-block">
           {song.category}
         </span>
       )}
@@ -280,13 +280,13 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
       aria-current={isActive ? "true" : undefined}
-      aria-label={`Play: ${song.title} by ${song.author || "Unknown artist"}`}
       className={`group flex w-[min(80vw,320px)] max-w-full shrink-0 snap-start items-center gap-2.5 rounded-lg border px-3 py-3 text-left transition-colors ${
         isActive
           ? "border-accent bg-accent/[0.04]"
           : "border-neutral-200 bg-neutral-50/60 hover:border-accent/40 hover:bg-neutral-50"
       }`}
     >
+      <span className="sr-only">Play: </span>
       <div className="w-7 shrink-0 text-center">
         {isActive ? (
           <div className="waveform text-accent flex h-3.5 justify-center items-end">
@@ -305,22 +305,22 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
       <SongAvatar title={song.title} size="sm" variant="mono" />
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <p className={`truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
+        <div className="flex items-center gap-2">
+          <p className={`min-w-0 truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
             {song.title}
           </p>
           {index === 0 && isHistory && !isActive && (
-            <span className="shrink-0 text-[10px] font-medium text-neutral-500">
+            <span className="shrink-0 text-[10px] font-medium leading-4 text-neutral-500">
               Last played
             </span>
           )}
           {isNew && (
-            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
+            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-[10px] font-normal uppercase leading-none tracking-wider text-gold">
               New
             </span>
           )}
         </div>
-        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">
+        <p className="mt-1 truncate text-xs font-medium leading-4 text-neutral-500">
           {song.author}
         </p>
       </div>
@@ -409,7 +409,7 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
           e.preventDefault();
           scrollRail(e.key === "ArrowRight" ? 1 : -1);
         }}
-        className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain p-1 -m-1 no-scrollbar"
+        className="flex snap-x snap-mandatory gap-3.5 overflow-x-auto overscroll-x-contain p-1 -m-1 no-scrollbar"
       >
         {items.map((song, index) => (
           <Card key={song.id} song={song} index={index} isHistory={isHistory} isActive={song.id === activeSongId} isNew={newSongIds?.has(song.id) || false} onClick={() => onPlay(song)} />
@@ -664,9 +664,9 @@ export default function Home() {
                 <div className="flex min-w-0 items-center gap-3 w-full">
                   <SongAvatar title={activeSong.title} size="sm" variant="mono" />
                   <div className="min-w-0 flex-1">
-                    <span className="text-xs font-medium text-neutral-500">In your player</span>
-                    <p className="truncate text-sm font-semibold text-neutral-900">{activeSong.title}</p>
-                    <p className="truncate text-xs text-neutral-500">{activeSong.author}</p>
+                    <span className="text-xs font-medium leading-4 text-neutral-500">In your player</span>
+                    <p className="truncate text-sm font-semibold leading-5 text-neutral-900">{activeSong.title}</p>
+                    <p className="mt-1 truncate text-xs leading-4 text-neutral-500">{activeSong.author}</p>
                   </div>
                 </div>
               ) : (
@@ -766,21 +766,21 @@ export default function Home() {
 
                         {/* Metadata in pure, guaranteed white text */}
                         <div className="min-w-0">
-                          <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
+                          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wider text-white">
                               <Star size={9} fill="currentColor" />
                               Spotlight
                             </span>
                             {spotifySong.category && (
-                              <span className="rounded border border-white/15 px-1.5 py-0.5 text-xs font-semibold text-neutral-300 uppercase tracking-wider">
+                              <span className="rounded border border-white/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wider text-neutral-300">
                                 {spotifySong.category}
                               </span>
                             )}
                           </div>
-                          <h3 className="truncate text-sm sm:text-base font-bold text-white">
+                          <h2 className="line-clamp-2 text-sm font-bold leading-5 text-white sm:text-base">
                             {spotifySong.title}
-                          </h3>
-                          <p className="truncate text-xs text-neutral-300 mt-0.5">
+                          </h2>
+                          <p className="mt-1 truncate text-xs leading-4 text-neutral-300">
                             {spotifySong.author}
                           </p>
                         </div>
