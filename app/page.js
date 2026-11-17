@@ -222,7 +222,7 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
       aria-current={isActive ? "true" : undefined}
-      className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-150 border ${
+      className={`group flex w-full items-center gap-3.5 rounded-lg border px-3.5 py-3 text-left transition-all duration-150 ${
         isActive
           ? "border-accent bg-neutral-50 ring-1 ring-inset ring-accent"
           : "border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50/70 shadow-2xs"
@@ -721,7 +721,7 @@ export default function Home() {
         {isLoading ? (
           <PageSkeleton letterGroups={3} />
         ) : (
-          <div className="space-y-6 md:space-y-7">
+          <div className="space-y-8 md:space-y-10">
             {loadError && (
               <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
                 <p className="text-sm text-neutral-700">Songs could not be loaded. Check your connection and try again.</p>
@@ -869,7 +869,7 @@ export default function Home() {
             {(recommendedSongs.length > 0 || activeFilter !== "all") && (
               <LazySection delay={200}>
                 <section id="recommended" className="scroll-mt-24">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                     <div className="flex items-center gap-2">
                       <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/8 text-accent">
                         <ListMusic size={13} />
@@ -902,7 +902,7 @@ export default function Home() {
                   <div
                     role="group"
                     aria-label="Filter Curated for You"
-                    className="mb-3 flex flex-wrap items-center gap-1.5"
+                    className="mb-4 flex flex-wrap items-center gap-2"
                   >
                     {filterCategories.map((cat) => {
                       const isSelected = activeFilter === cat.id;
@@ -925,13 +925,13 @@ export default function Home() {
                   </div>
 
                   {/* Short results must not clamp the page scroll and move the filters. */}
-                  <div className="flex min-h-[60dvh] flex-col gap-2">
+                  <div className="flex min-h-[60dvh] flex-col gap-3">
                     {recommendedSongs.length > 0 ? (
                       [0, 1, 2, 3, 4].map((group) => {
                         const chunk = recommendedSongs.slice(group * 5, group * 5 + 5);
                         if (chunk.length === 0) return null;
                         return (
-                          <div key={group} className="flex flex-col gap-2">
+                          <div key={group} className="flex flex-col gap-3">
                             {chunk.map((song, idx) => (
                               <RecommendationCard
                                 key={song.id}
