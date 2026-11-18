@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import SongItem from "../components/SongItem";
 import SongAvatar from "@/app/components/SongAvatar";
 import { PageSkeleton } from "../components/Skeleton";
@@ -32,21 +32,34 @@ const tabs = [
   { key: "saved", label: "Saved", icon: Heart },
   { key: "top", label: "Top", icon: Trophy },
   { key: "playlists", label: "Playlists", icon: ListMusic },
-  { key: "downloads", label: "Downloads", icon: Download },
 ];
+
+const tabKeys = tabs.map((t) => t.key);
 
 function LibraryContent() {
   const { user, loading: authLoading } = useAuth();
   const { allSongs, setAllSongs, setActiveSong } = usePlayer();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const isOnline = useOnlineStatus();
-  const [selectedTab, setActiveTab] = useState(() => {
+  const [activeTab, setActiveTab] = useState(() => {
     const tab = searchParams.get("tab");
-    return ["saved", "top", "playlists", "downloads"].includes(tab) ? tab : "saved";
+    return tabKeys.includes(tab) ? tab : "saved";
   });
-  const activeTab = isOnline ? selectedTab : "downloads";
   const [loading, setLoading] = useState(true);
+
+  // Same History-API approach as the songs page: the address bar mirrors the
+  // selected tab without a soft navigation re-suspending the page.
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (activeTab === "saved") params.delete("tab");
+    else params.set("tab", activeTab);
+    const query = params.toString();
+    const url = `${pathname}${query ? `?${query}` : ""}`;
+    if (url === `${window.location.pathname}${window.location.search}`) return;
+    window.history.replaceState(window.history.state, "", url);
+  }, [activeTab, pathname, searchParams]);
 
   // Saved songs
   const [savedSongIds, setSavedSongIds] = useState([]);
@@ -80,7 +93,7 @@ function LibraryContent() {
   }, [refreshDownloads]);
 
   useEffect(() => {
-    if (!isOnline || authLoading || !user || activeTab === "downloads") return;
+    if (!isOnline || authLoading || !user) return;
 
     let cancelled = false;
     // Play counts need lib/migration-play-count.sql; on databases without
@@ -108,13 +121,13 @@ function LibraryContent() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [user, authLoading, isOnline, activeTab]);
+  }, [user, authLoading, isOnline]);
 
   const songsFetchedRef = useRef(false);
   useEffect(() => {
     // Public catalog: fetch regardless of auth so saved-song titles resolve
     // for fresh sign-ins / new browsers.
-    if (!isOnline || authLoading || activeTab === "downloads") return;
+    if (!isOnline || authLoading) return;
     if (allSongs.length > 0) return;
 
     const fetchSongs = async () => {
@@ -132,7 +145,7 @@ function LibraryContent() {
     };
 
     fetchSongs();
-  }, [allSongs.length, setAllSongs, authLoading, isOnline, activeTab]);
+  }, [allSongs.length, setAllSongs, authLoading, isOnline]);
 
   const savedSongs = useMemo(() => {
     if (savedSongIds.length === 0 || allSongs.length === 0) return [];
@@ -221,31 +234,6 @@ function LibraryContent() {
     }
   };
 
-  if (activeTab !== "downloads" && (authLoading || (user && loading))) {
-    return (
-      <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
-        <div className="max-w-5xl mx-auto"><PageSkeleton /></div>
-      </main>
-    );
-  }
-
-  if (!user && activeTab !== "downloads") {
-    return (
-      <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
-        <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-32 text-center">
-          <Disc className="mb-4 text-neutral-300" size={32} />
-          <p className="text-sm font-semibold text-neutral-900 mb-2">Sign in to see your library</p>
-          <Link href="/auth" className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90">
-            <LogIn size={14} /> Sign In
-          </Link>
-          <button type="button" onClick={() => setActiveTab("downloads")} className="mt-3 text-xs font-semibold text-accent underline underline-offset-2">
-            View downloads on this device
-          </button>
-        </div>
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
       <div className="max-w-5xl mx-auto">
@@ -265,28 +253,148 @@ function LibraryContent() {
           </div>
         </section>
 
-        {/* Tabs */}
-        <div className="mb-6 flex gap-1 overflow-x-auto no-scrollbar overscroll-x-contain rounded-2xl border border-neutral-200 bg-white p-1 shadow-sm">
-          {tabs.filter((tab) => isOnline || tab.key === "downloads").map((tab) => {
-            const isActive = activeTab === tab.key;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                aria-pressed={isActive}
-                disabled={!user && tab.key !== "downloads"}
-                className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold whitespace-nowrap transition disabled:opacity-40 disabled:cursor-not-allowed ${
-                  isActive
-                    ? "bg-accent text-white shadow-sm"
-                    : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50"
-                }`}
-              >
-                <tab.icon size={14} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Downloads — the library's primary surface, always front and center */}
+        <section className="mb-8">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-accent/10 bg-accent/[0.06] text-accent">
+                <Download size={15} />
+              </span>
+              <h2 className="text-base font-bold tracking-tight text-neutral-900 md:text-lg">
+                Downloads
+              </h2>
+            </div>
+            <span className="text-xs font-medium text-neutral-400">
+              {downloadedSongs.length > 0
+                ? `${downloadedSongs.length} available offline`
+                : "Saved on this device for offline listening"}
+            </span>
+          </div>
+
+          {storage && storage.quota > 0 && (
+            <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
+                  <HardDrive size={13} />
+                  <span>Device storage</span>
+                </div>
+                <span className={`text-xs font-semibold ${(storage.usage / storage.quota) >= 0.95 ? "text-red-500" : "text-neutral-500"}`}>
+                  {formatBytes(storage.usage)} / {formatBytes(storage.quota)}
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-neutral-100 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${(storage.usage / storage.quota) >= 0.95 ? "bg-red-500" : "bg-accent"}`}
+                  style={{ width: `${Math.min((storage.usage / storage.quota) * 100, 100)}%` }}
+                />
+              </div>
+              <p className={`mt-1.5 text-xs font-medium ${(storage.usage / storage.quota) >= 0.95 ? "text-red-500" : "text-neutral-400"}`}>
+                {(storage.usage / storage.quota) >= 0.95
+                  ? "Storage is full — remove some downloads to free up space"
+                  : `${formatBytes(storage.available)} available`}
+              </p>
+            </div>
+          )}
+
+          {downloadedSongs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-neutral-200 bg-white shadow-sm">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
+                <Download size={26} />
+              </div>
+              <h3 className="text-sm md:text-base font-bold text-neutral-900">No downloaded songs</h3>
+              <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">
+                {isOnline ? "Save songs to your device for smooth listening without an internet connection." : "Reconnect to download songs, then listen here without an internet connection."}
+              </p>
+              {isOnline && (
+                <Link
+                  href="/songs"
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition"
+                >
+                  Browse Songs to Download
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-y-2 md:gap-y-3">
+              {downloadedSongs.map((song) => (
+                <div
+                  key={song.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setActiveSong(song, downloadedSongs)}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setActiveSong(song, downloadedSongs);
+                    }
+                  }}
+                  className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300"
+                >
+                  <SongAvatar title={song.title} size="sm" variant="mono" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
+                    <p className="truncate text-xs font-medium text-neutral-400 mt-0.5">{song.author}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-all group-hover:bg-accent group-hover:text-white">
+                      <Play size={13} fill="currentColor" className="ml-0.5" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => handleRemoveDownload(e, song.id)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-500"
+                      title="Remove download"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Collection tabs — secondary to downloads */}
+        {!isOnline ? (
+          <div className="rounded-2xl border border-dashed border-neutral-200 bg-white p-6 text-center shadow-sm">
+            <p className="text-xs font-medium text-neutral-500">
+              You&rsquo;re offline. Downloads still play here — Saved, Top and Playlists return when you reconnect.
+            </p>
+          </div>
+        ) : authLoading || (user && loading) ? (
+          <PageSkeleton />
+        ) : !user ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-white px-4 py-16 text-center shadow-sm">
+            <Disc className="mb-4 text-neutral-300" size={32} />
+            <p className="mb-1 text-sm font-semibold text-neutral-900">Sign in to see your library</p>
+            <p className="mb-4 max-w-sm text-xs text-neutral-500">Your downloads stay available on this device without an account.</p>
+            <Link href="/auth" className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90">
+              <LogIn size={14} /> Sign In
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="mb-6 flex gap-1 overflow-x-auto no-scrollbar overscroll-x-contain rounded-2xl border border-neutral-200 bg-white p-1 shadow-sm">
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    aria-pressed={isActive}
+                    className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold whitespace-nowrap transition ${
+                      isActive
+                        ? "bg-accent text-white shadow-sm"
+                        : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50"
+                    }`}
+                  >
+                    <tab.icon size={14} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
 
         {/* Saved Songs */}
         {activeTab === "saved" && (
@@ -475,93 +583,7 @@ function LibraryContent() {
             )}
           </div>
         )}
-
-        {/* Downloads */}
-        {activeTab === "downloads" && (
-          <div>
-            {storage && storage.quota > 0 && (
-              <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
-                    <HardDrive size={13} />
-                    <span>Device storage</span>
-                  </div>
-                  <span className={`text-xs font-semibold ${(storage.usage / storage.quota) >= 0.95 ? "text-red-500" : "text-neutral-500"}`}>
-                    {formatBytes(storage.usage)} / {formatBytes(storage.quota)}
-                  </span>
-                </div>
-                <div className="h-2 rounded-full bg-neutral-100 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${(storage.usage / storage.quota) >= 0.95 ? "bg-red-500" : "bg-accent"}`}
-                    style={{ width: `${Math.min((storage.usage / storage.quota) * 100, 100)}%` }}
-                  />
-                </div>
-                <p className={`mt-1.5 text-xs font-medium ${(storage.usage / storage.quota) >= 0.95 ? "text-red-500" : "text-neutral-400"}`}>
-                  {(storage.usage / storage.quota) >= 0.95
-                    ? "Storage is full — remove some downloads to free up space"
-                    : `${formatBytes(storage.available)} available`}
-                </p>
-              </div>
-            )}
-
-            {downloadedSongs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-neutral-200 bg-white shadow-sm">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
-                  <Download size={26} />
-                </div>
-                <h3 className="text-sm md:text-base font-bold text-neutral-900">No downloaded songs</h3>
-                <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">
-                  {isOnline ? "Save songs to your device for smooth listening without an internet connection." : "Reconnect to download songs, then listen here without an internet connection."}
-                </p>
-                {isOnline && (
-                  <Link
-                    href="/songs"
-                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition"
-                  >
-                    Browse Songs to Download
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-y-2 md:gap-y-3">
-                {downloadedSongs.map((song) => (
-                  <div
-                    key={song.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setActiveSong(song, downloadedSongs)}
-                    onKeyDown={(e) => {
-                      if (e.target !== e.currentTarget) return;
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setActiveSong(song, downloadedSongs);
-                      }
-                    }}
-                    className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300"
-                  >
-                    <SongAvatar title={song.title} size="sm" variant="mono" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
-                      <p className="truncate text-xs font-medium text-neutral-400 mt-0.5">{song.author}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-all group-hover:bg-accent group-hover:text-white">
-                        <Play size={13} fill="currentColor" className="ml-0.5" />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => handleRemoveDownload(e, song.id)}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-500"
-                        title="Remove download"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          </>
         )}
       </div>
     </main>

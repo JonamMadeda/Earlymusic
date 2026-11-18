@@ -133,7 +133,7 @@ const sections = [
           Downloads may stop working if a track is removed, if your account is
           closed, or if you clear the App&rsquo;s data. You can remove
           individual downloads from your{" "}
-          <Link href="/library?tab=downloads">Library</Link> or clear them all
+          <Link href="/library">Library</Link> or clear them all
           in <Link href="/settings">Settings</Link>.
         </p>
       </>

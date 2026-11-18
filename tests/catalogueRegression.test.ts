@@ -124,10 +124,11 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       },
       fetch,
       alert,
-      window: { addEventListener: vi.fn(), removeEventListener: vi.fn(), matchMedia: () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }) },
+      window: { addEventListener: vi.fn(), removeEventListener: vi.fn(), matchMedia: () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }), history: { state: null, replaceState: vi.fn() }, location: { pathname: "/library", search: "" } },
       document: { getElementById: () => null },
       setInterval: () => 0,
       clearInterval: () => {},
+      URLSearchParams,
       console,
       setTimeout: (callback: () => void, delay: number) => { if (delay === 0) callback(); return 0; },
       clearTimeout: () => {},
@@ -485,8 +486,8 @@ describe("offline library downloads", () => {
   it.each([
     [false, false, "saved"],
     [false, true, "top"],
-    [true, true, "downloads"],
-    [true, false, "downloads"],
+    [true, true, "saved"],
+    [true, false, "top"],
   ])("shows local songs online=%s authLoading=%s tab=%s without remote data", async (online, loading, tab) => {
     const tracks = [fixture("cached", "Downloaded track")];
     const h = harness(tracks, tab as string);
@@ -498,8 +499,12 @@ describe("offline library downloads", () => {
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
     expect(text(page.tree)).toContain("Downloaded track");
-    expect(text(page.tree)).not.toContain("Sign in to see your library");
-    expect(h.apiFetch).not.toHaveBeenCalled();
+    // Downloads sit above the tabs and never fetch, whatever the tabs show.
+    if (loading || !online) expect(text(page.tree)).not.toContain("Sign in to see your library");
+    else expect(text(page.tree)).toContain("Sign in to see your library");
+    // Signed-out downloads never touch the private library endpoints; at most
+    // the public catalogue prefetch (proven not to be waited on below).
+    expect(h.apiFetch.mock.calls.every(([url]) => url.startsWith("/api/data/songs?"))).toBe(true);
     find(page.tree, node => node.props.role === "button").props.onClick();
     expect(h.setActiveSong).toHaveBeenCalledWith(tracks[0], tracks);
     h.localSongs.songs = [];
@@ -509,8 +514,9 @@ describe("offline library downloads", () => {
     if (!online) expect(text(page.tree)).toContain("Reconnect");
   });
 
-  it("does not wait for signed-in library requests on the downloads tab", async () => {
-    const h = harness([fixture("cached")], "downloads");
+  it("lists local downloads without waiting on any library request", async () => {
+    const h = harness([fixture("cached")], "saved");
+    h.auth.user = null;
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
@@ -533,7 +539,10 @@ function keyEvent(key: string, target: any, currentTarget: any) {
 
 async function keyboardRow(kind: string) {
   const songs = [fixture("song")];
-  const h = harness(songs, kind === "library downloads" ? "downloads" : "top");
+  const h = harness(songs, kind === "library downloads" ? "saved" : "top");
+  // The downloads hero renders above every tab; emptying it lets the
+  // "library top" case find its own tab's row instead of the hero's.
+  if (kind === "library top") h.localSongs.songs = [];
   let page;
   if (kind === "SongItem") {
     page = h.mount(h.load("app/components/SongItem.jsx"), { song: songs[0], onClick: h.setActiveSong, saved: false });

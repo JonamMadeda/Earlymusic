@@ -254,7 +254,7 @@ export default function AccountPage() {
 
   const quickLinks = [
     { icon: Settings, label: "Settings", desc: "Storage, data, and app preferences", href: "/settings" },
-    { icon: Download, label: "Downloads", desc: "Manage your offline tracks", href: "/library?tab=downloads" },
+    { icon: Download, label: "Downloads", desc: "Manage your offline tracks", href: "/downloads" },
     { icon: Library, label: "Library", desc: "View your saved songs and playlists", href: "/library" },
   ];
 
