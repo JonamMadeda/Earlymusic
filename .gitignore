@@ -40,3 +40,16 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 nul
+
+# android (bubblewrap TWA) — generated project files and signed binaries stay out of git
+/android/.gradle
+/android/app/build
+/android/build
+/android/*.apk
+/android/*.aab
+/android/*.idsig
+/android/local.properties
+
+# signing keys are never committed; the release keystore lives outside the repo
+*.keystore
+*.jks

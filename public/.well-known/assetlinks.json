@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.luumbo.twa",
+      "sha256_cert_fingerprints": [
+        "78:04:5F:30:EF:2A:BB:3F:9B:D1:0A:15:7F:56:92:0E:1D:44:CB:21:CB:70:81:C1:D8:90:62:1C:A7:AA:E0:DD"
+      ]
+    }
+  }
+]

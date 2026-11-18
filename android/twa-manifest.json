@@ -1,0 +1,50 @@
+{
+  "packageId": "com.luumbo.twa",
+  "host": "luumbo.vercel.app",
+  "name": "Luumbo",
+  "launcherName": "Luumbo",
+  "display": "standalone",
+  "themeColor": "#0F172A",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#FFFFFF",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://luumbo.vercel.app/icons/icon-512x512.png",
+  "maskableIconUrl": "https://luumbo.vercel.app/icons/maskable-icon-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "luumbo-release.keystore",
+    "alias": "luumbo"
+  },
+  "appVersionName": "1",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://luumbo.vercel.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://luumbo.vercel.app/",
+  "minSdkVersion": 24,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [
+    "window-controls-overlay",
+    "standalone"
+  ],
+  "appVersion": "1"
+}
