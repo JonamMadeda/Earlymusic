@@ -11,7 +11,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { getNewSongIds } from "@/lib/newSongs";
 import { useOnlineStatus } from "@/lib/useOnlineStatus";
 import {
-  Disc, LogIn, Heart, ListMusic, Download, Play, Trash2, Plus, HardDrive, Trophy, Loader2,
+  Disc, LogIn, Heart, ListMusic, Download, Play, Trash2, Plus, Trophy, Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import UndoToast from "../components/UndoToast";
@@ -35,6 +35,7 @@ const formatBytes = (bytes) => {
 };
 
 const tabs = [
+  { key: "downloads", label: "Downloads", icon: Download },
   { key: "saved", label: "Saved", icon: Heart },
   { key: "top", label: "Top", icon: Trophy },
   { key: "playlists", label: "Playlists", icon: ListMusic },
@@ -51,7 +52,7 @@ function LibraryContent() {
   const isOnline = useOnlineStatus();
   const [activeTab, setActiveTab] = useState(() => {
     const tab = searchParams.get("tab");
-    return tabKeys.includes(tab) ? tab : "saved";
+    return tabKeys.includes(tab) ? tab : "downloads";
   });
   const [loading, setLoading] = useState(true);
 
@@ -59,7 +60,7 @@ function LibraryContent() {
   // selected tab without a soft navigation re-suspending the page.
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
-    if (activeTab === "saved") params.delete("tab");
+    if (activeTab === "downloads") params.delete("tab");
     else params.set("tab", activeTab);
     const query = params.toString();
     const url = `${pathname}${query ? `?${query}` : ""}`;
@@ -211,6 +212,30 @@ function LibraryContent() {
     () => Object.keys(groupedSaved).sort().flatMap((letter) => groupedSaved[letter]),
     [groupedSaved]
   );
+
+  // Downloads group A-Z like Saved, but inside a letter the newest-first
+  // download order stays — the rail and headers are for finding, not re-sorting.
+  const groupedDownloads = useMemo(() => {
+    const groups = {};
+    downloadedSongs.forEach((song) => {
+      const first = (song.title || "").charAt(0).toUpperCase();
+      const letter = first >= "A" && first <= "Z" ? first : "#";
+      if (!groups[letter]) groups[letter] = [];
+      groups[letter].push(song);
+    });
+    return groups;
+  }, [downloadedSongs]);
+
+  const downloadLetters = useMemo(() => Object.keys(groupedDownloads).sort(), [groupedDownloads]);
+
+  const downloadQueue = useMemo(
+    () => downloadLetters.flatMap((letter) => groupedDownloads[letter]),
+    [downloadLetters, groupedDownloads]
+  );
+
+  const jumpToDownloadLetter = (letter) => {
+    document.getElementById(`download-group-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const createPlaylist = async () => {
     const name = newName.trim();
@@ -380,68 +405,77 @@ function LibraryContent() {
           </div>
         </section>
 
-        {/* Downloads — the library's primary surface, always front and center */}
+        {/* One tab strip — Downloads first, then the account collections */}
         <section className="mb-8">
+          <div
+            ref={tablistRef}
+            role="tablist"
+            aria-label="Library sections"
+            className="mb-6 flex gap-1 overflow-x-auto no-scrollbar overscroll-x-contain rounded-2xl border border-neutral-200 bg-white p-1 shadow-sm"
+          >
+            {tabs.map((tab, idx) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  ref={(node) => {
+                    tabRefs.current[idx] = node;
+                  }}
+                  role="tab"
+                  id={`library-tab-${tab.key}`}
+                  aria-selected={isActive}
+                  aria-controls={`library-tabpanel-${tab.key}`}
+                  tabIndex={isActive ? 0 : -1}
+                  onClick={() => setActiveTab(tab.key)}
+                  onKeyDown={(e) => handleTabKeyDown(e, idx)}
+                  className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold whitespace-nowrap transition ${
+                    isActive
+                      ? "bg-accent text-white shadow-sm"
+                      : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50"
+                  }`}
+                >
+                  <tab.icon size={14} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {activeTab === "downloads" && (
+            <div role="tabpanel" id="library-tabpanel-downloads" aria-labelledby="library-tab-downloads">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-accent/10 bg-accent/[0.06] text-accent">
-                <Download size={15} />
-              </span>
-              <h2 className="text-base font-bold tracking-tight text-neutral-900 md:text-lg">
-                Downloads
-              </h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="hidden sm:inline text-xs font-medium text-neutral-400">
-                {downloadedSongs.length > 0
-                  ? `${downloadedSongs.length} available offline`
-                  : "Saved on this device for offline listening"}
-              </span>
-              {downloadedSongs.length > 0 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSong(downloadedSongs[0], downloadedSongs)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
-                  >
-                    <Play size={11} fill="currentColor" />
-                    Play all
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleClearDownloads}
-                    className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-neutral-500 transition hover:bg-red-50 hover:text-red-500"
-                  >
-                    Clear
-                  </button>
-                </>
-              )}
-            </div>
+            <p className="text-xs font-medium text-neutral-400">
+              {downloadedSongs.length > 0
+                ? `${downloadedSongs.length} available offline`
+                : "Saved on this device for offline listening"}
+            </p>
+            {downloadedSongs.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveSong(downloadQueue[0], downloadQueue)}
+                  className="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
+                >
+                  <Play size={11} fill="currentColor" />
+                  Play all
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearDownloads}
+                  className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-neutral-500 transition hover:bg-red-50 hover:text-red-500"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
           </div>
 
           {storage && storage.quota > 0 && (
-            <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
-                  <HardDrive size={13} />
-                  <span>Device storage</span>
-                </div>
-                <span className={`text-xs font-semibold ${(storage.usage / storage.quota) >= 0.95 ? "text-red-500" : "text-neutral-500"}`}>
-                  {formatBytes(storage.usage)} / {formatBytes(storage.quota)}
-                </span>
-              </div>
-              <div className="h-2 rounded-full bg-neutral-100 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${(storage.usage / storage.quota) >= 0.95 ? "bg-red-500" : "bg-accent"}`}
-                  style={{ width: `${Math.min((storage.usage / storage.quota) * 100, 100)}%` }}
-                />
-              </div>
-              <p className={`mt-1.5 text-xs font-medium ${(storage.usage / storage.quota) >= 0.95 ? "text-red-500" : "text-neutral-400"}`}>
-                {(storage.usage / storage.quota) >= 0.95
-                  ? "Storage is full — remove some downloads to free up space"
-                  : `${formatBytes(storage.available)} available`}
-              </p>
-            </div>
+            <p className={`mb-4 text-xs font-medium ${(storage.usage / storage.quota) >= 0.95 ? "text-red-500" : "text-neutral-400"}`}>
+              {(storage.usage / storage.quota) >= 0.95
+                ? "Storage is full — remove some downloads to free up space"
+                : `${formatBytes(storage.usage)} used · ${formatBytes(storage.available)} free`}
+            </p>
           )}
 
           {downloadedSongs.length === 0 && downloading.length === 0 ? (
@@ -463,64 +497,100 @@ function LibraryContent() {
               )}
             </div>
           ) : (
-            <div className="flex flex-col gap-y-2 md:gap-y-3">
-              {downloading.map((song) => (
-                <div
-                  key={`dl-${song.id}`}
-                  className="flex w-full items-center gap-3 md:gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3 text-left shadow-sm opacity-80"
-                >
-                  <SongAvatar title={song.title} size="sm" variant="mono" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
-                    <p className="truncate text-xs font-medium text-neutral-400 mt-0.5">{song.author}</p>
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1 flex flex-col gap-y-6">
+                {downloading.length > 0 && (
+                  <div className="flex flex-col gap-y-2 md:gap-y-3">
+                    {downloading.map((song) => (
+                      <div
+                        key={`dl-${song.id}`}
+                        className="flex w-full items-center gap-3 md:gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3 text-left shadow-sm opacity-80"
+                      >
+                        <SongAvatar title={song.title} size="sm" variant="mono" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
+                          <p className="truncate text-xs font-medium text-neutral-400 mt-0.5">{song.author}</p>
+                        </div>
+                        <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-neutral-500">
+                          <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+                          Downloading&hellip;
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-neutral-500">
-                    <Loader2 size={13} className="animate-spin" aria-hidden="true" />
-                    Downloading&hellip;
-                  </span>
-                </div>
-              ))}
-              {downloadedSongs.map((song) => (
-                <div
-                  key={song.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setActiveSong(song, downloadedSongs)}
-                  onKeyDown={(e) => {
-                    if (e.target !== e.currentTarget) return;
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setActiveSong(song, downloadedSongs);
-                    }
-                  }}
-                  className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300"
-                >
-                  <SongAvatar title={song.title} size="sm" variant="mono" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
-                    <p className="truncate text-xs font-medium text-neutral-400 mt-0.5">{song.author}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-all group-hover:bg-accent group-hover:text-white">
-                      <Play size={13} fill="currentColor" className="ml-0.5" />
+                )}
+                {downloadLetters.map((letter) => (
+                  <div key={letter} id={`download-group-${letter}`} className="scroll-mt-24 flex flex-col gap-y-3">
+                    <div className="flex items-center gap-3 border-b border-neutral-100 px-1 pb-2">
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/[0.06] border border-accent/10 text-xs font-bold text-accent">{letter}</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => handleRemoveDownload(e, song.id)}
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-500"
-                      title="Remove download"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex flex-col gap-y-2 md:gap-y-3">
+                      {groupedDownloads[letter].map((song) => (
+                        <div
+                          key={song.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setActiveSong(song, downloadQueue)}
+                          onKeyDown={(e) => {
+                            if (e.target !== e.currentTarget) return;
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setActiveSong(song, downloadQueue);
+                            }
+                          }}
+                          className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300"
+                        >
+                          <SongAvatar title={song.title} size="sm" variant="mono" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
+                            <p className="truncate text-xs font-medium text-neutral-400 mt-0.5">{song.author}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-all group-hover:bg-accent group-hover:text-white">
+                              <Play size={13} fill="currentColor" className="ml-0.5" />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => handleRemoveDownload(e, song.id)}
+                              className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-500"
+                              title="Remove download"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              {downloadLetters.length > 1 && (
+                <nav
+                  aria-label="Jump to letter in downloads"
+                  className="sticky top-24 flex shrink-0 flex-col items-center gap-1 py-1 pr-1"
+                >
+                  {downloadLetters.map((letter) => (
+                    <button
+                      key={letter}
+                      type="button"
+                      onClick={() => jumpToDownloadLetter(letter)}
+                      className="px-1 text-[10px] font-bold leading-tight text-neutral-400 transition hover:text-accent"
+                    >
+                      {letter}
+                    </button>
+                  ))}
+                </nav>
+              )}
+            </div>
+          )}
             </div>
           )}
         </section>
 
-        {/* Collection tabs — secondary to downloads */}
-        {!isOnline ? (
+        {/* Account tabs — gated individually so Downloads never disappears */}
+        {activeTab !== "downloads" && (
+          <div role="tabpanel" id={`library-tabpanel-${activeTab}`} aria-labelledby={`library-tab-${activeTab}`}>
+          {!isOnline ? (
           <div className="rounded-2xl border border-dashed border-neutral-200 bg-white p-6 text-center shadow-sm">
             <p className="text-xs font-medium text-neutral-500">
               You&rsquo;re offline. Downloads still play here — Saved, Top and Playlists return when you reconnect.
@@ -539,43 +609,9 @@ function LibraryContent() {
           </div>
         ) : (
           <>
-            <div
-              ref={tablistRef}
-              role="tablist"
-              aria-label="Library sections"
-              className="mb-6 flex gap-1 overflow-x-auto no-scrollbar overscroll-x-contain rounded-2xl border border-neutral-200 bg-white p-1 shadow-sm"
-            >
-              {tabs.map((tab, idx) => {
-                const isActive = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    ref={(node) => {
-                      tabRefs.current[idx] = node;
-                    }}
-                    role="tab"
-                    id={`library-tab-${tab.key}`}
-                    aria-selected={isActive}
-                    aria-controls={`library-tabpanel-${tab.key}`}
-                    tabIndex={isActive ? 0 : -1}
-                    onClick={() => setActiveTab(tab.key)}
-                    onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                    className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold whitespace-nowrap transition ${
-                      isActive
-                        ? "bg-accent text-white shadow-sm"
-                        : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50"
-                    }`}
-                  >
-                    <tab.icon size={14} />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
         {/* Saved Songs */}
         {activeTab === "saved" && (
-          <div role="tabpanel" id="library-tabpanel-saved" aria-labelledby="library-tab-saved">
+          <div>
             {savedSongs.length > 0 ? (
               <div className="flex flex-col gap-y-6">
                 {Object.keys(groupedSaved).sort().map((letter) => (
@@ -615,7 +651,7 @@ function LibraryContent() {
 
         {/* Most listened — this user's top 10 by play count */}
         {activeTab === "top" && (
-          <div role="tabpanel" id="library-tabpanel-top" aria-labelledby="library-tab-top">
+          <div>
             {topSongs.length > 0 ? (
               <>
                 <div className="mb-3 flex items-center justify-between gap-3">
@@ -684,7 +720,7 @@ function LibraryContent() {
 
         {/* Playlists */}
         {activeTab === "playlists" && (
-          <div role="tabpanel" id="library-tabpanel-playlists" aria-labelledby="library-tab-playlists">
+          <div>
             <div className="mb-6">
               <button
                 onClick={() => setShowCreate(!showCreate)}
@@ -761,6 +797,8 @@ function LibraryContent() {
           </div>
         )}
           </>
+        )}
+          </div>
         )}
 
         {undoSnapshot && (

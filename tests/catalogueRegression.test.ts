@@ -493,13 +493,13 @@ describe("songs view from the address bar", () => {
 
 describe("offline library downloads", () => {
   it.each([
-    [false, false, "saved"],
-    [false, true, "top"],
-    [true, true, "saved"],
-    [true, false, "top"],
-  ])("shows local songs online=%s authLoading=%s tab=%s without remote data", async (online, loading, tab) => {
+    [false, false],
+    [false, true],
+    [true, true],
+    [true, false],
+  ])("shows local songs online=%s authLoading=%s without remote data", async (online, loading) => {
     const tracks = [fixture("cached", "Downloaded track")];
-    const h = harness(tracks, tab as string);
+    const h = harness(tracks, "downloads");
     h.auth.user = null;
     h.auth.loading = loading as boolean;
     h.connection.online = online as boolean;
@@ -508,9 +508,9 @@ describe("offline library downloads", () => {
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
     expect(text(page.tree)).toContain("Downloaded track");
-    // Downloads sit above the tabs and never fetch, whatever the tabs show.
-    if (loading || !online) expect(text(page.tree)).not.toContain("Sign in to see your library");
-    else expect(text(page.tree)).toContain("Sign in to see your library");
+    // The Downloads tab works whatever the auth/connection state; the gated
+    // tabs behind it must still gate.
+    expect(text(page.tree)).not.toContain("Sign in to see your library");
     // Signed-out downloads never touch the private library endpoints; at most
     // the public catalogue prefetch (proven not to be waited on below).
     expect(h.apiFetch.mock.calls.every(([url]) => url.startsWith("/api/data/songs?"))).toBe(true);
@@ -521,35 +521,58 @@ describe("offline library downloads", () => {
     page.render();
     expect(text(page.tree)).toContain("No downloaded songs");
     if (!online) expect(text(page.tree)).toContain("Reconnect");
+    find(page.tree, (node) => node.props.role === "tab" && text(node) === "Saved").props.onClick();
+    page.render();
+    if (loading || !online) expect(text(page.tree)).not.toContain("Sign in to see your library");
+    else expect(text(page.tree)).toContain("Sign in to see your library");
   });
 
   it("lists local downloads without waiting on any library request", async () => {
-    const h = harness([fixture("cached")], "saved");
+    const h = harness([fixture("cached")], "downloads");
     h.auth.user = null;
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
     expect(text(page.tree)).toContain("cached");
-    expect(h.apiFetch).not.toHaveBeenCalled();
+    expect(h.apiFetch.mock.calls.every(([url]) => !url.startsWith("/api/data/saved_songs") && !url.startsWith("/api/data/playlists") && !url.startsWith("/api/data/recently_played"))).toBe(true);
   });
 
-  it("orders downloads newest-first and queues them that way from Play all", async () => {
-    const older = { ...fixture("older", "Older download"), downloadedAt: "2026-11-01T00:00:00Z" };
-    const newer = { ...fixture("newer", "Newer download"), downloadedAt: "2026-11-17T00:00:00Z" };
-    const h = harness([older, newer], "saved");
+  it("groups downloads A-Z, newest-first within a letter, and queues them that way from Play all", async () => {
+    const older = { ...fixture("older", "Adonai older"), downloadedAt: "2026-11-01T00:00:00Z" };
+    const newer = { ...fixture("newer", "Adonai newer"), downloadedAt: "2026-11-17T00:00:00Z" };
+    const bwana = { ...fixture("bwana", "Bwana first"), downloadedAt: "2026-11-10T00:00:00Z" };
+    const h = harness([bwana, older, newer], "downloads");
     h.auth.user = null;
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
     const body = text(page.tree);
-    expect(body.indexOf("Newer download")).toBeLessThan(body.indexOf("Older download"));
+    expect(body.indexOf("Adonai newer")).toBeLessThan(body.indexOf("Adonai older"));
+    expect(body.indexOf("Adonai older")).toBeLessThan(body.indexOf("Bwana first"));
     button(page.tree, "Play all").props.onClick();
-    expect(h.setActiveSong).toHaveBeenCalledWith(newer, [newer, older]);
+    expect(h.setActiveSong).toHaveBeenCalledWith(newer, [newer, older, bwana]);
+  });
+
+  it("shows a download letter rail only when the list spans more than one letter", async () => {
+    const a = { ...fixture("a", "Aa song"), downloadedAt: "2026-11-10T00:00:00Z" };
+    const b = { ...fixture("b", "Bb song"), downloadedAt: "2026-11-10T00:00:00Z" };
+    const h = harness([a, b], "downloads");
+    h.auth.user = null;
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+    const rail = find(page.tree, (node) => node.type === "nav");
+    expect(text(rail)).toBe("AB");
+    expect(find(page.tree, (node) => node.props.id === "download-group-A")).toBeDefined();
+    h.localSongs.songs = [a];
+    h.downloadsChanged();
+    page.render();
+    expect(nodes(page.tree).some((node) => node.type === "nav" && text(node) === "A")).toBe(false);
   });
 
   it("clears downloads behind an undo toast and restores them on undo", async () => {
     const tracks = [fixture("cached", "Downloaded track")];
-    const h = harness(tracks, "saved");
+    const h = harness(tracks, "downloads");
     h.auth.user = null;
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
@@ -572,24 +595,24 @@ describe("offline library downloads", () => {
   });
 
   it("exposes the collection tabs as an ARIA tablist with arrow-key navigation", async () => {
-    const h = harness([fixture("cached")], "saved");
+    const h = harness([fixture("cached")], "downloads");
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
     const tablist = find(page.tree, (node) => node.props.role === "tablist");
     const tabButtons = nodes(tablist).filter((node) => node.props.role === "tab");
-    expect(tabButtons.map((tab) => tab.props["aria-selected"])).toEqual([true, false, false]);
+    expect(tabButtons.map((tab) => tab.props["aria-selected"])).toEqual([true, false, false, false]);
     expect(tabButtons[1].props.tabIndex).toBe(-1);
-    expect(tabButtons[0].props["aria-controls"]).toBe("library-tabpanel-saved");
+    expect(tabButtons[0].props["aria-controls"]).toBe("library-tabpanel-downloads");
     const preventDefault = vi.fn();
     tabButtons[0].props.onKeyDown({ key: "ArrowRight", preventDefault });
     page.render();
     expect(preventDefault).toHaveBeenCalledOnce();
     const moved = nodes(find(page.tree, (node) => node.props.role === "tablist"))
       .filter((node) => node.props.role === "tab");
-    expect(moved.map((tab) => tab.props["aria-selected"])).toEqual([false, true, false]);
+    expect(moved.map((tab) => tab.props["aria-selected"])).toEqual([false, true, false, false]);
     expect(moved[1].props.tabIndex).toBe(0);
-    expect(find(page.tree, (node) => node.props.id === "library-tabpanel-top").props["aria-labelledby"]).toBe("library-tab-top");
+    expect(find(page.tree, (node) => node.props.id === "library-tabpanel-saved").props["aria-labelledby"]).toBe("library-tab-saved");
   });
 
   it("jumps to the saved tab from the header count chip", async () => {
@@ -613,10 +636,7 @@ function keyEvent(key: string, target: any, currentTarget: any) {
 
 async function keyboardRow(kind: string) {
   const songs = [fixture("song")];
-  const h = harness(songs, kind === "library downloads" ? "saved" : "top");
-  // The downloads hero renders above every tab; emptying it lets the
-  // "library top" case find its own tab's row instead of the hero's.
-  if (kind === "library top") h.localSongs.songs = [];
+  const h = harness(songs, kind === "library downloads" ? "downloads" : "top");
   let page;
   if (kind === "SongItem") {
     page = h.mount(h.load("app/components/SongItem.jsx"), { song: songs[0], onClick: h.setActiveSong, saved: false });
