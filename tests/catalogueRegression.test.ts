@@ -570,6 +570,41 @@ describe("offline library downloads", () => {
     const page = h.mount(wrapper.tree.props.children.type);
     expect(text(page.tree)).toContain("Sign in to see your library");
   });
+
+  it("exposes the collection tabs as an ARIA tablist with arrow-key navigation", async () => {
+    const h = harness([fixture("cached")], "saved");
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+    const tablist = find(page.tree, (node) => node.props.role === "tablist");
+    const tabButtons = nodes(tablist).filter((node) => node.props.role === "tab");
+    expect(tabButtons.map((tab) => tab.props["aria-selected"])).toEqual([true, false, false]);
+    expect(tabButtons[1].props.tabIndex).toBe(-1);
+    expect(tabButtons[0].props["aria-controls"]).toBe("library-tabpanel-saved");
+    const preventDefault = vi.fn();
+    tabButtons[0].props.onKeyDown({ key: "ArrowRight", preventDefault });
+    page.render();
+    expect(preventDefault).toHaveBeenCalledOnce();
+    const moved = nodes(find(page.tree, (node) => node.props.role === "tablist"))
+      .filter((node) => node.props.role === "tab");
+    expect(moved.map((tab) => tab.props["aria-selected"])).toEqual([false, true, false]);
+    expect(moved[1].props.tabIndex).toBe(0);
+    expect(find(page.tree, (node) => node.props.id === "library-tabpanel-top").props["aria-labelledby"]).toBe("library-tab-top");
+  });
+
+  it("jumps to the saved tab from the header count chip", async () => {
+    const h = harness([fixture("cached")], "top");
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+    const chip = find(page.tree, (node) => node.type === "button" && text(node) === "0 saved");
+    chip.props.onClick();
+    page.render();
+    const selected = nodes(find(page.tree, (node) => node.props.role === "tablist"))
+      .filter((node) => node.props.role === "tab")
+      .find((tab) => tab.props["aria-selected"]);
+    expect(selected.props.id).toBe("library-tab-saved");
+  });
 });
 
 function keyEvent(key: string, target: any, currentTarget: any) {
@@ -595,8 +630,7 @@ async function keyboardRow(kind: string) {
     page = h.mount(content.type, content.props);
     await page.startEffects();
   } else {
-    page = h.mount(h.load("app/downloads/page.js"));
-    await page.startEffects();
+    throw new Error(`unknown row kind: ${kind}`);
   }
   const row = () => find(page.tree, (node) => node.props.role === "button" && !!node.props.onKeyDown);
   return { h, page, row };
@@ -605,7 +639,7 @@ async function keyboardRow(kind: string) {
 describe("playable row keyboard isolation", () => {
   // SongRow is not in this list any more: it no longer has a row-level key
   // handler to hijack anything (see "songs row is a container, not a button").
-  it.each(["SongItem", "library top", "library downloads", "downloads"])("activates only a directly focused %s", async (kind) => {
+  it.each(["SongItem", "library top", "library downloads"])("activates only a directly focused %s", async (kind) => {
     const { h, row } = await keyboardRow(kind);
     for (const key of ["Enter", " "]) {
       const event = keyEvent(key, row(), row());

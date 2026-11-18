@@ -284,6 +284,39 @@ function LibraryContent() {
     }
   };
 
+  // The header count chips jump to their tab, but only while the tab strip
+  // itself is rendered (offline, loading, and signed-out states have no tabs).
+  const tabsAvailable = isOnline && !authLoading && !!user && !loading;
+  const tablistRef = useRef(null);
+  const tabRefs = useRef([]);
+
+  const jumpToTab = (key) => {
+    setActiveTab(key);
+    tablistRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const focusTab = (index) => {
+    const next = (index + tabs.length) % tabs.length;
+    setActiveTab(tabs[next].key);
+    tabRefs.current[next]?.focus();
+  };
+
+  const handleTabKeyDown = (e, index) => {
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      focusTab(index + 1);
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      focusTab(index - 1);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      focusTab(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      focusTab(tabs.length - 1);
+    }
+  };
+
   return (
     <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
       <div className="max-w-5xl mx-auto">
@@ -292,14 +325,58 @@ function LibraryContent() {
             <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
               Library
             </h1>
-            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-400">
-              {savedSongs.length} saved · {playlists.length} playlist{playlists.length !== 1 ? "s" : ""} · {downloadedSongs.length} downloaded
-            </span>
+            {tabsAvailable ? (
+              <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-400">
+                <button
+                  type="button"
+                  onClick={() => jumpToTab("saved")}
+                  className="transition hover:text-neutral-900"
+                >
+                  {savedSongs.length} saved
+                </button>
+                <span aria-hidden="true">·</span>
+                <button
+                  type="button"
+                  onClick={() => jumpToTab("playlists")}
+                  className="transition hover:text-neutral-900"
+                >
+                  {playlists.length} playlist{playlists.length !== 1 ? "s" : ""}
+                </button>
+                <span aria-hidden="true">·</span>
+                <span>{downloadedSongs.length} downloaded</span>
+              </span>
+            ) : (
+              <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-400">
+                {savedSongs.length} saved · {playlists.length} playlist{playlists.length !== 1 ? "s" : ""} · {downloadedSongs.length} downloaded
+              </span>
+            )}
           </div>
           <div className="mt-3 md:hidden flex items-center gap-2 text-xs text-neutral-500">
-            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{savedSongs.length} saved</span>
-            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{playlists.length} playlist{playlists.length !== 1 ? "s" : ""}</span>
-            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{downloadedSongs.length} downloaded</span>
+            {tabsAvailable ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => jumpToTab("saved")}
+                  className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium transition hover:text-neutral-900"
+                >
+                  {savedSongs.length} saved
+                </button>
+                <button
+                  type="button"
+                  onClick={() => jumpToTab("playlists")}
+                  className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium transition hover:text-neutral-900"
+                >
+                  {playlists.length} playlist{playlists.length !== 1 ? "s" : ""}
+                </button>
+                <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{downloadedSongs.length} downloaded</span>
+              </>
+            ) : (
+              <>
+                <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{savedSongs.length} saved</span>
+                <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{playlists.length} playlist{playlists.length !== 1 ? "s" : ""}</span>
+                <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{downloadedSongs.length} downloaded</span>
+              </>
+            )}
           </div>
         </section>
 
@@ -462,14 +539,27 @@ function LibraryContent() {
           </div>
         ) : (
           <>
-            <div className="mb-6 flex gap-1 overflow-x-auto no-scrollbar overscroll-x-contain rounded-2xl border border-neutral-200 bg-white p-1 shadow-sm">
-              {tabs.map((tab) => {
+            <div
+              ref={tablistRef}
+              role="tablist"
+              aria-label="Library sections"
+              className="mb-6 flex gap-1 overflow-x-auto no-scrollbar overscroll-x-contain rounded-2xl border border-neutral-200 bg-white p-1 shadow-sm"
+            >
+              {tabs.map((tab, idx) => {
                 const isActive = activeTab === tab.key;
                 return (
                   <button
                     key={tab.key}
+                    ref={(node) => {
+                      tabRefs.current[idx] = node;
+                    }}
+                    role="tab"
+                    id={`library-tab-${tab.key}`}
+                    aria-selected={isActive}
+                    aria-controls={`library-tabpanel-${tab.key}`}
+                    tabIndex={isActive ? 0 : -1}
                     onClick={() => setActiveTab(tab.key)}
-                    aria-pressed={isActive}
+                    onKeyDown={(e) => handleTabKeyDown(e, idx)}
                     className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold whitespace-nowrap transition ${
                       isActive
                         ? "bg-accent text-white shadow-sm"
@@ -485,7 +575,7 @@ function LibraryContent() {
 
         {/* Saved Songs */}
         {activeTab === "saved" && (
-          <div>
+          <div role="tabpanel" id="library-tabpanel-saved" aria-labelledby="library-tab-saved">
             {savedSongs.length > 0 ? (
               <div className="flex flex-col gap-y-6">
                 {Object.keys(groupedSaved).sort().map((letter) => (
@@ -525,7 +615,7 @@ function LibraryContent() {
 
         {/* Most listened — this user's top 10 by play count */}
         {activeTab === "top" && (
-          <div>
+          <div role="tabpanel" id="library-tabpanel-top" aria-labelledby="library-tab-top">
             {topSongs.length > 0 ? (
               <>
                 <div className="mb-3 flex items-center justify-between gap-3">
@@ -594,7 +684,7 @@ function LibraryContent() {
 
         {/* Playlists */}
         {activeTab === "playlists" && (
-          <div>
+          <div role="tabpanel" id="library-tabpanel-playlists" aria-labelledby="library-tab-playlists">
             <div className="mb-6">
               <button
                 onClick={() => setShowCreate(!showCreate)}

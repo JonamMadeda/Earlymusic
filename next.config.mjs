@@ -89,7 +89,7 @@ const nextConfig = {
       },
       {
         source: "/downloads",
-        destination: "/library?tab=downloads",
+        destination: "/library",
         permanent: true,
       },
     ];
