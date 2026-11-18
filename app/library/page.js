@@ -504,7 +504,7 @@ function LibraryContent() {
                     {downloading.map((song) => (
                       <div
                         key={`dl-${song.id}`}
-                        className="flex w-full items-center gap-3 md:gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3 text-left shadow-sm opacity-80"
+                        className="flex w-full items-center gap-3 px-2 py-2.5 text-left opacity-80 sm:px-3 md:gap-3.5"
                       >
                         <SongAvatar title={song.title} size="sm" variant="mono" />
                         <div className="min-w-0 flex-1">
@@ -524,7 +524,7 @@ function LibraryContent() {
                     <div className="flex items-center gap-3 border-b border-neutral-100 px-1 pb-2">
                       <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/[0.06] border border-accent/10 text-xs font-bold text-accent">{letter}</span>
                     </div>
-                    <div className="flex flex-col gap-y-2 md:gap-y-3">
+                    <div className="flex flex-col divide-y divide-neutral-200/70">
                       {groupedDownloads[letter].map((song) => (
                         <div
                           key={song.id}
@@ -538,7 +538,7 @@ function LibraryContent() {
                               setActiveSong(song, downloadQueue);
                             }
                           }}
-                          className="group flex w-full items-center gap-3 md:gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:shadow-md hover:border-neutral-300"
+                          className="group flex w-full cursor-pointer items-center gap-3 px-2 py-2.5 text-left transition-colors duration-150 hover:bg-neutral-50 active:bg-neutral-100 sm:px-3 md:gap-3.5"
                         >
                           <SongAvatar title={song.title} size="sm" variant="mono" />
                           <div className="min-w-0 flex-1">
@@ -619,7 +619,7 @@ function LibraryContent() {
                       <div className="flex items-center gap-3 border-b border-neutral-100 pb-2 px-1">
                         <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/[0.06] border border-accent/10 text-xs font-bold text-accent">{letter}</span>
                       </div>
-                    <div className="flex flex-col gap-y-2">
+                    <div className="flex flex-col divide-y divide-neutral-200/70">
                       {groupedSaved[letter].map((song) => (
                         <SongItem
                           key={song.id}
@@ -667,7 +667,7 @@ function LibraryContent() {
                     Play Top 10
                   </button>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col divide-y divide-neutral-200/70">
                   {topSongs.map((song, idx) => (
                     <div
                       key={song.id}
@@ -681,7 +681,7 @@ function LibraryContent() {
                           setActiveSong(song, topSongs);
                         }
                       }}
-                      className="group flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-left shadow-2xs transition-all duration-150 hover:border-neutral-300 hover:bg-neutral-50/70"
+                      className="group flex w-full cursor-pointer items-center gap-2.5 px-2 py-2.5 text-left transition-colors duration-150 hover:bg-neutral-50 active:bg-neutral-100 sm:px-3 sm:gap-3.5"
                     >
                       <span className="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-neutral-400">
                         {String(idx + 1).padStart(2, "0")}

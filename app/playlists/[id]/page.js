@@ -283,7 +283,7 @@ export default function PlaylistDetailPage() {
             <p className="mt-1 max-w-sm text-xs text-neutral-450">Use &quot;Add Songs&quot; above to fill it up.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-y-2">
+          <div className="flex flex-col divide-y divide-neutral-200/70">
             {songs.map((song) => (
               <div key={song.id} className="group relative">
                 <SongItem
