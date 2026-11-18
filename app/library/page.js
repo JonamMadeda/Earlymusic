@@ -11,14 +11,20 @@ import { apiFetch } from "@/lib/apiFetch";
 import { getNewSongIds } from "@/lib/newSongs";
 import { useOnlineStatus } from "@/lib/useOnlineStatus";
 import {
-  Disc, LogIn, Heart, ListMusic, Download, Play, Trash2, Plus, HardDrive, Trophy,
+  Disc, LogIn, Heart, ListMusic, Download, Play, Trash2, Plus, HardDrive, Trophy, Loader2,
 } from "lucide-react";
 import Link from "next/link";
+import UndoToast from "../components/UndoToast";
 import {
   getDownloadedSongs,
   removeDownload,
   getStorageEstimate,
   onDownloadsChanged,
+  getActiveDownloads,
+  onDownloadsProgress,
+  stageClearDownloads,
+  commitClearDownloads,
+  undoClearDownloads,
 } from "@/lib/downloadManager";
 
 const formatBytes = (bytes) => {
@@ -74,10 +80,19 @@ function LibraryContent() {
 
   // Downloads
   const [downloadedSongs, setDownloadedSongs] = useState([]);
+  const [downloading, setDownloading] = useState([]);
   const [storage, setStorage] = useState(null);
+  const [undoSnapshot, setUndoSnapshot] = useState(null);
+  const undoRef = useRef(null);
 
   const refreshDownloads = useCallback(() => {
-    setDownloadedSongs(getDownloadedSongs());
+    // Newest first: the list is how listeners judge what they just saved.
+    setDownloadedSongs(
+      getDownloadedSongs().sort(
+        (a, b) => new Date(b.downloadedAt || 0) - new Date(a.downloadedAt || 0)
+      )
+    );
+    setDownloading(getActiveDownloads());
     getStorageEstimate()
       .then(setStorage)
       .catch((error) => console.error("Unable to read storage estimate:", error));
@@ -86,11 +101,23 @@ function LibraryContent() {
   useEffect(() => {
     const timeout = setTimeout(refreshDownloads, 0);
     const unsubscribe = onDownloadsChanged(refreshDownloads);
+    const unsubscribeProgress = onDownloadsProgress(refreshDownloads);
     return () => {
       clearTimeout(timeout);
       unsubscribe();
+      unsubscribeProgress();
     };
   }, [refreshDownloads]);
+
+  // Leaving the page closes the undo window: finalize the staged deletion.
+  useEffect(() => {
+    return () => {
+      if (undoRef.current) {
+        commitClearDownloads(undoRef.current);
+        undoRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOnline || authLoading || !user) return;
@@ -224,6 +251,29 @@ function LibraryContent() {
     }
   };
 
+  const handleClearDownloads = () => {
+    const snapshot = stageClearDownloads();
+    undoRef.current = snapshot;
+    setUndoSnapshot(snapshot);
+    refreshDownloads();
+  };
+
+  const handleUndoClear = () => {
+    if (!undoRef.current) return;
+    undoClearDownloads(undoRef.current);
+    undoRef.current = null;
+    setUndoSnapshot(null);
+    refreshDownloads();
+  };
+
+  const commitClear = () => {
+    const snapshot = undoRef.current;
+    if (!snapshot) return;
+    undoRef.current = null;
+    setUndoSnapshot(null);
+    commitClearDownloads(snapshot).then(refreshDownloads);
+  };
+
   const handleToggleSaved = async (songId) => {
     if (!user) return;
     try {
@@ -264,11 +314,32 @@ function LibraryContent() {
                 Downloads
               </h2>
             </div>
-            <span className="text-xs font-medium text-neutral-400">
-              {downloadedSongs.length > 0
-                ? `${downloadedSongs.length} available offline`
-                : "Saved on this device for offline listening"}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="hidden sm:inline text-xs font-medium text-neutral-400">
+                {downloadedSongs.length > 0
+                  ? `${downloadedSongs.length} available offline`
+                  : "Saved on this device for offline listening"}
+              </span>
+              {downloadedSongs.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSong(downloadedSongs[0], downloadedSongs)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
+                  >
+                    <Play size={11} fill="currentColor" />
+                    Play all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearDownloads}
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-neutral-500 transition hover:bg-red-50 hover:text-red-500"
+                  >
+                    Clear
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {storage && storage.quota > 0 && (
@@ -296,7 +367,7 @@ function LibraryContent() {
             </div>
           )}
 
-          {downloadedSongs.length === 0 ? (
+          {downloadedSongs.length === 0 && downloading.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-neutral-200 bg-white shadow-sm">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
                 <Download size={26} />
@@ -316,6 +387,22 @@ function LibraryContent() {
             </div>
           ) : (
             <div className="flex flex-col gap-y-2 md:gap-y-3">
+              {downloading.map((song) => (
+                <div
+                  key={`dl-${song.id}`}
+                  className="flex w-full items-center gap-3 md:gap-3.5 rounded-2xl border border-neutral-200 bg-white p-3 text-left shadow-sm opacity-80"
+                >
+                  <SongAvatar title={song.title} size="sm" variant="mono" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
+                    <p className="truncate text-xs font-medium text-neutral-400 mt-0.5">{song.author}</p>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-neutral-500">
+                    <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+                    Downloading&hellip;
+                  </span>
+                </div>
+              ))}
               {downloadedSongs.map((song) => (
                 <div
                   key={song.id}
@@ -584,6 +671,16 @@ function LibraryContent() {
           </div>
         )}
           </>
+        )}
+
+        {undoSnapshot && (
+          <UndoToast
+            key={undoSnapshot.id}
+            expiresAt={undoSnapshot.expiresAt}
+            message={`${undoSnapshot.songs.length} ${undoSnapshot.songs.length === 1 ? "download" : "downloads"} cleared`}
+            onAction={handleUndoClear}
+            onDismiss={commitClear}
+          />
         )}
       </div>
     </main>

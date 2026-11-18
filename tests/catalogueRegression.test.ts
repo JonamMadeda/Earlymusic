@@ -101,6 +101,15 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       getStorageEstimate: async () => null,
       removeDownload: vi.fn(),
       onDownloadsChanged: (listener: () => void) => { downloadsChanged = listener; return () => {}; },
+      getActiveDownloads: () => [],
+      onDownloadsProgress: () => () => {},
+      stageClearDownloads: () => {
+        const snapshot = { id: "clear-1", expiresAt: Date.now() + 8000, songs: localSongs.songs };
+        localSongs.songs = [];
+        return snapshot;
+      },
+      commitClearDownloads: async () => {},
+      undoClearDownloads: (snapshot: { songs: Song[] }) => { localSongs.songs = snapshot.songs; return true; },
     },
   };
   function load(relativePath: string): Component {
@@ -522,6 +531,36 @@ describe("offline library downloads", () => {
     await page.startEffects();
     expect(text(page.tree)).toContain("cached");
     expect(h.apiFetch).not.toHaveBeenCalled();
+  });
+
+  it("orders downloads newest-first and queues them that way from Play all", async () => {
+    const older = { ...fixture("older", "Older download"), downloadedAt: "2026-11-01T00:00:00Z" };
+    const newer = { ...fixture("newer", "Newer download"), downloadedAt: "2026-11-17T00:00:00Z" };
+    const h = harness([older, newer], "saved");
+    h.auth.user = null;
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+    const body = text(page.tree);
+    expect(body.indexOf("Newer download")).toBeLessThan(body.indexOf("Older download"));
+    button(page.tree, "Play all").props.onClick();
+    expect(h.setActiveSong).toHaveBeenCalledWith(newer, [newer, older]);
+  });
+
+  it("clears downloads behind an undo toast and restores them on undo", async () => {
+    const tracks = [fixture("cached", "Downloaded track")];
+    const h = harness(tracks, "saved");
+    h.auth.user = null;
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+    button(page.tree, "Clear").props.onClick();
+    page.render();
+    expect(text(page.tree)).toContain("No downloaded songs");
+    find(page.tree, (node) => node.props.message === "1 download cleared").props.onAction();
+    page.render();
+    expect(text(page.tree)).toContain("Downloaded track");
+    expect(nodes(page.tree).some((node) => node.props.message === "1 download cleared")).toBe(false);
   });
 
   it("still protects online saved songs from signed-out access", async () => {
