@@ -20,7 +20,6 @@
     "path": "luumbo-release.keystore",
     "alias": "luumbo"
   },
-  "appVersionName": "1",
   "appVersionCode": 1,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
@@ -46,5 +45,5 @@
     "window-controls-overlay",
     "standalone"
   ],
-  "appVersion": "1"
+  "appVersion": "1.0.0"
 }

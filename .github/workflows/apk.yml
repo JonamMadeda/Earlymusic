@@ -39,6 +39,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check the Android release pointers
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: node scripts/generate-android-latest.mjs --check "$TAG"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

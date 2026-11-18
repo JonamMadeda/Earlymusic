@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { useAuth } from "@/app/context/AuthContext";
 import StatusMessage from "@/app/components/StatusMessage";
 import AnalyticsConsentControl from "@/app/components/AnalyticsConsentControl";
+import AndroidDownloadSection from "@/app/components/AndroidDownloadSection";
 import { LEGAL_EMAIL, LEGAL_MAILTO } from "@/lib/legal";
 import Link from "next/link";
 import { KeyRound, ShieldCheck, MonitorSmartphone, Trash2 } from "lucide-react";
@@ -462,6 +463,9 @@ export default function AccountPage() {
               </button>
             </div>
           </div>
+
+          {/* Android app */}
+          <AndroidDownloadSection />
 
           {/* Privacy & analytics */}
           <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden shadow-sm">

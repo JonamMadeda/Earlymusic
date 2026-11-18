@@ -8,6 +8,7 @@ import { PlayerProvider } from "./context/PlayerContext";
 import { AuthProvider } from "./context/AuthContext";
 import ErrorReporter from "./components/ErrorReporter";
 import InstallPrompt from "./components/InstallPrompt";
+import AndroidUpdatePrompt from "./components/AndroidUpdatePrompt";
 import SWRegister from "./components/SWRegister";
 import GlobalLoader from "./components/GlobalLoader";
 import AnalyticsConsentBanner from "./components/AnalyticsConsentBanner";
@@ -96,6 +97,7 @@ export default function RootLayout({ children }) {
             <ErrorReporter />
 
             <InstallPrompt />
+            <AndroidUpdatePrompt />
             <SWRegister />
           </AuthProvider>
         </PlayerProvider>

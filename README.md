@@ -45,8 +45,10 @@ The APK is a Trusted Web Activity: a Chrome shell that opens `https://luumbo.ver
 **`android/twa-manifest.json` is the source of truth** for app name, launcher name, package id, icons, theme and background colors, orientation, and version. Edit it, then regenerate the Gradle project:
 
 ```bash
-cd android && bubblewrap update
+cd android && bubblewrap update --skipVersionUpgrade
 ```
+
+Always pass `--skipVersionUpgrade`. Without it, `update` increments `appVersionCode` itself and asks for a new version name — and `bubblewrap build` calls the same code whenever `manifest-checksum.txt` no longer matches the manifest, so an interactive prompt can land in the middle of a headless build. Bump `appVersion` (the APK's `versionName`) and `appVersionCode` by hand instead, then regenerate. `npm run android:check` fails if the checksum has gone stale.
 
 Build a signed release with the keystore that lives **outside** the repo (`~/keystores/luumbo-release.keystore`, ignored by `*.keystore`):
 
@@ -68,9 +70,35 @@ Requirements: JDK **17 exactly** (Bubblewrap rejects 21), and an Android SDK con
 curl -s https://luumbo.vercel.app/.well-known/assetlinks.json
 ```
 
-Versions use their own namespace: tag `android-v1.0.0` (not the web app's `v…` tags) and bump `appVersionCode` in `android/twa-manifest.json` with each release — Android refuses to install an update whose versionCode is not higher. Minimum Android is API 24 (Android 7.0): `androidbrowserhelper` requires it.
+Versions use their own namespace: tag `android-v1.0.0` (not the web app's `v…` tags). `appVersion` in `android/twa-manifest.json` **is** the tag suffix, so `android-v1.0.0` means `"appVersion": "1.0.0"` — nothing else may set a version. Bump `appVersionCode` with every release: Android refuses to install an update whose versionCode is not higher. Minimum Android is API 24 (Android 7.0): `androidbrowserhelper` requires it.
 
-`.github/workflows/apk.yml` automates all of this on `android-v*` tags, but it is **dormant**: this account is locked for billing, so no runner starts (see the note in `ci.yml`). Until that is cleared, build locally and upload:
+### Shipping an Android update
+
+```bash
+# 1. bump both version fields in android/twa-manifest.json, then regenerate
+cd android && bubblewrap update --skipVersionUpgrade && cd ..
+
+# 2. publish the pointer the in-app banner reads
+npm run android:latest && npm run android:check -- android-v1.1.0
+
+# 3. build, tag, release
+BUBBLEWRAP_KEYSTORE_PASSWORD=… BUBBLEWRAP_KEY_PASSWORD=… \
+  bubblewrap build --signingKeyPath=~/keystores/luumbo-release.keystore   # run in android/
+cd ..
+git add android public/android-latest.json README.md && git commit -m "…"
+git tag android-v1.1.0 && git push && git push --tags
+gh release create android-v1.1.0 --generate-notes \
+  android/app-release-signed.apk#Luumbo\ Android\ \(APK\) \
+  android/app-release-bundle.aab#Luumbo\ Android\ \(AAB\ for\ Play\ Store\)
+```
+
+`public/android-latest.json` is generated, never hand-edited: `scripts/generate-android-latest.mjs` derives it from `twa-manifest.json` plus the git remote, so `tests/androidUpdate.test.ts` can assert the pointer and the manifest never disagree.
+
+**How the update reaches users.** A sideloaded APK cannot install over itself silently — that needs `REQUEST_INSTALL_PACKAGES` plus a system confirmation dialog on every attempt, and TWA has no code of ours to do it in. So `app/components/AndroidUpdatePrompt.js` does the part that *is* possible: inside an installed Android shell it fetches `/android-latest.json`, and when the published installer differs from the last one the device acknowledged, it shows a Download banner pointing at `…/releases/download/android-v1.1.0/app-release-signed.apk`. The tag is written into the URL instead of using `releases/latest`, because `latest` is repo-global — the next web-app release would outrank the Android one and make the link a 404. The browser cannot read the installed `versionCode`, so the first version a device ever sees is acknowledged quietly — it is the build that device shipped with — and each later change is offered until dismissed. Decision logic is pure in `lib/androidUpdate.js`.
+
+The same pointer feeds `/account`: `app/components/AndroidDownloadSection.js` renders an **Android app** card with a Download APK button and a Copy-link button, so listeners can hand the installer to someone else. It hides itself if `/android-latest.json` cannot be read, which keeps a pre-release deploy from advertising a dead link.
+
+`.github/workflows/apk.yml` automates all of this on `android-v*` tags (including the pointer check, which fails the build if `android-latest.json` or the checksum has drifted), but it is **dormant**: this account is locked for billing, so no runner starts (see the note in `ci.yml`). Until that is cleared, build locally and upload:
 
 ```bash
 gh release upload android-v1.0.0 android/app-release-signed.apk --clobber
