@@ -12,6 +12,7 @@ const A = { id: "a", email: "a@example.test" };
 const B = { id: "b", email: "b@example.test" };
 const reply = (body: any, status = 200) => ({ status, ok: status >= 200 && status < 300, json: async () => body });
 const privateKeys = ["lumbo_recently_played", "lumbo_has_played", "lumbo_playback_position", "lumbo_downloaded_songs"];
+const SESSION_MARKER = "lumbo_had_session";
 
 let frame: AuthHookHarness;
 let serverUser: typeof A | null;
@@ -93,6 +94,8 @@ const signInB = async () => {
 };
 const seedPrivate = (account = "a") => {
   privateKeys.forEach((key) => storage.set(key, account));
+  // The marker is what tells the cleaner this device held an account.
+  storage.set(SESSION_MARKER, "1");
   storage.set("theme", "dark");
   buckets.set("lumbo-audio-cache-v1", new Map([["https://app.test/audio/song", account]]));
   buckets.set("app-shell", new Map([["https://app.test/api/library", account], ["https://app.test/icon.png", "public"]]));
@@ -102,6 +105,7 @@ const expectCleared = () => {
   expect(state().profile).toBeNull();
   expect(state().isAdmin).toBe(false);
   privateKeys.forEach((key) => expect(storage.has(key)).toBe(false));
+  expect(storage.has(SESSION_MARKER)).toBe(false);
   expect(storage.get("theme")).toBe("dark");
   expect(buckets.has("lumbo-audio-cache-v1")).toBe(false);
   expect(buckets.get("app-shell")?.has("https://app.test/api/library")).toBe(false);
@@ -134,6 +138,17 @@ describe("confirmed auth invalidation", () => {
     expect(state().loading).toBe(false);
     expect(state().roleLoading).toBe(false);
     expect(state().sessionExpired).toBe(false);
+  });
+
+  it("keeps anonymous downloads and history when a never-signed-in device boots signed-out", async () => {
+    serverUser = null;
+    privateKeys.forEach((key) => storage.set(key, "anon"));
+    await mount();
+    expect(state().user).toBeNull();
+    expect(state().loading).toBe(false);
+    expect(state().sessionExpired).toBe(false);
+    privateKeys.forEach((key) => expect(storage.get(key)).toBe("anon"));
+    expect(cacheStorage.delete).not.toHaveBeenCalled();
   });
 
   it("keeps downloads through an offline bootstrap and revalidates on reconnect", async () => {

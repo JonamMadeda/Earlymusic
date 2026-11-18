@@ -7,21 +7,34 @@ const AuthContext = createContext();
 
 export const AUTH_CHANNEL = "lumbo-auth";
 
+// Written when a session is first confirmed on this device and removed with
+// the account data it guards. A signed-out boot on a device that never signed
+// in holds only anonymous data (offline downloads, playback position), which
+// must survive it.
+const SESSION_MARKER = "lumbo_had_session";
+
 const clearPrivateClientData = async () => {
   if (typeof window === "undefined") return;
   try { localStorage.removeItem("auth-token"); } catch {}
-  try { localStorage.removeItem("lumbo_recently_played"); } catch {}
-  try { localStorage.removeItem("lumbo_has_played"); } catch {}
-  try { localStorage.removeItem("lumbo_playback_position"); } catch {}
-  // The download list names every track the account saved offline. It is
-  // account data, so it must not survive a sign-out on a shared device.
-  try { localStorage.removeItem("lumbo_downloaded_songs"); } catch {}
-  try { clearPendingDownloadClears(); } catch {}
+  let hadSession = false;
+  try {
+    hadSession = localStorage.getItem(SESSION_MARKER) === "1";
+    localStorage.removeItem(SESSION_MARKER);
+  } catch {}
+  if (hadSession) {
+    try { localStorage.removeItem("lumbo_recently_played"); } catch {}
+    try { localStorage.removeItem("lumbo_has_played"); } catch {}
+    try { localStorage.removeItem("lumbo_playback_position"); } catch {}
+    // The download list names every track the account saved offline. It is
+    // account data, so it must not survive a sign-out on a shared device.
+    try { localStorage.removeItem("lumbo_downloaded_songs"); } catch {}
+    try { clearPendingDownloadClears(); } catch {}
+  }
   try { window.dispatchEvent(new CustomEvent("downloads:changed")); } catch {}
   try { window.dispatchEvent(new CustomEvent("auth:signed-out")); } catch {}
   // Cache Storage is shared with the worker. Clear it here and await completion:
   // a fire-and-forget worker message could erase the next account's caches.
-  if ("caches" in window) {
+  if (hadSession && "caches" in window) {
     try {
       await caches.delete("lumbo-audio-cache-v1");
     } catch {}
@@ -126,6 +139,7 @@ export const AuthProvider = ({ children }) => {
     await privateCleanup.current;
     if (committedGeneration !== authGeneration.current) return null;
     currentUserId.current = u.id;
+    try { localStorage.setItem(SESSION_MARKER, "1"); } catch {}
     setUser(u);
     setSessionExpired(false);
     setAuthError(null);
