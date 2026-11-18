@@ -521,7 +521,7 @@ describe("offline library downloads", () => {
     page.render();
     expect(text(page.tree)).toContain("No downloaded songs");
     if (!online) expect(text(page.tree)).toContain("Reconnect");
-    find(page.tree, (node) => node.props.role === "tab" && text(node) === "Saved").props.onClick();
+    find(page.tree, (node) => node.props.role === "tab" && text(node) === "Liked").props.onClick();
     page.render();
     if (loading || !online) expect(text(page.tree)).not.toContain("Sign in to see your library");
     else expect(text(page.tree)).toContain("Sign in to see your library");
@@ -612,7 +612,7 @@ describe("offline library downloads", () => {
       .filter((node) => node.props.role === "tab");
     expect(moved.map((tab) => tab.props["aria-selected"])).toEqual([false, true, false, false]);
     expect(moved[1].props.tabIndex).toBe(0);
-    expect(find(page.tree, (node) => node.props.id === "library-tabpanel-saved").props["aria-labelledby"]).toBe("library-tab-saved");
+    expect(find(page.tree, (node) => node.props.id === "library-tabpanel-playlists").props["aria-labelledby"]).toBe("library-tab-playlists");
   });
 
   it("jumps to the saved tab from the header count chip", async () => {
@@ -620,7 +620,7 @@ describe("offline library downloads", () => {
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
-    const chip = find(page.tree, (node) => node.type === "button" && text(node) === "0 saved");
+    const chip = find(page.tree, (node) => node.type === "button" && text(node) === "0 liked");
     chip.props.onClick();
     page.render();
     const selected = nodes(find(page.tree, (node) => node.props.role === "tablist"))
