@@ -228,6 +228,8 @@ The Library's **Spotlight** tab groups three views — **Top**, **Picks**, and *
 
 Both tables are created by `lib/migration-picks.sql`, applied with `node scripts/apply-sql-migration.mjs lib/migration-picks.sql` (or paste it into the Neon SQL editor). The migration seeds `play_events` from the latest `recently_played` rows so the tab has a starting point. If the tables are missing, Picks reads as empty and Highlights falls back to the saved play counts instead of breaking the Library.
 
+To draw attention to this view without nagging, a small dot appears on the **Library** entry (bottom nav on mobile, sidebar on desktop) and on the **Spotlight** tab itself. It is time-boxed by `lib/libraryNudge.js`: one 45-minute window per calendar day, cycled between morning, lunch and evening. Opening Spotlight retires the dot for that window (tracked per device in `localStorage`), so it is never a permanent badge.
+
 ## Administrator access
 
 The `/admin` dashboard and the R2 signing endpoint require a Neon Auth account whose `role` is `admin` in `neon_auth.user`. Grant it from the **Administrator access** panel on `/admin`, or directly in SQL:

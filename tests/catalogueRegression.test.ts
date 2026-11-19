@@ -47,6 +47,8 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
   const localSongs = { songs };
   const picks: any[] = [];
   const playEvents: any[] = [];
+  const spotlightNudge = { active: false, windowLabel: "", windowKey: "" };
+  const markLibraryNudgeSeen = vi.fn();
   let current: { cells: any[]; cursor: number; effects: (() => void)[] };
   const hooks = {
     useState(initial: any) {
@@ -108,6 +110,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
     "@/lib/songGrouping": songGrouping,
     "@/lib/highlights": highlightsLib,
     "@/lib/share": shareLib,
+    "@/lib/libraryNudge": { useLibraryNudge: () => spotlightNudge, markLibraryNudgeSeen },
     "@/lib/apiFetch": { apiFetch },
     "@/lib/audioUrl": { getAudioPublicUrl: vi.fn() },
     "@/lib/audioHealth": { summarizeHealth: () => ({}), verifyAudioUrl: vi.fn() },
@@ -182,7 +185,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       },
     };
   }
-  return { load, mount, player, setActiveSong, fetch, alert, auth, connection, apiFetch, localSongs, picks, playEvents, downloadsChanged: () => downloadsChanged() };
+  return { load, mount, player, setActiveSong, fetch, alert, auth, connection, apiFetch, localSongs, picks, playEvents, spotlightNudge, markLibraryNudgeSeen, downloadsChanged: () => downloadsChanged() };
 }
 
 describe("homepage navigation and recovery", () => {
@@ -641,6 +644,23 @@ describe("offline library downloads", () => {
     expect(body).toContain("Pick of the day");
     expect(body).toContain("Pick of the year");
     expect(body).toContain("Choose a song");
+  });
+
+  it("shows a time-boxed Spotlight dot and clears it when the tab is opened", async () => {
+    const h = harness([fixture("one", "First song")], "downloads");
+    h.spotlightNudge.active = true;
+    h.spotlightNudge.windowLabel = "this evening";
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+
+    expect(nodes(page.tree).some((node) => node.props.title === "New Spotlight picks this evening")).toBe(true);
+    expect(h.markLibraryNudgeSeen).not.toHaveBeenCalled();
+
+    find(page.tree, (node) => node.props.id === "library-tab-spotlight").props.onClick();
+    page.render();
+    await page.startEffects();
+    expect(h.markLibraryNudgeSeen).toHaveBeenCalledOnce();
   });
 
   it("ranks the song of the day by plays inside the period", async () => {

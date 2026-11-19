@@ -6,6 +6,7 @@ import { Home, Library, LogIn, ShieldCheck, Music, ChevronRight, Bell } from "lu
 import { useAuth } from "@/app/context/AuthContext";
 import { usePlayer } from "@/app/context/PlayerContext";
 import { useNotificationFeed } from "@/lib/notificationFeed";
+import { useLibraryNudge } from "@/lib/libraryNudge";
 import SongAvatar from "@/app/components/SongAvatar";
 
 const Sidebar = () => {
@@ -13,11 +14,12 @@ const Sidebar = () => {
   const { user, isAdmin, profile } = useAuth();
   const { activeSong, recentlyPlayed, setActiveSong } = usePlayer();
   const { unread } = useNotificationFeed();
+  const spotlightNudge = useLibraryNudge();
 
   const navRoutes = [
     { icon: Home, label: "Home", active: pathname === "/", href: "/" },
     { icon: Music, label: "Songs", active: pathname === "/songs", href: "/songs" },
-    { icon: Library, label: "Library", active: pathname === "/library" || pathname === "/playlists" || pathname.startsWith("/playlists/"), href: "/library" },
+    { icon: Library, label: "Library", active: pathname === "/library" || pathname === "/playlists" || pathname.startsWith("/playlists/"), href: "/library", dot: spotlightNudge.active, dotLabel: `New Spotlight picks ${spotlightNudge.windowLabel}` },
     // Always listed: a fixed entry point listeners can learn and return to,
     // even while the feed has nothing in it.
     { icon: Bell, label: "Notifications", active: pathname === "/notifications", href: "/notifications", badge: unread },
@@ -42,6 +44,7 @@ const Sidebar = () => {
               key={item.label}
               href={item.href}
               aria-current={item.active ? "page" : undefined}
+              aria-label={item.dot ? `Library — ${item.dotLabel}` : undefined}
               className={`flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-semibold tracking-tight transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                 item.active
                   ? "bg-accent/8 text-accent"
@@ -50,6 +53,13 @@ const Sidebar = () => {
             >
               <item.icon size={16} strokeWidth={item.active ? 2.5 : 2} />
               <span>{item.label}</span>
+              {item.dot && (
+                <span
+                  aria-hidden="true"
+                  title={item.dotLabel}
+                  className="ml-auto h-2 w-2 shrink-0 rounded-full bg-accent shadow-[0_0_0_2px_rgba(255,255,255,0.9)]"
+                />
+              )}
               {item.badge > 0 && (
                 <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-xs font-bold leading-none text-white">
                   {item.badge}

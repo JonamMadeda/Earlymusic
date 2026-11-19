@@ -44,6 +44,7 @@ import {
   summarizePlays,
 } from "@/lib/highlights";
 import { shareSongWithContext } from "@/lib/share";
+import { useLibraryNudge, markLibraryNudgeSeen } from "@/lib/libraryNudge";
 import {
   getDownloadedSongs,
   removeDownload,
@@ -97,6 +98,7 @@ function LibraryContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isOnline = useOnlineStatus();
+  const spotlightNudge = useLibraryNudge();
   const resolveTabState = useCallback((rawTab) => {
     if (spotlightSubTabKeys.includes(rawTab)) {
       return { tab: "spotlight", subTab: rawTab };
@@ -136,6 +138,12 @@ function LibraryContent() {
     if (url === `${window.location.pathname}${window.location.search}`) return;
     window.history.replaceState(window.history.state, "", url);
   }, [activeTab, spotlightSubTab, pathname, searchParams]);
+
+  // Opening Spotlight is the "seen" signal: retire the nav dot so it cannot
+  // become a permanent badge.
+  useEffect(() => {
+    if (activeTab === "spotlight") markLibraryNudgeSeen();
+  }, [activeTab]);
 
   // Saved songs
   const [savedSongIds, setSavedSongIds] = useState([]);
@@ -671,6 +679,13 @@ function LibraryContent() {
                     className="hidden shrink-0 sm:block"
                   />
                   <span>{tab.label}</span>
+                  {tab.key === "spotlight" && spotlightNudge.active && (
+                    <span
+                      aria-hidden="true"
+                      title={`New Spotlight picks ${spotlightNudge.windowLabel}`}
+                      className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent ring-2 ring-white/80"
+                    />
+                  )}
                 </button>
               );
             })}

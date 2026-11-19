@@ -3,9 +3,11 @@
 import { Home, Library, Music, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLibraryNudge } from "@/lib/libraryNudge";
 
 const BottomNav = () => {
   const pathname = usePathname();
+  const spotlightNudge = useLibraryNudge();
 
   const navItems = [
     { icon: Home, label: "Home", href: "/" },
@@ -35,7 +37,13 @@ const BottomNav = () => {
             key={item.label}
             href={item.href}
             aria-current={isActive ? "page" : undefined}
-            aria-label={isActive ? `${item.label}, current page` : item.label}
+            aria-label={
+              item.label === "Library" && spotlightNudge.active
+                ? `Library — new Spotlight picks ${spotlightNudge.windowLabel}`
+                : isActive
+                  ? `${item.label}, current page`
+                  : item.label
+            }
             className={`relative flex w-full flex-col items-center justify-center gap-y-0.5 py-2 px-1.5 min-h-[44px] transition-transform duration-200 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:rounded-lg ${
               isActive ? "scale-[1.02]" : ""
             }`}
@@ -58,6 +66,13 @@ const BottomNav = () => {
             >
               {item.label}
             </span>
+            {item.label === "Library" && spotlightNudge.active && (
+              <span
+                aria-hidden="true"
+                className="absolute right-[calc(50%-22px)] top-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-white"
+                title={`Spotlight is worth a look ${spotlightNudge.windowLabel}`}
+              />
+            )}
             {isActive && (
               <span
                 className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+0.25rem)] left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-accent transition-opacity duration-200"
