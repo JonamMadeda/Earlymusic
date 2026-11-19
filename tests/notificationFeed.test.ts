@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const SEEN_KEY = "lumbo_notifications_seen";
+const CACHE_KEY = "lumbo_notification_state_v1";
 
 const announcement = (id: number, minutesAgo: number) => ({
   id,
@@ -27,6 +28,9 @@ beforeEach(() => {
       getItem: (key: string) => storage[key] ?? null,
       setItem: (key: string, value: string) => {
         storage[key] = value;
+      },
+      removeItem: (key: string) => {
+        delete storage[key];
       },
     },
   });
@@ -67,7 +71,7 @@ describe("announcement feed store", () => {
     await store.refreshNotifications();
 
     store.markNotificationsSeen();
-    expect(storage[SEEN_KEY]).toBeTruthy();
+    expect(JSON.parse(storage[CACHE_KEY]).seenAt).toBeTruthy();
     expect(store.getNotificationSnapshot().unread).toBe(0);
   });
 
@@ -153,11 +157,13 @@ describe("announcement feed store", () => {
     expect(first).toBe(second);
   });
 
-  it("picks up the stored seen time on the client only", async () => {
+  it("migrates the old per-device seen time into the shared state", async () => {
     storage[SEEN_KEY] = "2026-01-01T00:00:00.000Z";
     const store = await loadStore();
 
-    expect(store.getNotificationSnapshot().seenAt).toBe(storage[SEEN_KEY]);
+    expect(store.getNotificationSnapshot().seenAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(JSON.parse(storage[CACHE_KEY]).seenAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(storage[SEEN_KEY]).toBeUndefined();
   });
 
   it("keeps existing items on screen during a background refresh", async () => {
@@ -180,6 +186,19 @@ describe("announcement feed store", () => {
     expect(serverNow).toBeTruthy();
     store.markNotificationsSeen();
     expect(store.getNotificationSnapshot().seenAt).toBe(serverNow);
+  });
+
+  it("persists dismissals and restores them on undo", async () => {
+    const store = await loadStore();
+    await store.refreshNotifications();
+
+    store.dismissNotification(3);
+    expect(store.getNotificationSnapshot().dismissedIds).toEqual([3]);
+    expect(JSON.parse(storage[CACHE_KEY]).dismissedIds).toEqual([3]);
+
+    store.undismissNotification(3);
+    expect(store.getNotificationSnapshot().dismissedIds).toEqual([]);
+    expect(JSON.parse(storage[CACHE_KEY]).dismissedIds).toEqual([]);
   });
 
   it("expands unread Spotlight targets for the Library badges", async () => {

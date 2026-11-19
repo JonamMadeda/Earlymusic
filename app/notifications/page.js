@@ -22,9 +22,11 @@ import {
   normalizeNotificationTarget,
 } from "@/lib/notifications";
 import {
+  dismissNotification,
   markNotificationRead,
   markNotificationsSeen,
   refreshNotifications,
+  undismissNotification,
   useNotificationFeed,
 } from "@/lib/notificationFeed";
 
@@ -39,7 +41,6 @@ const KIND_ICONS = {
 // "new" beside a "new" rail and a "new" badge.
 const KIND_CARD_LABELS = { ...KIND_LABELS, release: "Release" };
 
-const DISMISSED_KEY = "lumbo_notifications_dismissed";
 const UNDO_TIMEOUT_MS = 4000;
 const BODY_CLAMP_LENGTH = 200;
 
@@ -116,16 +117,9 @@ const NotificationBody = ({ body, unread }) => {
 };
 
 export default function NotificationsPage() {
-  const { items, loading, error, unreadIds } = useNotificationFeed();
+  const { items, loading, error, unreadIds, dismissedIds } = useNotificationFeed();
   const [filter, setFilter] = useState("all");
-  const [dismissed, setDismissed] = useState(() => {
-    if (typeof window === "undefined") return new Set();
-    try {
-      return new Set(JSON.parse(localStorage.getItem(DISMISSED_KEY) || "[]"));
-    } catch {
-      return new Set();
-    }
-  });
+  const dismissed = useMemo(() => new Set(dismissedIds), [dismissedIds]);
   const [undo, setUndo] = useState(null);
   const undoTimerRef = useRef(null);
   const markedRef = useRef(false);
@@ -136,12 +130,6 @@ export default function NotificationsPage() {
     const timer = setInterval(() => setClock((value) => value + 1), 60_000);
     return () => clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(DISMISSED_KEY, JSON.stringify([...dismissed]));
-    } catch {}
-  }, [dismissed]);
 
   // Opening the page clears the shared badge. The store keeps the unread ids so
   // the "unread" rail stays visible instead of flashing once and vanishing; it
@@ -194,12 +182,7 @@ export default function NotificationsPage() {
 
   const handleDismiss = (item) => {
     clearUndoTimer();
-    markNotificationRead(item.id);
-    setDismissed((prev) => {
-      const next = new Set(prev);
-      next.add(item.id);
-      return next;
-    });
+    dismissNotification(item.id);
     undoTimerRef.current = setTimeout(() => {
       undoTimerRef.current = null;
       setUndo(null);
@@ -210,11 +193,7 @@ export default function NotificationsPage() {
   const handleUndo = () => {
     if (!undo) return;
     clearUndoTimer();
-    setDismissed((prev) => {
-      const next = new Set(prev);
-      next.delete(undo.item.id);
-      return next;
-    });
+    undismissNotification(undo.item.id);
     setUndo(null);
   };
 
