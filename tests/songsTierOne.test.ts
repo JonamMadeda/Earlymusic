@@ -61,13 +61,15 @@ describe("songs rows as a flat list", () => {
     expect(songs).not.toMatch(/gap-y-1\.5 md:gap-y-2/);
   });
 
-  it("keeps the row frameless, with the active state as an inset bar", () => {
+  it("keeps the row frameless, with the active state as a rounded tint", () => {
     expect(rowClass.length, "row class slice not found").toBeGreaterThan(100);
     expect(rowClass).not.toMatch(/border/);
-    expect(rowClass).not.toMatch(/rounded-xl/);
+    // The accent wash is rounded like every other highlight in the app; the
+    // inset bar that used to mark the playing row is gone.
+    expect(rowClass).toMatch(/rounded-xl/);
+    expect(rowClass).not.toMatch(/shadow-\[inset/);
     expect(rowClass).not.toMatch(/shadow-2xs|shadow-xs/);
     expect(rowClass).not.toMatch(/hover:-translate-y/);
-    expect(rowClass).toMatch(/shadow-\[inset_2px_0_0_var\(--color-accent\)\]/);
   });
 });
 

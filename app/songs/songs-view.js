@@ -396,10 +396,8 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
       ref={rowRef}
       style={{ zIndex: showMenu || showInfo || showPlaylists ? 40 : undefined }}
       onMouseEnter={() => prefetchSongAudio(song)}
-      className={`group relative flex w-full items-center gap-2.5 px-2 py-2 text-left transition-colors duration-150 sm:px-3 sm:py-2.5 sm:gap-3.5 ${
-        isActive
-          ? "bg-accent/[0.07] shadow-[inset_2px_0_0_var(--color-accent)]"
-          : "hover:bg-neutral-50 active:bg-neutral-100"
+      className={`group relative flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors duration-150 sm:px-3 sm:py-2.5 sm:gap-3.5 ${
+        isActive ? "bg-accent/[0.07]" : "hover:bg-neutral-50 active:bg-neutral-100"
       }`}
     >
       <div className="relative shrink-0">
