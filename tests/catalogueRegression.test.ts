@@ -6,6 +6,8 @@ import ts from "typescript";
 import { describe, expect, it, vi } from "vitest";
 import * as newSongs from "../lib/newSongs";
 import * as songGrouping from "../lib/songGrouping";
+import * as highlightsLib from "../lib/highlights";
+import * as shareLib from "../lib/share";
 
 // Isolated hooks let the real JSX run without a DOM or live services.
 type Element = { type: any; key?: string; props: Record<string, any> };
@@ -43,6 +45,8 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
   };
   let downloadsChanged: () => void = () => {};
   const localSongs = { songs };
+  const picks: any[] = [];
+  const playEvents: any[] = [];
   let current: { cells: any[]; cursor: number; effects: (() => void)[] };
   const hooks = {
     useState(initial: any) {
@@ -77,10 +81,21 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
     return { ok: true, json: async () => body };
   });
   const apiFetch = vi.fn(async (url: string, options?: any) => {
+    if (url.startsWith("/api/data/picks") && options?.method === "POST") {
+      const body = JSON.parse(options.body);
+      picks.splice(0, picks.length, body);
+      return { id: "pick", ...body };
+    }
+    if (url.startsWith("/api/data/picks") && options?.method === "DELETE") {
+      picks.splice(0, picks.length);
+      return [];
+    }
     if (options?.method === "POST") return (await fetch(url, options)).json();
     if (url.startsWith("/api/data/songs?")) return songs;
     if (url.startsWith("/api/data/recently_played?")) return songs.map((song) => ({ song_id: song.id, play_count: 2 }));
     if (url.startsWith("/api/data/saved_songs?") || url.startsWith("/api/data/playlists?")) return [];
+    if (url.startsWith("/api/data/picks")) return picks;
+    if (url.startsWith("/api/data/play_events?")) return playEvents;
     throw new Error(`Unexpected API request: ${url}`);
   });
   const modules: Record<string, any> = {
@@ -91,6 +106,8 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
     "lucide-react": new Proxy({}, { get: (_, name) => `icon:${String(name)}` }),
     "@/lib/newSongs": newSongs,
     "@/lib/songGrouping": songGrouping,
+    "@/lib/highlights": highlightsLib,
+    "@/lib/share": shareLib,
     "@/lib/apiFetch": { apiFetch },
     "@/lib/audioUrl": { getAudioPublicUrl: vi.fn() },
     "@/lib/audioHealth": { summarizeHealth: () => ({}), verifyAudioUrl: vi.fn() },
@@ -165,7 +182,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       },
     };
   }
-  return { load, mount, player, setActiveSong, fetch, alert, auth, connection, apiFetch, localSongs, downloadsChanged: () => downloadsChanged() };
+  return { load, mount, player, setActiveSong, fetch, alert, auth, connection, apiFetch, localSongs, picks, playEvents, downloadsChanged: () => downloadsChanged() };
 }
 
 describe("homepage navigation and recovery", () => {
@@ -601,7 +618,7 @@ describe("offline library downloads", () => {
     await page.startEffects();
     const tablist = find(page.tree, (node) => node.props.role === "tablist");
     const tabButtons = nodes(tablist).filter((node) => node.props.role === "tab");
-    expect(tabButtons.map((tab) => tab.props["aria-selected"])).toEqual([true, false, false, false]);
+    expect(tabButtons.map((tab) => tab.props["aria-selected"])).toEqual([true, false, false, false, false, false]);
     expect(tabButtons[1].props.tabIndex).toBe(-1);
     expect(tabButtons[0].props["aria-controls"]).toBe("library-tabpanel-downloads");
     const preventDefault = vi.fn();
@@ -610,10 +627,39 @@ describe("offline library downloads", () => {
     expect(preventDefault).toHaveBeenCalledOnce();
     const moved = nodes(find(page.tree, (node) => node.props.role === "tablist"))
       .filter((node) => node.props.role === "tab");
-    expect(moved.map((tab) => tab.props["aria-selected"])).toEqual([false, true, false, false]);
+    expect(moved.map((tab) => tab.props["aria-selected"])).toEqual([false, true, false, false, false, false]);
     expect(moved[1].props.tabIndex).toBe(0);
     expect(find(page.tree, (node) => node.props.id === "library-tabpanel-playlists").props["aria-labelledby"]).toBe("library-tab-playlists");
   });
+
+  it("shows the picks and highlights tabs for signed-in listeners", async () => {
+    const h = harness([fixture("one", "First song"), fixture("two", "Second song")], "picks");
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+    const body = text(page.tree);
+    expect(body).toContain("Pick of the day");
+    expect(body).toContain("Pick of the year");
+    expect(body).toContain("Choose a song");
+  });
+
+  it("ranks the song of the day by plays inside the period", async () => {
+    const first = fixture("one", "First song");
+    const second = fixture("two", "Second song");
+    const h = harness([first, second], "highlights");
+    const today = new Date();
+    h.playEvents.push(
+      { song_id: "two", played_at: today.toISOString() },
+      { song_id: "two", played_at: today.toISOString() },
+      { song_id: "one", played_at: today.toISOString() }
+    );
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+    expect(text(page.tree)).toContain("Song of the day");
+    expect(text(page.tree)).toContain("Second song");
+  });
+
 
   it("jumps to the saved tab from the header count chip", async () => {
     const h = harness([fixture("cached")], "top");

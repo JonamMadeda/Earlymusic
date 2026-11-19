@@ -28,9 +28,21 @@ import {
   ExternalLink,
   HardDrive,
   WifiOff,
+  Award,
+  CalendarDays,
+  Pencil,
+  Share2,
 } from "lucide-react";
 import Link from "next/link";
 import UndoToast from "../components/UndoToast";
+import PickSongDialog from "../components/PickSongDialog";
+import {
+  PICK_PERIODS,
+  PICK_PERIOD_KEYS,
+  periodStart,
+  summarizePlays,
+} from "@/lib/highlights";
+import { shareSongWithContext } from "@/lib/share";
 import {
   getDownloadedSongs,
   removeDownload,
@@ -55,6 +67,8 @@ const tabs = [
   { key: "playlists", label: "Playlists", icon: ListMusic },
   { key: "saved", label: "Liked", icon: Heart },
   { key: "top", label: "Top", icon: Trophy },
+  { key: "picks", label: "Picks", icon: CalendarDays },
+  { key: "highlights", label: "Highlights", icon: Award },
 ];
 
 const tabKeys = tabs.map((t) => t.key);
@@ -109,6 +123,20 @@ function LibraryContent() {
   // Most listened (this user's play counts from recently_played)
   const [topPlays, setTopPlays] = useState([]);
 
+  // Picks — one saved song per period, shared with a contextual message.
+  const [picks, setPicks] = useState([]);
+  const [pickerPeriod, setPickerPeriod] = useState(null);
+  const [pickSaving, setPickSaving] = useState(false);
+
+  // Highlights — automatic leaders from play_events.
+  const [playEvents, setPlayEvents] = useState(null);
+  const [highlightsLoading, setHighlightsLoading] = useState(false);
+  const [highlightsFallback, setHighlightsFallback] = useState(false);
+
+  // One transient confirmation shared by pick/highlight share buttons.
+  const [shareFeedback, setShareFeedback] = useState(null);
+  const shareFeedbackTimer = useRef(null);
+
   // Playlists
   const [playlists, setPlaylists] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -155,6 +183,7 @@ function LibraryContent() {
         commitClearDownloads(undoRef.current);
         undoRef.current = null;
       }
+      clearTimeout(shareFeedbackTimer.current);
     };
   }, []);
 
@@ -171,16 +200,27 @@ function LibraryContent() {
         return await apiFetch("/api/data/recently_played?order=played_at&ascending=false");
       }
     };
+    // Picks needs lib/migration-picks.sql; a missing table must not stop the
+    // rest of the library (liked songs, playlists, top tracks) from loading.
+    const fetchPicks = async () => {
+      try {
+        return await apiFetch("/api/data/picks");
+      } catch {
+        return [];
+      }
+    };
     Promise.all([
       apiFetch("/api/data/saved_songs?order=created_at&ascending=false"),
       apiFetch("/api/data/playlists?order=created_at&ascending=false"),
       fetchTop(),
+      fetchPicks(),
     ])
-      .then(([savedData, plData, topData]) => {
+      .then(([savedData, plData, topData, pickData]) => {
         if (cancelled) return;
         setSavedSongIds((savedData || []).map((s) => s.song_id));
         setPlaylists(plData || []);
         setTopPlays(Array.isArray(topData) ? topData : []);
+        setPicks(Array.isArray(pickData) ? pickData : []);
       })
       .catch((error) => console.error("Unable to load library:", error))
       .finally(() => {
@@ -234,6 +274,123 @@ function LibraryContent() {
       )
       .slice(0, 10);
   }, [topPlays, allSongs]);
+
+  const picksByPeriod = useMemo(() => {
+    const map = {};
+    if (allSongs.length === 0) return map;
+    picks.forEach((pick) => {
+      const song = allSongs.find((item) => String(item.id) === String(pick.song_id));
+      if (song) map[pick.period] = { ...pick, song };
+    });
+    return map;
+  }, [picks, allSongs]);
+
+  const picksQueue = useMemo(
+    () => PICK_PERIOD_KEYS.map((key) => picksByPeriod[key]?.song).filter(Boolean),
+    [picksByPeriod]
+  );
+
+  // Refresh the year's play events every time Highlights opens, so a song
+  // played since the last visit is counted immediately. A missing table
+  // falls back to recently_played counts below.
+  useEffect(() => {
+    if (!isOnline || authLoading || !user || activeTab !== "highlights") return undefined;
+
+    let cancelled = false;
+    setHighlightsLoading(true);
+    const since = periodStart("year").toISOString();
+    apiFetch(
+      `/api/data/play_events?since=${encodeURIComponent(since)}&order=played_at&ascending=false`
+    )
+      .then((rows) => {
+        if (cancelled) return;
+        setPlayEvents(Array.isArray(rows) ? rows : []);
+        setHighlightsFallback(false);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Unable to load play history:", error);
+        setPlayEvents([]);
+        setHighlightsFallback(true);
+      })
+      .finally(() => {
+        if (!cancelled) setHighlightsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOnline, authLoading, user, activeTab]);
+
+  const highlightSourceEvents = useMemo(() => {
+    if (!highlightsFallback) return playEvents || [];
+    // recently_played keeps the latest timestamp and total count per song,
+    // which keeps the tab useful before play_events has enough history.
+    return topPlays.map((row) => ({
+      song_id: row.song_id,
+      played_at: row.played_at,
+      count: row.play_count || 1,
+    }));
+  }, [highlightsFallback, playEvents, topPlays]);
+
+  const highlights = useMemo(
+    () => summarizePlays(highlightSourceEvents, allSongs),
+    [highlightSourceEvents, allSongs]
+  );
+
+  const highlightQueue = useMemo(
+    () => highlights.map((item) => item.song).filter(Boolean),
+    [highlights]
+  );
+
+  const notifyShare = useCallback((key, message) => {
+    setShareFeedback({ key, message });
+    clearTimeout(shareFeedbackTimer.current);
+    shareFeedbackTimer.current = setTimeout(() => setShareFeedback(null), 2000);
+  }, []);
+
+  const savePick = async (song) => {
+    const period = pickerPeriod;
+    if (!period || !song) return;
+    setPickSaving(true);
+    try {
+      const saved = await apiFetch("/api/data/picks", {
+        method: "POST",
+        body: JSON.stringify({ song_id: song.id, period }),
+      });
+      setPicks((prev) => [
+        ...prev.filter((pick) => pick.period !== period),
+        saved && saved.period ? saved : { period, song_id: song.id },
+      ]);
+      setPickerPeriod(null);
+    } catch (error) {
+      console.error("Unable to save pick:", error);
+    } finally {
+      setPickSaving(false);
+    }
+  };
+
+  const removePick = async (period) => {
+    try {
+      await apiFetch(`/api/data/picks?period=${period}`, { method: "DELETE" });
+      setPicks((prev) => prev.filter((pick) => pick.period !== period));
+    } catch (error) {
+      console.error("Unable to remove pick:", error);
+    }
+  };
+
+  const handleShare = async (kind, period, song, headingLabel) => {
+    if (!song) return;
+    try {
+      const result = await shareSongWithContext(song, headingLabel.toLowerCase());
+      const message =
+        result === "copied" ? "Link copied" : result === "shared" ? "Shared" : "Share failed";
+      notifyShare(`${kind}-${period}`, message);
+    } catch (error) {
+      console.error("Unable to share:", error);
+      notifyShare(`${kind}-${period}`, "Share failed");
+    }
+  };
 
   const filteredSavedSongs = useMemo(() => {
     const query = likedQuery.trim().toLowerCase();
@@ -421,7 +578,7 @@ function LibraryContent() {
           <div className="min-w-0">
             <h1 className="page-title">Library</h1>
             <p className="mt-1 max-w-xl text-xs font-medium leading-5 text-neutral-500 sm:text-sm">
-              Your liked songs, playlists, and offline downloads.
+              Your liked songs, playlists, downloads, and personal picks.
             </p>
           </div>
 
@@ -464,7 +621,7 @@ function LibraryContent() {
             ref={tablistRef}
             role="tablist"
             aria-label="Library sections"
-            className="grid w-full scroll-mt-4 grid-cols-4 gap-1 rounded-xl border border-neutral-200 bg-neutral-100/70 p-1 sm:inline-grid sm:w-auto"
+            className="grid w-full scroll-mt-4 grid-cols-3 gap-1 rounded-xl border border-neutral-200 bg-neutral-100/70 p-1 sm:inline-grid sm:w-auto sm:grid-cols-6"
           >
             {tabs.map((tab, idx) => {
               const isActive = activeTab === tab.key;
@@ -713,8 +870,8 @@ function LibraryContent() {
                   </div>
                   <h3 className="text-sm font-bold text-neutral-900 md:text-base">You&rsquo;re offline</h3>
                   <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
-                    Downloads still play on this device. Playlists, liked songs, and your top tracks
-                    will be here when you reconnect.
+                    Downloads still play on this device. Playlists, liked songs, picks, and your
+                    top tracks will be here when you reconnect.
                   </p>
                 </div>
               ) : authLoading || (user && loading) ? (
@@ -744,6 +901,10 @@ function LibraryContent() {
                       <li className="flex items-center gap-2.5">
                         <Trophy size={13} className="shrink-0 text-neutral-400" />
                         See your most played tracks
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <CalendarDays size={13} className="shrink-0 text-neutral-400" />
+                        Share picks and see your song of the day
                       </li>
                     </ul>
                     <Link href="/auth" className="btn-primary mt-5 px-4.5 text-xs">
@@ -961,6 +1122,264 @@ function LibraryContent() {
                     </div>
                   )}
 
+                  {/* Picks — one shareable song per period */}
+                  {activeTab === "picks" && (
+                    <div>
+                      <div className="min-w-0">
+                        <h2 className="section-title">Your picks</h2>
+                        <p className="mt-0.5 max-w-2xl text-xs font-medium leading-5 text-neutral-500">
+                          Choose a song for the day, week, month, or year. Your picks are saved
+                          to your account and can be shared with a tap.
+                        </p>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {PICK_PERIODS.map((period) => {
+                          const pick = picksByPeriod[period.key];
+                          const feedback =
+                            shareFeedback?.key === `pick-${period.key}`
+                              ? shareFeedback.message
+                              : "";
+                          return (
+                            <div
+                              key={period.key}
+                              className={`flex flex-col rounded-2xl border p-4 shadow-sm ${
+                                pick
+                                  ? "border-neutral-200 bg-white"
+                                  : "border-dashed border-neutral-200 bg-neutral-50/40"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-accent/10 bg-accent/[0.06] text-accent">
+                                    <CalendarDays size={15} />
+                                  </span>
+                                  <div className="min-w-0">
+                                    <h3 className="truncate text-sm font-bold tracking-tight text-neutral-900">
+                                      {period.heading}
+                                    </h3>
+                                    <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+                                      {period.range}
+                                    </p>
+                                  </div>
+                                </div>
+                                {pick && (
+                                  <span className="shrink-0 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                                    Picked
+                                  </span>
+                                )}
+                              </div>
+
+                              {pick ? (
+                                <>
+                                  <div className="mt-3.5 flex min-w-0 items-center gap-3 rounded-xl border border-neutral-100 bg-neutral-50/60 p-2.5">
+                                    <SongAvatar
+                                      title={pick.song.title}
+                                      size="row"
+                                      variant="mono"
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                      <p
+                                        title={pick.song.title}
+                                        className="truncate text-sm font-semibold tracking-tight text-neutral-900"
+                                      >
+                                        {pick.song.title}
+                                      </p>
+                                      <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
+                                        {pick.song.author}
+                                      </p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveSong(pick.song, picksQueue)}
+                                      aria-label={`Play ${pick.song.title || "picked song"}`}
+                                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white transition hover:bg-accent/90"
+                                    >
+                                      <Play size={12} fill="currentColor" className="ml-0.5" />
+                                    </button>
+                                  </div>
+
+                                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleShare(
+                                          "pick",
+                                          period.key,
+                                          pick.song,
+                                          period.heading
+                                        )
+                                      }
+                                      className="btn-primary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
+                                    >
+                                      <Share2 size={12} />
+                                      {feedback || "Share pick"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setPickerPeriod(period.key)}
+                                      className="btn-secondary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
+                                    >
+                                      <Pencil size={12} />
+                                      Change
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => removePick(period.key)}
+                                      className="tap-sm ml-auto inline-flex min-h-8 items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+                                    >
+                                      <Trash2 size={12} />
+                                      Remove
+                                    </button>
+                                  </div>
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setPickerPeriod(period.key)}
+                                  className="mt-3.5 flex min-h-[74px] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-neutral-200 bg-white/70 px-3 py-4 text-center transition hover:border-accent/40 hover:bg-white"
+                                >
+                                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
+                                    <Plus size={15} />
+                                  </span>
+                                  <span className="text-xs font-semibold text-neutral-700">
+                                    Choose a song
+                                  </span>
+                                  <span className="text-[11px] font-medium text-neutral-400">
+                                    Share your {period.range.toLowerCase()} favorite
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Highlights — automatic leaders ranked by play count */}
+                  {activeTab === "highlights" && (
+                    <div>
+                      <div className="min-w-0">
+                        <h2 className="section-title">Your highlights</h2>
+                        <p className="mt-0.5 max-w-2xl text-xs font-medium leading-5 text-neutral-500">
+                          Your standout song for each period, chosen by how often you played
+                          it — not by listening time.
+                        </p>
+                      </div>
+
+                      {highlightsLoading ? (
+                        <div className="mt-4">
+                          <PageSkeleton />
+                        </div>
+                      ) : (
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {highlights.map((item) => {
+                            const feedback =
+                              shareFeedback?.key === `highlight-${item.key}`
+                                ? shareFeedback.message
+                                : "";
+                            return (
+                              <div
+                                key={item.key}
+                                className={`flex flex-col rounded-2xl border p-4 shadow-sm ${
+                                  item.song
+                                    ? "border-neutral-200 bg-white"
+                                    : "border-dashed border-neutral-200 bg-neutral-50/40"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <h3 className="text-sm font-bold tracking-tight text-neutral-900">
+                                      {item.heading}
+                                    </h3>
+                                    <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+                                      {item.range}
+                                    </p>
+                                  </div>
+                                  {item.song && (
+                                    <span className="shrink-0 rounded-full border border-accent/15 bg-accent/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
+                                      {item.plays} {item.plays === 1 ? "play" : "plays"}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {item.song ? (
+                                  <>
+                                    <div className="mt-3 flex min-w-0 items-center gap-3">
+                                      <SongAvatar
+                                        title={item.song.title}
+                                        size="md"
+                                        variant="mono"
+                                      />
+                                      <div className="min-w-0 flex-1">
+                                        <p
+                                          title={item.song.title}
+                                          className="truncate text-sm font-semibold tracking-tight text-neutral-900"
+                                        >
+                                          {item.song.title}
+                                        </p>
+                                        <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
+                                          {item.song.author}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="mt-3 flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setActiveSong(item.song, highlightQueue)
+                                        }
+                                        className="btn-primary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
+                                      >
+                                        <Play size={11} fill="currentColor" />
+                                        Play
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleShare(
+                                            "highlight",
+                                            item.key,
+                                            item.song,
+                                            item.heading
+                                          )
+                                        }
+                                        className="btn-secondary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
+                                      >
+                                        <Share2 size={12} />
+                                        {feedback || "Share"}
+                                      </button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="mt-3 flex flex-1 flex-col items-center justify-center py-6 text-center">
+                                    <span className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-400">
+                                      <Award size={18} />
+                                    </span>
+                                    <p className="mt-2 text-xs font-semibold text-neutral-700">
+                                      {item.empty}
+                                    </p>
+                                    <p className="mt-0.5 max-w-[230px] text-[11px] leading-relaxed text-neutral-400">
+                                      Every play counts toward your next highlight.
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {highlightsFallback && !highlightsLoading && (
+                        <p className="mt-3 text-[11px] font-medium text-neutral-400">
+                          Showing your latest saved plays while detailed play history is
+                          being set up.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Playlists */}
                   {activeTab === "playlists" && (
                     <div>
@@ -1097,6 +1516,20 @@ function LibraryContent() {
             </div>
           )}
         </div>
+
+        <PickSongDialog
+          key={pickerPeriod || "closed"}
+          open={Boolean(pickerPeriod)}
+          heading={
+            PICK_PERIODS.find((period) => period.key === pickerPeriod)?.heading ||
+            "Choose a song"
+          }
+          songs={allSongs}
+          saving={pickSaving}
+          selectedSongId={picksByPeriod[pickerPeriod]?.song_id}
+          onSelect={savePick}
+          onClose={() => setPickerPeriod(null)}
+        />
 
         {undoSnapshot && (
           <UndoToast

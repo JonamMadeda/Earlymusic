@@ -219,6 +219,15 @@ Accounts registered before the form asked for names were given the email's local
 
 `public.users`, `public.user_roles`, `public.user_sessions` and `public.profiles` are no longer read by the app. They are kept for reference until the migration is confirmed. `lib/migration-user-fks-to-neon-auth.sql` repoints the per-user data tables (`playlists`, `profiles`, `recently_played`, `saved_songs`, `user_roles`, `user_sessions`) at `neon_auth."user"` with `ON DELETE CASCADE`; before that they still referenced `public.users`, which made every write from a newly registered account fail with a 500. `public.auth_events.user_id` keeps no foreign key at all (`lib/migration-auth-events-user-id.sql`) because it must retain rows for accounts that have since been deleted.
 
+## Library picks and highlights
+
+The Library has two companion tabs:
+
+- **Picks** stores one song per period — day, week, month, year — in `public.picks`. Choosing again replaces that period's row (`UNIQUE (user_id, period)`). **Share pick** sends a contextual message such as `My pick of the day: "Song" by Artist` together with the normal `/share/<songId>` link, so recipients can listen without an account.
+- **Highlights** shows the automatic song of the day, week, month, and year. It counts plays inside each local calendar period (the week starts Monday), never listening duration, and breaks ties by the most recent play. The data comes from `public.play_events`, one row per play written by the player alongside the existing `recently_played` sync.
+
+Both tables are created by `lib/migration-picks.sql`, applied with `node scripts/apply-sql-migration.mjs lib/migration-picks.sql` (or paste it into the Neon SQL editor). The migration seeds `play_events` from the latest `recently_played` rows so the tab has a starting point. If the tables are missing, Picks reads as empty and Highlights falls back to the saved play counts instead of breaking the Library.
+
 ## Administrator access
 
 The `/admin` dashboard and the R2 signing endpoint require a Neon Auth account whose `role` is `admin` in `neon_auth.user`. Grant it from the **Administrator access** panel on `/admin`, or directly in SQL:

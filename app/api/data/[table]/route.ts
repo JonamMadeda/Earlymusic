@@ -3,9 +3,24 @@ import { db } from "@/lib/neon";
 import { getUserFromRequest } from "@/lib/auth";
 import { getCountryFromHeaders } from "@/lib/geo";
 
-const USER_TABLES = new Set(["saved_songs", "playlists", "playlist_songs", "recently_played"]);
+const USER_TABLES = new Set([
+  "saved_songs",
+  "playlists",
+  "playlist_songs",
+  "recently_played",
+  "picks",
+  "play_events",
+]);
 
-const ALLOWED_TABLES = new Set(["songs", "saved_songs", "playlists", "playlist_songs", "recently_played"]);
+const ALLOWED_TABLES = new Set([
+  "songs",
+  "saved_songs",
+  "playlists",
+  "playlist_songs",
+  "recently_played",
+  "picks",
+  "play_events",
+]);
 
 // Query params that steer the query rather than filter a column. They must
 // be stripped before the filter loop, otherwise "head" (a count-only flag)
@@ -17,6 +32,7 @@ const CONTROL_PARAMS = new Set([
   "ascending",
   "count",
   "head",
+  "since",
 ]);
 
 // Columns a client may change through PATCH. Ownership columns, primary
@@ -145,6 +161,14 @@ export async function GET(
         values.push(value);
       }
 
+      // Period queries need a range, not equality: /api/data/play_events
+      // asks for every play at or after the client's local period start.
+      const since = searchParams.get("since");
+      if (table === "play_events" && since && !Number.isNaN(Date.parse(since))) {
+        conditions.push(`played_at >= $${values.length + 1}`);
+        values.push(new Date(since).toISOString());
+      }
+
       if (conditions.length > 0) {
         query += ` WHERE ${conditions.join(" AND ")}`;
       }
@@ -271,6 +295,18 @@ export async function POST(
         row.user_id = user.id;
       }
 
+      if (table === "picks") {
+        if (!["day", "week", "month", "year"].includes(row.period)) {
+          return NextResponse.json(
+            { error: "period must be day, week, month, or year." },
+            { status: 400 }
+          );
+        }
+        if (row.song_id === undefined || row.song_id === null || row.song_id === "") {
+          return NextResponse.json({ error: "song_id required." }, { status: 400 });
+        }
+      }
+
       const keys = Object.keys(row).filter(
         (k) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(k)
       );
@@ -299,6 +335,11 @@ export async function POST(
         conflict = " ON CONFLICT (user_id, song_id) DO NOTHING";
       } else if (table === "playlist_songs") {
         conflict = " ON CONFLICT (playlist_id, song_id) DO NOTHING";
+      } else if (table === "picks") {
+        // One saved pick per period: choosing again replaces the song and
+        // refreshes the timestamp instead of piling up rows.
+        conflict =
+          " ON CONFLICT (user_id, period) DO UPDATE SET song_id = EXCLUDED.song_id, created_at = NOW()";
       }
 
       const base = `INSERT INTO public.${table} (${keys.join(", ")}) VALUES (${placeholders.join(", ")})`;

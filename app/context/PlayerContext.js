@@ -286,6 +286,16 @@ export const PlayerProvider = ({ children }) => {
       body: JSON.stringify({ song_id: latest.id, played_at: new Date().toISOString() }),
     }).catch((error) => console.error("Unable to sync recently played:", error));
 
+    // One row per play lets Library → Highlights rank songs inside a day,
+    // week, month, or year. recently_played only keeps the latest timestamp
+    // per song, which cannot answer period questions.
+    fetch("/api/data/play_events", {
+      method: "POST",
+      credentials: "same-origin",
+      headers,
+      body: JSON.stringify({ song_id: latest.id, played_at: new Date().toISOString() }),
+    }).catch((error) => console.error("Unable to record play event:", error));
+
     // Trim to max rows: read the oldest excess entries and delete them by id.
     // (One request per row — the data API matches filters with = only.)
     fetch(`/api/data/recently_played?order=played_at&ascending=false`, {
