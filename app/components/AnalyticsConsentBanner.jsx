@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { BarChart3, ShieldCheck } from "lucide-react";
+import { BarChart3, Check, ShieldCheck } from "lucide-react";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import {
@@ -64,7 +64,7 @@ export default function AnalyticsConsentBanner() {
 
   return (
     <div
-      className="fixed inset-0 z-[10050] flex items-end justify-center p-3 sm:items-center sm:p-6"
+      className="fixed inset-0 z-[10050] flex items-end justify-center sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="analytics-consent-title"
@@ -72,98 +72,122 @@ export default function AnalyticsConsentBanner() {
     >
       {/* Backdrop — clicking it declines, matching the Escape key. */}
       <div
-        className="absolute inset-0 bg-neutral-950/50 backdrop-blur-sm"
+        className="animate-fade-in absolute inset-0 bg-neutral-950/60 backdrop-blur-md"
         onClick={() => choose(false)}
         aria-hidden="true"
       />
 
-      {/* Modal panel */}
+      {/* Modal panel — a bottom sheet on phones, a centred card above sm. */}
       <div
-        className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-5 shadow-2xl ring-1 ring-black/5 sm:max-h-[calc(100dvh-3rem)] sm:p-7"
+        className="animate-modal-in relative flex max-h-[calc(100dvh-0.75rem)] w-full max-w-lg flex-col overflow-y-auto rounded-t-3xl border border-neutral-200 bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] shadow-2xl ring-1 ring-black/5 sm:max-h-[calc(100dvh-3rem)] sm:rounded-3xl sm:p-8"
         onClick={(event) => event.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent sm:h-11 sm:w-11">
-            <BarChart3 size={20} strokeWidth={2.5} aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <h2
-              id="analytics-consent-title"
-              className="text-base font-bold tracking-tight text-neutral-900 sm:text-lg"
-            >
-              Help us improve Luumbo
-            </h2>
-            <p
-              id="analytics-consent-description"
-              className="mt-1 text-sm leading-relaxed text-neutral-500"
-            >
-              We&rsquo;d like to use analytics to understand how listeners use
-              the app and make it better.
-            </p>
-          </div>
-        </div>
+        {/* A restrained brand wash keeps the surface from reading as a plain form. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-32 rounded-t-3xl bg-gradient-to-b from-accent/[0.055] to-transparent"
+        />
 
-        {/* Details */}
-        <div className="mt-5 flex items-start gap-3 rounded-xl bg-neutral-50 p-3.5">
-          <ShieldCheck
-            size={18}
-            strokeWidth={2.5}
-            className="mt-0.5 shrink-0 text-neutral-400"
-            aria-hidden="true"
-          />
-          <div className="min-w-0 text-sm leading-relaxed text-neutral-600">
-            <p className="font-semibold text-neutral-800">
-              No personal data is sold or shared.
-            </p>
-            <p className="mt-1">
-              Analytics only helps us improve performance, fix bugs, and
-              understand which features listeners use most. You can decline and
-              the app will still work fully.
-            </p>
+        <div className="relative">
+          {/* Header */}
+          <div className="flex items-start gap-3.5 sm:gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-white shadow-sm shadow-accent/20 sm:h-12 sm:w-12">
+              <BarChart3 size={21} strokeWidth={2.25} aria-hidden="true" />
+            </div>
+            <div className="min-w-0 pt-0.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-400">
+                Your privacy
+              </p>
+              <h2
+                id="analytics-consent-title"
+                className="mt-1 text-lg font-bold tracking-tight text-neutral-900 sm:text-xl"
+              >
+                Help us improve Luumbo
+              </h2>
+              <p
+                id="analytics-consent-description"
+                className="mt-1.5 text-sm leading-relaxed text-neutral-500"
+              >
+                Optional analytics help us make the app faster, steadier, and
+                easier to use.
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Legal links */}
-        <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          <Link
-            href="/terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-accent hover:underline"
-          >
-            Terms of Service
-          </Link>
-          <span className="text-neutral-300" aria-hidden="true">
-            •
-          </span>
-          <Link
-            href="/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-accent hover:underline"
-          >
-            Privacy Policy
-          </Link>
-        </div>
+          {/* Privacy assurance */}
+          <div className="mt-5 rounded-2xl border border-neutral-200/80 bg-neutral-50/70 p-4 sm:mt-6">
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-neutral-200 bg-white text-neutral-500 shadow-2xs">
+                <ShieldCheck size={16} strokeWidth={2.25} aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-neutral-900">
+                  Your data stays private
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-neutral-500">
+                  No personal data is sold or shared. We only see aggregated
+                  performance and feature-usage signals — nothing that identifies
+                  you.
+                </p>
+              </div>
+            </div>
+          </div>
 
-        {/* Actions */}
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => choose(false)}
-            className="flex min-h-11 items-center justify-center rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-bold text-neutral-600 shadow-sm transition-colors hover:bg-neutral-50 hover:text-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.98]"
-          >
-            Decline
-          </button>
-          <button
-            ref={acceptRef}
-            type="button"
-            onClick={() => choose(true)}
-            className="flex min-h-11 items-center justify-center rounded-xl bg-accent px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-accent/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.98]"
-          >
-            Accept
-          </button>
+          {/* Actions + legal footer */}
+          <div className="mt-5 border-t border-neutral-100 pt-4 sm:mt-6 sm:pt-5">
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => choose(false)}
+                className="btn-secondary justify-center"
+              >
+                Decline
+              </button>
+              <button
+                ref={acceptRef}
+                type="button"
+                onClick={() => choose(true)}
+                className="btn-primary justify-center"
+              >
+                <Check size={15} strokeWidth={3} aria-hidden="true" />
+                Allow analytics
+              </button>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2 text-[11px] leading-relaxed text-neutral-400 sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                Change this anytime in{" "}
+                <Link
+                  href="/settings"
+                  className="font-semibold text-neutral-600 underline-offset-2 transition hover:text-accent hover:underline"
+                >
+                  Settings
+                </Link>
+                .
+              </p>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-neutral-500 underline-offset-2 transition hover:text-accent hover:underline"
+                >
+                  Privacy Policy
+                </Link>
+                <span className="text-neutral-300" aria-hidden="true">
+                  •
+                </span>
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-neutral-500 underline-offset-2 transition hover:text-accent hover:underline"
+                >
+                  Terms
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
