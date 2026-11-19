@@ -39,7 +39,7 @@ const BottomNav = () => {
             aria-current={isActive ? "page" : undefined}
             aria-label={
               item.label === "Library" && spotlightNudge.active
-                ? `Library — new Spotlight picks ${spotlightNudge.windowLabel}`
+                ? `Library — new ${spotlightNudge.reasonLabel}`
                 : isActive
                   ? `${item.label}, current page`
                   : item.label
@@ -70,7 +70,7 @@ const BottomNav = () => {
               <span
                 aria-hidden="true"
                 className="absolute right-[calc(50%-22px)] top-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-white"
-                title={`Spotlight is worth a look ${spotlightNudge.windowLabel}`}
+                title={`Spotlight: ${spotlightNudge.reasonLabel}`}
               />
             )}
             {isActive && (

@@ -31,6 +31,14 @@ describe("library spotlight nudge", () => {
     expect(libraryNudgeWindow(at(day, 23, 59))).toBeNull();
   });
 
+  it("honours a chosen window hour over the daily rotation", () => {
+    const day = 19; // rotates to lunch, but the listener chose evening
+    expect(libraryNudgeWindow(at(day, 12, 0), 18)).toBeNull();
+    const evening = libraryNudgeWindow(at(day, 18, 0), 18);
+    expect(evening?.key).toBe(`2026-11-${day}-18`);
+    expect(evening?.label).toBe("this evening");
+  });
+
   it("expires after 45 minutes", () => {
     let activeHour = -1;
     for (let hour = 0; hour < 24; hour += 1) {

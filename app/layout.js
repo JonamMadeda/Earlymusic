@@ -3,6 +3,7 @@ import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import AuthBanner from "./components/AuthBanner";
 import BottomNav from "./components/BottomNav";
+import SpotlightNudgeAnnouncer from "./components/SpotlightNudgeAnnouncer";
 import PlayerWrapper from "./components/PlayerWrapper";
 import { PlayerProvider } from "./context/PlayerContext";
 import { AuthProvider } from "./context/AuthContext";
@@ -88,6 +89,7 @@ export default function RootLayout({ children }) {
             </div>
 
             <BottomNav />
+            <SpotlightNudgeAnnouncer />
             <PlayerWrapper />
 
             <AnalyticsConsentBanner />

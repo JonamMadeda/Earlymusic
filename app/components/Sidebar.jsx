@@ -19,7 +19,7 @@ const Sidebar = () => {
   const navRoutes = [
     { icon: Home, label: "Home", active: pathname === "/", href: "/" },
     { icon: Music, label: "Songs", active: pathname === "/songs", href: "/songs" },
-    { icon: Library, label: "Library", active: pathname === "/library" || pathname === "/playlists" || pathname.startsWith("/playlists/"), href: "/library", dot: spotlightNudge.active, dotLabel: `New Spotlight picks ${spotlightNudge.windowLabel}` },
+    { icon: Library, label: "Library", active: pathname === "/library" || pathname === "/playlists" || pathname.startsWith("/playlists/"), href: "/library", dot: spotlightNudge.active, dotLabel: `New ${spotlightNudge.reasonLabel}` },
     // Always listed: a fixed entry point listeners can learn and return to,
     // even while the feed has nothing in it.
     { icon: Bell, label: "Notifications", active: pathname === "/notifications", href: "/notifications", badge: unread },

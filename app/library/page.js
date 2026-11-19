@@ -44,7 +44,13 @@ import {
   summarizePlays,
 } from "@/lib/highlights";
 import { shareSongWithContext } from "@/lib/share";
-import { useLibraryNudge, markLibraryNudgeSeen } from "@/lib/libraryNudge";
+import {
+  useLibraryNudge,
+  markLibraryNudgeSeen,
+  markSpotlightSubTabSeen,
+  publishSpotlightContent,
+} from "@/lib/libraryNudge";
+import SpotlightNudgeSettings from "@/app/components/SpotlightNudgeSettings";
 import {
   getDownloadedSongs,
   removeDownload,
@@ -138,12 +144,6 @@ function LibraryContent() {
     if (url === `${window.location.pathname}${window.location.search}`) return;
     window.history.replaceState(window.history.state, "", url);
   }, [activeTab, spotlightSubTab, pathname, searchParams]);
-
-  // Opening Spotlight is the "seen" signal: retire the nav dot so it cannot
-  // become a permanent badge.
-  useEffect(() => {
-    if (activeTab === "spotlight") markLibraryNudgeSeen();
-  }, [activeTab]);
 
   // Saved songs
   const [savedSongIds, setSavedSongIds] = useState([]);
@@ -370,6 +370,15 @@ function LibraryContent() {
     () => highlights.map((item) => item.song).filter(Boolean),
     [highlights]
   );
+
+  // Feed the nudge the rows we already loaded instead of duplicating queries.
+  // Opening Spotlight is the "seen" signal, and content that loads while it is
+  // already open is seen too — a slow fetch must not re-light the dot on the
+  // very page displaying it.
+  useEffect(() => {
+    publishSpotlightContent({ picks, highlights });
+    if (activeTab === "spotlight") markLibraryNudgeSeen();
+  }, [picks, highlights, activeTab]);
 
   const notifyShare = useCallback((key, message) => {
     setShareFeedback({ key, message });
@@ -682,7 +691,7 @@ function LibraryContent() {
                   {tab.key === "spotlight" && spotlightNudge.active && (
                     <span
                       aria-hidden="true"
-                      title={`New Spotlight picks ${spotlightNudge.windowLabel}`}
+                      title={`New ${spotlightNudge.reasonLabel}`}
                       className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent ring-2 ring-white/80"
                     />
                   )}
@@ -1072,10 +1081,11 @@ function LibraryContent() {
                   {/* Spotlight — top, picks, and highlights */}
                   {activeTab === "spotlight" && (
                     <div>
+                      <div className="mb-4 flex flex-wrap items-center gap-2">
                       <div
                         role="tablist"
                         aria-label="Spotlight views"
-                        className="mb-4 inline-flex w-auto max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-1 no-scrollbar"
+                        className="inline-flex w-auto max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-1 no-scrollbar"
                       >
                         {spotlightTabs.map((tab) => {
                           const isActive = spotlightSubTab === tab.key;
@@ -1085,7 +1095,10 @@ function LibraryContent() {
                               type="button"
                               role="tab"
                               aria-selected={isActive}
-                              onClick={() => setSpotlightSubTab(tab.key)}
+                              onClick={() => {
+                                setSpotlightSubTab(tab.key);
+                                markSpotlightSubTabSeen(tab.key);
+                              }}
                               className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition sm:flex-none sm:px-3 sm:text-xs ${
                                 isActive
                                   ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
@@ -1094,9 +1107,18 @@ function LibraryContent() {
                             >
                               <tab.icon size={14} className="hidden shrink-0 sm:block" />
                               <span>{tab.label}</span>
+                              {spotlightNudge.targets?.[tab.key] && (
+                                <span
+                                  aria-hidden="true"
+                                  title={`New activity in ${tab.label}`}
+                                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent ring-2 ring-white/80"
+                                />
+                              )}
                             </button>
                           );
                         })}
+                      </div>
+                      <SpotlightNudgeSettings />
                       </div>
                     {/* Most listened — this user's top 10 by play count */}
                     {spotlightSubTab === "top" && (
