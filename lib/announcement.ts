@@ -4,9 +4,11 @@ import {
   MAX_NOTIFICATIONS,
   TITLE_MAX_LENGTH,
   audioUpdateAnnouncementFor,
+  normalizeNotificationTarget,
   normalizeNotificationUrl,
   releaseAnnouncementFor,
   type NotificationKind,
+  type NotificationTarget,
 } from "@/lib/notifications";
 
 export type AnnouncementDraft = {
@@ -14,6 +16,7 @@ export type AnnouncementDraft = {
   title: string;
   body?: string | null;
   url?: string | null;
+  target?: NotificationTarget | string | null;
 };
 
 /**
@@ -29,11 +32,12 @@ export const postAnnouncement = async (
 
   const url = normalizeNotificationUrl(draft.url);
   const body = String(draft.body ?? "").trim().slice(0, BODY_MAX_LENGTH) || null;
+  const target = normalizeNotificationTarget(draft.target);
 
   const { rows } = await db.query(
-    `INSERT INTO public.notifications (kind, title, body, url)
-     VALUES ($1, $2, $3, $4) RETURNING id, kind, title, body, url, created_at`,
-    [draft.kind, title, body, url]
+    `INSERT INTO public.notifications (kind, title, body, url, target)
+     VALUES ($1, $2, $3, $4, $5) RETURNING id, kind, title, body, url, target, created_at`,
+    [draft.kind, title, body, url, target]
   );
   const announcement = rows?.[0];
   if (!announcement) return null;

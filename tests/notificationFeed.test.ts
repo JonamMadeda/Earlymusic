@@ -35,10 +35,13 @@ beforeEach(() => {
     vi.fn(() => {
       fetchCount += 1;
       return Promise.resolve(
-        new Response(JSON.stringify({ notifications: [announcement(3, 1), announcement(2, 30)] }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
+        new Response(
+          JSON.stringify({
+            notifications: [announcement(3, 1), announcement(2, 30)],
+            now: new Date().toISOString(),
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
       );
     })
   );
@@ -167,5 +170,40 @@ describe("announcement feed store", () => {
     expect(during.items).toHaveLength(2);
 
     await pending;
+  });
+
+  it("marks announcements seen with the server clock, not the device clock", async () => {
+    const store = await loadStore();
+    await store.refreshNotifications();
+    const serverNow = store.getNotificationSnapshot().serverNow;
+
+    expect(serverNow).toBeTruthy();
+    store.markNotificationsSeen();
+    expect(store.getNotificationSnapshot().seenAt).toBe(serverNow);
+  });
+
+  it("expands unread Spotlight targets for the Library badges", async () => {
+    const store = await loadStore();
+    await store.refreshNotifications();
+    expect(store.spotlightTargetsFor(store.getNotificationSnapshot())).toEqual([]);
+
+    const targeted = [
+      { ...announcement(4, 0), target: "highlights" },
+      { ...announcement(5, 0), target: "general" },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ notifications: targeted }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      )
+    );
+    await store.refreshNotifications({ force: true });
+
+    expect(store.spotlightTargetsFor(store.getNotificationSnapshot())).toEqual(["highlights"]);
   });
 });

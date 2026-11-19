@@ -9,11 +9,12 @@ import {
   MAX_NOTIFICATIONS,
   NOTIFICATION_KINDS,
   TITLE_MAX_LENGTH,
+  normalizeNotificationTarget,
   normalizeNotificationUrl,
   type NotificationKind,
 } from "@/lib/notifications";
 
-const SELECT = `SELECT id, kind, title, body, url, created_at
+const SELECT = `SELECT id, kind, title, body, url, target, created_at
                   FROM public.notifications
                  ORDER BY created_at DESC, id DESC
                  LIMIT ${MAX_NOTIFICATIONS}`;
@@ -106,6 +107,7 @@ export async function POST(request: NextRequest) {
       title,
       body,
       url,
+      target: normalizeNotificationTarget(payload?.target),
     });
     if (!posted) {
       return NextResponse.json(

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { rows } = await db.query(
-      `SELECT id, kind, title, body, url, created_at
+      `SELECT id, kind, title, body, url, target, created_at
          FROM public.notifications
         ORDER BY created_at DESC, id DESC
         LIMIT $1`,
@@ -24,7 +24,13 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json(
-      { notifications: rows || [] },
+      {
+        notifications: rows || [],
+        // The client marks announcements seen with this server clock rather
+        // than Date.now(): a device running fast would otherwise silently
+        // swallow posts made just after it opened the feed.
+        now: new Date().toISOString(),
+      },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
@@ -33,7 +39,7 @@ export async function GET(request: NextRequest) {
       // sidebar link read this on every page, so an empty feed beats an error
       // the listener cannot act on.
       return NextResponse.json(
-        { notifications: [] },
+        { notifications: [], now: new Date().toISOString() },
         { headers: { "Cache-Control": "no-store" } }
       );
     }

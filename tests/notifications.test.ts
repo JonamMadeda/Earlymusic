@@ -4,7 +4,9 @@ import {
   TITLE_MAX_LENGTH,
   URL_MAX_LENGTH,
   audioUpdateAnnouncementFor,
+  isSpotlightTarget,
   normalizeNotificationKind,
+  normalizeNotificationTarget,
   normalizeNotificationUrl,
   releaseAnnouncementFor,
 } from "../lib/notifications";
@@ -35,6 +37,21 @@ describe("announcements", () => {
     expect(normalizeNotificationUrl("https://e.com/" + "a".repeat(500))).toHaveLength(
       URL_MAX_LENGTH
     );
+  });
+
+  it("falls back to general for an unknown destination", () => {
+    expect(normalizeNotificationTarget("picks")).toBe("picks");
+    expect(normalizeNotificationTarget("billing")).toBe("general");
+    expect(normalizeNotificationTarget(null)).toBe("general");
+  });
+
+  it("recognises only the four Spotlight destinations", () => {
+    expect(isSpotlightTarget("spotlight")).toBe(true);
+    expect(isSpotlightTarget("top")).toBe(true);
+    expect(isSpotlightTarget("picks")).toBe(true);
+    expect(isSpotlightTarget("highlights")).toBe(true);
+    expect(isSpotlightTarget("general")).toBe(false);
+    expect(isSpotlightTarget(undefined)).toBe(false);
   });
 
   it("holds the feed threshold", () => {

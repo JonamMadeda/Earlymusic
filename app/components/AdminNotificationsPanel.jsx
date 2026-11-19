@@ -10,8 +10,11 @@ import {
   KIND_LABELS,
   MAX_NOTIFICATIONS,
   NOTIFICATION_KINDS,
+  NOTIFICATION_TARGETS,
+  TARGET_LABELS,
   TITLE_MAX_LENGTH,
   normalizeNotificationKind,
+  normalizeNotificationTarget,
 } from "@/lib/notifications";
 
 const authedFetch = (url, opts = {}) =>
@@ -21,7 +24,7 @@ const authedFetch = (url, opts = {}) =>
     headers: { "Content-Type": "application/json", ...opts.headers },
   });
 
-const emptyDraft = { kind: "news", title: "", body: "", url: "" };
+const emptyDraft = { kind: "news", title: "", body: "", url: "", target: "general" };
 
 /**
  * Admin composer and list for the public announcements feed. Mounted only when
@@ -128,7 +131,8 @@ export default function AdminNotificationsPanel({ onToast }) {
       <p className="mb-3 text-xs leading-relaxed text-neutral-500">
         Anything posted here appears in the app for signed-out listeners too. The feed
         holds {MAX_NOTIFICATIONS} announcements: once it is full, the next post removes the
-        oldest one.
+        oldest one. Pick a Spotlight destination to light up the Library dot and badge that
+        sub-tab.
       </p>
 
       <form onSubmit={handlePost} className="space-y-2">
@@ -171,6 +175,19 @@ export default function AdminNotificationsPanel({ onToast }) {
         />
 
         <div className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label="Announcement destination"
+            value={draft.target}
+            onChange={(event) => setDraft((prev) => ({ ...prev, target: event.target.value }))}
+            disabled={isPosting}
+            className="rounded-lg border border-neutral-200 bg-white px-2.5 py-2.5 text-xs font-semibold text-neutral-600 outline-none transition focus:border-accent"
+          >
+            {NOTIFICATION_TARGETS.map((target) => (
+              <option key={target} value={target}>
+                {TARGET_LABELS[target]}
+              </option>
+            ))}
+          </select>
           <input
             type="text"
             value={draft.url}
@@ -232,6 +249,9 @@ export default function AdminNotificationsPanel({ onToast }) {
                   </p>
                   <p className="text-xs text-neutral-400">
                     {new Date(item.created_at).toLocaleString()}
+                    {normalizeNotificationTarget(item.target) !== "general"
+                      ? ` · ${TARGET_LABELS[normalizeNotificationTarget(item.target)]}`
+                      : ""}
                     {item.url ? ` · ${item.url}` : ""}
                   </p>
                 </div>

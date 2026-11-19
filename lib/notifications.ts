@@ -10,12 +10,45 @@ export const URL_MAX_LENGTH = 300;
 export const NOTIFICATION_KINDS = ["news", "update", "release", "warning"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
+// "general" is the ordinary announcement every listener sees. The four
+// spotlight targets are the same feed shown in the Library; the client uses
+// them to badge the right sub-tab and to decide whether the Library dot should
+// light up. Keeping this as a column (rather than parsing the URL) means an
+// admin can point a post at the Library without a link.
+export const NOTIFICATION_TARGETS = [
+  "general",
+  "spotlight",
+  "top",
+  "picks",
+  "highlights",
+] as const;
+export type NotificationTarget = (typeof NOTIFICATION_TARGETS)[number];
+
+export const SPOTLIGHT_TARGETS = ["spotlight", "top", "picks", "highlights"] as const;
+export type SpotlightTarget = (typeof SPOTLIGHT_TARGETS)[number];
+
+export const TARGET_LABELS: Record<NotificationTarget, string> = {
+  general: "General",
+  spotlight: "Spotlight",
+  top: "Top tracks",
+  picks: "Picks",
+  highlights: "Highlights",
+};
+
 export const KIND_LABELS: Record<NotificationKind, string> = {
   news: "News",
   update: "App update",
   release: "New release",
   warning: "Warning",
 };
+
+export const normalizeNotificationTarget = (value: unknown): NotificationTarget =>
+  (NOTIFICATION_TARGETS as readonly unknown[]).includes(value)
+    ? (value as NotificationTarget)
+    : "general";
+
+export const isSpotlightTarget = (value: unknown): value is SpotlightTarget =>
+  (SPOTLIGHT_TARGETS as readonly unknown[]).includes(value);
 
 // Class strings only, so this module stays importable from the API routes.
 // Components pair each kind with its own lucide icon.

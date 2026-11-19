@@ -17,7 +17,9 @@ import {
   KIND_LABELS,
   KIND_PILLS,
   NOTIFICATION_KINDS,
+  TARGET_LABELS,
   normalizeNotificationKind,
+  normalizeNotificationTarget,
 } from "@/lib/notifications";
 import {
   markNotificationRead,
@@ -453,6 +455,11 @@ export default function NotificationsPage() {
                                   {unread && <span className="sr-only">Unread · </span>}
                                   {KIND_CARD_LABELS[kind]}
                                 </span>
+                                {normalizeNotificationTarget(item.target) !== "general" && (
+                                  <span className="rounded-full bg-accent/8 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
+                                    {TARGET_LABELS[normalizeNotificationTarget(item.target)]}
+                                  </span>
+                                )}
                                 <span
                                   className="h-0.5 w-0.5 rounded-full bg-neutral-300"
                                   aria-hidden="true"
