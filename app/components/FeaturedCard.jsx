@@ -92,7 +92,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
         <span className={`block truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
           {song.title}
         </span>
-        <span className="mt-1 block truncate text-xs font-medium leading-4 text-neutral-500">
+        <span className="mt-0.5 block truncate text-xs font-medium leading-4 text-neutral-500">
           {song.author}
         </span>
       </span>

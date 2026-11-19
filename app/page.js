@@ -128,7 +128,7 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
             </span>
           )}
         </div>
-        <p className="mt-1 truncate text-xs font-medium leading-4 text-neutral-500">
+        <p className="mt-0.5 truncate text-xs font-medium leading-4 text-neutral-500">
           {song.author}
         </p>
       </div>
@@ -206,7 +206,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
             </span>
           )}
         </div>
-        <p className="mt-1 truncate text-xs font-medium leading-4 text-neutral-500">
+        <p className="mt-0.5 truncate text-xs font-medium leading-4 text-neutral-500">
           {song.author}
         </p>
       </div>
@@ -250,7 +250,7 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
         <p className={`truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
           {song.title}
         </p>
-        <p className="mt-1 truncate text-xs font-medium leading-4 text-neutral-500">
+        <p className="mt-0.5 truncate text-xs font-medium leading-4 text-neutral-500">
           {song.author}
         </p>
       </div>
@@ -320,7 +320,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
             </span>
           )}
         </div>
-        <p className="mt-1 truncate text-xs font-medium leading-4 text-neutral-500">
+        <p className="mt-0.5 truncate text-xs font-medium leading-4 text-neutral-500">
           {song.author}
         </p>
       </div>
@@ -666,7 +666,7 @@ export default function Home() {
                   <div className="min-w-0 flex-1">
                     <span className="text-xs font-medium leading-4 text-neutral-500">In your player</span>
                     <p className="truncate text-sm font-semibold leading-5 text-neutral-900">{activeSong.title}</p>
-                    <p className="mt-1 truncate text-xs leading-4 text-neutral-500">{activeSong.author}</p>
+                    <p className="mt-0.5 truncate text-xs leading-4 text-neutral-500">{activeSong.author}</p>
                   </div>
                 </div>
               ) : (
@@ -780,7 +780,7 @@ export default function Home() {
                           <h2 className="truncate text-sm font-bold leading-5 text-white sm:text-base">
                             {spotifySong.title}
                           </h2>
-                          <p className="mt-1 truncate text-xs leading-4 text-neutral-300">
+                          <p className="mt-0.5 truncate text-xs leading-4 text-neutral-300">
                             {spotifySong.author}
                           </p>
                         </div>
