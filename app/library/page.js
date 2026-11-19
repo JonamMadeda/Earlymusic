@@ -11,7 +11,23 @@ import { apiFetch } from "@/lib/apiFetch";
 import { getNewSongIds } from "@/lib/newSongs";
 import { useOnlineStatus } from "@/lib/useOnlineStatus";
 import {
-  Disc, LogIn, Heart, ListMusic, Download, Play, Trash2, Plus, Trophy, Loader2,
+  Disc,
+  LogIn,
+  Heart,
+  ListMusic,
+  Download,
+  Play,
+  Trash2,
+  Plus,
+  Trophy,
+  Loader2,
+  Search,
+  X,
+  Shuffle,
+  MoreHorizontal,
+  ExternalLink,
+  HardDrive,
+  WifiOff,
 } from "lucide-react";
 import Link from "next/link";
 import UndoToast from "../components/UndoToast";
@@ -43,6 +59,16 @@ const tabs = [
 
 const tabKeys = tabs.map((t) => t.key);
 
+// Fisher–Yates keeps "Shuffle" honest: every ordering is equally likely.
+const shuffleSongs = (queue) => {
+  const shuffled = [...queue];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
 function LibraryContent() {
   const { user, loading: authLoading } = useAuth();
   const { allSongs, setAllSongs, setActiveSong } = usePlayer();
@@ -56,8 +82,17 @@ function LibraryContent() {
   });
   const [loading, setLoading] = useState(true);
 
-  // Same History-API approach as the songs page: the address bar mirrors the
-  // selected tab without a soft navigation re-suspending the page.
+  // The initial state handles the first paint. Listening for popstate lets
+  // Back/Forward switch tabs without a soft navigation re-suspending the page.
+  useEffect(() => {
+    const applyTabFromLocation = () => {
+      const tab = new URLSearchParams(window.location.search).get("tab");
+      setActiveTab(tabKeys.includes(tab) ? tab : "downloads");
+    };
+    window.addEventListener("popstate", applyTabFromLocation);
+    return () => window.removeEventListener("popstate", applyTabFromLocation);
+  }, []);
+
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
     if (activeTab === "downloads") params.delete("tab");
@@ -78,6 +113,9 @@ function LibraryContent() {
   const [playlists, setPlaylists] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
+
+  // Liked-song search keeps long collections scannable.
+  const [likedQuery, setLikedQuery] = useState("");
 
   // Downloads
   const [downloadedSongs, setDownloadedSongs] = useState([]);
@@ -197,14 +235,25 @@ function LibraryContent() {
       .slice(0, 10);
   }, [topPlays, allSongs]);
 
-  const groupedSaved = useMemo(() => {    const sorted = [...savedSongs].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+  const filteredSavedSongs = useMemo(() => {
+    const query = likedQuery.trim().toLowerCase();
+    if (!query) return savedSongs;
+    return savedSongs.filter(
+      (song) =>
+        (song.title || "").toLowerCase().includes(query) ||
+        (song.author || "").toLowerCase().includes(query)
+    );
+  }, [savedSongs, likedQuery]);
+
+  const groupedSaved = useMemo(() => {
+    const sorted = [...filteredSavedSongs].sort((a, b) => (a.title || "").localeCompare(b.title || ""));
     return sorted.reduce((groups, song) => {
       const letter = song.title?.[0]?.toUpperCase() || "#";
       if (!groups[letter]) groups[letter] = [];
       groups[letter].push(song);
       return groups;
     }, {});
-  }, [savedSongs]);
+  }, [filteredSavedSongs]);
 
   // Queue must follow the rendered order (letter groups sorted, A-Z within),
   // not the save-date order of savedSongs.
@@ -309,6 +358,12 @@ function LibraryContent() {
     }
   };
 
+  const playShuffled = (queue) => {
+    if (!queue || queue.length === 0) return;
+    const shuffled = shuffleSongs(queue);
+    setActiveSong(shuffled[0], shuffled);
+  };
+
   // The header count chips jump to their tab, but only while the tab strip
   // itself is rendered (offline, loading, and signed-out states have no tabs).
   const tabsAvailable = isOnline && !authLoading && !!user && !loading;
@@ -342,76 +397,74 @@ function LibraryContent() {
     }
   };
 
-  return (
-    <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
-      <div className="max-w-5xl mx-auto">
-        <section className="mb-6 md:mb-8">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
-              Library
-            </h1>
-            {tabsAvailable ? (
-              <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-400">
-                <button
-                  type="button"
-                  onClick={() => jumpToTab("saved")}
-                  className="transition hover:text-neutral-900"
-                >
-                  {savedSongs.length} liked
-                </button>
-                <span aria-hidden="true">·</span>
-                <button
-                  type="button"
-                  onClick={() => jumpToTab("playlists")}
-                  className="transition hover:text-neutral-900"
-                >
-                  {playlists.length} playlist{playlists.length !== 1 ? "s" : ""}
-                </button>
-                <span aria-hidden="true">·</span>
-                <span>{downloadedSongs.length} downloaded</span>
-              </span>
-            ) : (
-              <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-400">
-                {savedSongs.length} liked · {playlists.length} playlist{playlists.length !== 1 ? "s" : ""} · {downloadedSongs.length} downloaded
-              </span>
-            )}
-          </div>
-          <div className="mt-3 md:hidden flex items-center gap-2 text-xs text-neutral-500">
-            {tabsAvailable ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => jumpToTab("saved")}
-                  className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium transition hover:text-neutral-900"
-                >
-                  {savedSongs.length} liked
-                </button>
-                <button
-                  type="button"
-                  onClick={() => jumpToTab("playlists")}
-                  className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium transition hover:text-neutral-900"
-                >
-                  {playlists.length} playlist{playlists.length !== 1 ? "s" : ""}
-                </button>
-                <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{downloadedSongs.length} downloaded</span>
-              </>
-            ) : (
-              <>
-                <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{savedSongs.length} liked</span>
-                <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{playlists.length} playlist{playlists.length !== 1 ? "s" : ""}</span>
-                <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 font-medium">{downloadedSongs.length} downloaded</span>
-              </>
-            )}
-          </div>
-        </section>
+  const storagePercent =
+    storage && storage.quota > 0
+      ? Math.min(100, Math.round((storage.usage / storage.quota) * 100))
+      : 0;
+  const storageFull = storage && storage.quota > 0 && storage.usage / storage.quota >= 0.95;
 
-        {/* One tab strip — Downloads first, then the account collections */}
-        <section className="mb-8">
+  const stats = [
+    { key: "saved", icon: Heart, value: savedSongs.length, label: "liked" },
+    {
+      key: "playlists",
+      icon: ListMusic,
+      value: playlists.length,
+      label: playlists.length === 1 ? "playlist" : "playlists",
+    },
+    { key: "downloads", icon: Download, value: downloadedSongs.length, label: "downloaded" },
+  ];
+
+  return (
+    <div className="min-h-[90vh] bg-white px-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-6 md:px-8 md:pt-5">
+      <div className="mx-auto max-w-5xl">
+        <header className="flex flex-col gap-4 border-b border-neutral-100 pb-4 md:flex-row md:items-end md:justify-between md:pb-5">
+          <div className="min-w-0">
+            <h1 className="page-title">Library</h1>
+            <p className="mt-1 max-w-xl text-xs font-medium leading-5 text-neutral-500 sm:text-sm">
+              Your liked songs, playlists, and offline downloads.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center">
+            {stats.map((stat) =>
+              tabsAvailable ? (
+                <button
+                  key={stat.key}
+                  type="button"
+                  onClick={() => jumpToTab(stat.key)}
+                  className="group flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-2 py-2 text-[11px] font-medium text-neutral-500 shadow-2xs transition hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 sm:justify-start sm:gap-2 sm:px-3 sm:text-xs"
+                >
+                  <stat.icon
+                    size={13}
+                    className="hidden shrink-0 text-neutral-400 transition group-hover:text-accent sm:block"
+                  />
+                  <span className="truncate">
+                    <span className="font-bold text-neutral-900">{stat.value}</span>{" "}
+                    {stat.label}
+                  </span>
+                </button>
+              ) : (
+                <span
+                  key={stat.key}
+                  className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-2 py-2 text-[11px] font-medium text-neutral-500 shadow-2xs sm:justify-start sm:gap-2 sm:px-3 sm:text-xs"
+                >
+                  <stat.icon size={13} className="hidden shrink-0 text-neutral-400 sm:block" />
+                  <span className="truncate">
+                    <span className="font-bold text-neutral-900">{stat.value}</span>{" "}
+                    {stat.label}
+                  </span>
+                </span>
+              )
+            )}
+          </div>
+        </header>
+
+        <div className="mt-4 md:mt-5">
           <div
             ref={tablistRef}
             role="tablist"
             aria-label="Library sections"
-            className="mb-6 flex gap-1 overflow-x-auto no-scrollbar overscroll-x-contain rounded-2xl border border-neutral-200 bg-white p-1 shadow-sm"
+            className="grid w-full scroll-mt-4 grid-cols-4 gap-1 rounded-xl border border-neutral-200 bg-neutral-100/70 p-1 sm:inline-grid sm:w-auto"
           >
             {tabs.map((tab, idx) => {
               const isActive = activeTab === tab.key;
@@ -428,378 +481,622 @@ function LibraryContent() {
                   tabIndex={isActive ? 0 : -1}
                   onClick={() => setActiveTab(tab.key)}
                   onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                  className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold whitespace-nowrap transition ${
+                  className={`flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-1.5 py-2 text-[11px] font-semibold whitespace-nowrap transition sm:gap-2 sm:px-4 sm:text-xs ${
                     isActive
-                      ? "bg-accent text-white shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50"
+                      ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
+                      : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
                   }`}
                 >
-                  <tab.icon size={14} />
+                  <tab.icon
+                    size={14}
+                    strokeWidth={isActive ? 2.5 : 2}
+                    className="hidden shrink-0 sm:block"
+                  />
                   <span>{tab.label}</span>
                 </button>
               );
             })}
           </div>
+        </div>
 
+        <div className="mt-5 md:mt-6">
           {activeTab === "downloads" && (
-            <div role="tabpanel" id="library-tabpanel-downloads" aria-labelledby="library-tab-downloads">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-xs font-medium text-neutral-400">
-              {downloadedSongs.length > 0
-                ? `${downloadedSongs.length} available offline`
-                : "Saved on this device for offline listening"}
-            </p>
-            {downloadedSongs.length > 0 && (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveSong(downloadQueue[0], downloadQueue)}
-                  className="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
-                >
-                  <Play size={11} fill="currentColor" />
-                  Play all
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClearDownloads}
-                  className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-neutral-500 transition hover:bg-red-50 hover:text-red-500"
-                >
-                  Clear
-                </button>
-              </div>
-            )}
-          </div>
-
-          {storage && storage.quota > 0 && (
-            <p className={`mb-4 text-xs font-medium ${(storage.usage / storage.quota) >= 0.95 ? "text-red-500" : "text-neutral-400"}`}>
-              {(storage.usage / storage.quota) >= 0.95
-                ? "Storage is full — remove some downloads to free up space"
-                : `${formatBytes(storage.usage)} used · ${formatBytes(storage.available)} free`}
-            </p>
-          )}
-
-          {downloadedSongs.length === 0 && downloading.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-neutral-200 bg-white shadow-sm">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
-                <Download size={26} />
-              </div>
-              <h3 className="text-sm md:text-base font-bold text-neutral-900">No downloaded songs</h3>
-              <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">
-                {isOnline ? "Save songs to your device for smooth listening without an internet connection." : "Reconnect to download songs, then listen here without an internet connection."}
-              </p>
-              {isOnline && (
-                <Link
-                  href="/songs"
-                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition"
-                >
-                  Browse Songs to Download
-                </Link>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-start gap-2">
-              <div className="min-w-0 flex-1 flex flex-col gap-y-6">
-                {downloading.length > 0 && (
-                  <div className="flex flex-col gap-y-2 md:gap-y-3">
-                    {downloading.map((song) => (
-                      <div
-                        key={`dl-${song.id}`}
-                        className="flex w-full items-center gap-3 px-2 py-2.5 text-left opacity-80 sm:px-3 md:gap-3.5"
-                      >
-                        <SongAvatar title={song.title} size="sm" variant="mono" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
-                          <p className="truncate text-xs font-medium text-neutral-400 mt-0.5">{song.author}</p>
-                        </div>
-                        <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-neutral-500">
-                          <Loader2 size={13} className="animate-spin" aria-hidden="true" />
-                          Downloading&hellip;
-                        </span>
+            <div
+              role="tabpanel"
+              id="library-tabpanel-downloads"
+              aria-labelledby="library-tab-downloads"
+              className="animate-fade-in"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                  <h2 className="section-title">Downloads</h2>
+                  <p className="mt-0.5 text-xs font-medium text-neutral-500">
+                    {downloadedSongs.length > 0
+                      ? `${downloadedSongs.length} ${downloadedSongs.length === 1 ? "song" : "songs"} available offline`
+                      : "Saved on this device for offline listening"}
+                  </p>
+                  {storage && storage.quota > 0 && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <HardDrive size={12} className="shrink-0 text-neutral-400" />
+                      <div className="h-1 w-24 overflow-hidden rounded-full bg-neutral-100">
+                        <div
+                          className={`h-full rounded-full ${storageFull ? "bg-red-500" : "bg-accent/70"}`}
+                          style={{ width: `${storagePercent}%` }}
+                        />
                       </div>
-                    ))}
+                      <p
+                        className={`text-[11px] font-medium ${
+                          storageFull ? "text-red-500" : "text-neutral-400"
+                        }`}
+                      >
+                        {storageFull
+                          ? "Storage almost full — remove a download to free space"
+                          : `${formatBytes(storage.usage)} of ${formatBytes(storage.quota)} used`}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {downloadedSongs.length > 0 && (
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveSong(downloadQueue[0], downloadQueue)}
+                      className="btn-primary min-h-9 px-3.5 py-1.5 text-xs"
+                    >
+                      <Play size={11} fill="currentColor" />
+                      Play all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearDownloads}
+                      className="btn-tertiary min-h-9 px-2.5 py-1.5 text-xs text-neutral-500 hover:bg-red-50 hover:text-red-600"
+                    >
+                      Clear
+                    </button>
                   </div>
                 )}
-                {downloadLetters.map((letter) => (
-                  <div key={letter} id={`download-group-${letter}`} className="scroll-mt-24 flex flex-col gap-y-3">
-                    <div className="flex items-center gap-3 border-b border-neutral-100 px-1 pb-2">
-                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/[0.06] border border-accent/10 text-xs font-bold text-accent">{letter}</span>
-                    </div>
-                    <div className="flex flex-col divide-y divide-neutral-200/70">
-                      {groupedDownloads[letter].map((song) => (
-                        <div
-                          key={song.id}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => setActiveSong(song, downloadQueue)}
-                          onKeyDown={(e) => {
-                            if (e.target !== e.currentTarget) return;
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setActiveSong(song, downloadQueue);
-                            }
-                          }}
-                          className="group flex w-full cursor-pointer items-center gap-3 px-2 py-2.5 text-left transition-colors duration-150 hover:bg-neutral-50 active:bg-neutral-100 sm:px-3 md:gap-3.5"
+              </div>
+
+              {downloadedSongs.length === 0 && downloading.length === 0 ? (
+                <div className="mt-5 flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 px-4 py-14 text-center">
+                  <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.06] text-accent">
+                    <Download size={26} />
+                  </div>
+                  <h3 className="text-sm font-bold text-neutral-900 md:text-base">No downloaded songs</h3>
+                  <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
+                    {isOnline
+                      ? "Save songs to your device for smooth listening without an internet connection."
+                      : "Reconnect to download songs, then listen here without an internet connection."}
+                  </p>
+                  {isOnline && (
+                    <Link
+                      href="/songs"
+                      className="btn-primary mt-4 min-h-9 px-4 py-2 text-xs"
+                    >
+                      Browse songs
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-4 flex items-start gap-2">
+                  <div className="flex min-w-0 flex-1 flex-col gap-y-3">
+                    {downloading.length > 0 && (
+                      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+                        <div className="flex items-center gap-2 border-b border-neutral-100 px-3.5 py-2.5 text-xs font-semibold text-neutral-500">
+                          <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+                          Downloading {downloading.length}
+                        </div>
+                        <div className="divide-y divide-neutral-100">
+                          {downloading.map((song) => (
+                            <div
+                              key={`dl-${song.id}`}
+                              className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left opacity-80"
+                            >
+                              <SongAvatar title={song.title} size="row" variant="mono" />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+                                  {song.title}
+                                </p>
+                                <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
+                                  {song.author}
+                                </p>
+                              </div>
+                              <span className="shrink-0 text-[11px] font-semibold text-neutral-500">
+                                Saving&hellip;
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+                      {downloadLetters.map((letter, groupIndex) => (
+                        <section
+                          key={letter}
+                          id={`download-group-${letter}`}
+                          className={`scroll-mt-24 ${groupIndex > 0 ? "border-t border-neutral-100" : ""}`}
                         >
-                          <SongAvatar title={song.title} size="sm" variant="mono" />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">{song.title}</p>
-                            <p className="truncate text-xs font-medium text-neutral-400 mt-0.5">{song.author}</p>
+                          <div className="flex items-center gap-2 bg-neutral-50/80 px-3.5 py-1.5">
+                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-accent/10 bg-accent/[0.06] text-[11px] font-bold text-accent">
+                              {letter}
+                            </span>
+                            <span className="text-[11px] font-semibold text-neutral-400">
+                              {groupedDownloads[letter].length}{" "}
+                              {groupedDownloads[letter].length === 1 ? "song" : "songs"}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-all group-hover:bg-accent group-hover:text-white">
-                              <Play size={13} fill="currentColor" className="ml-0.5" />
+                          <div className="divide-y divide-neutral-100">
+                            {groupedDownloads[letter].map((song) => (
+                              <div
+                                key={song.id}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setActiveSong(song, downloadQueue)}
+                                onKeyDown={(e) => {
+                                  if (e.target !== e.currentTarget) return;
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    setActiveSong(song, downloadQueue);
+                                  }
+                                }}
+                                className="group flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left transition-colors duration-150 hover:bg-neutral-50 active:bg-neutral-100"
+                              >
+                                <SongAvatar title={song.title} size="row" variant="mono" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+                                    {song.title}
+                                  </p>
+                                  <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
+                                    {song.author}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span
+                                    aria-hidden="true"
+                                    className="hidden h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-colors group-hover:bg-accent group-hover:text-white sm:flex"
+                                  >
+                                    <Play size={12} fill="currentColor" className="ml-0.5" />
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleRemoveDownload(e, song.id)}
+                                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+                                    title="Remove download"
+                                    aria-label={`Remove ${song.title || "song"} download`}
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      ))}
+                    </div>
+                  </div>
+
+                  {downloadLetters.length > 1 && (
+                    <nav
+                      aria-label="Jump to letter in downloads"
+                      className="songs-index sticky top-24 flex shrink-0 flex-col items-center gap-0.5 py-1 pl-1"
+                    >
+                      {downloadLetters.map((letter) => (
+                        <button
+                          key={letter}
+                          type="button"
+                          onClick={() => jumpToDownloadLetter(letter)}
+                          className="rounded px-1 py-0.5 text-[10px] font-bold leading-tight text-neutral-400 transition hover:text-accent"
+                        >
+                          {letter}
+                        </button>
+                      ))}
+                    </nav>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Account tabs — gated individually so Downloads never disappears */}
+          {activeTab !== "downloads" && (
+            <div
+              role="tabpanel"
+              id={`library-tabpanel-${activeTab}`}
+              aria-labelledby={`library-tab-${activeTab}`}
+              className="animate-fade-in"
+            >
+              {!isOnline ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 px-4 py-14 text-center">
+                  <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-neutral-200 bg-white text-neutral-400 shadow-sm">
+                    <WifiOff size={24} />
+                  </div>
+                  <h3 className="text-sm font-bold text-neutral-900 md:text-base">You&rsquo;re offline</h3>
+                  <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
+                    Downloads still play on this device. Playlists, liked songs, and your top tracks
+                    will be here when you reconnect.
+                  </p>
+                </div>
+              ) : authLoading || (user && loading) ? (
+                <PageSkeleton />
+              ) : !user ? (
+                <div className="rounded-2xl border border-neutral-200 bg-gradient-to-b from-neutral-50/70 to-white p-6 shadow-sm sm:p-8">
+                  <div className="max-w-md">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.06] text-accent">
+                      <Disc size={24} />
+                    </div>
+                    <h2 className="mt-4 text-lg font-bold tracking-tight text-neutral-900">
+                      Sign in to see your library
+                    </h2>
+                    <p className="mt-1.5 text-xs leading-relaxed text-neutral-500 sm:text-sm">
+                      Keep your liked songs, playlists, and listening stats together across your devices.
+                      Downloads stay available on this device without an account.
+                    </p>
+                    <ul className="mt-4 space-y-2 text-xs font-medium text-neutral-600">
+                      <li className="flex items-center gap-2.5">
+                        <Heart size={13} className="shrink-0 text-neutral-400" />
+                        Like songs and build a personal collection
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <ListMusic size={13} className="shrink-0 text-neutral-400" />
+                        Create playlists for any moment
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <Trophy size={13} className="shrink-0 text-neutral-400" />
+                        See your most played tracks
+                      </li>
+                    </ul>
+                    <Link href="/auth" className="btn-primary mt-5 px-4.5 text-xs">
+                      <LogIn size={14} /> Sign In
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Liked songs */}
+                  {activeTab === "saved" && (
+                    <div>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                        <div className="min-w-0">
+                          <h2 className="section-title">Liked songs</h2>
+                          <p className="mt-0.5 text-xs font-medium text-neutral-500">
+                            {savedSongs.length > 0
+                              ? `${filteredSavedSongs.length} of ${savedSongs.length} ${
+                                  savedSongs.length === 1 ? "song" : "songs"
+                                } · sorted A–Z`
+                              : "Songs you like will collect here"}
+                          </p>
+                        </div>
+                        {savedSongs.length > 0 && (
+                          <div className="flex shrink-0 items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setActiveSong(savedQueue[0], savedQueue)}
+                              className="btn-primary min-h-9 px-3.5 py-1.5 text-xs"
+                            >
+                              <Play size={11} fill="currentColor" />
+                              Play all
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => playShuffled(savedQueue)}
+                              className="btn-secondary min-h-9 px-3 py-1.5 text-xs"
+                            >
+                              <Shuffle size={12} />
+                              Shuffle
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {savedSongs.length > 0 && (
+                        <div className="search-field mt-3 flex h-10 items-center gap-2 rounded-xl border border-neutral-200/80 bg-neutral-50 px-3 text-neutral-500 transition focus-within:border-neutral-300 focus-within:bg-white">
+                          <Search size={14} className="shrink-0 text-neutral-400" />
+                          <input
+                            type="text"
+                            value={likedQuery}
+                            onChange={(e) => setLikedQuery(e.target.value)}
+                            placeholder="Search liked songs…"
+                            aria-label="Search liked songs"
+                            autoComplete="off"
+                            className="w-full min-w-0 bg-transparent text-sm font-medium text-neutral-900 outline-none placeholder:text-neutral-400"
+                          />
+                          {likedQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setLikedQuery("")}
+                              aria-label="Clear search"
+                              className="tap-sm flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-200"
+                            >
+                              <X size={11} strokeWidth={3} />
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {savedSongs.length === 0 ? (
+                        <div className="mt-5 flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 px-4 py-14 text-center">
+                          <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.06] text-accent">
+                            <Heart size={26} />
+                          </div>
+                          <h3 className="text-sm font-bold text-neutral-900 md:text-base">No liked songs yet</h3>
+                          <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
+                            Tap the heart on any song while listening to collect your favorites here.
+                          </p>
+                          <Link href="/songs" className="btn-primary mt-4 min-h-9 px-4 py-2 text-xs">
+                            Discover songs
+                          </Link>
+                        </div>
+                      ) : filteredSavedSongs.length === 0 ? (
+                        <div className="mt-5 rounded-2xl border border-neutral-200 bg-white px-4 py-10 text-center shadow-sm">
+                          <p className="text-sm font-semibold text-neutral-900">No matching songs</p>
+                          <p className="mt-1 text-xs text-neutral-500">
+                            Nothing in your liked songs matches &ldquo;{likedQuery}&rdquo;.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setLikedQuery("")}
+                            className="btn-tertiary mt-3 min-h-9 text-xs"
+                          >
+                            Clear search
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+                          {Object.keys(groupedSaved).sort().map((letter, groupIndex) => (
+                            <section
+                              key={letter}
+                              className={groupIndex > 0 ? "border-t border-neutral-100" : ""}
+                            >
+                              <div className="flex items-center gap-2 bg-neutral-50/80 px-3.5 py-1.5">
+                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-accent/10 bg-accent/[0.06] text-[11px] font-bold text-accent">
+                                  {letter}
+                                </span>
+                                <span className="text-[11px] font-semibold text-neutral-400">
+                                  {groupedSaved[letter].length}{" "}
+                                  {groupedSaved[letter].length === 1 ? "song" : "songs"}
+                                </span>
+                              </div>
+                              <div className="divide-y divide-neutral-100">
+                                {groupedSaved[letter].map((song) => (
+                                  <SongItem
+                                    key={song.id}
+                                    song={song}
+                                    onClick={() => setActiveSong(song, savedQueue)}
+                                    saved={true}
+                                    onToggleSave={handleToggleSaved}
+                                    isNew={newSongIds.has(song.id)}
+                                  />
+                                ))}
+                              </div>
+                            </section>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Most listened — this user's top 10 by play count */}
+                  {activeTab === "top" && (
+                    <div>
+                      {topSongs.length > 0 ? (
+                        <>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                            <div className="min-w-0">
+                              <h2 className="section-title">Your most played</h2>
+                              <p className="mt-0.5 text-xs font-medium text-neutral-500">
+                                The tracks you return to most, ranked by play count.
+                              </p>
                             </div>
                             <button
                               type="button"
-                              onClick={(e) => handleRemoveDownload(e, song.id)}
-                              className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-500"
-                              title="Remove download"
+                              onClick={() => setActiveSong(topSongs[0], topSongs)}
+                              className="btn-primary min-h-9 shrink-0 px-3.5 py-1.5 text-xs"
                             >
-                              <Trash2 size={14} />
+                              <Play size={11} fill="currentColor" />
+                              Play Top 10
+                            </button>
+                          </div>
+
+                          <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+                            <div className="divide-y divide-neutral-100">
+                              {topSongs.map((song, idx) => (
+                                <div
+                                  key={song.id}
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => setActiveSong(song, topSongs)}
+                                  onKeyDown={(e) => {
+                                    if (e.target !== e.currentTarget) return;
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      setActiveSong(song, topSongs);
+                                    }
+                                  }}
+                                  className="group flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left transition-colors duration-150 hover:bg-neutral-50 active:bg-neutral-100"
+                                >
+                                  <span
+                                    className={`w-5 shrink-0 text-center text-xs font-bold tabular-nums ${
+                                      idx < 3 ? "text-accent" : "text-neutral-400"
+                                    }`}
+                                  >
+                                    {String(idx + 1).padStart(2, "0")}
+                                  </span>
+                                  <SongAvatar title={song.title} size="row" variant="mono" />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+                                      {song.title}
+                                    </p>
+                                    <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
+                                      {song.author}
+                                    </p>
+                                  </div>
+                                  {song.playCount > 0 && (
+                                    <span className="hidden shrink-0 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-500 sm:inline">
+                                      {song.playCount} {song.playCount === 1 ? "play" : "plays"}
+                                    </span>
+                                  )}
+                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-colors group-hover:bg-accent group-hover:text-white">
+                                    <Play size={12} fill="currentColor" className="ml-0.5" />
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 px-4 py-14 text-center">
+                          <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.06] text-accent">
+                            <Trophy size={26} />
+                          </div>
+                          <h3 className="text-sm font-bold text-neutral-900 md:text-base">No plays counted yet</h3>
+                          <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
+                            Listen to songs while signed in and your personal top 10 will build up here.
+                          </p>
+                          <Link href="/songs" className="btn-primary mt-4 min-h-9 px-4 py-2 text-xs">
+                            Discover songs
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Playlists */}
+                  {activeTab === "playlists" && (
+                    <div>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                        <div className="min-w-0">
+                          <h2 className="section-title">Playlists</h2>
+                          <p className="mt-0.5 text-xs font-medium text-neutral-500">
+                            {playlists.length > 0
+                              ? `${playlists.length} ${playlists.length === 1 ? "collection" : "collections"}`
+                              : "Collections for any moment"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowCreate(!showCreate)}
+                          className="btn-primary min-h-9 shrink-0 px-3.5 py-1.5 text-xs"
+                        >
+                          <Plus size={13} />
+                          New Playlist
+                        </button>
+                      </div>
+
+                      {showCreate && (
+                        <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center">
+                          <input
+                            type="text"
+                            placeholder="Playlist name..."
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && createPlaylist()}
+                            className="flex-1 rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-sm font-medium outline-none transition placeholder:text-neutral-400 focus:border-accent/40 focus:bg-white"
+                            autoFocus
+                          />
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={createPlaylist}
+                              disabled={!newName.trim()}
+                              className="btn-primary min-h-9 flex-1 px-4 py-2 text-xs sm:flex-none"
+                            >
+                              Create
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowCreate(false);
+                                setNewName("");
+                              }}
+                              className="btn-tertiary min-h-9 px-3 py-2 text-xs"
+                            >
+                              Cancel
                             </button>
                           </div>
                         </div>
-                      ))}
+                      )}
+
+                      {playlists.length === 0 ? (
+                        <div className="mt-5 flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 px-4 py-14 text-center">
+                          <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.06] text-accent">
+                            <ListMusic size={26} />
+                          </div>
+                          <h3 className="text-sm font-bold text-neutral-900 md:text-base">No playlists yet</h3>
+                          <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
+                            Create collections for praise, meditation, personal worship, or study.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setShowCreate(true)}
+                            className="btn-primary mt-4 min-h-9 px-4 py-2 text-xs"
+                          >
+                            <Plus size={14} />
+                            Create Playlist
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {playlists.map((pl) => (
+                            <div
+                              key={pl.id}
+                              onClick={() => router.push(`/playlists/${pl.id}`)}
+                              className="group relative flex cursor-pointer items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md"
+                            >
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent/10 bg-accent/[0.06] text-accent">
+                                <ListMusic size={20} />
+                              </div>
+                              <div className="min-w-0 flex-1 pt-0.5">
+                                <h3 className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+                                  {pl.name}
+                                </h3>
+                                <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+                                  Playlist
+                                </p>
+                              </div>
+                              <details
+                                className="relative shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <summary
+                                  aria-label={`More options for ${pl.name}`}
+                                  className="tap-sm flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-900 [&::-webkit-details-marker]:hidden"
+                                >
+                                  <MoreHorizontal size={16} />
+                                </summary>
+                                <div className="absolute right-0 top-full z-30 mt-1 w-40 rounded-xl border border-neutral-100 bg-white p-1.5 shadow-lg">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      router.push(`/playlists/${pl.id}`);
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+                                  >
+                                    <ExternalLink size={13} className="text-neutral-400" />
+                                    Open playlist
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => deletePlaylist(e, pl.id)}
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                                  >
+                                    <Trash2 size={13} />
+                                    Delete playlist
+                                  </button>
+                                </div>
+                              </details>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
-              {downloadLetters.length > 1 && (
-                <nav
-                  aria-label="Jump to letter in downloads"
-                  className="sticky top-24 flex shrink-0 flex-col items-center gap-1 py-1 pr-1"
-                >
-                  {downloadLetters.map((letter) => (
-                    <button
-                      key={letter}
-                      type="button"
-                      onClick={() => jumpToDownloadLetter(letter)}
-                      className="px-1 text-[10px] font-bold leading-tight text-neutral-400 transition hover:text-accent"
-                    >
-                      {letter}
-                    </button>
-                  ))}
-                </nav>
+                  )}
+                </>
               )}
             </div>
           )}
-            </div>
-          )}
-        </section>
-
-        {/* Account tabs — gated individually so Downloads never disappears */}
-        {activeTab !== "downloads" && (
-          <div role="tabpanel" id={`library-tabpanel-${activeTab}`} aria-labelledby={`library-tab-${activeTab}`}>
-          {!isOnline ? (
-          <div className="rounded-2xl border border-dashed border-neutral-200 bg-white p-6 text-center shadow-sm">
-            <p className="text-xs font-medium text-neutral-500">
-              You&rsquo;re offline. Downloads still play here — Playlists, Liked and Top return when you reconnect.
-            </p>
-          </div>
-        ) : authLoading || (user && loading) ? (
-          <PageSkeleton />
-        ) : !user ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-white px-4 py-16 text-center shadow-sm">
-            <Disc className="mb-4 text-neutral-300" size={32} />
-            <p className="mb-1 text-sm font-semibold text-neutral-900">Sign in to see your library</p>
-            <p className="mb-4 max-w-sm text-xs text-neutral-500">Your downloads stay available on this device without an account.</p>
-            <Link href="/auth" className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90">
-              <LogIn size={14} /> Sign In
-            </Link>
-          </div>
-        ) : (
-          <>
-        {/* Liked songs */}
-        {activeTab === "saved" && (
-          <div>
-            {savedSongs.length > 0 ? (
-              <div className="flex flex-col gap-y-6">
-                {Object.keys(groupedSaved).sort().map((letter) => (
-                    <div key={letter} className="flex flex-col gap-y-3">
-                      <div className="flex items-center gap-3 border-b border-neutral-100 pb-2 px-1">
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent/[0.06] border border-accent/10 text-xs font-bold text-accent">{letter}</span>
-                      </div>
-                    <div className="flex flex-col divide-y divide-neutral-200/70">
-                      {groupedSaved[letter].map((song) => (
-                        <SongItem
-                          key={song.id}
-                          song={song}
-                          onClick={() => setActiveSong(song, savedQueue)}
-                          saved={true}
-                          onToggleSave={handleToggleSaved}
-                          isNew={newSongIds.has(song.id)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-neutral-200 bg-white shadow-sm">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
-                  <Heart size={26} />
-                </div>
-                <h3 className="text-sm md:text-base font-bold text-neutral-900">No liked songs yet</h3>
-                <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">Tap the heart on any song while listening to collect your favorites here.</p>
-                <Link href="/songs" className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition">
-                  Discover Songs
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Most listened — this user's top 10 by play count */}
-        {activeTab === "top" && (
-          <div>
-            {topSongs.length > 0 ? (
-              <>
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-xs font-medium text-neutral-500">
-                    Your most played tracks
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSong(topSongs[0], topSongs)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-accent/90"
-                  >
-                    <Play size={11} fill="currentColor" />
-                    Play Top 10
-                  </button>
-                </div>
-                <div className="flex flex-col divide-y divide-neutral-200/70">
-                  {topSongs.map((song, idx) => (
-                    <div
-                      key={song.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setActiveSong(song, topSongs)}
-                      onKeyDown={(e) => {
-                        if (e.target !== e.currentTarget) return;
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          setActiveSong(song, topSongs);
-                        }
-                      }}
-                      className="group flex w-full cursor-pointer items-center gap-2.5 px-2 py-2.5 text-left transition-colors duration-150 hover:bg-neutral-50 active:bg-neutral-100 sm:px-3 sm:gap-3.5"
-                    >
-                      <span className="w-5 shrink-0 text-center text-xs font-bold tabular-nums text-neutral-400">
-                        {String(idx + 1).padStart(2, "0")}
-                      </span>
-                      <SongAvatar title={song.title} size="sm" variant="mono" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-bold tracking-tight text-neutral-900">{song.title}</p>
-                        <p className="truncate text-xs font-medium text-neutral-500 mt-0.5">{song.author}</p>
-                      </div>
-                      {song.playCount > 0 && (
-                        <span className="shrink-0 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-bold text-neutral-600">
-                          {song.playCount} {song.playCount === 1 ? "play" : "plays"}
-                        </span>
-                      )}
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500 transition-all group-hover:bg-accent group-hover:text-white">
-                        <Play size={12} fill="currentColor" className="ml-0.5" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-neutral-200 bg-white shadow-sm">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
-                  <Trophy size={26} />
-                </div>
-                <h3 className="text-sm md:text-base font-bold text-neutral-900">No plays counted yet</h3>
-                <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">Listen to songs while signed in and your personal top 10 will build up here.</p>
-                <Link href="/songs" className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition">
-                  Discover Songs
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Playlists */}
-        {activeTab === "playlists" && (
-          <div>
-            <div className="mb-6">
-              <button
-                onClick={() => setShowCreate(!showCreate)}
-                className="inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-accent/90"
-              >
-                <Plus size={13} />
-                New Playlist
-              </button>
-            </div>
-
-            {showCreate && (
-              <div className="mb-6 -mt-2 flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-3.5 shadow-sm">
-                <input
-                  type="text"
-                  placeholder="Playlist name..."
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && createPlaylist()}
-                  className="flex-1 rounded-full border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-xs font-medium outline-none transition placeholder:text-neutral-300 focus:border-accent focus:bg-white"
-                  autoFocus
-                />
-                <button
-                  onClick={createPlaylist}
-                  disabled={!newName.trim()}
-                  className="rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50 shadow-sm"
-                >
-                  Create
-                </button>
-              </div>
-            )}
-
-            {playlists.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl border border-dashed border-neutral-200 bg-white shadow-sm">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/[0.06] border border-accent/10 text-accent mb-3.5">
-                  <ListMusic size={26} />
-                </div>
-                <h3 className="text-sm md:text-base font-bold text-neutral-900">No playlists yet</h3>
-                <p className="mt-1 max-w-sm text-xs text-neutral-500 leading-relaxed">Create collections for praise, meditation, personal worship, or study.</p>
-                <button
-                  type="button"
-                  onClick={() => setShowCreate(true)}
-                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-accent/90 transition"
-                >
-                  <Plus size={14} /> Create Playlist
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {playlists.map((pl) => (
-                  <div
-                    key={pl.id}
-                    onClick={() => router.push(`/playlists/${pl.id}`)}
-                    className="group flex cursor-pointer flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:border-neutral-300 hover:-translate-y-0.5"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-accent/[0.06] border border-accent/10 text-accent">
-                        <ListMusic size={22} />
-                      </div>
-                      <button
-                        onClick={(e) => deletePlaylist(e, pl.id)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-all duration-300 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 hover:bg-accent hover:text-white"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                    <div>
-                      <h3 className="truncate text-sm font-semibold tracking-tight text-neutral-900">{pl.name}</h3>
-                      <p className="mt-0.5 text-xs font-medium text-neutral-400">Playlist</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-          </>
-        )}
-          </div>
-        )}
+        </div>
 
         {undoSnapshot && (
           <UndoToast
@@ -811,7 +1108,7 @@ function LibraryContent() {
           />
         )}
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -819,9 +1116,9 @@ export default function LibraryPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-[90vh] bg-neutral-50/60 px-4 pb-40 pt-2 md:px-8 md:pt-6">
-          <div className="max-w-5xl mx-auto"><PageSkeleton /></div>
-        </main>
+        <div className="min-h-[90vh] bg-white px-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-6 md:px-8 md:pt-5">
+          <div className="mx-auto max-w-5xl"><PageSkeleton /></div>
+        </div>
       }
     >
       <LibraryContent />
