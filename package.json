@@ -11,6 +11,8 @@
     "test": "vitest run",
     "icons": "node scripts/generate-icons.mjs",
     "android:latest": "node scripts/generate-android-latest.mjs",
+    "android:splash": "node scripts/generate-android-splash.mjs",
+    "android:splash:check": "node scripts/generate-android-splash.mjs --check",
     "android:check": "node scripts/generate-android-latest.mjs --check"
   },
   "dependencies": {

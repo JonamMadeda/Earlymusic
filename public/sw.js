@@ -114,7 +114,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
-    event.respondWith(fromNetwork(request, true));
+    event.respondWith(fromStartup(request));
     return;
   }
 
@@ -163,7 +163,30 @@ const trimAudioCache = async (cache) => {
   }
 };
 
-const fromNetwork = async (request, navigation = false) => {
+// The Android shell holds its splash screen until this response paints, so a
+// known document is served straight from cache and refreshed behind it. Every
+// page fetches its own data and the document's Vary list carries no Cookie, so
+// a cached shell is not another listener's account — at worst it is last
+// build's shell, whose chunks are still in the same cache.
+const fromStartup = async (request) => {
+  const cache = await caches.open(CACHE_NAME);
+  const network = fetch(request)
+    .then((response) => {
+      if (response.ok) {
+        cache
+          .put(request, response.clone())
+          .then(() => trimAppCache(cache))
+          .catch(() => {});
+      }
+      return response;
+    })
+    .catch(() => null);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  return (await network) || offlineNavigation(request);
+};
+
+const fromNetwork = async (request) => {
   try {
     const response = await fetch(request);
     if (response.ok) {
@@ -178,7 +201,6 @@ const fromNetwork = async (request, navigation = false) => {
     }
     return response;
   } catch {
-    if (navigation) return offlineNavigation(request);
     const cache = await caches.open(CACHE_NAME);
     const cached = await cache.match(request);
     return cached || null;

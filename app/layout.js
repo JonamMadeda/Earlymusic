@@ -10,7 +10,6 @@ import ErrorReporter from "./components/ErrorReporter";
 import InstallPrompt from "./components/InstallPrompt";
 import AndroidUpdatePrompt from "./components/AndroidUpdatePrompt";
 import SWRegister from "./components/SWRegister";
-import GlobalLoader from "./components/GlobalLoader";
 import AnalyticsConsentBanner from "./components/AnalyticsConsentBanner";
 import PolicyConsentBanner from "./components/PolicyConsentBanner";
 import { Inter } from "next/font/google";
@@ -90,7 +89,6 @@ export default function RootLayout({ children }) {
 
             <BottomNav />
             <PlayerWrapper />
-            <GlobalLoader />
 
             <AnalyticsConsentBanner />
             <PolicyConsentBanner />

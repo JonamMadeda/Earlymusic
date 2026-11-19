@@ -50,6 +50,19 @@ cd android && bubblewrap update --skipVersionUpgrade
 
 Always pass `--skipVersionUpgrade`. Without it, `update` increments `appVersionCode` itself and asks for a new version name — and `bubblewrap build` calls the same code whenever `manifest-checksum.txt` no longer matches the manifest, so an interactive prompt can land in the middle of a headless build. Bump `appVersion` (the APK's `versionName`) and `appVersionCode` by hand instead, then regenerate. `npm run android:check` fails if the checksum has gone stale.
 
+**Re-render the splash after every `update`.** `update` overwrites `android/app/src/main/res/drawable-*/splash.png` with the launcher icon, which puts the icon's squircle card and hairline border in the middle of the startup screen. `npm run android:splash` rebuilds those five PNGs from the wordmark in `scripts/assets/icon.svg` — mark only, centred on the transparent background the shell paints over `backgroundColor`. `npm run android:splash:check` (also a step in `apk.yml`) fails if they have drifted back.
+
+The shell draws the splash **unscaled and centred** (`ImageView.ScaleType.CENTER` in `androidbrowserhelper`), so the file size is the on-screen size: 300dp square, one per density bucket. Change `MARK_WIDTH` in the script to change how big the mark sits; do not change the bucket sizes unless you want the whole image bigger.
+
+### What the listener sees on launch
+
+Two loaders used to sit between the splash and the app, and both are gone:
+
+- **Chrome's page-load bar.** While the launch document is in flight, Chrome draws its own progress bar on top of the splash. `androidbrowserhelper` has no switch for it, so the only lever is load time: `fromStartup` in `public/sw.js` answers a repeat navigation from Cache Storage immediately and refreshes the entry behind the response. Navigations were strictly network-first before, so every launch waited on Vercel. This is safe because no page server-renders account data — the five server pages are the legal, accessibility, and share routes, and their `Vary` list carries no `Cookie`. Worst case the shell is one build old, and its chunks are in the same cache.
+- **The app's own curtain.** `GlobalLoader` covered the screen with a grey wash and three bouncing dots until `/api/auth/me` returned. It is deleted: the pages already gate on `authLoading` and render `PageSkeleton`, so the session now resolves behind real content instead of hiding it.
+
+The bar can still appear on the very first launch after a deploy, before anything is cached.
+
 Build a signed release with the keystore that lives **outside** the repo (`~/keystores/luumbo-release.keystore`, ignored by `*.keystore`):
 
 ```bash
@@ -78,10 +91,13 @@ Versions use their own namespace: tag `android-v1.0.0` (not the web app's `v…`
 # 1. bump both version fields in android/twa-manifest.json, then regenerate
 cd android && bubblewrap update --skipVersionUpgrade && cd ..
 
-# 2. publish the pointer the in-app banner reads
+# 2. undo the splash the generator just overwrote
+npm run android:splash
+
+# 3. publish the pointer the in-app banner reads
 npm run android:latest && npm run android:check -- android-v1.1.0
 
-# 3. build, tag, release
+# 4. build, tag, release
 BUBBLEWRAP_KEYSTORE_PASSWORD=… BUBBLEWRAP_KEY_PASSWORD=… \
   bubblewrap build --signingKeyPath=~/keystores/luumbo-release.keystore   # run in android/
 cd ..

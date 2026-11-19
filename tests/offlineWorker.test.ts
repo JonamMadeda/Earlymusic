@@ -119,6 +119,26 @@ describe("offline application shell", () => {
     expect(await (await w.request("/audio/saved"))?.text()).toBe("audio");
   });
 
+  it("paints a repeat launch from cache and refreshes it behind the response", async () => {
+    // The Android shell holds its splash until this response paints, so
+    // waiting on the network here is what makes Chrome's page-load bar show on
+    // every launch. Serving the cached document must not skip the refresh.
+    const appCache = source.match(/const CACHE_NAME = "([^"]+)"/)![1];
+    const w = worker();
+    const html = (body: string) => new Response(body, { headers: { "Content-Type": "text/html" } });
+    await (await w.caches.open(appCache)).put(`${origin}/`, html("build 1"));
+
+    let release: (response: Response) => void = () => {};
+    w.fetch.mockImplementation(() => new Promise<Response>((resolve) => { release = resolve; }));
+
+    expect(await (await w.request("/", {}, "navigate"))?.text()).toBe("build 1");
+    expect(w.fetch).toHaveBeenCalledOnce();
+
+    release(html("build 2"));
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(await (await (await w.caches.open(appCache)).match(`${origin}/`))?.text()).toBe("build 2");
+  });
+
   it("clears private bytes but not the offline application on sign-out", async () => {
     const w = worker();
     await w.lifecycle("install");
