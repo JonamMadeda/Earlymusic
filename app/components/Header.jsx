@@ -98,9 +98,9 @@ const Header = () => {
           <div role="status" className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 sm:px-6 md:px-8">
             <CloudOff size={14} aria-hidden="true" className="shrink-0" />
             <span className="min-w-0 flex-1">Offline — downloaded songs are available.</span>
-            <a href="/library?tab=downloads" className="tap-sm inline-flex shrink-0 items-center rounded-lg px-2 font-bold underline underline-offset-2">
+            <Link href="/library?tab=downloads" className="tap-sm inline-flex shrink-0 items-center rounded-lg px-2 font-bold underline underline-offset-2">
               Downloads
-            </a>
+            </Link>
           </div>
         )}
       </header>
