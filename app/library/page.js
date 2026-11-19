@@ -650,7 +650,7 @@ function LibraryContent() {
             ref={tablistRef}
             role="tablist"
             aria-label="Library collections"
-            className="flex w-full scroll-mt-4 flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100/70 p-1 no-scrollbar sm:inline-flex sm:w-auto"
+            className="inline-flex w-auto max-w-full scroll-mt-4 flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100/70 p-1 no-scrollbar"
           >
             {tabs.map((tab, idx) => {
               const isActive = activeTab === tab.key;
@@ -1075,7 +1075,7 @@ function LibraryContent() {
                       <div
                         role="tablist"
                         aria-label="Spotlight views"
-                        className="mb-4 flex w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-1 no-scrollbar sm:inline-flex sm:w-auto"
+                        className="mb-4 inline-flex w-auto max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-1 no-scrollbar"
                       >
                         {spotlightTabs.map((tab) => {
                           const isActive = spotlightSubTab === tab.key;
