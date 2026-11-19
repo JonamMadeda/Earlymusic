@@ -221,7 +221,7 @@ Accounts registered before the form asked for names were given the email's local
 
 ## Library picks and highlights
 
-The Library has two companion tabs:
+The Library's **Spotlight** tab groups three views — **Top**, **Picks**, and **Highlights** (deep links like `?tab=top`, `?tab=picks`, `?tab=highlights`, and `?tab=spotlight` still open the matching view; `?tab=insights` is also accepted).
 
 - **Picks** stores one song per period — day, week, month, year — in `public.picks`. Choosing again replaces that period's row (`UNIQUE (user_id, period)`). **Share pick** sends a contextual message such as `My pick of the day: "Song" by Artist` together with the normal `/share/<songId>` link, so recipients can listen without an account.
 - **Highlights** shows the automatic song of the day, week, month, and year. It counts plays inside each local calendar period (the week starts Monday), never listening duration, and breaks ties by the most recent play. The data comes from `public.play_events`, one row per play written by the player alongside the existing `recently_played` sync.

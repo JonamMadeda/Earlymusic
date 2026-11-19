@@ -32,6 +32,7 @@ import {
   CalendarDays,
   Pencil,
   Share2,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import UndoToast from "../components/UndoToast";
@@ -65,13 +66,19 @@ const formatBytes = (bytes) => {
 const tabs = [
   { key: "downloads", label: "Downloads", icon: Download },
   { key: "playlists", label: "Playlists", icon: ListMusic },
+  { key: "spotlight", label: "Spotlight", icon: TrendingUp },
   { key: "saved", label: "Liked", icon: Heart },
+];
+
+const tabKeys = tabs.map((t) => t.key);
+
+const spotlightTabs = [
   { key: "top", label: "Top", icon: Trophy },
   { key: "picks", label: "Picks", icon: CalendarDays },
   { key: "highlights", label: "Highlights", icon: Award },
 ];
 
-const tabKeys = tabs.map((t) => t.key);
+const spotlightSubTabKeys = spotlightTabs.map((t) => t.key);
 
 // Fisher–Yates keeps "Shuffle" honest: every ordering is equally likely.
 const shuffleSongs = (queue) => {
@@ -90,32 +97,45 @@ function LibraryContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isOnline = useOnlineStatus();
-  const [activeTab, setActiveTab] = useState(() => {
-    const tab = searchParams.get("tab");
-    return tabKeys.includes(tab) ? tab : "downloads";
-  });
+  const resolveTabState = useCallback((rawTab) => {
+    if (spotlightSubTabKeys.includes(rawTab)) {
+      return { tab: "spotlight", subTab: rawTab };
+    }
+    if (rawTab === "spotlight" || rawTab === "insights") {
+      return { tab: "spotlight", subTab: "top" };
+    }
+    if (tabKeys.includes(rawTab)) {
+      return { tab: rawTab, subTab: "top" };
+    }
+    return { tab: "downloads", subTab: "top" };
+  }, []);
+  const initialTabState = resolveTabState(searchParams.get("tab"));
+  const [activeTab, setActiveTab] = useState(initialTabState.tab);
+  const [spotlightSubTab, setSpotlightSubTab] = useState(initialTabState.subTab);
   const [loading, setLoading] = useState(true);
 
   // The initial state handles the first paint. Listening for popstate lets
   // Back/Forward switch tabs without a soft navigation re-suspending the page.
   useEffect(() => {
     const applyTabFromLocation = () => {
-      const tab = new URLSearchParams(window.location.search).get("tab");
-      setActiveTab(tabKeys.includes(tab) ? tab : "downloads");
+      const next = resolveTabState(new URLSearchParams(window.location.search).get("tab"));
+      setActiveTab(next.tab);
+      setSpotlightSubTab(next.subTab);
     };
     window.addEventListener("popstate", applyTabFromLocation);
     return () => window.removeEventListener("popstate", applyTabFromLocation);
-  }, []);
+  }, [resolveTabState]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
-    if (activeTab === "downloads") params.delete("tab");
-    else params.set("tab", activeTab);
+    const tabParam = activeTab === "spotlight" ? spotlightSubTab : activeTab;
+    if (tabParam === "downloads") params.delete("tab");
+    else params.set("tab", tabParam);
     const query = params.toString();
     const url = `${pathname}${query ? `?${query}` : ""}`;
     if (url === `${window.location.pathname}${window.location.search}`) return;
     window.history.replaceState(window.history.state, "", url);
-  }, [activeTab, pathname, searchParams]);
+  }, [activeTab, spotlightSubTab, pathname, searchParams]);
 
   // Saved songs
   const [savedSongIds, setSavedSongIds] = useState([]);
@@ -294,7 +314,7 @@ function LibraryContent() {
   // played since the last visit is counted immediately. A missing table
   // falls back to recently_played counts below.
   useEffect(() => {
-    if (!isOnline || authLoading || !user || activeTab !== "highlights") return undefined;
+    if (!isOnline || authLoading || !user || activeTab !== "spotlight" || spotlightSubTab !== "highlights") return undefined;
 
     let cancelled = false;
     setHighlightsLoading(true);
@@ -320,7 +340,7 @@ function LibraryContent() {
     return () => {
       cancelled = true;
     };
-  }, [isOnline, authLoading, user, activeTab]);
+  }, [isOnline, authLoading, user, activeTab, spotlightSubTab]);
 
   const highlightSourceEvents = useMemo(() => {
     if (!highlightsFallback) return playEvents || [];
@@ -529,6 +549,7 @@ function LibraryContent() {
 
   const jumpToTab = (key) => {
     setActiveTab(key);
+    if (key === "spotlight") setSpotlightSubTab("top");
     tablistRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -578,7 +599,7 @@ function LibraryContent() {
           <div className="min-w-0">
             <h1 className="page-title">Library</h1>
             <p className="mt-1 max-w-xl text-xs font-medium leading-5 text-neutral-500 sm:text-sm">
-              Your liked songs, playlists, downloads, and personal picks.
+              Your liked songs, playlists, downloads, and standout moments.
             </p>
           </div>
 
@@ -620,8 +641,8 @@ function LibraryContent() {
           <div
             ref={tablistRef}
             role="tablist"
-            aria-label="Library sections"
-            className="grid w-full scroll-mt-4 grid-cols-3 gap-1 rounded-xl border border-neutral-200 bg-neutral-100/70 p-1 sm:inline-grid sm:w-auto sm:grid-cols-6"
+            aria-label="Library collections"
+            className="flex w-full scroll-mt-4 flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100/70 p-1 no-scrollbar sm:inline-flex sm:w-auto"
           >
             {tabs.map((tab, idx) => {
               const isActive = activeTab === tab.key;
@@ -638,7 +659,7 @@ function LibraryContent() {
                   tabIndex={isActive ? 0 : -1}
                   onClick={() => setActiveTab(tab.key)}
                   onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                  className={`flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-1.5 py-2 text-[11px] font-semibold whitespace-nowrap transition sm:gap-2 sm:px-4 sm:text-xs ${
+                  className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition sm:gap-2 sm:px-4 sm:text-xs ${
                     isActive
                       ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
                       : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
@@ -870,8 +891,8 @@ function LibraryContent() {
                   </div>
                   <h3 className="text-sm font-bold text-neutral-900 md:text-base">You&rsquo;re offline</h3>
                   <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
-                    Downloads still play on this device. Playlists, liked songs, picks, and your
-                    top tracks will be here when you reconnect.
+                    Downloads still play on this device. Playlists, liked songs, and your Spotlight
+                    will be here when you reconnect.
                   </p>
                 </div>
               ) : authLoading || (user && loading) ? (
@@ -899,12 +920,8 @@ function LibraryContent() {
                         Create playlists for any moment
                       </li>
                       <li className="flex items-center gap-2.5">
-                        <Trophy size={13} className="shrink-0 text-neutral-400" />
-                        See your most played tracks
-                      </li>
-                      <li className="flex items-center gap-2.5">
-                        <CalendarDays size={13} className="shrink-0 text-neutral-400" />
-                        Share picks and see your song of the day
+                        <TrendingUp size={13} className="shrink-0 text-neutral-400" />
+                        Explore your top songs, picks, and highlights
                       </li>
                     </ul>
                     <Link href="/auth" className="btn-primary mt-5 px-4.5 text-xs">
@@ -1037,346 +1054,375 @@ function LibraryContent() {
                     </div>
                   )}
 
-                  {/* Most listened — this user's top 10 by play count */}
-                  {activeTab === "top" && (
+                  {/* Spotlight — top, picks, and highlights */}
+                  {activeTab === "spotlight" && (
                     <div>
-                      {topSongs.length > 0 ? (
-                        <>
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                            <div className="min-w-0">
-                              <h2 className="section-title">Your most played</h2>
-                              <p className="mt-0.5 text-xs font-medium text-neutral-500">
-                                The tracks you return to most, ranked by play count.
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setActiveSong(topSongs[0], topSongs)}
-                              className="btn-primary min-h-9 shrink-0 px-3.5 py-1.5 text-xs"
-                            >
-                              <Play size={11} fill="currentColor" />
-                              Play Top 10
-                            </button>
-                          </div>
-
-                          <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
-                            <div className="divide-y divide-neutral-100">
-                              {topSongs.map((song, idx) => (
-                                <div
-                                  key={song.id}
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={() => setActiveSong(song, topSongs)}
-                                  onKeyDown={(e) => {
-                                    if (e.target !== e.currentTarget) return;
-                                    if (e.key === "Enter" || e.key === " ") {
-                                      e.preventDefault();
-                                      setActiveSong(song, topSongs);
-                                    }
-                                  }}
-                                  className="group flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left transition-colors duration-150 hover:bg-neutral-50 active:bg-neutral-100"
-                                >
-                                  <span
-                                    className={`w-5 shrink-0 text-center text-xs font-bold tabular-nums ${
-                                      idx < 3 ? "text-accent" : "text-neutral-400"
-                                    }`}
-                                  >
-                                    {String(idx + 1).padStart(2, "0")}
-                                  </span>
-                                  <SongAvatar title={song.title} size="row" variant="mono" />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
-                                      {song.title}
-                                    </p>
-                                    <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
-                                      {song.author}
-                                    </p>
-                                  </div>
-                                  {song.playCount > 0 && (
-                                    <span className="hidden shrink-0 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-500 sm:inline">
-                                      {song.playCount} {song.playCount === 1 ? "play" : "plays"}
-                                    </span>
-                                  )}
-                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-colors group-hover:bg-accent group-hover:text-white">
-                                    <Play size={12} fill="currentColor" className="ml-0.5" />
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 px-4 py-14 text-center">
-                          <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.06] text-accent">
-                            <Trophy size={26} />
-                          </div>
-                          <h3 className="text-sm font-bold text-neutral-900 md:text-base">No plays counted yet</h3>
-                          <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
-                            Listen to songs while signed in and your personal top 10 will build up here.
-                          </p>
-                          <Link href="/songs" className="btn-primary mt-4 min-h-9 px-4 py-2 text-xs">
-                            Discover songs
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Picks — one shareable song per period */}
-                  {activeTab === "picks" && (
-                    <div>
-                      <div className="min-w-0">
-                        <h2 className="section-title">Your picks</h2>
-                        <p className="mt-0.5 max-w-2xl text-xs font-medium leading-5 text-neutral-500">
-                          Choose a song for the day, week, month, or year. Your picks are saved
-                          to your account and can be shared with a tap.
-                        </p>
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {PICK_PERIODS.map((period) => {
-                          const pick = picksByPeriod[period.key];
-                          const feedback =
-                            shareFeedback?.key === `pick-${period.key}`
-                              ? shareFeedback.message
-                              : "";
+                      <div
+                        role="tablist"
+                        aria-label="Spotlight views"
+                        className="mb-4 flex w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-1 no-scrollbar sm:inline-flex sm:w-auto"
+                      >
+                        {spotlightTabs.map((tab) => {
+                          const isActive = spotlightSubTab === tab.key;
                           return (
-                            <div
-                              key={period.key}
-                              className={`flex flex-col rounded-2xl border p-4 shadow-sm ${
-                                pick
-                                  ? "border-neutral-200 bg-white"
-                                  : "border-dashed border-neutral-200 bg-neutral-50/40"
+                            <button
+                              key={tab.key}
+                              type="button"
+                              role="tab"
+                              aria-selected={isActive}
+                              onClick={() => setSpotlightSubTab(tab.key)}
+                              className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition sm:flex-none sm:px-3 sm:text-xs ${
+                                isActive
+                                  ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
+                                  : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
                               }`}
                             >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex min-w-0 items-center gap-2.5">
-                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-accent/10 bg-accent/[0.06] text-accent">
-                                    <CalendarDays size={15} />
-                                  </span>
-                                  <div className="min-w-0">
-                                    <h3 className="truncate text-sm font-bold tracking-tight text-neutral-900">
-                                      {period.heading}
-                                    </h3>
-                                    <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
-                                      {period.range}
-                                    </p>
-                                  </div>
-                                </div>
-                                {pick && (
-                                  <span className="shrink-0 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-                                    Picked
-                                  </span>
-                                )}
-                              </div>
-
-                              {pick ? (
-                                <>
-                                  <div className="mt-3.5 flex min-w-0 items-center gap-3 rounded-xl border border-neutral-100 bg-neutral-50/60 p-2.5">
-                                    <SongAvatar
-                                      title={pick.song.title}
-                                      size="row"
-                                      variant="mono"
-                                    />
-                                    <div className="min-w-0 flex-1">
-                                      <p
-                                        title={pick.song.title}
-                                        className="truncate text-sm font-semibold tracking-tight text-neutral-900"
-                                      >
-                                        {pick.song.title}
-                                      </p>
-                                      <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
-                                        {pick.song.author}
-                                      </p>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => setActiveSong(pick.song, picksQueue)}
-                                      aria-label={`Play ${pick.song.title || "picked song"}`}
-                                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white transition hover:bg-accent/90"
-                                    >
-                                      <Play size={12} fill="currentColor" className="ml-0.5" />
-                                    </button>
-                                  </div>
-
-                                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleShare(
-                                          "pick",
-                                          period.key,
-                                          pick.song,
-                                          period.heading
-                                        )
-                                      }
-                                      className="btn-primary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
-                                    >
-                                      <Share2 size={12} />
-                                      {feedback || "Share pick"}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setPickerPeriod(period.key)}
-                                      className="btn-secondary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
-                                    >
-                                      <Pencil size={12} />
-                                      Change
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => removePick(period.key)}
-                                      className="tap-sm ml-auto inline-flex min-h-8 items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
-                                    >
-                                      <Trash2 size={12} />
-                                      Remove
-                                    </button>
-                                  </div>
-                                </>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setPickerPeriod(period.key)}
-                                  className="mt-3.5 flex min-h-[74px] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-neutral-200 bg-white/70 px-3 py-4 text-center transition hover:border-accent/40 hover:bg-white"
-                                >
-                                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
-                                    <Plus size={15} />
-                                  </span>
-                                  <span className="text-xs font-semibold text-neutral-700">
-                                    Choose a song
-                                  </span>
-                                  <span className="text-[11px] font-medium text-neutral-400">
-                                    Share your {period.range.toLowerCase()} favorite
-                                  </span>
-                                </button>
-                              )}
-                            </div>
+                              <tab.icon size={14} className="hidden shrink-0 sm:block" />
+                              <span>{tab.label}</span>
+                            </button>
                           );
                         })}
                       </div>
-                    </div>
-                  )}
+                    {/* Most listened — this user's top 10 by play count */}
+                    {spotlightSubTab === "top" && (
+                      <div>
+                        {topSongs.length > 0 ? (
+                          <>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                              <div className="min-w-0">
+                                <h2 className="section-title">Your most played</h2>
+                                <p className="mt-0.5 text-xs font-medium text-neutral-500">
+                                  The tracks you return to most, ranked by play count.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setActiveSong(topSongs[0], topSongs)}
+                                className="btn-primary min-h-9 shrink-0 px-3.5 py-1.5 text-xs"
+                              >
+                                <Play size={11} fill="currentColor" />
+                                Play Top 10
+                              </button>
+                            </div>
 
-                  {/* Highlights — automatic leaders ranked by play count */}
-                  {activeTab === "highlights" && (
-                    <div>
-                      <div className="min-w-0">
-                        <h2 className="section-title">Your highlights</h2>
-                        <p className="mt-0.5 max-w-2xl text-xs font-medium leading-5 text-neutral-500">
-                          Your standout song for each period, chosen by how often you played
-                          it — not by listening time.
-                        </p>
+                            <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+                              <div className="divide-y divide-neutral-100">
+                                {topSongs.map((song, idx) => (
+                                  <div
+                                    key={song.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => setActiveSong(song, topSongs)}
+                                    onKeyDown={(e) => {
+                                      if (e.target !== e.currentTarget) return;
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        setActiveSong(song, topSongs);
+                                      }
+                                    }}
+                                    className="group flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left transition-colors duration-150 hover:bg-neutral-50 active:bg-neutral-100"
+                                  >
+                                    <span
+                                      className={`w-5 shrink-0 text-center text-xs font-bold tabular-nums ${
+                                        idx < 3 ? "text-accent" : "text-neutral-400"
+                                      }`}
+                                    >
+                                      {String(idx + 1).padStart(2, "0")}
+                                    </span>
+                                    <SongAvatar title={song.title} size="row" variant="mono" />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+                                        {song.title}
+                                      </p>
+                                      <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
+                                        {song.author}
+                                      </p>
+                                    </div>
+                                    {song.playCount > 0 && (
+                                      <span className="hidden shrink-0 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-500 sm:inline">
+                                        {song.playCount} {song.playCount === 1 ? "play" : "plays"}
+                                      </span>
+                                    )}
+                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-colors group-hover:bg-accent group-hover:text-white">
+                                      <Play size={12} fill="currentColor" className="ml-0.5" />
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 px-4 py-14 text-center">
+                            <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.06] text-accent">
+                              <Trophy size={26} />
+                            </div>
+                            <h3 className="text-sm font-bold text-neutral-900 md:text-base">No plays counted yet</h3>
+                            <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
+                              Listen to songs while signed in and your personal top 10 will build up here.
+                            </p>
+                            <Link href="/songs" className="btn-primary mt-4 min-h-9 px-4 py-2 text-xs">
+                              Discover songs
+                            </Link>
+                          </div>
+                        )}
                       </div>
-
-                      {highlightsLoading ? (
-                        <div className="mt-4">
-                          <PageSkeleton />
+                    )}
+                    {/* Picks — one shareable song per period */}
+                    {spotlightSubTab === "picks" && (
+                      <div>
+                        <div className="min-w-0">
+                          <h2 className="section-title">Your picks</h2>
+                          <p className="mt-0.5 max-w-2xl text-xs font-medium leading-5 text-neutral-500">
+                            Choose a song for the day, week, month, or year. Your picks are saved
+                            to your account and can be shared with a tap.
+                          </p>
                         </div>
-                      ) : (
+
                         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {highlights.map((item) => {
+                          {PICK_PERIODS.map((period) => {
+                            const pick = picksByPeriod[period.key];
                             const feedback =
-                              shareFeedback?.key === `highlight-${item.key}`
+                              shareFeedback?.key === `pick-${period.key}`
                                 ? shareFeedback.message
                                 : "";
                             return (
                               <div
-                                key={item.key}
+                                key={period.key}
                                 className={`flex flex-col rounded-2xl border p-4 shadow-sm ${
-                                  item.song
+                                  pick
                                     ? "border-neutral-200 bg-white"
                                     : "border-dashed border-neutral-200 bg-neutral-50/40"
                                 }`}
                               >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <h3 className="text-sm font-bold tracking-tight text-neutral-900">
-                                      {item.heading}
-                                    </h3>
-                                    <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
-                                      {item.range}
-                                    </p>
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="flex min-w-0 items-center gap-2.5">
+                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-accent/10 bg-accent/[0.06] text-accent">
+                                      <CalendarDays size={15} />
+                                    </span>
+                                    <div className="min-w-0">
+                                      <h3 className="truncate text-sm font-bold tracking-tight text-neutral-900">
+                                        {period.heading}
+                                      </h3>
+                                      <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+                                        {period.range}
+                                      </p>
+                                    </div>
                                   </div>
-                                  {item.song && (
-                                    <span className="shrink-0 rounded-full border border-accent/15 bg-accent/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
-                                      {item.plays} {item.plays === 1 ? "play" : "plays"}
+                                  {pick && (
+                                    <span className="shrink-0 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                                      Picked
                                     </span>
                                   )}
                                 </div>
 
-                                {item.song ? (
+                                {pick ? (
                                   <>
-                                    <div className="mt-3 flex min-w-0 items-center gap-3">
+                                    <div className="mt-3.5 flex min-w-0 items-center gap-3 rounded-xl border border-neutral-100 bg-neutral-50/60 p-2.5">
                                       <SongAvatar
-                                        title={item.song.title}
-                                        size="md"
+                                        title={pick.song.title}
+                                        size="row"
                                         variant="mono"
                                       />
                                       <div className="min-w-0 flex-1">
                                         <p
-                                          title={item.song.title}
+                                          title={pick.song.title}
                                           className="truncate text-sm font-semibold tracking-tight text-neutral-900"
                                         >
-                                          {item.song.title}
+                                          {pick.song.title}
                                         </p>
                                         <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
-                                          {item.song.author}
+                                          {pick.song.author}
                                         </p>
                                       </div>
-                                    </div>
-                                    <div className="mt-3 flex items-center gap-2">
                                       <button
                                         type="button"
-                                        onClick={() =>
-                                          setActiveSong(item.song, highlightQueue)
-                                        }
-                                        className="btn-primary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
+                                        onClick={() => setActiveSong(pick.song, picksQueue)}
+                                        aria-label={`Play ${pick.song.title || "picked song"}`}
+                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white transition hover:bg-accent/90"
                                       >
-                                        <Play size={11} fill="currentColor" />
-                                        Play
+                                        <Play size={12} fill="currentColor" className="ml-0.5" />
                                       </button>
+                                    </div>
+
+                                    <div className="mt-3 flex flex-wrap items-center gap-2">
                                       <button
                                         type="button"
                                         onClick={() =>
                                           handleShare(
-                                            "highlight",
-                                            item.key,
-                                            item.song,
-                                            item.heading
+                                            "pick",
+                                            period.key,
+                                            pick.song,
+                                            period.heading
                                           )
                                         }
-                                        className="btn-secondary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
+                                        className="btn-primary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
                                       >
                                         <Share2 size={12} />
-                                        {feedback || "Share"}
+                                        {feedback || "Share pick"}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setPickerPeriod(period.key)}
+                                        className="btn-secondary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
+                                      >
+                                        <Pencil size={12} />
+                                        Change
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => removePick(period.key)}
+                                        className="tap-sm ml-auto inline-flex min-h-8 items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+                                      >
+                                        <Trash2 size={12} />
+                                        Remove
                                       </button>
                                     </div>
                                   </>
                                 ) : (
-                                  <div className="mt-3 flex flex-1 flex-col items-center justify-center py-6 text-center">
-                                    <span className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-400">
-                                      <Award size={18} />
+                                  <button
+                                    type="button"
+                                    onClick={() => setPickerPeriod(period.key)}
+                                    className="mt-3.5 flex min-h-[74px] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-neutral-200 bg-white/70 px-3 py-4 text-center transition hover:border-accent/40 hover:bg-white"
+                                  >
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
+                                      <Plus size={15} />
                                     </span>
-                                    <p className="mt-2 text-xs font-semibold text-neutral-700">
-                                      {item.empty}
-                                    </p>
-                                    <p className="mt-0.5 max-w-[230px] text-[11px] leading-relaxed text-neutral-400">
-                                      Every play counts toward your next highlight.
-                                    </p>
-                                  </div>
+                                    <span className="text-xs font-semibold text-neutral-700">
+                                      Choose a song
+                                    </span>
+                                    <span className="text-[11px] font-medium text-neutral-400">
+                                      Share your {period.range.toLowerCase()} favorite
+                                    </span>
+                                  </button>
                                 )}
                               </div>
                             );
                           })}
                         </div>
-                      )}
+                      </div>
+                    )}
+                    {/* Highlights — automatic leaders ranked by play count */}
+                    {spotlightSubTab === "highlights" && (
+                      <div>
+                        <div className="min-w-0">
+                          <h2 className="section-title">Your highlights</h2>
+                          <p className="mt-0.5 max-w-2xl text-xs font-medium leading-5 text-neutral-500">
+                            Your standout song for each period, chosen by how often you played
+                            it — not by listening time.
+                          </p>
+                        </div>
 
-                      {highlightsFallback && !highlightsLoading && (
-                        <p className="mt-3 text-[11px] font-medium text-neutral-400">
-                          Showing your latest saved plays while detailed play history is
-                          being set up.
-                        </p>
-                      )}
+                        {highlightsLoading ? (
+                          <div className="mt-4">
+                            <PageSkeleton />
+                          </div>
+                        ) : (
+                          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {highlights.map((item) => {
+                              const feedback =
+                                shareFeedback?.key === `highlight-${item.key}`
+                                  ? shareFeedback.message
+                                  : "";
+                              return (
+                                <div
+                                  key={item.key}
+                                  className={`flex flex-col rounded-2xl border p-4 shadow-sm ${
+                                    item.song
+                                      ? "border-neutral-200 bg-white"
+                                      : "border-dashed border-neutral-200 bg-neutral-50/40"
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <h3 className="text-sm font-bold tracking-tight text-neutral-900">
+                                        {item.heading}
+                                      </h3>
+                                      <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+                                        {item.range}
+                                      </p>
+                                    </div>
+                                    {item.song && (
+                                      <span className="shrink-0 rounded-full border border-accent/15 bg-accent/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
+                                        {item.plays} {item.plays === 1 ? "play" : "plays"}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {item.song ? (
+                                    <>
+                                      <div className="mt-3 flex min-w-0 items-center gap-3">
+                                        <SongAvatar
+                                          title={item.song.title}
+                                          size="md"
+                                          variant="mono"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                          <p
+                                            title={item.song.title}
+                                            className="truncate text-sm font-semibold tracking-tight text-neutral-900"
+                                          >
+                                            {item.song.title}
+                                          </p>
+                                          <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
+                                            {item.song.author}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="mt-3 flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setActiveSong(item.song, highlightQueue)
+                                          }
+                                          className="btn-primary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
+                                        >
+                                          <Play size={11} fill="currentColor" />
+                                          Play
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleShare(
+                                              "highlight",
+                                              item.key,
+                                              item.song,
+                                              item.heading
+                                            )
+                                          }
+                                          className="btn-secondary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
+                                        >
+                                          <Share2 size={12} />
+                                          {feedback || "Share"}
+                                        </button>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="mt-3 flex flex-1 flex-col items-center justify-center py-6 text-center">
+                                      <span className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-400">
+                                        <Award size={18} />
+                                      </span>
+                                      <p className="mt-2 text-xs font-semibold text-neutral-700">
+                                        {item.empty}
+                                      </p>
+                                      <p className="mt-0.5 max-w-[230px] text-[11px] leading-relaxed text-neutral-400">
+                                        Every play counts toward your next highlight.
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {highlightsFallback && !highlightsLoading && (
+                          <p className="mt-3 text-[11px] font-medium text-neutral-400">
+                            Showing your latest saved plays while detailed play history is
+                            being set up.
+                          </p>
+                        )}
+                      </div>
+                    )}
                     </div>
                   )}
 
