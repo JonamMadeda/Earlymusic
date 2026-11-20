@@ -87,7 +87,18 @@
   }
 }
 
-/* The alphabet is one continuous scrub target; individual letters must share its available height. */
+/* The alphabet keeps its letters in a half-height track. It scrolls when the
+   catalogue has more groups than fit, but the scrollbar is hidden so it still
+   reads as a slim index rather than a second scroll pane. */
+.songs-index {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.songs-index::-webkit-scrollbar {
+  display: none;
+}
+
 .songs-index button {
   min-height: 0;
   min-width: 0;

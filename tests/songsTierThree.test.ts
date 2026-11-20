@@ -92,8 +92,8 @@ describe("songs row structure", () => {
   });
 });
 
-describe("alphabet rail as a scrub surface", () => {
-  it("follows the pointer down the column", () => {
+describe("alphabet rail as a compact scrub surface", () => {
+  it("follows a mouse down the column without stealing touch scrolling", () => {
     expect(rail).toMatch(/onPointerDown=\{\(e\) => \{/);
     expect(rail).toMatch(/onPointerMove=\{\(e\) => \{/);
     expect(rail).toMatch(/onPointerUp=\{stopRailScrub\}/);
@@ -105,20 +105,18 @@ describe("alphabet rail as a scrub surface", () => {
     expect(view).toMatch(/const jumpFromClientY = useCallback\(\(clientY\) => \{/);
     expect(view).toMatch(/el\.dataset\.railKey/);
     expect(rail).toMatch(/data-rail-key=\{group\.key\}/);
-    // The gesture belongs to the rail, so a vertical drag must not scroll the page.
-    expect(rail).toMatch(/touchAction: "none"/);
+    expect(rail).toMatch(/touchAction: "pan-y"/);
   });
 
-  it("shows every group at once instead of scrolling to reach them", () => {
-    // The track is pinned to the safe area (below the app bar, above the player)
-    // and the letters share its measured height, so nothing is out of reach and
-    // nothing hides behind the chrome at the top of the page.
+  it("keeps the short track inside the safe area and scrolls its letters", () => {
+    // The track is pinned below the app bar and above the player, but only half
+    // as tall; the rest of the alphabet scrolls inside the track itself.
     expect(rail).toMatch(/fixed z-30/);
     expect(rail).toMatch(/height: railBox\.height/);
-    expect(rail).toMatch(/justify-between/);
-    expect(rail).not.toMatch(/overflow-y-auto|no-scrollbar/);
-    expect(view).not.toMatch(/rail\.scrollTop/);
-    expect(rail).toMatch(/min-h-0 w-full flex-1/);
+    expect(rail).toMatch(/justify-start/);
+    expect(rail).toMatch(/overflow-y-auto/);
+    expect(view).toMatch(/rail\.scrollTop/);
+    expect(rail).toMatch(/h-6 min-h-0 w-full shrink-0 cursor-pointer/);
   });
 });
 

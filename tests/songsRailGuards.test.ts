@@ -40,15 +40,18 @@ describe("songs alphabet rail", () => {
     expect(css).toMatch(/@media \(pointer: coarse\)[\s\S]*?min-height: 44px/);
   });
 
-  it("does not stretch a single result into a full-height index", () => {
+  it("halves the full-list height and scrolls the remaining letters inside", () => {
     expect(rail).toContain("songGroups.length > 1");
-    expect(songs).toContain("Math.min(available, songGroups.length * 24 + 12)");
+    expect(songs).toContain("Math.max(4, Math.ceil(songGroups.length / 2))");
+    expect(songs).toContain("visibleGroups * 24 + 12");
   });
 
-  it("scrubs immediately and respects reduced motion", () => {
+  it("scrubs with a mouse, taps with touch and respects reduced motion", () => {
     expect(songs).toContain('scrollToLetter(nearest, "instant")');
     expect(songs).toContain('(prefers-reduced-motion: reduce)');
-    expect(rail).toContain('if (e.detail === 0) scrollToLetter(group.key)');
+    expect(rail).toContain('if (e.pointerType !== "mouse" || e.button !== 0) return;');
+    expect(rail).toContain("onClick={() => scrollToLetter(group.key)}");
+    expect(rail).toContain('touchAction: "pan-y"');
     expect(rail).toContain('aria-current={(jumpLetter || activeGroupKey) === group.key ? "location" : undefined}');
   });
 
@@ -56,7 +59,7 @@ describe("songs alphabet rail", () => {
     expect(rail).not.toMatch(/gap-px/);
   });
 
-  it("fits the safe area instead of becoming a second scroll area", () => {
+  it("fits the safe area and hides the scrollbar on its own scroll area", () => {
     expect(songs).toMatch(/const measureRail = \(\) =>/);
     expect(songs).toMatch(/bottom = Math\.min\(bottom, rect\.top\)/);
     expect(songs).toMatch(/Math\.max\(0, bottom - STICKY_TOP - top\)/);
@@ -64,9 +67,14 @@ describe("songs alphabet rail", () => {
     expect(songs).toMatch(/viewport\?\.addEventListener\("resize", measureRail\)/);
     expect(songs).toMatch(/observer\.disconnect\(\)/);
     expect(songs).toMatch(/"bottom-nav", "now-playing-bar", "mobile-now-playing-bar"/);
-    expect(rail).toMatch(/justify-between/);
-    expect(rail).toMatch(/min-h-0 w-full flex-1/);
-    expect(rail).not.toMatch(/overflow-y-auto|no-scrollbar/);
-    expect(songs).not.toMatch(/rail\.scrollTop/);
+    expect(rail).toMatch(/justify-start/);
+    expect(rail).toMatch(/h-6 min-h-0 w-full shrink-0 cursor-pointer/);
+    expect(rail).toMatch(/overflow-y-auto/);
+    expect(songs).toMatch(/rail\.scrollTop/);
+    expect(songs).toMatch(/revealRailLetter\(activeGroupKey\)/);
+
+    const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+    expect(css).toMatch(/\.songs-index\s*\{[^}]*scrollbar-width: none/);
+    expect(css).toMatch(/\.songs-index::-webkit-scrollbar\s*\{\s*display: none/);
   });
 });

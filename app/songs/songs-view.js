@@ -979,10 +979,9 @@ export default function SongsView() {
     return () => clearTimeout(jumpTimeoutRef.current);
   }, []);
 
-  // The rail is a scrub surface, not twenty-six small buttons. Letters are 16×18
-  // — under WCAG 2.5.8's 24px floor — so precision used to decide whether a drag
-  // landed on "H" or its neighbour. Dragging anywhere along the column now picks
-  // the nearest group, which is what an index bar does everywhere else.
+  // The rail is half-height now, so the letters that do not fit scroll inside
+  // it. A mouse still scrubs the column; touch keeps native vertical scrolling
+  // and tap-to-jump, which is more useful than fighting the browser's pan.
   const railRef = useRef(null);
   const railLettersRef = useRef({});
   const railKeyRef = useRef(null);
@@ -1007,7 +1006,10 @@ export default function SongsView() {
         if (rect.height > 0) bottom = Math.min(bottom, rect.top);
       }
       const available = Math.max(0, bottom - STICKY_TOP - top);
-      const height = Math.min(available, songGroups.length * 24 + 12);
+      // Half the old full-list height, with a floor so a short catalogue still
+      // gets a usable track. The remaining letters scroll inside the rail.
+      const visibleGroups = Math.max(4, Math.ceil(songGroups.length / 2));
+      const height = Math.min(available, visibleGroups * 24 + 12);
       const next = {
         top: top + (available - height) / 2,
         height,
@@ -1029,6 +1031,28 @@ export default function SongsView() {
     };
   }, [activeSong, isLoading, songGroups.length, STICKY_TOP]);
 
+  // Scrolling the list changes which group is current; bring that letter back
+  // into the shortened track so the highlight never hides below the fold.
+  const revealRailLetter = useCallback((key, behavior = "smooth") => {
+    const rail = railRef.current;
+    const el = railLettersRef.current[key];
+    if (!rail || !el) return;
+    const top = el.offsetTop;
+    const bottom = top + el.offsetHeight;
+    const viewTop = rail.scrollTop;
+    const viewBottom = viewTop + rail.clientHeight;
+    const next = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "instant"
+      : behavior;
+    if (top < viewTop) rail.scrollTo({ top: Math.max(0, top), behavior: next });
+    else if (bottom > viewBottom) rail.scrollTo({ top: bottom - rail.clientHeight, behavior: next });
+  }, []);
+
+  useEffect(() => {
+    if (!activeGroupKey) return;
+    revealRailLetter(activeGroupKey);
+  }, [activeGroupKey, revealRailLetter]);
+
   const jumpFromClientY = useCallback((clientY) => {
     const rail = railRef.current;
     if (!rail) return;
@@ -1047,8 +1071,9 @@ export default function SongsView() {
     if (nearest && nearest !== railKeyRef.current) {
       railKeyRef.current = nearest;
       scrollToLetter(nearest, "instant");
+      revealRailLetter(nearest, "instant");
     }
-  }, [scrollToLetter]);
+  }, [scrollToLetter, revealRailLetter]);
 
   // A mouse keeps its clicks and a drag that leaves the column simply stops: no
   // pointer capture, because capturing retargets the release away from the letter
@@ -1479,9 +1504,9 @@ export default function SongsView() {
             </div>
 
             {/* Alphabet Jump Bar — a themed index track pinned to the list's
-                right edge, spanning from below the app bar to above the player
-                so every letter is visible and reachable at any scroll depth.
-                The placeholder keeps the rows clear of it. */}
+                right edge. It is half its former height; letters that do not
+                fit scroll inside it with the scrollbar hidden. The placeholder
+                keeps the rows clear of it. */}
             <div aria-hidden="true" className="w-6 shrink-0 sm:w-7" />
             {railBox && railBox.height > 0 && songGroups.length > 1 && (
               <div
@@ -1490,12 +1515,13 @@ export default function SongsView() {
                   top: railBox.top,
                   height: railBox.height,
                   right: railBox.right,
-                  touchAction: "none",
+                  touchAction: "pan-y",
                 }}
                 aria-label={sortBy === "created_at" ? "Date index" : "Alphabet index"}
                 role="group"
                 onPointerDown={(e) => {
-                  if (e.pointerType === "mouse" && e.button !== 0) return;
+                  // Touch keeps native vertical scroll; a mouse still scrubs.
+                  if (e.pointerType !== "mouse" || e.button !== 0) return;
                   setRailScrubbing(true);
                   jumpFromClientY(e.clientY);
                 }}
@@ -1505,7 +1531,7 @@ export default function SongsView() {
                 onPointerUp={stopRailScrub}
                 onPointerLeave={stopRailScrub}
                 onPointerCancel={stopRailScrub}
-                className="songs-index fixed z-30 flex w-6 select-none flex-col items-stretch justify-between rounded-full bg-neutral-100/80 py-1.5 sm:w-7"
+                className="songs-index fixed z-30 flex w-6 select-none flex-col items-stretch justify-start overflow-y-auto rounded-full bg-neutral-100/80 py-1.5 sm:w-7"
               >
                 {songGroups.map((group) => (
                   <button
@@ -1515,10 +1541,8 @@ export default function SongsView() {
                     ref={(el) => { railLettersRef.current[group.key] = el; }}
                     aria-label={`Jump to ${group.label}`}
                     aria-current={(jumpLetter || activeGroupKey) === group.key ? "location" : undefined}
-                    onClick={(e) => {
-                      if (e.detail === 0) scrollToLetter(group.key);
-                    }}
-                    className={`flex min-h-0 w-full flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-full text-[11px] font-bold leading-none transition-colors duration-150 select-none ${
+                    onClick={() => scrollToLetter(group.key)}
+                    className={`flex h-6 min-h-0 w-full shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-full text-[11px] font-bold leading-none transition-colors duration-150 select-none ${
                       (jumpLetter || activeGroupKey) === group.key
                         ? "bg-accent text-white"
                         : "text-neutral-500 hover:bg-neutral-200 hover:text-neutral-800 active:bg-neutral-200 active:text-neutral-800"
