@@ -18,6 +18,7 @@ import {
   KIND_PILLS,
   NOTIFICATION_KINDS,
   TARGET_LABELS,
+  normalizeNotificationId,
   normalizeNotificationKind,
   normalizeNotificationTarget,
 } from "@/lib/notifications";
@@ -158,7 +159,7 @@ export default function NotificationsPage() {
       next[kind] = 0;
     });
     items.forEach((item) => {
-      if (dismissed.has(item.id)) return;
+      if (dismissed.has(normalizeNotificationId(item.id))) return;
       next.all += 1;
       next[normalizeNotificationKind(item.kind)] += 1;
     });
@@ -166,7 +167,7 @@ export default function NotificationsPage() {
   }, [items, dismissed]);
 
   const visibleItems = items.filter((item) => {
-    if (dismissed.has(item.id)) return false;
+    if (dismissed.has(normalizeNotificationId(item.id))) return false;
     if (filter === "all") return true;
     return normalizeNotificationKind(item.kind) === filter;
   });
@@ -174,9 +175,10 @@ export default function NotificationsPage() {
   const unreadSet = useMemo(() => new Set(unreadIds), [unreadIds]);
   // Counted across the whole feed, not the filtered slice: switching to an
   // empty category should not hide the "Mark all read" action.
-  const unreadCount = items.filter(
-    (item) => !dismissed.has(item.id) && unreadSet.has(item.id)
-  ).length;
+  const unreadCount = items.filter((item) => {
+    const id = normalizeNotificationId(item.id);
+    return id !== null && !dismissed.has(id) && unreadSet.has(id);
+  }).length;
   const hasUnread = unreadCount > 0;
   const filterLabel = FILTERS.find((entry) => entry.key === filter)?.label || "All";
 
@@ -397,7 +399,7 @@ export default function NotificationsPage() {
                     const Icon = KIND_ICONS[kind];
                     const href = item.url || null;
                     const external = href ? !isInternal(href) : false;
-                    const unread = unreadSet.has(item.id);
+                    const unread = unreadSet.has(normalizeNotificationId(item.id));
                     const actionLabel =
                       kind === "release" || kind === "update" ? "Listen to" : "Read";
                     const titleClass = `mt-1.5 text-sm font-bold leading-snug tracking-tight md:text-[15px] ${

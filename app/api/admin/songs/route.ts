@@ -131,7 +131,9 @@ export async function POST(request: NextRequest) {
           actorId: admin.user.id,
           action: "song.announce",
           target: String(song.id),
-          detail: { title: song.title, evicted: posted?.evicted },
+          // announceNewSong never fails an upload, so without this flag a silent
+          // insert failure looked exactly like a successful post in the log.
+          detail: { title: song.title, announced: Boolean(posted), evicted: posted?.evicted ?? null },
         });
       }
     }

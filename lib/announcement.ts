@@ -167,13 +167,17 @@ export const logAnnouncementError = async (
   error: unknown
 ) => {
   try {
+    // app_errors has no `detail` column (see lib/migration-app-errors.sql): the
+    // structured context goes in `stack`, which is where the client reporter
+    // puts its extra diagnostics too. Writing to a made-up column hid every
+    // announcement failure behind a second, quieter failure.
     await db.query(
-      `INSERT INTO public.app_errors (message, path, detail)
+      `INSERT INTO public.app_errors (message, stack, path)
        VALUES ($1, $2, $3)`,
       [
         `Announcement failed (${context}): ${error instanceof Error ? error.message : String(error)}`,
-        "/api/admin/songs",
         JSON.stringify({ songId: song.id, songTitle: song.title, error: String(error) }),
+        "/api/admin/songs",
       ]
     );
   } catch (logError) {

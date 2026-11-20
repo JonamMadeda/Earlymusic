@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { db } from "@/lib/neon";
+import { normalizeNotificationIds } from "@/lib/notifications";
 
 // Announcements stay public; the *state* of what a listener has read is not.
 // The client keeps a local cache for signed-out listeners and syncs this row
@@ -16,14 +17,10 @@ const EMPTY_STATE = {
   preferences: {},
 };
 
-const asIdList = (value: unknown): number[] => {
-  if (!Array.isArray(value)) return [];
-  return [...new Set(
-    value
-      .filter((id): id is number => Number.isSafeInteger(id) && (id as number) > 0)
-      .slice(0, 50)
-  )];
-};
+// Announcement ids are bigserial, so Neon returns them as strings. Keeping the
+// same normalisation as the client stops the server from silently dropping
+// every read/dismissal id on its way to Postgres.
+const asIdList = (value: unknown): (number | string)[] => normalizeNotificationIds(value);
 
 const asBlob = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
