@@ -780,6 +780,32 @@ describe("offline library downloads", () => {
     expect(h.markStandoutsSubTabSeen).toHaveBeenCalledWith("picks");
   });
 
+  it("shows icons beside every Library tab label, including on mobile", async () => {
+    const h = harness([fixture("one", "First song")], "standouts");
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+
+    const tablists = nodes(page.tree).filter(
+      (node) =>
+        node.props.role === "tablist" &&
+        ["Library collections", "Standouts views"].includes(node.props["aria-label"])
+    );
+    expect(tablists).toHaveLength(2);
+    for (const tablist of tablists) {
+      const tabButtons = nodes(tablist).filter((node) => node.props.role === "tab");
+      expect(tabButtons.length).toBeGreaterThan(0);
+      for (const tab of tabButtons) {
+        const icon = nodes(tab).find(
+          (node) => typeof node.type === "string" && node.type.startsWith("icon:")
+        );
+        expect(icon, `${tab.props.id} icon`).toBeDefined();
+        expect(String(icon!.props["aria-hidden"])).toBe("true");
+        expect(String(icon!.props.className || "")).not.toContain("hidden");
+      }
+    }
+  });
+
   it("ranks the song of the day by plays inside the period", async () => {
     const first = fixture("one", "First song");
     const second = fixture("two", "Second song");

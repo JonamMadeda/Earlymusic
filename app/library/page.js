@@ -800,7 +800,8 @@ function LibraryContent() {
                   <tab.icon
                     size={14}
                     strokeWidth={isActive ? 2.5 : 2}
-                    className="hidden shrink-0 sm:block"
+                    className="shrink-0"
+                    aria-hidden="true"
                   />
                   <span>{tab.label}</span>
                   {count !== null && (
@@ -1261,7 +1262,7 @@ function LibraryContent() {
                                     : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
                                 }`}
                               >
-                                <tab.icon size={14} className="hidden shrink-0 sm:block" />
+                                <tab.icon size={14} className="shrink-0" aria-hidden="true" />
                                 <span>{tab.label}</span>
                               </button>
                             );
