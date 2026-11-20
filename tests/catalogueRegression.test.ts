@@ -38,6 +38,25 @@ const button = (tree: Element, label: string) =>
 const change = (node: Element, value: string) => node.props.onChange({ target: { value } });
 const songRows = (tree: Element) => nodes(tree).filter((node) => node.props.song && "isNew" in node.props);
 
+function actionMenu(h: any, page: any, label: string) {
+  const node = find(page.tree, (entry) => entry.props.label === label && !!entry.props.triggerTitle);
+  return { menu: h.mount(node.type, node.props), props: node.props };
+}
+
+function openActionMenu(h: any, page: any, label: string) {
+  const { menu, props } = actionMenu(h, page, label);
+  const trigger = find(
+    menu.tree,
+    (entry) => entry.type === "button" && entry.props.title === props.triggerTitle
+  );
+  trigger.props.onClick({ stopPropagation: vi.fn() });
+  menu.render();
+  return menu;
+}
+
+const hasEmptyState = (tree: Element, title: string) =>
+  nodes(tree).some((node) => node.props.title === title);
+
 function harness(songs: Song[], tab = "top", search: Record<string, string> | null = null) {
   const connection = { online: true };
   const auth: { user: { id: string } | null; isAdmin: boolean; loading: boolean; roleLoading: boolean } = {
@@ -68,6 +87,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       }];
     },
     useRef(initial: any) { return hooks.useState({ current: initial })[0]; },
+    useId() { return "test-id"; },
     useMemo(compute: () => any) { return compute(); },
     useCallback(callback: any) { return callback; },
     useEffect(effect: () => void) { current.effects.push(effect); },
@@ -100,8 +120,14 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       picks.splice(0, picks.length);
       return [];
     }
+    if (url.startsWith("/api/data/saved_songs") && options?.method === "POST") return {};
+    if (url.startsWith("/api/data/playlists") && options?.method === "PATCH") {
+      const body = JSON.parse(options.body);
+      return [{ id: "playlist", name: body.name }];
+    }
     if (options?.method === "POST") return (await fetch(url, options)).json();
     if (url.startsWith("/api/data/songs?")) return songs;
+    if (url.startsWith("/api/data/playlist_songs?")) return [];
     if (url.startsWith("/api/data/recently_played?")) return songs.map((song) => ({ song_id: song.id, play_count: 2 }));
     if (url.startsWith("/api/data/saved_songs?") || url.startsWith("/api/data/playlists?")) return [];
     if (url.startsWith("/api/data/picks")) return picks;
@@ -123,6 +149,9 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       markLibraryNudgeSeen,
       markSpotlightSubTabSeen,
       publishSpotlightContent,
+      setNudgeMode: vi.fn(),
+      setNudgeWindowHour: vi.fn(),
+      snoozeLibraryNudge: vi.fn(),
     },
     "@/lib/apiFetch": { apiFetch },
     "@/lib/audioUrl": { getAudioPublicUrl: vi.fn() },
@@ -160,6 +189,9 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
         if (id.endsWith("/context/PlayerContext")) return { usePlayer: () => player };
         if (id.endsWith("/context/AuthContext")) return { useAuth: () => auth };
         if (id.endsWith("/SongAvatar")) return { default: "avatar", initialLetter: (title: string) => title[0], hashStr: (value: string) => [...value].reduce((hash, char) => hash * 31 + char.charCodeAt(0) | 0, 0) };
+        if (["/ActionMenu", "/ConfirmModal", "/EmptyState", "/PlaylistNameDialog", "/SpotlightNudgeSettings"].some((name) => id.endsWith(name))) {
+          return load(`app/components${id.slice(id.lastIndexOf("/"))}.jsx`);
+        }
         if (id.includes("/components/")) return { default: id, PageSkeleton: "skeleton" };
         if (id in modules) return modules[id];
         throw new Error(`Unexpected import: ${id}`);
@@ -167,10 +199,17 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       fetch,
       alert,
       window: { addEventListener: vi.fn(), removeEventListener: vi.fn(), matchMedia: () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }), history: { state: null, replaceState: vi.fn() }, location: { pathname: "/library", search: "" } },
-      document: { getElementById: () => null },
+      document: {
+        getElementById: () => null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        contains: () => true,
+        activeElement: null,
+      },
       setInterval: () => 0,
       clearInterval: () => {},
       URLSearchParams,
+      Math,
       console,
       setTimeout: (callback: () => void, delay: number) => { if (delay === 0) callback(); return 0; },
       clearTimeout: () => {},
@@ -552,8 +591,11 @@ describe("offline library downloads", () => {
     h.localSongs.songs = [];
     h.downloadsChanged();
     page.render();
-    expect(text(page.tree)).toContain("No downloaded songs");
-    if (!online) expect(text(page.tree)).toContain("Reconnect");
+    expect(hasEmptyState(page.tree, "No downloaded songs")).toBe(true);
+    if (!online) {
+      const empty = find(page.tree, (node) => node.props.title === "No downloaded songs");
+      expect(String(empty.props.description)).toContain("Reconnect");
+    }
     find(page.tree, (node) => node.props.role === "tab" && text(node) === "Liked").props.onClick();
     page.render();
     if (loading || !online) expect(text(page.tree)).not.toContain("Sign in to see your library");
@@ -610,9 +652,10 @@ describe("offline library downloads", () => {
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
-    button(page.tree, "Clear").props.onClick();
+    const menu = openActionMenu(h, page, "More download actions");
+    button(menu.tree, "Clear all downloads").props.onClick();
     page.render();
-    expect(text(page.tree)).toContain("No downloaded songs");
+    expect(hasEmptyState(page.tree, "No downloaded songs")).toBe(true);
     find(page.tree, (node) => node.props.message === "1 download cleared").props.onAction();
     page.render();
     expect(text(page.tree)).toContain("Downloaded track");
@@ -676,14 +719,15 @@ describe("offline library downloads", () => {
     expect(h.markLibraryNudgeSeen).toHaveBeenCalledOnce();
   });
 
-  it("badges the sub-tab with new activity and clears it when opened", async () => {
+  it("keeps the nudge on the Library tab instead of badging Spotlight sub-tabs", async () => {
     const h = harness([fixture("one", "First song")], "spotlight");
     h.spotlightNudge.targets.picks = true;
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
 
-    expect(nodes(page.tree).some((node) => node.props.title === "New activity in Picks")).toBe(true);
+    expect(nodes(page.tree).some((node) => node.props.title === "New activity in Picks")).toBe(false);
+    expect(find(page.tree, (node) => node.props.label === "Spotlight alert settings")).toBeDefined();
 
     find(page.tree, (node) => node.props.role === "tab" && text(node) === "Picks").props.onClick();
     expect(h.markSpotlightSubTabSeen).toHaveBeenCalledWith("picks");
@@ -707,13 +751,14 @@ describe("offline library downloads", () => {
   });
 
 
-  it("jumps to the saved tab from the header count chip", async () => {
+  it("carries collection counts inside the tab bar", async () => {
     const h = harness([fixture("cached")], "top");
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
-    const chip = find(page.tree, (node) => node.type === "button" && text(node) === "0 liked");
-    chip.props.onClick();
+    const savedTab = find(page.tree, (node) => node.props.id === "library-tab-saved");
+    expect(text(savedTab)).toContain("0");
+    savedTab.props.onClick();
     page.render();
     const selected = nodes(find(page.tree, (node) => node.props.role === "tablist" && node.props["aria-label"] === "Library collections"))
       .filter((node) => node.props.role === "tab")
@@ -776,23 +821,26 @@ describe("playable row keyboard isolation", () => {
     expect(h.setActiveSong).not.toHaveBeenCalled();
   });
 
-  it("preserves nested menu and playlist input behavior in SongItem", async () => {
+  it("keeps the overflow menu and playlist input isolated from SongItem row keys", async () => {
     const { h, page, row } = await keyboardRow("SongItem");
-    const more = find(page.tree, (node) => node.type === "button" && node.props.title === "More");
-    const menuEvent = keyEvent("Enter", more, row());
+    let menu = openActionMenu(h, page, "More actions for song");
+    const trigger = find(menu.tree, (node) => node.type === "button" && node.props.title === "More");
+    const menuEvent = keyEvent("Enter", trigger, row());
     row().props.onKeyDown(menuEvent);
     expect(menuEvent.preventDefault).not.toHaveBeenCalled();
-    more.props.onClick(menuEvent);
+    button(menu.tree, "Add to Playlist").props.onClick();
     page.render();
-    button(page.tree, "Add to Playlist").props.onClick();
-    page.render();
-    const input = () => find(page.tree, (node) => node.props.placeholder === "New playlist...");
+
+    menu = openActionMenu(h, page, "More actions for song");
+    const input = () => find(menu.tree, (node) => node.props.placeholder === "New playlist...");
     const space = keyEvent(" ", input(), row());
     input().props.onKeyDown(space);
     row().props.onKeyDown(space);
     expect(space.preventDefault).not.toHaveBeenCalled();
     change(input(), "Sunday songs");
     page.render();
+
+    menu = openActionMenu(h, page, "More actions for song");
     const enter = keyEvent("Enter", input(), row());
     await input().props.onKeyDown(enter);
     row().props.onKeyDown(enter);

@@ -24,7 +24,6 @@ import {
   Search,
   X,
   Shuffle,
-  MoreHorizontal,
   ExternalLink,
   HardDrive,
   WifiOff,
@@ -35,6 +34,10 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+import ActionMenu from "@/app/components/ActionMenu";
+import ConfirmModal from "@/app/components/ConfirmModal";
+import EmptyState from "@/app/components/EmptyState";
+import PlaylistNameDialog from "@/app/components/PlaylistNameDialog";
 import UndoToast from "../components/UndoToast";
 import PickSongDialog from "../components/PickSongDialog";
 import {
@@ -167,8 +170,12 @@ function LibraryContent() {
 
   // Playlists
   const [playlists, setPlaylists] = useState([]);
+  const [playlistCounts, setPlaylistCounts] = useState({});
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
+  const [renamingPlaylist, setRenamingPlaylist] = useState(null);
+  const [deletingPlaylist, setDeletingPlaylist] = useState(null);
+  const [playlistBusy, setPlaylistBusy] = useState(false);
 
   // Liked-song search keeps long collections scannable.
   const [likedQuery, setLikedQuery] = useState("");
@@ -177,8 +184,11 @@ function LibraryContent() {
   const [downloadedSongs, setDownloadedSongs] = useState([]);
   const [downloading, setDownloading] = useState([]);
   const [storage, setStorage] = useState(null);
-  const [undoSnapshot, setUndoSnapshot] = useState(null);
-  const undoRef = useRef(null);
+
+  // One undo window serves downloads, liked songs, and picks. The callbacks
+  // live in a ref so a dismissal after navigation commits the right change.
+  const [undoToast, setUndoToast] = useState(null);
+  const undoToastRef = useRef(null);
 
   const refreshDownloads = useCallback(() => {
     // Newest first: the list is how listeners judge what they just saved.
@@ -204,15 +214,41 @@ function LibraryContent() {
     };
   }, [refreshDownloads]);
 
-  // Leaving the page closes the undo window: finalize the staged deletion.
+  // Leaving the page closes the undo window: finalize whatever was staged.
   useEffect(() => {
     return () => {
-      if (undoRef.current) {
-        commitClearDownloads(undoRef.current);
-        undoRef.current = null;
-      }
+      const pending = undoToastRef.current;
+      undoToastRef.current = null;
+      pending?.onDismiss?.();
       clearTimeout(shareFeedbackTimer.current);
     };
+  }, []);
+
+  const dismissUndo = useCallback(() => {
+    const pending = undoToastRef.current;
+    undoToastRef.current = null;
+    setUndoToast(null);
+    pending?.onDismiss?.();
+  }, []);
+
+  const showUndoToast = useCallback(({ message, onAction, onDismiss }) => {
+    undoToastRef.current?.onDismiss?.();
+    const next = {
+      id: `undo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      message,
+      expiresAt: Date.now() + 8000,
+      onAction,
+      onDismiss,
+    };
+    undoToastRef.current = next;
+    setUndoToast(next);
+  }, []);
+
+  const applyUndo = useCallback(() => {
+    const pending = undoToastRef.current;
+    undoToastRef.current = null;
+    setUndoToast(null);
+    pending?.onAction?.();
   }, []);
 
   useEffect(() => {
@@ -243,12 +279,30 @@ function LibraryContent() {
       fetchTop(),
       fetchPicks(),
     ])
-      .then(([savedData, plData, topData, pickData]) => {
+      .then(async ([savedData, plData, topData, pickData]) => {
         if (cancelled) return;
+        const list = Array.isArray(plData) ? plData : [];
         setSavedSongIds((savedData || []).map((s) => s.song_id));
-        setPlaylists(plData || []);
+        setPlaylists(list);
         setTopPlays(Array.isArray(topData) ? topData : []);
         setPicks(Array.isArray(pickData) ? pickData : []);
+
+        // Counts are small per user and the generic API already scopes these
+        // rows to the caller. A missing/unavailable count only hides the
+        // metadata; it never blocks the playlist itself from rendering.
+        const counts = await Promise.all(
+          list.map(async (playlist) => {
+            try {
+              const rows = await apiFetch(
+                `/api/data/playlist_songs?playlist_id=${playlist.id}&columns=id`
+              );
+              return [playlist.id, Array.isArray(rows) ? rows.length : 0];
+            } catch {
+              return [playlist.id, 0];
+            }
+          })
+        );
+        if (!cancelled) setPlaylistCounts(Object.fromEntries(counts));
       })
       .catch((error) => console.error("Unable to load library:", error))
       .finally(() => {
@@ -407,13 +461,24 @@ function LibraryContent() {
     }
   };
 
-  const removePick = async (period) => {
-    try {
-      await apiFetch(`/api/data/picks?period=${period}`, { method: "DELETE" });
-      setPicks((prev) => prev.filter((pick) => pick.period !== period));
-    } catch (error) {
-      console.error("Unable to remove pick:", error);
-    }
+  const removePick = (period, song) => {
+    const existing = picks.find((pick) => pick.period === period);
+    if (!existing) return;
+    setPicks((prev) => prev.filter((pick) => pick.period !== period));
+    showUndoToast({
+      message: `${song?.title || "Song"} removed from ${period}`,
+      onAction: () => {
+        setPicks((prev) => [...prev.filter((pick) => pick.period !== period), existing]);
+        publishSpotlightContent({ picks: [...picks.filter((pick) => pick.period !== period), existing] });
+      },
+      onDismiss: async () => {
+        try {
+          await apiFetch(`/api/data/picks?period=${period}`, { method: "DELETE" });
+        } catch (error) {
+          console.error("Unable to remove pick:", error);
+        }
+      },
+    });
   };
 
   const handleShare = async (kind, period, song, headingLabel) => {
@@ -490,6 +555,7 @@ function LibraryContent() {
       });
       if (data) {
         setPlaylists((prev) => [data, ...prev]);
+        setPlaylistCounts((prev) => ({ ...prev, [data.id]: 0 }));
         setNewName("");
         setShowCreate(false);
       }
@@ -498,19 +564,48 @@ function LibraryContent() {
     }
   };
 
-  const deletePlaylist = async (e, id) => {
-    e.stopPropagation();
-    if (!confirm("Delete this playlist?")) return;
+  const renamePlaylist = async (name) => {
+    const playlist = renamingPlaylist;
+    if (!playlist || !name) return;
+    setPlaylistBusy(true);
     try {
-      await apiFetch(`/api/data/playlists?id=${id}`, { method: "DELETE" });
-      setPlaylists((prev) => prev.filter((p) => p.id !== id));
+      const updated = await apiFetch(`/api/data/playlists?id=${playlist.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name }),
+      });
+      const nextName = Array.isArray(updated) ? updated[0]?.name : updated?.name;
+      setPlaylists((prev) =>
+        prev.map((item) => (item.id === playlist.id ? { ...item, name: nextName || name } : item))
+      );
+      setRenamingPlaylist(null);
     } catch (error) {
-      console.error("Unable to delete playlist:", error);
+      console.error("Unable to rename playlist:", error);
+    } finally {
+      setPlaylistBusy(false);
     }
   };
 
-  const handleRemoveDownload = async (e, songId) => {
-    e.stopPropagation();
+  const confirmDeletePlaylist = async () => {
+    const playlist = deletingPlaylist;
+    if (!playlist) return;
+    setPlaylistBusy(true);
+    try {
+      await apiFetch(`/api/data/playlists?id=${playlist.id}`, { method: "DELETE" });
+      setPlaylists((prev) => prev.filter((item) => item.id !== playlist.id));
+      setPlaylistCounts((prev) => {
+        const next = { ...prev };
+        delete next[playlist.id];
+        return next;
+      });
+      setDeletingPlaylist(null);
+    } catch (error) {
+      console.error("Unable to delete playlist:", error);
+    } finally {
+      setPlaylistBusy(false);
+    }
+  };
+
+  const handleRemoveDownload = async (songId) => {
     try {
       await removeDownload(songId);
       refreshDownloads();
@@ -521,35 +616,44 @@ function LibraryContent() {
 
   const handleClearDownloads = () => {
     const snapshot = stageClearDownloads();
-    undoRef.current = snapshot;
-    setUndoSnapshot(snapshot);
+    showUndoToast({
+      message: `${snapshot.songs.length} ${snapshot.songs.length === 1 ? "download" : "downloads"} cleared`,
+      onAction: () => {
+        undoClearDownloads(snapshot);
+        refreshDownloads();
+      },
+      onDismiss: () => commitClearDownloads(snapshot).then(refreshDownloads),
+    });
     refreshDownloads();
   };
 
-  const handleUndoClear = () => {
-    if (!undoRef.current) return;
-    undoClearDownloads(undoRef.current);
-    undoRef.current = null;
-    setUndoSnapshot(null);
-    refreshDownloads();
-  };
-
-  const commitClear = () => {
-    const snapshot = undoRef.current;
-    if (!snapshot) return;
-    undoRef.current = null;
-    setUndoSnapshot(null);
-    commitClearDownloads(snapshot).then(refreshDownloads);
-  };
-
-  const handleToggleSaved = async (songId) => {
+  // A liked song is removed locally first; the DELETE is committed only when
+  // the undo window closes, so an accidental tap is genuinely recoverable.
+  const handleToggleSaved = (songId) => {
     if (!user) return;
-    try {
-      await apiFetch(`/api/data/saved_songs?song_id=${songId}`, { method: "DELETE" });
-      setSavedSongIds((prev) => prev.filter((sid) => sid !== songId));
-    } catch (error) {
-      console.error("Unable to remove saved song:", error);
-    }
+    const song = allSongs.find((item) => item.id === songId);
+    showUndoToast({
+      message: `${song?.title || "Song"} removed from Liked`,
+      onAction: async () => {
+        setSavedSongIds((prev) => (prev.includes(songId) ? prev : [...prev, songId]));
+        try {
+          await apiFetch("/api/data/saved_songs", {
+            method: "POST",
+            body: JSON.stringify({ song_id: songId }),
+          });
+        } catch (error) {
+          console.error("Unable to restore liked song:", error);
+        }
+      },
+      onDismiss: async () => {
+        try {
+          await apiFetch(`/api/data/saved_songs?song_id=${songId}`, { method: "DELETE" });
+        } catch (error) {
+          console.error("Unable to remove saved song:", error);
+        }
+      },
+    });
+    setSavedSongIds((prev) => prev.filter((sid) => sid !== songId));
   };
 
   const playShuffled = (queue) => {
@@ -558,17 +662,15 @@ function LibraryContent() {
     setActiveSong(shuffled[0], shuffled);
   };
 
-  // The header count chips jump to their tab, but only while the tab strip
-  // itself is rendered (offline, loading, and signed-out states have no tabs).
-  const tabsAvailable = isOnline && !authLoading && !!user && !loading;
   const tablistRef = useRef(null);
   const tabRefs = useRef([]);
-
-  const jumpToTab = (key) => {
-    setActiveTab(key);
-    if (key === "spotlight") setSpotlightSubTab("top");
-    tablistRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const tabCounts = {
+    downloads: downloadedSongs.length,
+    playlists: playlists.length,
+    spotlight: null,
+    saved: savedSongs.length,
   };
+  const showTabCounts = isOnline && !!user && !loading;
 
   const focusTab = (index) => {
     const next = (index + tabs.length) % tabs.length;
@@ -598,71 +700,26 @@ function LibraryContent() {
       : 0;
   const storageFull = storage && storage.quota > 0 && storage.usage / storage.quota >= 0.95;
 
-  const stats = [
-    { key: "saved", icon: Heart, value: savedSongs.length, label: "liked" },
-    {
-      key: "playlists",
-      icon: ListMusic,
-      value: playlists.length,
-      label: playlists.length === 1 ? "playlist" : "playlists",
-    },
-    { key: "downloads", icon: Download, value: downloadedSongs.length, label: "downloaded" },
-  ];
-
   return (
     <div className="min-h-[90vh] bg-white px-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-6 md:px-8 md:pt-5">
       <div className="mx-auto max-w-5xl">
-        <header className="flex flex-col gap-4 border-b border-neutral-100 pb-4 md:flex-row md:items-end md:justify-between md:pb-5">
-          <div className="min-w-0">
-            <h1 className="page-title">Library</h1>
-            <p className="mt-1 max-w-xl text-xs font-medium leading-5 text-neutral-500 sm:text-sm">
-              Your liked songs, playlists, downloads, and standout moments.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center">
-            {stats.map((stat) =>
-              tabsAvailable ? (
-                <button
-                  key={stat.key}
-                  type="button"
-                  onClick={() => jumpToTab(stat.key)}
-                  className="group flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-2 py-2 text-[11px] font-medium text-neutral-500 shadow-2xs transition hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 sm:justify-start sm:gap-2 sm:px-3 sm:text-xs"
-                >
-                  <stat.icon
-                    size={13}
-                    className="hidden shrink-0 text-neutral-400 transition group-hover:text-accent sm:block"
-                  />
-                  <span className="truncate">
-                    <span className="font-bold text-neutral-900">{stat.value}</span>{" "}
-                    {stat.label}
-                  </span>
-                </button>
-              ) : (
-                <span
-                  key={stat.key}
-                  className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-2 py-2 text-[11px] font-medium text-neutral-500 shadow-2xs sm:justify-start sm:gap-2 sm:px-3 sm:text-xs"
-                >
-                  <stat.icon size={13} className="hidden shrink-0 text-neutral-400 sm:block" />
-                  <span className="truncate">
-                    <span className="font-bold text-neutral-900">{stat.value}</span>{" "}
-                    {stat.label}
-                  </span>
-                </span>
-              )
-            )}
-          </div>
+        <header className="border-b border-neutral-100 pb-3">
+          <h1 className="sr-only">Library</h1>
+          <p className="text-xs font-medium leading-5 text-neutral-500 sm:text-sm">
+            Your saved music and standout moments, in one place.
+          </p>
         </header>
 
-        <div className="mt-4 md:mt-5">
+        <div className="mt-3 md:mt-4">
           <div
             ref={tablistRef}
             role="tablist"
             aria-label="Library collections"
-            className="inline-flex w-auto max-w-full scroll-mt-4 flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100/70 p-1 no-scrollbar"
+            className="flex w-full max-w-full scroll-mt-4 flex-nowrap items-center gap-0.5 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100/70 p-1 no-scrollbar sm:inline-flex sm:w-auto sm:gap-1"
           >
             {tabs.map((tab, idx) => {
               const isActive = activeTab === tab.key;
+              const count = showTabCounts ? tabCounts[tab.key] : null;
               return (
                 <button
                   key={tab.key}
@@ -676,7 +733,7 @@ function LibraryContent() {
                   tabIndex={isActive ? 0 : -1}
                   onClick={() => setActiveTab(tab.key)}
                   onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                  className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition sm:gap-2 sm:px-4 sm:text-xs ${
+                  className={`flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-xs font-semibold whitespace-nowrap transition sm:flex-none sm:shrink-0 sm:gap-2 sm:px-3.5 ${
                     isActive
                       ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
                       : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
@@ -687,7 +744,16 @@ function LibraryContent() {
                     strokeWidth={isActive ? 2.5 : 2}
                     className="hidden shrink-0 sm:block"
                   />
-                  <span>{tab.label}</span>
+                  <span className="truncate">{tab.label}</span>
+                  {count !== null && (
+                    <span
+                      className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums ${
+                        isActive ? "bg-accent/10 text-accent" : "bg-neutral-200/70 text-neutral-500"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
                   {tab.key === "spotlight" && spotlightNudge.active && (
                     <span
                       aria-hidden="true"
@@ -718,17 +784,17 @@ function LibraryContent() {
                       : "Saved on this device for offline listening"}
                   </p>
                   {storage && storage.quota > 0 && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <HardDrive size={12} className="shrink-0 text-neutral-400" />
-                      <div className="h-1 w-24 overflow-hidden rounded-full bg-neutral-100">
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <HardDrive size={14} className="shrink-0 text-neutral-400" />
+                      <div className="h-1 w-20 shrink-0 overflow-hidden rounded-full bg-neutral-100 sm:w-24">
                         <div
                           className={`h-full rounded-full ${storageFull ? "bg-red-500" : "bg-accent/70"}`}
                           style={{ width: `${storagePercent}%` }}
                         />
                       </div>
                       <p
-                        className={`text-[11px] font-medium ${
-                          storageFull ? "text-red-500" : "text-neutral-400"
+                        className={`min-w-0 text-xs font-medium break-words ${
+                          storageFull ? "text-red-500" : "text-neutral-500"
                         }`}
                       >
                         {storageFull
@@ -739,7 +805,7 @@ function LibraryContent() {
                   )}
                 </div>
                 {downloadedSongs.length > 0 && (
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setActiveSong(downloadQueue[0], downloadQueue)}
@@ -748,37 +814,46 @@ function LibraryContent() {
                       <Play size={11} fill="currentColor" />
                       Play all
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleClearDownloads}
-                      className="btn-tertiary min-h-9 px-2.5 py-1.5 text-xs text-neutral-500 hover:bg-red-50 hover:text-red-600"
+                    <ActionMenu
+                      label="More download actions"
+                      triggerTitle="More download options"
+                      align="left"
                     >
-                      Clear
-                    </button>
+                      {({ close }) => (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            close();
+                            handleClearDownloads();
+                          }}
+                          className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                        >
+                          <Trash2 size={15} aria-hidden="true" />
+                          Clear all downloads
+                        </button>
+                      )}
+                    </ActionMenu>
                   </div>
                 )}
               </div>
 
               {downloadedSongs.length === 0 && downloading.length === 0 ? (
-                <div className="mt-5 flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 px-4 py-14 text-center">
-                  <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.06] text-accent">
-                    <Download size={26} />
-                  </div>
-                  <h3 className="text-sm font-bold text-neutral-900 md:text-base">No downloaded songs</h3>
-                  <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
-                    {isOnline
+                <EmptyState
+                  icon={Download}
+                  title="No downloaded songs"
+                  description={
+                    isOnline
                       ? "Save songs to your device for smooth listening without an internet connection."
-                      : "Reconnect to download songs, then listen here without an internet connection."}
-                  </p>
-                  {isOnline && (
-                    <Link
-                      href="/songs"
-                      className="btn-primary mt-4 min-h-9 px-4 py-2 text-xs"
-                    >
-                      Browse songs
-                    </Link>
-                  )}
-                </div>
+                      : "Reconnect to download songs, then listen here without an internet connection."
+                  }
+                  action={
+                    isOnline ? (
+                      <Link href="/songs" className="btn-primary min-h-9 px-4 py-2 text-xs">
+                        Browse songs
+                      </Link>
+                    ) : null
+                  }
+                />
               ) : (
                 <div className="mt-4 flex items-start gap-2">
                   <div className="flex min-w-0 flex-1 flex-col gap-y-3">
@@ -803,7 +878,7 @@ function LibraryContent() {
                                   {song.author}
                                 </p>
                               </div>
-                              <span className="shrink-0 text-[11px] font-semibold text-neutral-500">
+                              <span className="shrink-0 text-xs font-semibold text-neutral-500">
                                 Saving&hellip;
                               </span>
                             </div>
@@ -820,10 +895,10 @@ function LibraryContent() {
                           className={`scroll-mt-24 ${groupIndex > 0 ? "border-t border-neutral-100" : ""}`}
                         >
                           <div className="flex items-center gap-2 bg-neutral-50/80 px-3.5 py-1.5">
-                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-accent/10 bg-accent/[0.06] text-[11px] font-bold text-accent">
+                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-accent/10 bg-accent/[0.06] text-xs font-bold text-accent">
                               {letter}
                             </span>
-                            <span className="text-[11px] font-semibold text-neutral-400">
+                            <span className="text-xs font-semibold text-neutral-400">
                               {groupedDownloads[letter].length}{" "}
                               {groupedDownloads[letter].length === 1 ? "song" : "songs"}
                             </span>
@@ -860,15 +935,25 @@ function LibraryContent() {
                                   >
                                     <Play size={12} fill="currentColor" className="ml-0.5" />
                                   </span>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => handleRemoveDownload(e, song.id)}
-                                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
-                                    title="Remove download"
-                                    aria-label={`Remove ${song.title || "song"} download`}
+                                  <ActionMenu
+                                    label={`More actions for ${song.title || "downloaded song"}`}
+                                    triggerTitle="More"
+                                    className="shrink-0"
                                   >
-                                    <Trash2 size={14} />
-                                  </button>
+                                    {({ close }) => (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          close();
+                                          handleRemoveDownload(song.id);
+                                        }}
+                                        className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                                      >
+                                        <Trash2 size={15} aria-hidden="true" />
+                                        Remove download
+                                      </button>
+                                    )}
+                                  </ActionMenu>
                                 </div>
                               </div>
                             ))}
@@ -888,7 +973,7 @@ function LibraryContent() {
                           key={letter}
                           type="button"
                           onClick={() => jumpToDownloadLetter(letter)}
-                          className="rounded px-1 py-0.5 text-[10px] font-bold leading-tight text-neutral-400 transition hover:text-accent"
+                          className="rounded px-1 py-0.5 text-xs font-bold leading-tight text-neutral-400 transition hover:text-accent"
                         >
                           {letter}
                         </button>
@@ -909,16 +994,11 @@ function LibraryContent() {
               className="animate-fade-in"
             >
               {!isOnline ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 px-4 py-14 text-center">
-                  <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-neutral-200 bg-white text-neutral-400 shadow-sm">
-                    <WifiOff size={24} />
-                  </div>
-                  <h3 className="text-sm font-bold text-neutral-900 md:text-base">You&rsquo;re offline</h3>
-                  <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
-                    Downloads still play on this device. Playlists, liked songs, and your Spotlight
-                    will be here when you reconnect.
-                  </p>
-                </div>
+                <EmptyState
+                  icon={WifiOff}
+                  title="You’re offline"
+                  description="Downloads still play on this device. Playlists, liked songs, and your Spotlight will be here when you reconnect."
+                />
               ) : authLoading || (user && loading) ? (
                 <PageSkeleton />
               ) : !user ? (
@@ -970,7 +1050,7 @@ function LibraryContent() {
                           </p>
                         </div>
                         {savedSongs.length > 0 && (
-                          <div className="flex shrink-0 items-center gap-2">
+                          <div className="flex shrink-0 flex-wrap items-center gap-2">
                             <button
                               type="button"
                               onClick={() => setActiveSong(savedQueue[0], savedQueue)}
@@ -979,14 +1059,25 @@ function LibraryContent() {
                               <Play size={11} fill="currentColor" />
                               Play all
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => playShuffled(savedQueue)}
-                              className="btn-secondary min-h-9 px-3 py-1.5 text-xs"
+                            <ActionMenu
+                              label="More liked-song actions"
+                              triggerTitle="More liked-song options"
+                              align="left"
                             >
-                              <Shuffle size={12} />
-                              Shuffle
-                            </button>
+                              {({ close }) => (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    close();
+                                    playShuffled(savedQueue);
+                                  }}
+                                  className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                                >
+                                  <Shuffle size={15} aria-hidden="true" />
+                                  Shuffle all
+                                </button>
+                              )}
+                            </ActionMenu>
                           </div>
                         )}
                       </div>
@@ -1017,32 +1108,32 @@ function LibraryContent() {
                       )}
 
                       {savedSongs.length === 0 ? (
-                        <div className="mt-5 flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 px-4 py-14 text-center">
-                          <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.06] text-accent">
-                            <Heart size={26} />
-                          </div>
-                          <h3 className="text-sm font-bold text-neutral-900 md:text-base">No liked songs yet</h3>
-                          <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
-                            Tap the heart on any song while listening to collect your favorites here.
-                          </p>
-                          <Link href="/songs" className="btn-primary mt-4 min-h-9 px-4 py-2 text-xs">
-                            Discover songs
-                          </Link>
-                        </div>
+                        <EmptyState
+                          icon={Heart}
+                          title="No liked songs yet"
+                          description="Tap the heart on any song while listening to collect your favorites here."
+                          action={
+                            <Link href="/songs" className="btn-primary min-h-9 px-4 py-2 text-xs">
+                              Discover songs
+                            </Link>
+                          }
+                        />
                       ) : filteredSavedSongs.length === 0 ? (
-                        <div className="mt-5 rounded-2xl border border-neutral-200 bg-white px-4 py-10 text-center shadow-sm">
-                          <p className="text-sm font-semibold text-neutral-900">No matching songs</p>
-                          <p className="mt-1 text-xs text-neutral-500">
-                            Nothing in your liked songs matches &ldquo;{likedQuery}&rdquo;.
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => setLikedQuery("")}
-                            className="btn-tertiary mt-3 min-h-9 text-xs"
-                          >
-                            Clear search
-                          </button>
-                        </div>
+                        <EmptyState
+                          compact
+                          icon={Search}
+                          title="No matching songs"
+                          description={`Nothing in your liked songs matches “${likedQuery}”.`}
+                          action={
+                            <button
+                              type="button"
+                              onClick={() => setLikedQuery("")}
+                              className="btn-tertiary min-h-9 text-xs"
+                            >
+                              Clear search
+                            </button>
+                          }
+                        />
                       ) : (
                         <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
                           {Object.keys(groupedSaved).sort().map((letter, groupIndex) => (
@@ -1051,10 +1142,10 @@ function LibraryContent() {
                               className={groupIndex > 0 ? "border-t border-neutral-100" : ""}
                             >
                               <div className="flex items-center gap-2 bg-neutral-50/80 px-3.5 py-1.5">
-                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-accent/10 bg-accent/[0.06] text-[11px] font-bold text-accent">
+                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-accent/10 bg-accent/[0.06] text-xs font-bold text-accent">
                                   {letter}
                                 </span>
-                                <span className="text-[11px] font-semibold text-neutral-400">
+                                <span className="text-xs font-semibold text-neutral-400">
                                   {groupedSaved[letter].length}{" "}
                                   {groupedSaved[letter].length === 1 ? "song" : "songs"}
                                 </span>
@@ -1082,43 +1173,42 @@ function LibraryContent() {
                   {activeTab === "spotlight" && (
                     <div>
                       <div className="mb-4 flex flex-wrap items-center gap-2">
-                      <div
-                        role="tablist"
-                        aria-label="Spotlight views"
-                        className="inline-flex w-auto max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-1 no-scrollbar"
-                      >
-                        {spotlightTabs.map((tab) => {
-                          const isActive = spotlightSubTab === tab.key;
-                          return (
-                            <button
-                              key={tab.key}
-                              type="button"
-                              role="tab"
-                              aria-selected={isActive}
-                              onClick={() => {
-                                setSpotlightSubTab(tab.key);
-                                markSpotlightSubTabSeen(tab.key);
-                              }}
-                              className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-semibold whitespace-nowrap transition sm:flex-none sm:px-3 sm:text-xs ${
-                                isActive
-                                  ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
-                                  : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
-                              }`}
-                            >
-                              <tab.icon size={14} className="hidden shrink-0 sm:block" />
-                              <span>{tab.label}</span>
-                              {spotlightNudge.targets?.[tab.key] && (
-                                <span
-                                  aria-hidden="true"
-                                  title={`New activity in ${tab.label}`}
-                                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent ring-2 ring-white/80"
-                                />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <SpotlightNudgeSettings />
+                        <div
+                          role="tablist"
+                          aria-label="Spotlight views"
+                          className="inline-flex w-auto max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-1 no-scrollbar"
+                        >
+                          {spotlightTabs.map((tab) => {
+                            const isActive = spotlightSubTab === tab.key;
+                            return (
+                              <button
+                                key={tab.key}
+                                type="button"
+                                role="tab"
+                                aria-selected={isActive}
+                                onClick={() => {
+                                  setSpotlightSubTab(tab.key);
+                                  markSpotlightSubTabSeen(tab.key);
+                                }}
+                                className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold whitespace-nowrap transition sm:flex-none ${
+                                  isActive
+                                    ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
+                                    : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
+                                }`}
+                              >
+                                <tab.icon size={14} className="hidden shrink-0 sm:block" />
+                                <span>{tab.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <ActionMenu
+                          label="Spotlight alert settings"
+                          triggerTitle="More Spotlight options"
+                          className="ml-auto"
+                        >
+                          {({ close }) => <SpotlightNudgeSettings onDone={close} />}
+                        </ActionMenu>
                       </div>
                     {/* Most listened — this user's top 10 by play count */}
                     {spotlightSubTab === "top" && (
@@ -1176,7 +1266,7 @@ function LibraryContent() {
                                       </p>
                                     </div>
                                     {song.playCount > 0 && (
-                                      <span className="hidden shrink-0 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-500 sm:inline">
+                                      <span className="hidden shrink-0 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-500 sm:inline">
                                         {song.playCount} {song.playCount === 1 ? "play" : "plays"}
                                       </span>
                                     )}
@@ -1189,18 +1279,16 @@ function LibraryContent() {
                             </div>
                           </>
                         ) : (
-                          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 px-4 py-14 text-center">
-                            <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.06] text-accent">
-                              <Trophy size={26} />
-                            </div>
-                            <h3 className="text-sm font-bold text-neutral-900 md:text-base">No plays counted yet</h3>
-                            <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
-                              Listen to songs while signed in and your personal top 10 will build up here.
-                            </p>
-                            <Link href="/songs" className="btn-primary mt-4 min-h-9 px-4 py-2 text-xs">
-                              Discover songs
-                            </Link>
-                          </div>
+                          <EmptyState
+                            icon={Trophy}
+                            title="No plays counted yet"
+                            description="Listen to songs while signed in and your personal top 10 will build up here."
+                            action={
+                              <Link href="/songs" className="btn-primary min-h-9 px-4 py-2 text-xs">
+                                Discover songs
+                              </Link>
+                            }
+                          />
                         )}
                       </div>
                     )}
@@ -1225,13 +1313,13 @@ function LibraryContent() {
                             return (
                               <div
                                 key={period.key}
-                                className={`flex flex-col rounded-2xl border p-4 shadow-sm ${
+                                className={`flex flex-col rounded-2xl border p-3.5 shadow-sm ${
                                   pick
                                     ? "border-neutral-200 bg-white"
                                     : "border-dashed border-neutral-200 bg-neutral-50/40"
                                 }`}
                               >
-                                <div className="flex items-center justify-between gap-3">
+                                <div className="flex min-w-0 items-start justify-between gap-2">
                                   <div className="flex min-w-0 items-center gap-2.5">
                                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-accent/10 bg-accent/[0.06] text-accent">
                                       <CalendarDays size={15} />
@@ -1240,48 +1328,76 @@ function LibraryContent() {
                                       <h3 className="truncate text-sm font-bold tracking-tight text-neutral-900">
                                         {period.heading}
                                       </h3>
-                                      <p className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+                                      <p className="text-xs font-medium text-neutral-500">
                                         {period.range}
                                       </p>
                                     </div>
                                   </div>
                                   {pick && (
-                                    <span className="shrink-0 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-                                      Picked
-                                    </span>
+                                    <ActionMenu
+                                      label={`More actions for ${period.heading} pick`}
+                                      triggerTitle="More pick options"
+                                      className="shrink-0"
+                                    >
+                                      {({ close }) => (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              close();
+                                              setPickerPeriod(period.key);
+                                            }}
+                                            className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                                          >
+                                            <Pencil size={15} aria-hidden="true" />
+                                            Change pick
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              close();
+                                              removePick(period.key, pick.song);
+                                            }}
+                                            className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                                          >
+                                            <Trash2 size={15} aria-hidden="true" />
+                                            Remove pick
+                                          </button>
+                                        </>
+                                      )}
+                                    </ActionMenu>
                                   )}
                                 </div>
 
                                 {pick ? (
                                   <>
-                                    <div className="mt-3.5 flex min-w-0 items-center gap-3 rounded-xl border border-neutral-100 bg-neutral-50/60 p-2.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveSong(pick.song, picksQueue)}
+                                      className="mt-3 flex min-w-0 items-center gap-3 rounded-xl border border-neutral-100 bg-neutral-50/60 p-2 text-left transition hover:border-neutral-200 hover:bg-neutral-50"
+                                    >
                                       <SongAvatar
                                         title={pick.song.title}
                                         size="row"
                                         variant="mono"
                                       />
-                                      <div className="min-w-0 flex-1">
-                                        <p
+                                      <span className="min-w-0 flex-1">
+                                        <span
                                           title={pick.song.title}
-                                          className="truncate text-sm font-semibold tracking-tight text-neutral-900"
+                                          className="block truncate text-sm font-semibold tracking-tight text-neutral-900"
                                         >
                                           {pick.song.title}
-                                        </p>
-                                        <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
+                                        </span>
+                                        <span className="mt-0.5 block truncate text-xs font-medium text-neutral-400">
                                           {pick.song.author}
-                                        </p>
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => setActiveSong(pick.song, picksQueue)}
-                                        aria-label={`Play ${pick.song.title || "picked song"}`}
-                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white transition hover:bg-accent/90"
-                                      >
+                                        </span>
+                                      </span>
+                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white transition hover:bg-accent/90">
                                         <Play size={12} fill="currentColor" className="ml-0.5" />
-                                      </button>
-                                    </div>
+                                      </span>
+                                    </button>
 
-                                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                                    <div className="mt-2.5 flex justify-end">
                                       <button
                                         type="button"
                                         onClick={() =>
@@ -1292,26 +1408,10 @@ function LibraryContent() {
                                             period.heading
                                           )
                                         }
-                                        className="btn-primary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
+                                        className="btn-primary min-h-9 gap-1.5 px-3.5 py-1.5 text-xs"
                                       >
-                                        <Share2 size={12} />
+                                        <Share2 size={13} />
                                         {feedback || "Share pick"}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setPickerPeriod(period.key)}
-                                        className="btn-secondary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
-                                      >
-                                        <Pencil size={12} />
-                                        Change
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => removePick(period.key)}
-                                        className="tap-sm ml-auto inline-flex min-h-8 items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
-                                      >
-                                        <Trash2 size={12} />
-                                        Remove
                                       </button>
                                     </div>
                                   </>
@@ -1319,15 +1419,15 @@ function LibraryContent() {
                                   <button
                                     type="button"
                                     onClick={() => setPickerPeriod(period.key)}
-                                    className="mt-3.5 flex min-h-[74px] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-neutral-200 bg-white/70 px-3 py-4 text-center transition hover:border-accent/40 hover:bg-white"
+                                    className="mt-3 flex min-h-[68px] w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-neutral-200 bg-white/70 px-3 py-3 text-center transition hover:border-accent/40 hover:bg-white"
                                   >
-                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
-                                      <Plus size={15} />
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
+                                      <Plus size={14} />
                                     </span>
                                     <span className="text-xs font-semibold text-neutral-700">
                                       Choose a song
                                     </span>
-                                    <span className="text-[11px] font-medium text-neutral-400">
+                                    <span className="text-xs font-medium text-neutral-400">
                                       Share your {period.range.toLowerCase()} favorite
                                     </span>
                                   </button>
@@ -1363,23 +1463,23 @@ function LibraryContent() {
                               return (
                                 <div
                                   key={item.key}
-                                  className={`flex flex-col rounded-2xl border p-4 shadow-sm ${
+                                  className={`flex flex-col rounded-2xl border p-3.5 shadow-sm ${
                                     item.song
                                       ? "border-neutral-200 bg-white"
                                       : "border-dashed border-neutral-200 bg-neutral-50/40"
                                   }`}
                                 >
-                                  <div className="flex items-start justify-between gap-3">
+                                  <div className="flex min-w-0 items-start justify-between gap-2">
                                     <div className="min-w-0">
                                       <h3 className="text-sm font-bold tracking-tight text-neutral-900">
                                         {item.heading}
                                       </h3>
-                                      <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+                                      <p className="mt-0.5 text-xs font-medium text-neutral-500">
                                         {item.range}
                                       </p>
                                     </div>
                                     {item.song && (
-                                      <span className="shrink-0 rounded-full border border-accent/15 bg-accent/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
+                                      <span className="shrink-0 rounded-full bg-accent/[0.06] px-2 py-0.5 text-xs font-bold text-accent">
                                         {item.plays} {item.plays === 1 ? "play" : "plays"}
                                       </span>
                                     )}
@@ -1387,50 +1487,57 @@ function LibraryContent() {
 
                                   {item.song ? (
                                     <>
-                                      <div className="mt-3 flex min-w-0 items-center gap-3">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setActiveSong(item.song, highlightQueue)
+                                        }
+                                        className="mt-3 flex min-w-0 items-center gap-3 rounded-xl border border-neutral-100 bg-neutral-50/60 p-2 text-left transition hover:border-neutral-200 hover:bg-neutral-50"
+                                      >
                                         <SongAvatar
                                           title={item.song.title}
-                                          size="md"
+                                          size="row"
                                           variant="mono"
                                         />
-                                        <div className="min-w-0 flex-1">
-                                          <p
+                                        <span className="min-w-0 flex-1">
+                                          <span
                                             title={item.song.title}
-                                            className="truncate text-sm font-semibold tracking-tight text-neutral-900"
+                                            className="block truncate text-sm font-semibold tracking-tight text-neutral-900"
                                           >
                                             {item.song.title}
-                                          </p>
-                                          <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
+                                          </span>
+                                          <span className="mt-0.5 block truncate text-xs font-medium text-neutral-400">
                                             {item.song.author}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <div className="mt-3 flex items-center gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setActiveSong(item.song, highlightQueue)
-                                          }
-                                          className="btn-primary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
+                                          </span>
+                                        </span>
+                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-white transition hover:bg-accent/90">
+                                          <Play size={12} fill="currentColor" className="ml-0.5" />
+                                        </span>
+                                      </button>
+                                      <div className="mt-2.5 flex justify-end">
+                                        <ActionMenu
+                                          label={`More actions for ${item.heading} highlight`}
+                                          triggerTitle="More highlight options"
                                         >
-                                          <Play size={11} fill="currentColor" />
-                                          Play
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleShare(
-                                              "highlight",
-                                              item.key,
-                                              item.song,
-                                              item.heading
-                                            )
-                                          }
-                                          className="btn-secondary min-h-8 gap-1.5 px-3 py-1.5 text-[11px]"
-                                        >
-                                          <Share2 size={12} />
-                                          {feedback || "Share"}
-                                        </button>
+                                          {({ close }) => (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                close();
+                                                handleShare(
+                                                  "highlight",
+                                                  item.key,
+                                                  item.song,
+                                                  item.heading
+                                                );
+                                              }}
+                                              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                                            >
+                                              <Share2 size={15} aria-hidden="true" />
+                                              {feedback || "Share highlight"}
+                                            </button>
+                                          )}
+                                        </ActionMenu>
                                       </div>
                                     </>
                                   ) : (
@@ -1441,7 +1548,7 @@ function LibraryContent() {
                                       <p className="mt-2 text-xs font-semibold text-neutral-700">
                                         {item.empty}
                                       </p>
-                                      <p className="mt-0.5 max-w-[230px] text-[11px] leading-relaxed text-neutral-400">
+                                      <p className="mt-0.5 max-w-[230px] text-xs leading-relaxed text-neutral-400">
                                         Every play counts toward your next highlight.
                                       </p>
                                     </div>
@@ -1453,7 +1560,7 @@ function LibraryContent() {
                         )}
 
                         {highlightsFallback && !highlightsLoading && (
-                          <p className="mt-3 text-[11px] font-medium text-neutral-400">
+                          <p className="mt-3 text-xs font-medium text-neutral-400">
                             Showing your latest saved plays while detailed play history is
                             being set up.
                           </p>
@@ -1520,76 +1627,97 @@ function LibraryContent() {
                       )}
 
                       {playlists.length === 0 ? (
-                        <div className="mt-5 flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 px-4 py-14 text-center">
-                          <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/10 bg-accent/[0.06] text-accent">
-                            <ListMusic size={26} />
-                          </div>
-                          <h3 className="text-sm font-bold text-neutral-900 md:text-base">No playlists yet</h3>
-                          <p className="mt-1 max-w-sm text-xs leading-relaxed text-neutral-500">
-                            Create collections for praise, meditation, personal worship, or study.
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => setShowCreate(true)}
-                            className="btn-primary mt-4 min-h-9 px-4 py-2 text-xs"
-                          >
-                            <Plus size={14} />
-                            Create Playlist
-                          </button>
-                        </div>
+                        <EmptyState
+                          icon={ListMusic}
+                          title="No playlists yet"
+                          description="Use New Playlist above to create a collection for praise, meditation, personal worship, or study."
+                        />
                       ) : (
                         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          {playlists.map((pl) => (
-                            <div
-                              key={pl.id}
-                              onClick={() => router.push(`/playlists/${pl.id}`)}
-                              className="group relative flex cursor-pointer items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md"
-                            >
-                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent/10 bg-accent/[0.06] text-accent">
-                                <ListMusic size={20} />
-                              </div>
-                              <div className="min-w-0 flex-1 pt-0.5">
-                                <h3 className="truncate text-sm font-semibold tracking-tight text-neutral-900">
-                                  {pl.name}
-                                </h3>
-                                <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
-                                  Playlist
-                                </p>
-                              </div>
-                              <details
-                                className="relative shrink-0"
-                                onClick={(e) => e.stopPropagation()}
+                          {playlists.map((pl) => {
+                            const trackCount = playlistCounts[pl.id] ?? 0;
+                            const created = pl.created_at
+                              ? new Date(pl.created_at).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                })
+                              : null;
+                            return (
+                              <div
+                                key={pl.id}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => router.push(`/playlists/${pl.id}`)}
+                                onKeyDown={(event) => {
+                                  if (event.target !== event.currentTarget) return;
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    router.push(`/playlists/${pl.id}`);
+                                  }
+                                }}
+                                className="group relative flex cursor-pointer items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-3.5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md"
                               >
-                                <summary
-                                  aria-label={`More options for ${pl.name}`}
-                                  className="tap-sm flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-900 [&::-webkit-details-marker]:hidden"
-                                >
-                                  <MoreHorizontal size={16} />
-                                </summary>
-                                <div className="absolute right-0 top-full z-30 mt-1 w-40 rounded-xl border border-neutral-100 bg-white p-1.5 shadow-lg">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      router.push(`/playlists/${pl.id}`);
-                                    }}
-                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
-                                  >
-                                    <ExternalLink size={13} className="text-neutral-400" />
-                                    Open playlist
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => deletePlaylist(e, pl.id)}
-                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                                  >
-                                    <Trash2 size={13} />
-                                    Delete playlist
-                                  </button>
+                                <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-accent/10 bg-accent/[0.06] text-accent">
+                                  <ListMusic size={20} />
+                                  <span className="absolute bottom-0 right-0 rounded-tl-lg bg-white/95 px-1.5 py-0.5 text-xs font-bold tabular-nums text-neutral-600 shadow-sm">
+                                    {trackCount}
+                                  </span>
                                 </div>
-                              </details>
-                            </div>
-                          ))}
+                                <div className="min-w-0 flex-1 pt-0.5">
+                                  <h3 className="truncate text-sm font-semibold tracking-tight text-neutral-900">
+                                    {pl.name}
+                                  </h3>
+                                  <p className="mt-0.5 truncate text-xs font-medium text-neutral-500">
+                                    {trackCount === 1 ? "1 song" : `${trackCount} songs`}
+                                    {created && <span aria-hidden="true"> · Created {created}</span>}
+                                  </p>
+                                </div>
+                                <ActionMenu
+                                  label={`More options for ${pl.name}`}
+                                  triggerTitle="More playlist options"
+                                  className="shrink-0"
+                                >
+                                  {({ close }) => (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          close();
+                                          router.push(`/playlists/${pl.id}`);
+                                        }}
+                                        className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                                      >
+                                        <ExternalLink size={15} className="text-neutral-400" />
+                                        Open playlist
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          close();
+                                          setRenamingPlaylist(pl);
+                                        }}
+                                        className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                                      >
+                                        <Pencil size={15} className="text-neutral-400" />
+                                        Rename playlist
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          close();
+                                          setDeletingPlaylist(pl);
+                                        }}
+                                        className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                                      >
+                                        <Trash2 size={15} />
+                                        Delete playlist
+                                      </button>
+                                    </>
+                                  )}
+                                </ActionMenu>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -1601,7 +1729,7 @@ function LibraryContent() {
         </div>
 
         <PickSongDialog
-          key={pickerPeriod || "closed"}
+          key={pickerPeriod || "pick-closed"}
           open={Boolean(pickerPeriod)}
           heading={
             PICK_PERIODS.find((period) => period.key === pickerPeriod)?.heading ||
@@ -1614,13 +1742,40 @@ function LibraryContent() {
           onClose={() => setPickerPeriod(null)}
         />
 
-        {undoSnapshot && (
+        <PlaylistNameDialog
+          key={renamingPlaylist?.id || "rename-closed"}
+          isOpen={Boolean(renamingPlaylist)}
+          title="Rename playlist"
+          initialValue={renamingPlaylist?.name || ""}
+          confirmLabel="Save name"
+          busy={playlistBusy}
+          onConfirm={renamePlaylist}
+          onClose={() => setRenamingPlaylist(null)}
+        />
+
+        <ConfirmModal
+          isOpen={Boolean(deletingPlaylist)}
+          title={`Delete “${deletingPlaylist?.name || "playlist"}”?`}
+          message="This removes the playlist and its song list. Your liked songs and downloads stay."
+          details={{
+            removed: [
+              `The playlist${deletingPlaylist ? ` (${playlistCounts[deletingPlaylist.id] ?? 0} songs)` : ""}`,
+            ],
+            kept: ["Liked songs", "Downloads", "Spotlight picks and history"],
+          }}
+          confirmLabel="Delete playlist"
+          busy={playlistBusy}
+          onConfirm={confirmDeletePlaylist}
+          onClose={() => setDeletingPlaylist(null)}
+        />
+
+        {undoToast && (
           <UndoToast
-            key={undoSnapshot.id}
-            expiresAt={undoSnapshot.expiresAt}
-            message={`${undoSnapshot.songs.length} ${undoSnapshot.songs.length === 1 ? "download" : "downloads"} cleared`}
-            onAction={handleUndoClear}
-            onDismiss={commitClear}
+            key={undoToast.id}
+            expiresAt={undoToast.expiresAt}
+            message={undoToast.message}
+            onAction={applyUndo}
+            onDismiss={dismissUndo}
           />
         )}
       </div>
