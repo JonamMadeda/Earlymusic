@@ -87,6 +87,32 @@ describe("songs primary action matches the app's primary tier", () => {
     expect(view).not.toMatch(/Play All \(/);
     expect(view).not.toMatch(/Play all \(\{filteredSongs\.length\}\)/);
   });
+
+  it("shuffles the queue behind the one primary action", () => {
+    const shuffle = view.slice(view.indexOf("const shuffleSongs ="), view.indexOf("const oneOf"));
+    expect(shuffle).toMatch(/const shuffled = \[\.\.\.queue\]/);
+    expect(shuffle).toMatch(/for \(let i = shuffled\.length - 1; i > 0; i -= 1\)/);
+    expect(shuffle).toMatch(/Math\.floor\(Math\.random\(\) \* \(i \+ 1\)\)/);
+
+    const play = view.slice(
+      view.indexOf("const playAll = useCallback"),
+      view.indexOf("// One handler for getting back")
+    );
+    expect(play).toMatch(/const shuffled = shuffleSongs\(filteredSongs\)/);
+    expect(play).toMatch(/setActiveSong\(shuffled\[0\], shuffled\)/);
+    expect(play).not.toMatch(/setIsShuffle/);
+  });
+
+  it("has no second shuffle affordance beside Play all", () => {
+    const actions = view.slice(
+      view.indexOf("{filteredSongs.length > 0 && ("),
+      view.indexOf("</section>")
+    );
+    expect(actions).not.toMatch(/aria-label=/);
+    expect(actions).not.toMatch(/<Shuffle/);
+    expect(view).not.toMatch(/Play a random song/);
+    expect(view).not.toMatch(/playRandom/);
+  });
 });
 
 describe("songs sort is a choice, not a cycle", () => {

@@ -62,6 +62,17 @@ const sortOptions = [
 // The toolbar shows these; sortOptions keeps the longer wording for tooltips.
 const sortLabels = { title: "Title", author: "Artist", created_at: "Date" };
 
+// Fisher–Yates keeps "Play all" honest: every ordering is equally likely, and
+// the shuffled order becomes the queue so Next walks the same random pass.
+const shuffleSongs = (queue) => {
+  const shuffled = [...queue];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
 const oneOf = (value, allowed, fallback) =>
   value != null && allowed.includes(value) ? value : fallback;
 
@@ -1126,9 +1137,10 @@ export default function SongsView() {
   }, []);
 
   const playAll = useCallback(() => {
-    if (filteredSongs.length > 0) {
-      setActiveSong(filteredSongs[0], filteredSongs);
-    }
+    if (filteredSongs.length === 0) return;
+    // Search and filters still decide the pool; only its order is randomized.
+    const shuffled = shuffleSongs(filteredSongs);
+    setActiveSong(shuffled[0], shuffled);
   }, [filteredSongs, setActiveSong]);
 
   // One handler for getting back to the whole catalogue. The toolbar used to
@@ -1200,6 +1212,7 @@ export default function SongsView() {
             <button
               type="button"
               onClick={playAll}
+              title="Play all in a random order"
               className="btn-primary shrink-0 cursor-pointer active:scale-95"
             >
               <Play size={14} fill="currentColor" />

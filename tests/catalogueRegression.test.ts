@@ -544,6 +544,25 @@ describe("global New catalogue membership", () => {
   });
 });
 
+describe("songs Play all shuffles the queue", () => {
+  it("starts on a shuffled song and keeps that random order for Next", () => {
+    const tracks = [fixture("a", "A"), fixture("b", "B"), fixture("c", "C")];
+    const h = harness(tracks);
+    const page = h.mount(h.load("app/songs/songs-view.js"));
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      button(page.tree, "Play all").props.onClick();
+      const [picked, queue] = h.setActiveSong.mock.calls[0];
+      // The component runs in a VM context, so its objects do not satisfy
+      // cross-realm `expect.any`/`objectContaining` matchers.
+      expect(picked.id).toBe("b");
+      expect(queue.map((song: Song) => song.id)).toEqual(["b", "c", "a"]);
+    } finally {
+      random.mockRestore();
+    }
+  });
+});
+
 describe("songs view from the address bar", () => {
   it("opens on the slice the URL describes", () => {
     const h = harness(newFixtures, "top", { q: "shared", time: "New", type: "Praise", duration: "Short" });
