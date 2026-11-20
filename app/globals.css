@@ -442,14 +442,14 @@ input[type="range"].seek-bar {
   animation: modalIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Spotlight gradient cycling */
+/* Standouts gradient cycling */
 @keyframes gradientCycle {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
 
-.spotlight-gradient {
+.standouts-gradient {
   background-size: 200% 200%;
   animation: gradientCycle 8s ease infinite;
 }
@@ -512,7 +512,7 @@ input[type="range"].seek-bar {
     animation: none;
   }
 
-  .spotlight-gradient {
+  .standouts-gradient {
     animation: none;
   }
 

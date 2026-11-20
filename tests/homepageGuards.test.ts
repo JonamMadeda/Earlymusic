@@ -50,12 +50,12 @@ describe("curated filter pills", () => {
   });
 });
 
-describe("spotlight pool", () => {
+describe("standouts pool", () => {
   it("draws from the whole catalogue rather than the newest ten", () => {
-    const spotlight = source.match(/const spotifySong = useMemo\(\(\) => \{[\s\S]*?\n {2}\},/);
-    expect(spotlight, "spotifySong memo not found").not.toBeNull();
-    expect(spotlight![0]).not.toMatch(/Math\.min\(\s*sortedSongs\.length\s*,\s*10\s*\)/);
-    expect(spotlight![0]).toContain("rng() * sortedSongs.length");
+    const standouts = source.match(/const standoutSong = useMemo\(\(\) => \{[\s\S]*?\n {2}\},/);
+    expect(standouts, "standoutSong memo not found").not.toBeNull();
+    expect(standouts![0]).not.toMatch(/Math\.min\(\s*sortedSongs\.length\s*,\s*10\s*\)/);
+    expect(standouts![0]).toContain("rng() * sortedSongs.length");
   });
 });
 

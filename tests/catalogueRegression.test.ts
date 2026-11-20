@@ -66,7 +66,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
   const localSongs = { songs };
   const picks: any[] = [];
   const playEvents: any[] = [];
-  const spotlightNudge = {
+  const standoutsNudge = {
     active: false,
     reason: "",
     reasonLabel: "",
@@ -74,8 +74,8 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
     targets: { top: false, picks: false, highlights: false },
   };
   const markLibraryNudgeSeen = vi.fn();
-  const markSpotlightSubTabSeen = vi.fn();
-  const publishSpotlightContent = vi.fn();
+  const markStandoutsSubTabSeen = vi.fn();
+  const publishStandoutsContent = vi.fn();
   let current: { cells: any[]; cursor: number; effects: (() => void)[] };
   const hooks = {
     useState(initial: any) {
@@ -145,10 +145,10 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
     "@/lib/highlights": highlightsLib,
     "@/lib/share": shareLib,
     "@/lib/libraryNudge": {
-      useLibraryNudge: () => spotlightNudge,
+      useLibraryNudge: () => standoutsNudge,
       markLibraryNudgeSeen,
-      markSpotlightSubTabSeen,
-      publishSpotlightContent,
+      markStandoutsSubTabSeen,
+      publishStandoutsContent,
       setNudgeMode: vi.fn(),
       setNudgeWindowHour: vi.fn(),
       snoozeLibraryNudge: vi.fn(),
@@ -189,7 +189,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
         if (id.endsWith("/context/PlayerContext")) return { usePlayer: () => player };
         if (id.endsWith("/context/AuthContext")) return { useAuth: () => auth };
         if (id.endsWith("/SongAvatar")) return { default: "avatar", initialLetter: (title: string) => title[0], hashStr: (value: string) => [...value].reduce((hash, char) => hash * 31 + char.charCodeAt(0) | 0, 0) };
-        if (["/ActionMenu", "/ConfirmModal", "/EmptyState", "/PlaylistNameDialog", "/SpotlightNudgeSettings"].some((name) => id.endsWith(name))) {
+        if (["/ActionMenu", "/ConfirmModal", "/EmptyState", "/PlaylistNameDialog", "/StandoutsNudgeSettings"].some((name) => id.endsWith(name))) {
           return load(`app/components${id.slice(id.lastIndexOf("/"))}.jsx`);
         }
         if (id.includes("/components/")) return { default: id, PageSkeleton: "skeleton" };
@@ -237,7 +237,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       },
     };
   }
-  return { load, mount, player, setActiveSong, fetch, alert, auth, connection, apiFetch, localSongs, picks, playEvents, spotlightNudge, markLibraryNudgeSeen, markSpotlightSubTabSeen, publishSpotlightContent, downloadsChanged: () => downloadsChanged() };
+  return { load, mount, player, setActiveSong, fetch, alert, auth, connection, apiFetch, localSongs, picks, playEvents, standoutsNudge, markLibraryNudgeSeen, markStandoutsSubTabSeen, publishStandoutsContent, downloadsChanged: () => downloadsChanged() };
 }
 
 describe("homepage navigation and recovery", () => {
@@ -710,7 +710,7 @@ describe("offline library downloads", () => {
     expect(find(page.tree, (node) => node.props.id === "library-tabpanel-playlists").props["aria-labelledby"]).toBe("library-tab-playlists");
   });
 
-  it("shows picks inside the Spotlight tab for signed-in listeners", async () => {
+  it("shows picks inside the Standouts tab for signed-in listeners", async () => {
     const h = harness([fixture("one", "First song"), fixture("two", "Second song")], "picks");
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
@@ -721,35 +721,35 @@ describe("offline library downloads", () => {
     expect(body).toContain("Choose a song");
   });
 
-  it("shows a time-boxed Spotlight dot and clears it when the tab is opened", async () => {
+  it("shows a time-boxed Standouts dot and clears it when the tab is opened", async () => {
     const h = harness([fixture("one", "First song")], "downloads");
-    h.spotlightNudge.active = true;
-    h.spotlightNudge.reasonLabel = "Spotlight activity";
+    h.standoutsNudge.active = true;
+    h.standoutsNudge.reasonLabel = "Standouts activity";
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
 
-    expect(nodes(page.tree).some((node) => node.props.title === "New Spotlight activity")).toBe(true);
+    expect(nodes(page.tree).some((node) => node.props.title === "New Standouts activity")).toBe(true);
     expect(h.markLibraryNudgeSeen).not.toHaveBeenCalled();
 
-    find(page.tree, (node) => node.props.id === "library-tab-spotlight").props.onClick();
+    find(page.tree, (node) => node.props.id === "library-tab-standouts").props.onClick();
     page.render();
     await page.startEffects();
     expect(h.markLibraryNudgeSeen).toHaveBeenCalledOnce();
   });
 
-  it("keeps the nudge on the Library tab instead of badging Spotlight sub-tabs", async () => {
-    const h = harness([fixture("one", "First song")], "spotlight");
-    h.spotlightNudge.targets.picks = true;
+  it("keeps the nudge on the Library tab instead of badging Standouts sub-tabs", async () => {
+    const h = harness([fixture("one", "First song")], "standouts");
+    h.standoutsNudge.targets.picks = true;
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
 
     expect(nodes(page.tree).some((node) => node.props.title === "New activity in Picks")).toBe(false);
-    expect(find(page.tree, (node) => node.props.label === "Spotlight alert settings")).toBeDefined();
+    expect(find(page.tree, (node) => node.props.label === "Standouts alert settings")).toBeDefined();
 
     find(page.tree, (node) => node.props.role === "tab" && text(node) === "Picks").props.onClick();
-    expect(h.markSpotlightSubTabSeen).toHaveBeenCalledWith("picks");
+    expect(h.markStandoutsSubTabSeen).toHaveBeenCalledWith("picks");
   });
 
   it("ranks the song of the day by plays inside the period", async () => {

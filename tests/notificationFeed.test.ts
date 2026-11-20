@@ -201,10 +201,39 @@ describe("announcement feed store", () => {
     expect(JSON.parse(storage[CACHE_KEY]).dismissedIds).toEqual([]);
   });
 
-  it("expands unread Spotlight targets for the Library badges", async () => {
+  it("keeps Neon string ids read and dismissed across refreshes", async () => {
+    const items = [
+      { ...announcement(3, 1), id: "3" },
+      { ...announcement(2, 30), id: "2" },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ notifications: items, now: new Date().toISOString() }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      )
+    );
+
     const store = await loadStore();
     await store.refreshNotifications();
-    expect(store.spotlightTargetsFor(store.getNotificationSnapshot())).toEqual([]);
+    expect(store.getNotificationSnapshot().unreadIds).toEqual([3, 2]);
+
+    store.dismissNotification("3");
+    expect(store.getNotificationSnapshot().dismissedIds).toEqual([3]);
+    expect(JSON.parse(storage[CACHE_KEY]).dismissedIds).toEqual([3]);
+
+    await store.refreshNotifications({ force: true });
+    expect(store.getNotificationSnapshot().unreadIds).toEqual([2]);
+  });
+
+  it("expands unread Standouts targets for the Library badges", async () => {
+    const store = await loadStore();
+    await store.refreshNotifications();
+    expect(store.standoutsTargetsFor(store.getNotificationSnapshot())).toEqual([]);
 
     const targeted = [
       { ...announcement(4, 0), target: "highlights" },
@@ -223,6 +252,6 @@ describe("announcement feed store", () => {
     );
     await store.refreshNotifications({ force: true });
 
-    expect(store.spotlightTargetsFor(store.getNotificationSnapshot())).toEqual(["highlights"]);
+    expect(store.standoutsTargetsFor(store.getNotificationSnapshot())).toEqual(["highlights"]);
   });
 });

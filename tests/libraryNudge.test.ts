@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { libraryNudgeWindow } from "../lib/libraryNudge";
 
-describe("library spotlight nudge", () => {
+describe("library standouts nudge", () => {
   const at = (day: number, hour: number, minute: number) =>
     new Date(2026, 10, day, hour, minute, 0, 0);
 

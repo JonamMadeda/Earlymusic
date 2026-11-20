@@ -4,8 +4,10 @@ import {
   TITLE_MAX_LENGTH,
   URL_MAX_LENGTH,
   audioUpdateAnnouncementFor,
-  isSpotlightTarget,
+  isStandoutsTarget,
   normalizeNotificationKind,
+  normalizeNotificationId,
+  normalizeNotificationIds,
   normalizeNotificationTarget,
   normalizeNotificationUrl,
   releaseAnnouncementFor,
@@ -45,13 +47,13 @@ describe("announcements", () => {
     expect(normalizeNotificationTarget(null)).toBe("general");
   });
 
-  it("recognises only the four Spotlight destinations", () => {
-    expect(isSpotlightTarget("spotlight")).toBe(true);
-    expect(isSpotlightTarget("top")).toBe(true);
-    expect(isSpotlightTarget("picks")).toBe(true);
-    expect(isSpotlightTarget("highlights")).toBe(true);
-    expect(isSpotlightTarget("general")).toBe(false);
-    expect(isSpotlightTarget(undefined)).toBe(false);
+  it("recognises only the four Standouts destinations", () => {
+    expect(isStandoutsTarget("standouts")).toBe(true);
+    expect(isStandoutsTarget("top")).toBe(true);
+    expect(isStandoutsTarget("picks")).toBe(true);
+    expect(isStandoutsTarget("highlights")).toBe(true);
+    expect(isStandoutsTarget("general")).toBe(false);
+    expect(isStandoutsTarget(undefined)).toBe(false);
   });
 
   it("holds the feed threshold", () => {
@@ -87,6 +89,15 @@ describe("announcements", () => {
     expect(
       releaseAnnouncementFor({ id: 1, title: "x".repeat(400) }).title
     ).toHaveLength(TITLE_MAX_LENGTH);
+  });
+
+  it("normalises bigserial ids from Neon without dropping them", () => {
+    expect(normalizeNotificationId("66")).toBe(66);
+    expect(normalizeNotificationId(66)).toBe(66);
+    expect(normalizeNotificationId("9007199254740993")).toBe("9007199254740993");
+    expect(normalizeNotificationId("0")).toBeNull();
+    expect(normalizeNotificationId("release")).toBeNull();
+    expect(normalizeNotificationIds(["12", 12, "bad", "13"])).toEqual([12, 13]);
   });
 
   it("says a recording changed when audio is replaced", () => {

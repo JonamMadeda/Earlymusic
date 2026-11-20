@@ -50,10 +50,10 @@ import { shareSongWithContext } from "@/lib/share";
 import {
   useLibraryNudge,
   markLibraryNudgeSeen,
-  markSpotlightSubTabSeen,
-  publishSpotlightContent,
+  markStandoutsSubTabSeen,
+  publishStandoutsContent,
 } from "@/lib/libraryNudge";
-import SpotlightNudgeSettings from "@/app/components/SpotlightNudgeSettings";
+import StandoutsNudgeSettings from "@/app/components/StandoutsNudgeSettings";
 import {
   getDownloadedSongs,
   removeDownload,
@@ -76,19 +76,19 @@ const formatBytes = (bytes) => {
 const tabs = [
   { key: "downloads", label: "Downloads", icon: Download },
   { key: "playlists", label: "Playlists", icon: ListMusic },
-  { key: "spotlight", label: "Spotlight", icon: TrendingUp },
+  { key: "standouts", label: "Standouts", icon: TrendingUp },
   { key: "saved", label: "Liked", icon: Heart },
 ];
 
 const tabKeys = tabs.map((t) => t.key);
 
-const spotlightTabs = [
-  { key: "top", label: "Top", icon: Trophy },
-  { key: "picks", label: "Picks", icon: CalendarDays },
+const standoutsTabs = [
   { key: "highlights", label: "Highlights", icon: Award },
+  { key: "picks", label: "Picks", icon: CalendarDays },
+  { key: "top", label: "Top", icon: Trophy },
 ];
 
-const spotlightSubTabKeys = spotlightTabs.map((t) => t.key);
+const standoutsSubTabKeys = standoutsTabs.map((t) => t.key);
 
 // Fisher–Yates keeps "Shuffle" honest: every ordering is equally likely.
 const shuffleSongs = (queue) => {
@@ -107,13 +107,13 @@ function LibraryContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isOnline = useOnlineStatus();
-  const spotlightNudge = useLibraryNudge();
+  const standoutsNudge = useLibraryNudge();
   const resolveTabState = useCallback((rawTab) => {
-    if (spotlightSubTabKeys.includes(rawTab)) {
-      return { tab: "spotlight", subTab: rawTab };
+    if (standoutsSubTabKeys.includes(rawTab)) {
+      return { tab: "standouts", subTab: rawTab };
     }
-    if (rawTab === "spotlight" || rawTab === "insights") {
-      return { tab: "spotlight", subTab: "top" };
+    if (rawTab === "standouts" || rawTab === "insights") {
+      return { tab: "standouts", subTab: "top" };
     }
     if (tabKeys.includes(rawTab)) {
       return { tab: rawTab, subTab: "top" };
@@ -122,7 +122,7 @@ function LibraryContent() {
   }, []);
   const initialTabState = resolveTabState(searchParams.get("tab"));
   const [activeTab, setActiveTab] = useState(initialTabState.tab);
-  const [spotlightSubTab, setSpotlightSubTab] = useState(initialTabState.subTab);
+  const [standoutsSubTab, setStandoutsSubTab] = useState(initialTabState.subTab);
   const [loading, setLoading] = useState(true);
 
   // The initial state handles the first paint. Listening for popstate lets
@@ -131,7 +131,7 @@ function LibraryContent() {
     const applyTabFromLocation = () => {
       const next = resolveTabState(new URLSearchParams(window.location.search).get("tab"));
       setActiveTab(next.tab);
-      setSpotlightSubTab(next.subTab);
+      setStandoutsSubTab(next.subTab);
     };
     window.addEventListener("popstate", applyTabFromLocation);
     return () => window.removeEventListener("popstate", applyTabFromLocation);
@@ -139,14 +139,14 @@ function LibraryContent() {
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
-    const tabParam = activeTab === "spotlight" ? spotlightSubTab : activeTab;
+    const tabParam = activeTab === "standouts" ? standoutsSubTab : activeTab;
     if (tabParam === "downloads") params.delete("tab");
     else params.set("tab", tabParam);
     const query = params.toString();
     const url = `${pathname}${query ? `?${query}` : ""}`;
     if (url === `${window.location.pathname}${window.location.search}`) return;
     window.history.replaceState(window.history.state, "", url);
-  }, [activeTab, spotlightSubTab, pathname, searchParams]);
+  }, [activeTab, standoutsSubTab, pathname, searchParams]);
 
   // Saved songs
   const [savedSongIds, setSavedSongIds] = useState([]);
@@ -376,7 +376,7 @@ function LibraryContent() {
   // played since the last visit is counted immediately. A missing table
   // falls back to recently_played counts below.
   useEffect(() => {
-    if (!isOnline || authLoading || !user || activeTab !== "spotlight" || spotlightSubTab !== "highlights") return undefined;
+    if (!isOnline || authLoading || !user || activeTab !== "standouts" || standoutsSubTab !== "highlights") return undefined;
 
     let cancelled = false;
     setHighlightsLoading(true);
@@ -402,7 +402,7 @@ function LibraryContent() {
     return () => {
       cancelled = true;
     };
-  }, [isOnline, authLoading, user, activeTab, spotlightSubTab]);
+  }, [isOnline, authLoading, user, activeTab, standoutsSubTab]);
 
   const highlightSourceEvents = useMemo(() => {
     if (!highlightsFallback) return playEvents || [];
@@ -426,12 +426,12 @@ function LibraryContent() {
   );
 
   // Feed the nudge the rows we already loaded instead of duplicating queries.
-  // Opening Spotlight is the "seen" signal, and content that loads while it is
+  // Opening Standouts is the "seen" signal, and content that loads while it is
   // already open is seen too — a slow fetch must not re-light the dot on the
   // very page displaying it.
   useEffect(() => {
-    publishSpotlightContent({ picks, highlights });
-    if (activeTab === "spotlight") markLibraryNudgeSeen();
+    publishStandoutsContent({ picks, highlights });
+    if (activeTab === "standouts") markLibraryNudgeSeen();
   }, [picks, highlights, activeTab]);
 
   const notifyShare = useCallback((key, message) => {
@@ -469,7 +469,7 @@ function LibraryContent() {
       message: `${song?.title || "Song"} removed from ${period}`,
       onAction: () => {
         setPicks((prev) => [...prev.filter((pick) => pick.period !== period), existing]);
-        publishSpotlightContent({ picks: [...picks.filter((pick) => pick.period !== period), existing] });
+        publishStandoutsContent({ picks: [...picks.filter((pick) => pick.period !== period), existing] });
       },
       onDismiss: async () => {
         try {
@@ -667,7 +667,7 @@ function LibraryContent() {
   const tabCounts = {
     downloads: downloadedSongs.length,
     playlists: playlists.length,
-    spotlight: null,
+    standouts: null,
     saved: savedSongs.length,
   };
   const showTabCounts = isOnline && !!user && !loading;
@@ -754,10 +754,10 @@ function LibraryContent() {
                       {count}
                     </span>
                   )}
-                  {tab.key === "spotlight" && spotlightNudge.active && (
+                  {tab.key === "standouts" && standoutsNudge.active && (
                     <span
                       aria-hidden="true"
-                      title={`New ${spotlightNudge.reasonLabel}`}
+                      title={`New ${standoutsNudge.reasonLabel}`}
                       className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent ring-2 ring-white/80"
                     />
                   )}
@@ -997,7 +997,7 @@ function LibraryContent() {
                 <EmptyState
                   icon={WifiOff}
                   title="You’re offline"
-                  description="Downloads still play on this device. Playlists, liked songs, and your Spotlight will be here when you reconnect."
+                  description="Downloads still play on this device. Playlists, liked songs, and your Standouts will be here when you reconnect."
                 />
               ) : authLoading || (user && loading) ? (
                 <PageSkeleton />
@@ -1169,17 +1169,17 @@ function LibraryContent() {
                     </div>
                   )}
 
-                  {/* Spotlight — top, picks, and highlights */}
-                  {activeTab === "spotlight" && (
+                  {/* Standouts — top, picks, and highlights */}
+                  {activeTab === "standouts" && (
                     <div>
                       <div className="mb-4 flex flex-wrap items-center gap-2">
                         <div
                           role="tablist"
-                          aria-label="Spotlight views"
+                          aria-label="Standouts views"
                           className="inline-flex w-auto max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-1 no-scrollbar"
                         >
-                          {spotlightTabs.map((tab) => {
-                            const isActive = spotlightSubTab === tab.key;
+                          {standoutsTabs.map((tab) => {
+                            const isActive = standoutsSubTab === tab.key;
                             return (
                               <button
                                 key={tab.key}
@@ -1187,8 +1187,8 @@ function LibraryContent() {
                                 role="tab"
                                 aria-selected={isActive}
                                 onClick={() => {
-                                  setSpotlightSubTab(tab.key);
-                                  markSpotlightSubTabSeen(tab.key);
+                                  setStandoutsSubTab(tab.key);
+                                  markStandoutsSubTabSeen(tab.key);
                                 }}
                                 className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold whitespace-nowrap transition sm:flex-none ${
                                   isActive
@@ -1203,15 +1203,15 @@ function LibraryContent() {
                           })}
                         </div>
                         <ActionMenu
-                          label="Spotlight alert settings"
-                          triggerTitle="More Spotlight options"
+                          label="Standouts alert settings"
+                          triggerTitle="More Standouts options"
                           className="ml-auto"
                         >
-                          {({ close }) => <SpotlightNudgeSettings onDone={close} />}
+                          {({ close }) => <StandoutsNudgeSettings onDone={close} />}
                         </ActionMenu>
                       </div>
                     {/* Most listened — this user's top 10 by play count */}
-                    {spotlightSubTab === "top" && (
+                    {standoutsSubTab === "top" && (
                       <div>
                         {topSongs.length > 0 ? (
                           <>
@@ -1293,7 +1293,7 @@ function LibraryContent() {
                       </div>
                     )}
                     {/* Picks — one shareable song per period */}
-                    {spotlightSubTab === "picks" && (
+                    {standoutsSubTab === "picks" && (
                       <div>
                         <div className="min-w-0">
                           <h2 className="section-title">Your picks</h2>
@@ -1439,7 +1439,7 @@ function LibraryContent() {
                       </div>
                     )}
                     {/* Highlights — automatic leaders ranked by play count */}
-                    {spotlightSubTab === "highlights" && (
+                    {standoutsSubTab === "highlights" && (
                       <div>
                         <div className="min-w-0">
                           <h2 className="section-title">Your highlights</h2>
@@ -1761,7 +1761,7 @@ function LibraryContent() {
             removed: [
               `The playlist${deletingPlaylist ? ` (${playlistCounts[deletingPlaylist.id] ?? 0} songs)` : ""}`,
             ],
-            kept: ["Liked songs", "Downloads", "Spotlight picks and history"],
+            kept: ["Liked songs", "Downloads", "Standouts picks and history"],
           }}
           confirmLabel="Delete playlist"
           busy={playlistBusy}

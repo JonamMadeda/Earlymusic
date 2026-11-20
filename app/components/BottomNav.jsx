@@ -7,7 +7,7 @@ import { useLibraryNudge } from "@/lib/libraryNudge";
 
 const BottomNav = () => {
   const pathname = usePathname();
-  const spotlightNudge = useLibraryNudge();
+  const standoutsNudge = useLibraryNudge();
 
   const navItems = [
     { icon: Home, label: "Home", href: "/" },
@@ -38,8 +38,8 @@ const BottomNav = () => {
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             aria-label={
-              item.label === "Library" && spotlightNudge.active
-                ? `Library — new ${spotlightNudge.reasonLabel}`
+              item.label === "Library" && standoutsNudge.active
+                ? `Library — new ${standoutsNudge.reasonLabel}`
                 : isActive
                   ? `${item.label}, current page`
                   : item.label
@@ -66,11 +66,11 @@ const BottomNav = () => {
             >
               {item.label}
             </span>
-            {item.label === "Library" && spotlightNudge.active && (
+            {item.label === "Library" && standoutsNudge.active && (
               <span
                 aria-hidden="true"
                 className="absolute right-[calc(50%-22px)] top-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-white"
-                title={`Spotlight: ${spotlightNudge.reasonLabel}`}
+                title={`Standouts: ${standoutsNudge.reasonLabel}`}
               />
             )}
             {isActive && (

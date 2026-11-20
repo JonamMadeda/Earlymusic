@@ -131,7 +131,7 @@ export default function AdminNotificationsPanel({ onToast }) {
       <p className="mb-3 text-xs leading-relaxed text-neutral-500">
         Anything posted here appears in the app for signed-out listeners too. The feed
         holds {MAX_NOTIFICATIONS} announcements: once it is full, the next post removes the
-        oldest one. Pick a Spotlight destination to light up the Library dot and badge that
+        oldest one. Pick a Standouts destination to light up the Library dot and badge that
         sub-tab.
       </p>
 

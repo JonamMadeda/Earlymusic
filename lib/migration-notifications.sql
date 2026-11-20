@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   CONSTRAINT notifications_kind_check
     CHECK (kind IN ('news', 'update', 'release', 'warning')),
   CONSTRAINT notifications_target_check
-    CHECK (target IN ('general', 'spotlight', 'top', 'picks', 'highlights'))
+    CHECK (target IN ('general', 'standouts', 'top', 'picks', 'highlights'))
 );
 
 -- Announcements that point at the Library are read by the nudge badge, so the
@@ -24,7 +24,7 @@ BEGIN
   ) THEN
     ALTER TABLE public.notifications
       ADD CONSTRAINT notifications_target_check
-      CHECK (target IN ('general', 'spotlight', 'top', 'picks', 'highlights'));
+      CHECK (target IN ('general', 'standouts', 'top', 'picks', 'highlights'));
   END IF;
 END $$;
 

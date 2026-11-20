@@ -529,12 +529,12 @@ export default function Home() {
     return seededShuffle(rest, `explore-${songIdsKey}-${sessionSeed}`).slice(0, railSize(sortedSongs.length, 12));
   }, [sortedSongs, featuredSongs, newestSongs, songIdsKey, sessionSeed]);
 
-  const spotifySong = useMemo(() => {
+  const standoutSong = useMemo(() => {
     if (sortedSongs.length === 0) return null;
-    const rng = mulberry32(hashStr(`spotlight-${songIdsKey}-${sessionSeed}`));
+    const rng = mulberry32(hashStr(`standouts-${songIdsKey}-${sessionSeed}`));
     // The whole catalogue, not the 10 newest: sortedSongs is newest-first, so a
-    // capped pool left every older recording permanently unspotlighted once the
-    // library passed ten uploads.
+    // capped pool left every older recording permanently out of Standouts once
+    // the library passed ten uploads.
     return sortedSongs[Math.floor(rng() * sortedSongs.length)];
   }, [songIdsKey, sessionSeed, sortedSongs]);
 
@@ -745,14 +745,14 @@ export default function Home() {
               />
             )}
 
-            {/* --- COMPACT PLAY SPOTLIGHT BANNER (Guaranteed Dark Background + 100% White Text Contrast) --- */}
-            {spotifySong && (
+            {/* --- COMPACT PLAY STANDOUTS BANNER (Guaranteed Dark Background + 100% White Text Contrast) --- */}
+            {standoutSong && (
               <LazySection>
                 <section className="scroll-mt-24">
                   <div
                     className="relative overflow-hidden rounded-xl border border-neutral-800 p-4 md:p-5 text-white shadow-sm"
                     style={{ backgroundColor: "#0f172a", color: "#ffffff" }}
-                    onMouseEnter={() => prefetchSongAudio(spotifySong)}
+                    onMouseEnter={() => prefetchSongAudio(standoutSong)}
                   >
                     <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
                       <div className="flex min-w-0 flex-1 items-center gap-3.5">
@@ -761,7 +761,7 @@ export default function Home() {
                           className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-white/20 text-2xl font-black text-white shadow-sm retro-grooves"
                           style={{ backgroundColor: "#0f172a" }}
                         >
-                          {initialLetter(spotifySong.title)}
+                          {initialLetter(standoutSong.title)}
                         </div>
 
                         {/* Metadata in pure, guaranteed white text */}
@@ -769,19 +769,19 @@ export default function Home() {
                           <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                             <span className="inline-flex items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wider text-white">
                               <Star size={9} fill="currentColor" />
-                              Spotlight
+                              Standouts
                             </span>
-                            {spotifySong.category && (
+                            {standoutSong.category && (
                               <span className="rounded border border-white/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wider text-neutral-300">
-                                {spotifySong.category}
+                                {standoutSong.category}
                               </span>
                             )}
                           </div>
                           <h2 className="truncate text-sm font-bold leading-5 text-white sm:text-base">
-                            {spotifySong.title}
+                            {standoutSong.title}
                           </h2>
                           <p className="mt-0.5 truncate text-xs leading-4 text-neutral-300">
-                            {spotifySong.author}
+                            {standoutSong.author}
                           </p>
                         </div>
                       </div>
@@ -789,11 +789,11 @@ export default function Home() {
                       {/* Play Action: Pure white button with dark text */}
                       <button
                         type="button"
-                        onClick={() => setActiveSong(spotifySong, sortedSongs)}
+                        onClick={() => setActiveSong(standoutSong, sortedSongs)}
                         className="tap-sm inline-flex min-h-9 shrink-0 items-center justify-center gap-2 self-start rounded-full bg-white px-4 py-2 text-xs font-semibold text-accent transition hover:bg-neutral-100 active:scale-95 sm:self-auto"
                       >
                         <Play size={14} fill="currentColor" />
-                        <span>Play Spotlight</span>
+                        <span>Play Standouts</span>
                       </button>
                     </div>
                   </div>

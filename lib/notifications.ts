@@ -11,25 +11,25 @@ export const NOTIFICATION_KINDS = ["news", "update", "release", "warning"] as co
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 // "general" is the ordinary announcement every listener sees. The four
-// spotlight targets are the same feed shown in the Library; the client uses
+// standouts targets are the same feed shown in the Library; the client uses
 // them to badge the right sub-tab and to decide whether the Library dot should
 // light up. Keeping this as a column (rather than parsing the URL) means an
 // admin can point a post at the Library without a link.
 export const NOTIFICATION_TARGETS = [
   "general",
-  "spotlight",
+  "standouts",
   "top",
   "picks",
   "highlights",
 ] as const;
 export type NotificationTarget = (typeof NOTIFICATION_TARGETS)[number];
 
-export const SPOTLIGHT_TARGETS = ["spotlight", "top", "picks", "highlights"] as const;
-export type SpotlightTarget = (typeof SPOTLIGHT_TARGETS)[number];
+export const STANDOUTS_TARGETS = ["standouts", "top", "picks", "highlights"] as const;
+export type StandoutsTarget = (typeof STANDOUTS_TARGETS)[number];
 
 export const TARGET_LABELS: Record<NotificationTarget, string> = {
   general: "General",
-  spotlight: "Spotlight",
+  standouts: "Standouts",
   top: "Top tracks",
   picks: "Picks",
   highlights: "Highlights",
@@ -47,8 +47,43 @@ export const normalizeNotificationTarget = (value: unknown): NotificationTarget 
     ? (value as NotificationTarget)
     : "general";
 
-export const isSpotlightTarget = (value: unknown): value is SpotlightTarget =>
-  (SPOTLIGHT_TARGETS as readonly unknown[]).includes(value);
+export const isStandoutsTarget = (value: unknown): value is StandoutsTarget =>
+  (STANDOUTS_TARGETS as readonly unknown[]).includes(value);
+
+export type NotificationId = number | string;
+
+/**
+ * Neon returns bigserial ids as strings ("66"), while locally cached ids used
+ * to be numbers. Normalising both sides to the same shape is what lets a
+ * dismissed or read tile stay dismissed after a refresh or on another device.
+ * Ids beyond Number.MAX_SAFE_INTEGER stay strings rather than losing digits.
+ */
+export const normalizeNotificationId = (value: unknown): NotificationId | null => {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  }
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const numeric = Number(trimmed);
+  if (numeric === 0) return null;
+  if (Number.isSafeInteger(numeric) && numeric > 0) return numeric;
+  return trimmed;
+};
+
+export const normalizeNotificationIds = (value: unknown, limit = 50): NotificationId[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<NotificationId>();
+  const ids: NotificationId[] = [];
+  for (const entry of value) {
+    const id = normalizeNotificationId(entry);
+    if (id === null || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+    if (ids.length >= limit) break;
+  }
+  return ids;
+};
 
 // Class strings only, so this module stays importable from the API routes.
 // Components pair each kind with its own lucide icon.

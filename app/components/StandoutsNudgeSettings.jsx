@@ -15,17 +15,17 @@ const MODES = [
 ];
 
 /**
- * The contents of the Spotlight overflow menu. Kept here rather than on a
+ * The contents of the Standouts overflow menu. Kept here rather than on a
  * settings page so the listener can quiet the dot at the moment it catches
  * their eye, without adding a second visible control to the tab strip.
  */
-export default function SpotlightNudgeSettings({ onDone }) {
+export default function StandoutsNudgeSettings({ onDone }) {
   const { mode, windowHour, snoozed } = useLibraryNudge();
 
   return (
     <div className="w-64 p-1 text-left" onClick={(event) => event.stopPropagation()}>
       <div className="px-2 pb-2 pt-1">
-        <p className="text-xs font-bold tracking-tight text-neutral-900">Spotlight alerts</p>
+        <p className="text-xs font-bold tracking-tight text-neutral-900">Standouts alerts</p>
         <p className="mt-0.5 text-xs leading-snug text-neutral-500">
           Choose when the Library tab should nudge you.
         </p>

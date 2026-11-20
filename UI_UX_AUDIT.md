@@ -37,7 +37,7 @@ This is a code-based UX audit; a reliable screenshot review was not available wh
 
 - **[Pending]** Use one consistent page container, spacing rhythm, card radius, and shadow level. Adjacent pages currently mix `rounded-xl`, `rounded-2xl`, `rounded-3xl`, multiple background treatments, and several button silhouettes.
 - **[Pending]** Standardize buttons into four patterns: **primary, secondary, tertiary, and destructive**. Avoid using the same dark accent for primary actions, metadata badges, categories, and statuses.
-- **[Pending]** Keep the existing navy brand color, but consider a restrained warm-gold accent for “New,” spotlight content, and worship-oriented highlights—not for additional competing CTAs. The current accent is defined in [app/globals.css:3](app/globals.css#L3).
+- **[Pending]** Keep the existing navy brand color, but consider a restrained warm-gold accent for “New,” standouts content, and worship-oriented highlights—not for additional competing CTAs. The current accent is defined in [app/globals.css:3](app/globals.css#L3).
 
 ### P1 — Simplify the application shell
 
