@@ -214,9 +214,12 @@ beforeEach(() => {
   mocks.context = {
     activeSong: songs[0], queue: songs, allSongs: songs,
     sleepTimerStopSignal: 0, volume: 1, isMuted: false, isShuffle: false, repeatMode: "off",
+    playRequestId: 0,
+    recordPlayStart: vi.fn(),
     setActiveSong: vi.fn((song: Song, queue: Song[]) => {
       mocks.context.activeSong = song;
       mocks.context.queue = queue;
+      mocks.context.playRequestId += 1;
       player.dirty = true;
     }),
     restorePlayback: vi.fn((song: Song) => {
@@ -258,7 +261,7 @@ describe("Player same-source selections", () => {
     expect(player.audio.load).not.toHaveBeenCalled();
   });
 
-  it("keeps an ordinary same-song click playing, and resumes a paused copy", async () => {
+  it("restarts an ordinary same-song click as a new play, and resumes a paused copy", async () => {
     await player.settle();
     await player.ready();
     player.audio.currentTime = 25;
@@ -267,13 +270,18 @@ describe("Player same-source selections", () => {
     expect(player.audio.paused).toBe(false);
     expect(player.audio.play).not.toHaveBeenCalled();
     expect(player.duration).toBe(180);
-    expect(player.audio.currentTime).toBe(25);
+    expect(player.audio.currentTime).toBe(0);
+    expect(mocks.context.recordPlayStart).toHaveBeenCalledWith("a");
 
     await player.click("Pause");
+    mocks.context.recordPlayStart.mockClear();
     await player.select({ ...songs[0] });
     expect(player.audio.paused).toBe(false);
     expect(player.duration).toBe(180);
     expect(player.status).toBe("");
+    expect(mocks.context.recordPlayStart).not.toHaveBeenCalled();
+    await player.event("onPlaying");
+    expect(mocks.context.recordPlayStart).toHaveBeenCalledWith("a");
   });
 
   it("does not reset metadata or duplicate a load when a same-source selection is buffering", async () => {
@@ -320,6 +328,85 @@ describe("Player same-source selections", () => {
     await player.ready();
     expect(player.audio.paused).toBe(false);
     expect(player.duration).toBe(180);
+  });
+});
+
+describe("Player play-event recording", () => {
+  it("records one play when audio starts, not on pause/resume", async () => {
+    await player.settle();
+    await player.ready();
+    expect(mocks.context.recordPlayStart).not.toHaveBeenCalled();
+
+    await player.event("onPlaying");
+    expect(mocks.context.recordPlayStart).toHaveBeenCalledTimes(1);
+    expect(mocks.context.recordPlayStart).toHaveBeenCalledWith("a");
+
+    await player.click("Pause");
+    await player.click("Play");
+    await player.event("onPlaying");
+    expect(mocks.context.recordPlayStart).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not count a paused selection until playback starts", async () => {
+    await player.settle();
+    await player.ready();
+    await player.click("Pause");
+    mocks.context.recordPlayStart.mockClear();
+
+    await player.select(songs[1]);
+    await player.ready();
+    expect(mocks.context.recordPlayStart).not.toHaveBeenCalled();
+
+    await player.event("onPlaying");
+    expect(mocks.context.recordPlayStart).toHaveBeenCalledTimes(1);
+    expect(mocks.context.recordPlayStart).toHaveBeenCalledWith("b");
+  });
+
+  it("does not re-count a restored listen when playback resumes", async () => {
+    storage.set("lumbo_playback_position", JSON.stringify({ song: songs[0], position: 42 }));
+    await player.settle();
+    await player.ready();
+    await player.event("onPlaying");
+    expect(mocks.context.recordPlayStart).not.toHaveBeenCalled();
+  });
+
+  it("records repeat-one loops without counting ordinary seeks", async () => {
+    await player.settle();
+    await player.ready();
+    await player.event("onPlaying");
+    mocks.context.repeatMode = "one";
+    player.dirty = true;
+    await player.settle();
+    mocks.context.recordPlayStart.mockClear();
+
+    player.audio.currentTime = 90;
+    await player.event("onTimeUpdate");
+    player.audio.currentTime = 80;
+    await player.event("onTimeUpdate");
+    expect(mocks.context.recordPlayStart).not.toHaveBeenCalled();
+
+    player.audio.currentTime = 178;
+    await player.event("onTimeUpdate");
+    player.audio.currentTime = 0.2;
+    await player.event("onTimeUpdate");
+    expect(mocks.context.recordPlayStart).toHaveBeenCalledTimes(1);
+    expect(mocks.context.recordPlayStart).toHaveBeenCalledWith("a");
+  });
+
+  it("records a repeat-all wrap onto the same song", async () => {
+    mocks.context.queue = [songs[0]];
+    mocks.context.repeatMode = "all";
+    player.dirty = true;
+    await player.settle();
+    await player.ready();
+    await player.event("onPlaying");
+    mocks.context.recordPlayStart.mockClear();
+
+    player.audio.currentTime = 25;
+    await player.click("Next track");
+    expect(player.audio.currentTime).toBe(0);
+    expect(mocks.context.recordPlayStart).toHaveBeenCalledTimes(1);
+    expect(mocks.context.recordPlayStart).toHaveBeenCalledWith("a");
   });
 });
 

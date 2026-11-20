@@ -51,6 +51,8 @@ const Player = () => {
     activeSong: song,
     queue,
     setActiveSong: onSongSelect,
+    playRequestId = 0,
+    recordPlayStart = () => {},
     restorePlayback,
     allSongs,
     sleepTimerStopSignal,
@@ -145,6 +147,11 @@ const Player = () => {
   const lastPrevPressRef = useRef(0);
   const resumePositionRef = useRef(null);
   const lastPositionSaveRef = useRef(0);
+  // One token per play attempt. Incrementing it starts a new play; recording
+  // is idempotent per token, so pausing and resuming cannot double-count.
+  const playSessionRef = useRef({ token: 0, recorded: -1 });
+  const lastAudioTimeRef = useRef(0);
+  const lastPlayRequestRef = useRef(playRequestId);
   const closeButtonRef = useRef(null);
   const modalRef = useRef(null);
   const lastFocusedRef = useRef(null);
@@ -158,11 +165,43 @@ const Player = () => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
+  const markNewPlay = useCallback(() => {
+    playSessionRef.current.token += 1;
+  }, []);
+
+  const recordPlay = useCallback((songId) => {
+    const session = playSessionRef.current;
+    if (!songId || session.recorded === session.token) return;
+    session.recorded = session.token;
+    recordPlayStart(songId);
+  }, [recordPlayStart]);
+
+  // Every explicit selection starts a fresh play session, including picking
+  // the current song again. Restores seed `activeSong` directly, so they keep
+  // the original session and don't count as a second play after a reload.
+  useEffect(() => {
+    if (playRequestId === lastPlayRequestRef.current) return;
+    lastPlayRequestRef.current = playRequestId;
+    markNewPlay();
+    lastAudioTimeRef.current = audioRef.current?.currentTime ?? 0;
+
+    if (audioSongId === song?.id && audioRef.current && isPlayingRef.current) {
+      // Same-source selection: the load effect won't restart the element, so
+      // restart it here and count a real replay instead of silently extending
+      // the current listen.
+      audioRef.current.currentTime = 0;
+      lastAudioTimeRef.current = 0;
+      recordPlay(song.id);
+    }
+  }, [playRequestId, song?.id, audioSongId, markNewPlay, recordPlay]);
+
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(PLAYBACK_POSITION_KEY) || "null");
       if (!saved?.song?.id || !saved.song.song_path || !(saved.position > 5)) return;
       resumePositionRef.current = { songId: saved.song.id, position: saved.position };
+      // Resuming the same listen after a reload is not a new play.
+      playSessionRef.current.recorded = playSessionRef.current.token;
       skipWhilePausedRef.current = true;
       restorePlayback(saved.song);
     } catch {
@@ -485,18 +524,19 @@ const Player = () => {
     // Repeat-all can wrap onto the current track; reselecting the same song
     // wouldn't retrigger the load effect, so restart the element directly.
     if (nextSong.id === song?.id) {
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        if (isPlayingRef.current) {
-          audioRef.current.play().catch(() => setIsPlaying(false));
-        }
+      if (audioRef.current) audioRef.current.currentTime = 0;
+      markNewPlay();
+      lastAudioTimeRef.current = 0;
+      if (audioRef.current && isPlayingRef.current) {
+        recordPlay(song?.id);
+        audioRef.current.play().catch(() => setIsPlaying(false));
       }
       return;
     }
     skipWhilePausedRef.current = !isPlayingRef.current;
     queueTargetRef.current = { song: nextSong, songs };
     onSongSelect(nextSong, songs);
-  }, [selectNextSong, songs, onSongSelect, song?.id]);
+  }, [selectNextSong, songs, onSongSelect, song?.id, markNewPlay, recordPlay]);
 
   // Auto-advance (track ended or unplayable): always resume playback, and
   // keep moving past tracks that fail so one dead URL can't stall the queue.
@@ -520,6 +560,9 @@ const Player = () => {
       if (nextSong.id === song.id) {
         if (audioRef.current) {
           audioRef.current.currentTime = 0;
+          markNewPlay();
+          lastAudioTimeRef.current = 0;
+          recordPlay(song.id);
           audioRef.current.play().catch(() => setIsPlaying(false));
         }
         return;
@@ -530,7 +573,7 @@ const Player = () => {
       skipWhilePausedRef.current = false;
       onSongSelect(nextSong, songs);
     },
-    [song, selectNextSong, songs, onSongSelect]
+    [song, selectNextSong, songs, onSongSelect, markNewPlay, recordPlay]
   );
 
   const advanceToNextRef = useRef(null);
@@ -548,7 +591,12 @@ const Player = () => {
     // First press restarts the current song; a second press within the
     // window skips to the previous track.
     if (!isDoublePress) {
-      if (audioRef.current) audioRef.current.currentTime = 0;
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        markNewPlay();
+        lastAudioTimeRef.current = 0;
+        if (isPlayingRef.current) recordPlay(song.id);
+      }
       return;
     }
 
@@ -556,7 +604,12 @@ const Player = () => {
     if (songs.length === 0) return;
     const index = songs.findIndex((s) => s.id === song.id);
     if (index <= 0 && repeatMode !== "all") {
-      if (audioRef.current) audioRef.current.currentTime = 0;
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        markNewPlay();
+        lastAudioTimeRef.current = 0;
+        if (isPlayingRef.current) recordPlay(song.id);
+      }
       return;
     }
     skipWhilePausedRef.current = !isPlayingRef.current;
@@ -565,7 +618,8 @@ const Player = () => {
       queueTargetRef.current = { song: songs[prevIndex], songs };
     }
     onSongSelect(songs[prevIndex], songs);
-  }, [song, songs, onSongSelect, repeatMode]);
+  }, [song, songs, onSongSelect, repeatMode, markNewPlay, recordPlay]);
+
 
   const setPlayState = useCallback((playing) => {
     playRef.current = playing;
@@ -934,6 +988,23 @@ const Player = () => {
         playsInline
         loop={repeatMode === "one"}
         onTimeUpdate={() => {
+          const audio = audioRef.current;
+          if (audio) {
+            const current = audio.currentTime;
+            const previous = lastAudioTimeRef.current;
+            // With `loop`, repeat-one wraps without an `ended` event. A jump
+            // from the end back to the start is a new listen, not a resume.
+            if (
+              repeatMode === "one" &&
+              previous > 0 &&
+              current < previous - 1 &&
+              (!Number.isFinite(audio.duration) || previous >= audio.duration - 3)
+            ) {
+              markNewPlay();
+              recordPlay(song?.id);
+            }
+            lastAudioTimeRef.current = current;
+          }
           const now = Date.now();
           if (now - lastPositionSaveRef.current > 5000) {
             lastPositionSaveRef.current = now;
@@ -942,7 +1013,11 @@ const Player = () => {
           }
         }}
         onWaiting={() => setIsBuffering(true)}
-        onPlaying={() => setIsBuffering(false)}
+        onPlaying={() => {
+          if (audioSongId !== song?.id) return;
+          setIsBuffering(false);
+          recordPlay(song?.id);
+        }}
         onCanPlay={() => {
           if (audioSongId !== song?.id || activeSongIdRef.current !== song?.id) return;
           setIsBuffering(false);
@@ -965,6 +1040,7 @@ const Player = () => {
             if (resume && resume.songId === audioSongId && resume.position < total - 5) {
               audioRef.current.currentTime = resume.position;
             }
+            lastAudioTimeRef.current = audioRef.current.currentTime;
             syncMediaPosition();
           }
         }}

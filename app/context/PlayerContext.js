@@ -46,6 +46,9 @@ export const PlayerProvider = ({ children }) => {
       return false;
     }
   });
+  // Bumped on every explicit song selection so Player can tell a replay of
+  // the current song apart from a plain pause/resume.
+  const [playRequestId, setPlayRequestId] = useState(0);
   const seeded = useRef(false);
   const prevRecentRef = useRef(null);
   const settingsRestoredRef = useRef(false);
@@ -254,7 +257,8 @@ export const PlayerProvider = ({ children }) => {
     return () => clearTimeout(timeout);
   }, [allSongs, recentlyPlayed]);
 
-  // Sync recently played changes to the database (only the latest play).
+  // Keep the "recently played" list in sync (one row per song, latest play).
+  // Highlights use play_events instead, written when audio actually starts.
   // NOTE: the table's timestamp column is played_at (not created_at).
   useEffect(() => {
     if (recentlyPlayed.length === 0) return;
@@ -285,16 +289,6 @@ export const PlayerProvider = ({ children }) => {
       headers,
       body: JSON.stringify({ song_id: latest.id, played_at: new Date().toISOString() }),
     }).catch((error) => console.error("Unable to sync recently played:", error));
-
-    // One row per play lets Library → Highlights rank songs inside a day,
-    // week, month, or year. recently_played only keeps the latest timestamp
-    // per song, which cannot answer period questions.
-    fetch("/api/data/play_events", {
-      method: "POST",
-      credentials: "same-origin",
-      headers,
-      body: JSON.stringify({ song_id: latest.id, played_at: new Date().toISOString() }),
-    }).catch((error) => console.error("Unable to record play event:", error));
 
     // Trim to max rows: read the oldest excess entries and delete them by id.
     // (One request per row — the data API matches filters with = only.)
@@ -335,6 +329,7 @@ export const PlayerProvider = ({ children }) => {
       setQueue(newQueue);
       if (song) {
         setHasRealHistory(true);
+        setPlayRequestId((id) => id + 1);
         try {
           localStorage.setItem("lumbo_has_played", "1");
         } catch {}
@@ -358,6 +353,18 @@ export const PlayerProvider = ({ children }) => {
     },
     [allSongs, recentlyPlayed]
   );
+
+  // Write one highlight event per play that actually started. Player owns the
+  // dedupe (pause/resume must not create a second row); this only persists it.
+  const recordPlayStart = useCallback((songId) => {
+    if (!songId) return;
+    fetch("/api/data/play_events", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ song_id: songId, played_at: new Date().toISOString() }),
+    }).catch((error) => console.error("Unable to record play event:", error));
+  }, []);
 
   const addToQueueNext = useCallback(
     (song) => {
@@ -414,6 +421,8 @@ export const PlayerProvider = ({ children }) => {
       value={{
         activeSong,
         setActiveSong,
+        playRequestId,
+        recordPlayStart,
         restorePlayback,
         allSongs,
         setAllSongs,
