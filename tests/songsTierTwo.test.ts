@@ -89,9 +89,9 @@ describe("songs toolbar is page content", () => {
     expect(toolbar).not.toMatch(/backdrop-blur/);
     expect(toolbar).not.toMatch(/bg-white\/95/);
     // No sticky box any more, so the progress line needs the bar to be the
-    // containing block it resolves against. The right margin keeps the bar
-    // clear of the fixed index track pinned to the page's right edge.
-    expect(toolbar).toMatch(/className="relative mr-7 sm:mr-8"/);
+    // containing block it resolves against. The index is centred below the
+    // header, so only sm and up keeps a right gutter; phones use full width.
+    expect(toolbar).toMatch(/className="relative sm:mr-8"/);
   });
 
   it("clears only the scroll container's top edge, not a sticky bar", () => {
@@ -119,7 +119,7 @@ describe("songs scroll progress", () => {
     expect(progress).not.toMatch(/z-\[600\]/);
     expect(progress).toMatch(/absolute inset-x-0 bottom-0/);
     expect(toolbar).toMatch(/<ScrollProgress progress=\{scrollProgress\} \/>/);
-    const above = view.slice(0, view.indexOf(`<div className="mx-auto max-w-5xl space-y-4`));
+    const above = view.slice(0, view.indexOf(`<div className="mx-auto max-w-5xl space-y-3`));
     expect(above.length, "page body slice not found").toBeGreaterThan(100);
     expect(above).not.toMatch(/<ScrollProgress/);
   });

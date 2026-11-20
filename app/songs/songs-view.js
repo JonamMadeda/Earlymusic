@@ -1196,9 +1196,13 @@ export default function SongsView() {
   // only breathing room and the iOS inset the scroller's fixed padding cannot
   // know about.
   return (
-    <main className="min-h-[90vh] bg-white px-3 sm:px-6 md:px-8 pt-3 md:pt-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
-      <div className="mx-auto max-w-5xl space-y-4 md:space-y-5">
-        <section className="flex items-center justify-between gap-3 pr-7 sm:pr-8">
+    <main className="min-h-[90vh] bg-white px-4 sm:px-6 md:px-8 pt-4 md:pt-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+      <div className="mx-auto max-w-5xl space-y-3 md:space-y-5">
+        {/* The index is vertically centred inside the list viewport, well below
+            this header, so the title and primary action can use the full width
+            on phones. The rail gutter returns at sm and up where it already
+            looked settled. */}
+        <section className="flex items-center justify-between gap-3 sm:pr-8">
           <div className="min-w-0">
             <h1 className="page-title">
               Songs
@@ -1238,7 +1242,7 @@ export default function SongsView() {
               type="button"
               onClick={playAll}
               title="Play all in a random order"
-              className="btn-primary shrink-0 cursor-pointer active:scale-95"
+              className="btn-primary shrink-0 cursor-pointer px-4 active:scale-95 sm:px-5"
             >
               <Play size={14} fill="currentColor" />
               {/* The count is already the subtitle's job, and it is the same
@@ -1249,8 +1253,9 @@ export default function SongsView() {
           )}
         </section>
 
-      {/* Search / Filter Bar — page content, it scrolls away with the list */}
-      <div className="relative mr-7 sm:mr-8">
+      {/* Search / Filter Bar — page content, it scrolls away with the list.
+          Like the header, it only gives up width for the rail from sm up. */}
+      <div className="relative sm:mr-8">
         <div className="pb-2">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <div className="search-field flex h-11 min-h-11 min-w-0 shrink-0 sm:flex-1 items-center gap-2 rounded-xl border border-neutral-200/80 bg-neutral-50 px-3 text-neutral-500 transition focus-within:border-neutral-300 focus-within:bg-white">
@@ -1402,7 +1407,7 @@ export default function SongsView() {
       </div>
 
       {filtersOpen && (
-          <section id="songs-filter-panel" className="mr-7 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 shadow-2xs sm:mr-8 md:px-5 md:py-4">
+          <section id="songs-filter-panel" className="rounded-xl border border-neutral-200 bg-white px-3 py-2.5 shadow-2xs sm:mr-8 md:px-5 md:py-4">
             {/* One line per filter, with its name in front of the chips. The
                 stacked version — label alone on a line above each group —
                 measured 225px on a phone, so opening it hid a third of the

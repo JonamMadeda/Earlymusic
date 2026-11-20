@@ -42,6 +42,34 @@ describe("songs list has an end, not a void", () => {
   });
 });
 
+describe("songs mobile shell gives the rail its own lane", () => {
+  it("uses a 16px gutter and a tighter vertical rhythm on phones", () => {
+    expect(mainTag).toMatch(/px-4 sm:px-6 md:px-8 pt-4 md:pt-5/);
+    expect(view).toMatch(/mx-auto max-w-5xl space-y-3 md:space-y-5/);
+  });
+
+  it("lets the header, search and filter panel use the full width on phones", () => {
+    const header = view.slice(
+      view.indexOf('<section className="flex items-center justify-between'),
+      view.indexOf("</section>")
+    );
+    expect(header).toMatch(/className="flex items-center justify-between gap-3 sm:pr-8"/);
+    expect(header).not.toMatch(/pr-7/);
+    expect(toolbar).toMatch(/className="relative sm:mr-8"/);
+    expect(view).toMatch(/id="songs-filter-panel" className="rounded-xl[^"]*sm:mr-8/);
+    expect(view).not.toMatch(/mr-7/);
+  });
+
+  it("keeps the reserved index gutter on the list itself", () => {
+    const list = view.slice(
+      view.indexOf("Song List + Alphabet Jump"),
+      view.indexOf("{railLabel(group)}")
+    );
+    expect(list).toMatch(/className="flex gap-1\.5 sm:gap-4"/);
+    expect(list).toMatch(/aria-hidden="true" className="w-6 shrink-0 sm:w-7"/);
+  });
+});
+
 describe("songs load failure is recoverable", () => {
   it("offers its own retry instead of telling you to reload the app", () => {
     expect(view).toMatch(/const retryLoad = useCallback\(\(\) => \{/);
