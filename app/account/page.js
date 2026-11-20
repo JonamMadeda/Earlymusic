@@ -306,6 +306,9 @@ export default function AccountPage() {
         <p className="mt-1 text-sm text-neutral-500">
           Manage your profile, security, and personal data in one place.
         </p>
+        {/* Dense chip sizing keeps these links from inheriting the 44px
+            coarse-pointer anchor minimum, which made them tall with
+            top-aligned text on phones. */}
         <nav
           aria-label="Account sections"
           className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1"
@@ -314,7 +317,7 @@ export default function AccountPage() {
             <a
               key={section.id}
               href={`#${section.id}`}
-              className="shrink-0 rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300 hover:text-neutral-900"
+              className="tap-sm inline-flex min-h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-neutral-200 bg-white px-3.5 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300 hover:text-neutral-900"
             >
               {section.label}
             </a>
