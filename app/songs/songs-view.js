@@ -785,6 +785,11 @@ export default function SongsView() {
   // these needs its height measured any more.
   const STICKY_TOP = 8;
 
+  // On phones the index belongs under the thumb: anchored just clear of the
+  // player/nav stack instead of vertically centered in the list viewport.
+  // Desktop keeps the centered position it already had.
+  const MOBILE_RAIL_BOTTOM_GAP = 12;
+
   // Track the app scroll container (layout scrolls in #app-scroll, not window)
   // for the progress bar + scroll-to-top button.
   useEffect(() => {
@@ -1010,8 +1015,14 @@ export default function SongsView() {
       // gets a usable track. The remaining letters scroll inside the rail.
       const visibleGroups = Math.max(4, Math.ceil(songGroups.length / 2));
       const height = Math.min(available, visibleGroups * 24 + 12);
+      const isPhone = window.matchMedia("(max-width: 639px)").matches;
+      // Clamp to the track's top on short viewports where the whole rail fits
+      // in the available space; otherwise it would creep into the app bar.
+      const railTop = isPhone
+        ? Math.max(top, bottom - MOBILE_RAIL_BOTTOM_GAP - height)
+        : top + (available - height) / 2;
       const next = {
-        top: top + (available - height) / 2,
+        top: railTop,
         height,
         right: Math.max(8, window.innerWidth - rowRect.right),
       };

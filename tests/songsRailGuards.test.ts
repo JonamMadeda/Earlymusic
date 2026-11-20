@@ -77,4 +77,12 @@ describe("songs alphabet rail", () => {
     expect(css).toMatch(/\.songs-index\s*\{[^}]*scrollbar-width: none/);
     expect(css).toMatch(/\.songs-index::-webkit-scrollbar\s*\{\s*display: none/);
   });
+
+  it("sits near the thumb on phones but stays centered on larger screens", () => {
+    expect(songs).toMatch(/const MOBILE_RAIL_BOTTOM_GAP = 12;/);
+    expect(songs).toMatch(/window\.matchMedia\("\(max-width: 639px\)"\)\.matches/);
+    expect(songs).toMatch(/Math\.max\(top, bottom - MOBILE_RAIL_BOTTOM_GAP - height\)/);
+    expect(songs).toMatch(/top \+ \(available - height\) \/ 2/);
+    expect(songs).toMatch(/top: railTop/);
+  });
 });
