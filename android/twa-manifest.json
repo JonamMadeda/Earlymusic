@@ -20,7 +20,7 @@
     "path": "luumbo-release.keystore",
     "alias": "luumbo"
   },
-  "appVersionCode": 1,
+  "appVersionCode": 2,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://luumbo.vercel.app/manifest.json",
@@ -45,5 +45,5 @@
     "window-controls-overlay",
     "standalone"
   ],
-  "appVersion": "1.0.0"
+  "appVersion": "1.0.1"
 }

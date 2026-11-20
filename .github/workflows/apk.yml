@@ -44,9 +44,9 @@ jobs:
           TAG: ${{ inputs.tag || github.ref_name }}
         run: node scripts/generate-android-latest.mjs --check "$TAG"
 
-      # `bubblewrap update` rebuilds these from the launcher icon, so a release
-      # that forgot to re-render them would ship the icon card as the splash.
-      - name: Check the splash art
+      # `bubblewrap update` rebuilds the art from the launcher icon and rewrites
+      # LauncherActivity, dropping the Chrome 152 splash-URI grant. Fail on both.
+      - name: Check the splash art and transfer fix
         run: node scripts/generate-android-splash.mjs --check
 
       - uses: actions/setup-java@v4

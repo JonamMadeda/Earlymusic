@@ -3,13 +3,14 @@
  *
  * Bubblewrap derives these from the launcher icon, so the startup screen shows
  * the icon's squircle card and hairline border floating on the splash
- * background. This takes just the wordmark out of scripts/assets/icon.svg and
- * centres it, so the card stays where it belongs — on the launcher.
+ * background. scripts/assets/splash.svg is just the "luumbo" wordmark on a
+ * transparent canvas, so the card stays where it belongs — on the launcher.
  *
  * Run after every `bubblewrap update`, which overwrites the PNGs:
  *
  *     node scripts/generate-android-splash.mjs         # write
- *     node scripts/generate-android-splash.mjs --check  # fail if they drifted
+ *     node scripts/generate-android-splash.mjs --check  # fail if art or the
+ *                                                       # Chrome 152 fix drifted
  */
 
 import { readFile, writeFile } from "node:fs/promises";
@@ -19,8 +20,20 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const iconSource = path.join(root, "scripts", "assets", "icon.svg");
+const splashSource = path.join(root, "scripts", "assets", "splash.svg");
 const resDir = path.join(root, "android", "app", "src", "main", "res");
+const launcherSource = path.join(
+  root,
+  "android",
+  "app",
+  "src",
+  "main",
+  "java",
+  "com",
+  "luumbo",
+  "twa",
+  "LauncherActivity.java",
+);
 
 // Bubblewrap's own sizes: a 300dp square, one per density bucket. The shell
 // draws the splash unscaled and centred, so the file size is the on-screen size.
@@ -37,19 +50,19 @@ const MARK_WIDTH = 0.66;
 const MARK_COLOR = "#0f172a";
 
 const wordmark = async () => {
-  const svg = await readFile(iconSource, "utf8");
-  const stripped = svg
-    .replace(/\s*<clipPath id="clip">[\s\S]*?<\/clipPath>/, "")
-    .replace(/\s*<use href="#squircle"[^>]*\/>/g, "")
-    .replace(/fill="#000000"/, `fill="${MARK_COLOR}"`);
-  if (stripped.includes("#squircle") || !stripped.includes(MARK_COLOR)) {
+  const svg = await readFile(splashSource, "utf8");
+  if (
+    svg.includes("#squircle") ||
+    svg.includes("<rect") ||
+    !svg.includes(`fill="${MARK_COLOR}"`)
+  ) {
     throw new Error(
-      "scripts/assets/icon.svg no longer has the shape this script expects " +
-        "(squircle uses and a single black fill). Update generate-android-splash.mjs."
+      "scripts/assets/splash.svg must be the transparent luumbo wordmark only " +
+        "(no squircle, no filled background, one #0f172a fill)."
     );
   }
   // Rendered at 8x so the vector is resampled down rather than up.
-  return sharp(Buffer.from(stripped), { density: 576 })
+  return sharp(Buffer.from(svg), { density: 576 })
     .png()
     .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 }, threshold: 2 })
     .toBuffer({ resolveWithObject: true });
@@ -81,6 +94,32 @@ const render = async (size, mark) => {
     .toBuffer();
 };
 
+// Chrome 152+ rejects the splash hand-off unless the app holds a recorded read
+// grant on its own FileProvider URI. bubblewrap update rewrites this Java file,
+// so treat the grant as part of the splash art and fail CI if it disappears.
+const checkLauncherGrant = async () => {
+  const java = await readFile(launcherSource, "utf8");
+  const call = java.indexOf("grantSplashUriPermission();");
+  const onCreate = java.indexOf("super.onCreate(savedInstanceState);");
+  const problems = [];
+  if (call === -1 || onCreate === -1 || call > onCreate) {
+    problems.push("grantSplashUriPermission() must run before super.onCreate()");
+  }
+  if (!java.includes("FLAG_GRANT_PERSISTABLE_URI_PERMISSION")) {
+    problems.push("the splash URI grant needs FLAG_GRANT_PERSISTABLE_URI_PERMISSION");
+  }
+  if (!java.includes("twa_splash/splash_image.png")) {
+    problems.push("the splash URI grant must point at twa_splash/splash_image.png");
+  }
+  if (problems.length) {
+    console.error(
+      `Chrome 152 splash fix missing from ${path.relative(root, launcherSource)}:\n` +
+        problems.map((p) => ` - ${p}`).join("\n")
+    );
+    process.exitCode = 1;
+  }
+};
+
 const check = process.argv.includes("--check");
 const mark = await wordmark();
 
@@ -102,4 +141,9 @@ for (const [dpi, size] of buckets) {
   }
 }
 
-if (check && !process.exitCode) console.log("Splash art matches scripts/assets/icon.svg.");
+if (check) {
+  await checkLauncherGrant();
+  if (!process.exitCode) {
+    console.log("Splash art and Chrome 152 transfer fix are in place.");
+  }
+}
