@@ -736,6 +736,8 @@ describe("offline library downloads", () => {
     page.render();
     await page.startEffects();
     expect(h.markLibraryNudgeSeen).toHaveBeenCalledOnce();
+    // The main tab opens on its default sub-view, Highlights.
+    expect(h.markStandoutsSubTabSeen).toHaveBeenCalledWith("highlights");
   });
 
   it("keeps the nudge on the Library tab instead of badging Standouts sub-tabs", async () => {
@@ -749,6 +751,32 @@ describe("offline library downloads", () => {
     expect(find(page.tree, (node) => node.props.label === "Standouts alert settings")).toBeDefined();
 
     find(page.tree, (node) => node.props.role === "tab" && text(node) === "Picks").props.onClick();
+    expect(h.markStandoutsSubTabSeen).toHaveBeenCalledWith("picks");
+  });
+
+  it("exposes the Standouts sub-tabs as a complete ARIA tab pattern", async () => {
+    const h = harness([fixture("one", "First song")], "standouts");
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+    const tablist = find(page.tree, (node) => node.props.role === "tablist" && node.props["aria-label"] === "Standouts views");
+    const tabButtons = nodes(tablist).filter((node) => node.props.role === "tab");
+    expect(tabButtons.map((tab) => tab.props.id)).toEqual([
+      "standouts-tab-highlights", "standouts-tab-picks", "standouts-tab-top",
+    ]);
+    expect(tabButtons.map((tab) => tab.props["aria-selected"])).toEqual([true, false, false]);
+    expect(tabButtons.map((tab) => tab.props.tabIndex)).toEqual([0, -1, -1]);
+    expect(tabButtons[0].props["aria-controls"]).toBe("standouts-tabpanel-highlights");
+    expect(find(page.tree, (node) => node.props.id === "standouts-tabpanel-highlights").props["aria-labelledby"]).toBe("standouts-tab-highlights");
+
+    const preventDefault = vi.fn();
+    tabButtons[0].props.onKeyDown({ key: "ArrowRight", preventDefault });
+    page.render();
+    expect(preventDefault).toHaveBeenCalledOnce();
+    const moved = nodes(find(page.tree, (node) => node.props.role === "tablist" && node.props["aria-label"] === "Standouts views"))
+      .filter((node) => node.props.role === "tab");
+    expect(moved.map((tab) => tab.props["aria-selected"])).toEqual([false, true, false]);
+    expect(moved[1].props.tabIndex).toBe(0);
     expect(h.markStandoutsSubTabSeen).toHaveBeenCalledWith("picks");
   });
 

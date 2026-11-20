@@ -113,23 +113,39 @@ function LibraryContent() {
       return { tab: "standouts", subTab: rawTab };
     }
     if (rawTab === "standouts" || rawTab === "insights") {
-      return { tab: "standouts", subTab: "top" };
+      return { tab: "standouts", subTab: "highlights" };
     }
     if (tabKeys.includes(rawTab)) {
-      return { tab: rawTab, subTab: "top" };
+      return { tab: rawTab, subTab: "highlights" };
     }
-    return { tab: "downloads", subTab: "top" };
+    return { tab: "downloads", subTab: "highlights" };
   }, []);
   const initialTabState = resolveTabState(searchParams.get("tab"));
   const [activeTab, setActiveTab] = useState(initialTabState.tab);
   const [standoutsSubTab, setStandoutsSubTab] = useState(initialTabState.subTab);
   const [loading, setLoading] = useState(true);
 
-  // The initial state handles the first paint. Listening for popstate lets
-  // Back/Forward switch tabs without a soft navigation re-suspending the page.
+  // Only react when ?tab= itself changes. The URL-sync effect below rewrites
+  // the query with replaceState, which does not update Next's searchParams,
+  // so unrelated query changes must never reset the selected tab.
+  const lastUrlTabRef = useRef(searchParams.get("tab"));
+  useEffect(() => {
+    const rawTab = searchParams.get("tab");
+    if (rawTab === lastUrlTabRef.current) return;
+    lastUrlTabRef.current = rawTab;
+    const next = resolveTabState(rawTab);
+    setActiveTab(next.tab);
+    setStandoutsSubTab(next.subTab);
+  }, [searchParams, resolveTabState]);
+
+  // Back/Forward can also move through the address bar; the ref keeps this
+  // listener and the effect above from applying the same navigation twice.
   useEffect(() => {
     const applyTabFromLocation = () => {
-      const next = resolveTabState(new URLSearchParams(window.location.search).get("tab"));
+      const rawTab = new URLSearchParams(window.location.search).get("tab");
+      if (rawTab === lastUrlTabRef.current) return;
+      lastUrlTabRef.current = rawTab;
+      const next = resolveTabState(rawTab);
       setActiveTab(next.tab);
       setStandoutsSubTab(next.subTab);
     };
@@ -273,16 +289,24 @@ function LibraryContent() {
         return [];
       }
     };
-    Promise.all([
+    // Each section is independent: a failed playlists or saved-songs request
+    // must not throw away Picks/Top rows that did load successfully.
+    Promise.allSettled([
       apiFetch("/api/data/saved_songs?order=created_at&ascending=false"),
       apiFetch("/api/data/playlists?order=created_at&ascending=false"),
       fetchTop(),
       fetchPicks(),
     ])
-      .then(async ([savedData, plData, topData, pickData]) => {
+      .then(async ([savedResult, plResult, topResult, pickResult]) => {
         if (cancelled) return;
+        if (savedResult.status === "rejected") console.error("Unable to load saved songs:", savedResult.reason);
+        if (plResult.status === "rejected") console.error("Unable to load playlists:", plResult.reason);
+        const savedData = savedResult.status === "fulfilled" ? savedResult.value : [];
+        const plData = plResult.status === "fulfilled" ? plResult.value : [];
+        const topData = topResult.status === "fulfilled" ? topResult.value : [];
+        const pickData = pickResult.status === "fulfilled" ? pickResult.value : [];
         const list = Array.isArray(plData) ? plData : [];
-        setSavedSongIds((savedData || []).map((s) => s.song_id));
+        setSavedSongIds((Array.isArray(savedData) ? savedData : []).map((s) => s.song_id));
         setPlaylists(list);
         setTopPlays(Array.isArray(topData) ? topData : []);
         setPicks(Array.isArray(pickData) ? pickData : []);
@@ -664,6 +688,7 @@ function LibraryContent() {
 
   const tablistRef = useRef(null);
   const tabRefs = useRef([]);
+  const standoutsTabRefs = useRef([]);
   const tabCounts = {
     downloads: downloadedSongs.length,
     playlists: playlists.length,
@@ -672,9 +697,18 @@ function LibraryContent() {
   };
   const showTabCounts = isOnline && !!user && !loading;
 
+  const selectMainTab = (key) => {
+    setActiveTab(key);
+    // Standouts has a main view: opening the tab returns to Highlights.
+    if (key === "standouts") {
+      setStandoutsSubTab("highlights");
+      markStandoutsSubTabSeen("highlights");
+    }
+  };
+
   const focusTab = (index) => {
     const next = (index + tabs.length) % tabs.length;
-    setActiveTab(tabs[next].key);
+    selectMainTab(tabs[next].key);
     tabRefs.current[next]?.focus();
   };
 
@@ -691,6 +725,30 @@ function LibraryContent() {
     } else if (e.key === "End") {
       e.preventDefault();
       focusTab(tabs.length - 1);
+    }
+  };
+
+  const focusStandoutsTab = (index) => {
+    const next = (index + standoutsTabs.length) % standoutsTabs.length;
+    const key = standoutsTabs[next].key;
+    setStandoutsSubTab(key);
+    markStandoutsSubTabSeen(key);
+    standoutsTabRefs.current[next]?.focus();
+  };
+
+  const handleStandoutsTabKeyDown = (e, index) => {
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      focusStandoutsTab(index + 1);
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      focusStandoutsTab(index - 1);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      focusStandoutsTab(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      focusStandoutsTab(standoutsTabs.length - 1);
     }
   };
 
@@ -715,7 +773,7 @@ function LibraryContent() {
             ref={tablistRef}
             role="tablist"
             aria-label="Library collections"
-            className="flex w-full max-w-full scroll-mt-4 flex-nowrap items-center gap-0.5 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100/70 p-1 no-scrollbar sm:inline-flex sm:w-auto sm:gap-1"
+            className="flex w-full max-w-full scroll-mt-4 flex-nowrap items-center gap-0.5 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100/70 p-1 no-scrollbar sm:inline-flex sm:w-auto sm:gap-1 sm:overflow-x-visible"
           >
             {tabs.map((tab, idx) => {
               const isActive = activeTab === tab.key;
@@ -731,9 +789,9 @@ function LibraryContent() {
                   aria-selected={isActive}
                   aria-controls={`library-tabpanel-${tab.key}`}
                   tabIndex={isActive ? 0 : -1}
-                  onClick={() => setActiveTab(tab.key)}
+                  onClick={() => selectMainTab(tab.key)}
                   onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                  className={`flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-xs font-semibold whitespace-nowrap transition sm:flex-none sm:shrink-0 sm:gap-2 sm:px-3.5 ${
+                  className={`flex shrink-0 items-center justify-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold whitespace-nowrap transition sm:flex-none sm:gap-2 sm:px-3.5 ${
                     isActive
                       ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
                       : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
@@ -744,7 +802,7 @@ function LibraryContent() {
                     strokeWidth={isActive ? 2.5 : 2}
                     className="hidden shrink-0 sm:block"
                   />
-                  <span className="truncate">{tab.label}</span>
+                  <span>{tab.label}</span>
                   {count !== null && (
                     <span
                       className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums ${
@@ -1178,18 +1236,25 @@ function LibraryContent() {
                           aria-label="Standouts views"
                           className="inline-flex w-auto max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-1 no-scrollbar"
                         >
-                          {standoutsTabs.map((tab) => {
+                          {standoutsTabs.map((tab, idx) => {
                             const isActive = standoutsSubTab === tab.key;
                             return (
                               <button
                                 key={tab.key}
+                                ref={(node) => {
+                                  standoutsTabRefs.current[idx] = node;
+                                }}
                                 type="button"
                                 role="tab"
+                                id={`standouts-tab-${tab.key}`}
                                 aria-selected={isActive}
+                                aria-controls={`standouts-tabpanel-${tab.key}`}
+                                tabIndex={isActive ? 0 : -1}
                                 onClick={() => {
                                   setStandoutsSubTab(tab.key);
                                   markStandoutsSubTabSeen(tab.key);
                                 }}
+                                onKeyDown={(e) => handleStandoutsTabKeyDown(e, idx)}
                                 className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold whitespace-nowrap transition sm:flex-none ${
                                   isActive
                                     ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
@@ -1212,7 +1277,11 @@ function LibraryContent() {
                       </div>
                     {/* Most listened — this user's top 10 by play count */}
                     {standoutsSubTab === "top" && (
-                      <div>
+                      <div
+                        role="tabpanel"
+                        id="standouts-tabpanel-top"
+                        aria-labelledby="standouts-tab-top"
+                      >
                         {topSongs.length > 0 ? (
                           <>
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -1294,7 +1363,11 @@ function LibraryContent() {
                     )}
                     {/* Picks — one shareable song per period */}
                     {standoutsSubTab === "picks" && (
-                      <div>
+                      <div
+                        role="tabpanel"
+                        id="standouts-tabpanel-picks"
+                        aria-labelledby="standouts-tab-picks"
+                      >
                         <div className="min-w-0">
                           <h2 className="section-title">Your picks</h2>
                           <p className="mt-0.5 max-w-2xl text-xs font-medium leading-5 text-neutral-500">
@@ -1440,7 +1513,11 @@ function LibraryContent() {
                     )}
                     {/* Highlights — automatic leaders ranked by play count */}
                     {standoutsSubTab === "highlights" && (
-                      <div>
+                      <div
+                        role="tabpanel"
+                        id="standouts-tabpanel-highlights"
+                        aria-labelledby="standouts-tab-highlights"
+                      >
                         <div className="min-w-0">
                           <h2 className="section-title">Your highlights</h2>
                           <p className="mt-0.5 max-w-2xl text-xs font-medium leading-5 text-neutral-500">
