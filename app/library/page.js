@@ -428,20 +428,32 @@ function LibraryContent() {
     };
   }, [isOnline, authLoading, user, activeTab, standoutsSubTab]);
 
-  const highlightSourceEvents = useMemo(() => {
-    if (!highlightsFallback) return playEvents || [];
-    // recently_played keeps the latest timestamp and total count per song,
-    // which keeps the tab useful before play_events has enough history.
-    return topPlays.map((row) => ({
-      song_id: row.song_id,
-      played_at: row.played_at,
-      count: row.play_count || 1,
-    }));
-  }, [highlightsFallback, playEvents, topPlays]);
+  // Recently_played stores one lifetime total and the last timestamp per song.
+  // Feeding those rows into the period ranker made the newest song win day,
+  // week and year at once, so Highlights only ever uses real play events.
+  // The first play_events migration copied recently_played one-for-one; those
+  // snapshot rows still match by song/timestamp and must not count as plays.
+  const seededEventKeys = useMemo(
+    () =>
+      new Set(
+        topPlays
+          .filter((row) => row.played_at)
+          .map((row) => `${row.song_id}|${row.played_at}`)
+      ),
+    [topPlays]
+  );
+
+  const highlightEvents = useMemo(
+    () =>
+      (playEvents || []).filter(
+        (event) => !seededEventKeys.has(`${event.song_id}|${event.played_at}`)
+      ),
+    [playEvents, seededEventKeys]
+  );
 
   const highlights = useMemo(
-    () => summarizePlays(highlightSourceEvents, allSongs),
-    [highlightSourceEvents, allSongs]
+    () => summarizePlays(highlightEvents, allSongs),
+    [highlightEvents, allSongs]
   );
 
   const highlightQueue = useMemo(
@@ -1639,8 +1651,8 @@ function LibraryContent() {
 
                         {highlightsFallback && !highlightsLoading && (
                           <p className="mt-3 text-xs font-medium text-neutral-400">
-                            Showing your latest saved plays while detailed play history is
-                            being set up.
+                            Detailed play history is unavailable right now, so highlights are
+                            paused until it returns. New plays are still being saved.
                           </p>
                         )}
                       </div>

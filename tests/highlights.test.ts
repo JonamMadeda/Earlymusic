@@ -79,14 +79,15 @@ describe("summarizePlays", () => {
     expect(result[0].plays).toBe(1);
   });
 
-  it("accepts a count for the recently_played fallback", () => {
+  it("counts each event once and ignores lifetime counters", () => {
     const events = [
       { song_id: "a", played_at: localIso(2026, 10, 18), count: 5 },
-      { song_id: "b", played_at: localIso(2026, 10, 18), count: 2 },
+      { song_id: "b", played_at: localIso(2026, 10, 18) },
+      { song_id: "b", played_at: localIso(2026, 10, 18) },
     ];
     const result = summarizePlays(events, songs, now);
-    expect(result[0].song?.id).toBe("a");
-    expect(result[0].plays).toBe(5);
+    expect(result[0].song?.id).toBe("b");
+    expect(result[0].plays).toBe(2);
   });
 
   it("returns every period shape when there are no plays", () => {

@@ -2,6 +2,12 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 
+import {
+  clearPlayEventQueue,
+  queuePlayEvent,
+  startPlayEventSync,
+} from "@/lib/playEventQueue";
+
 
 const PlayerContext = createContext();
 
@@ -91,10 +97,13 @@ export const PlayerProvider = ({ children }) => {
   }, []);
 
   // Signing out must drop the previous listener's history in this tab too.
+  // Unsigned play events are account data as well: they must not be flushed
+  // into the next account that signs in on this device.
   useEffect(() => {
     const onSignedOut = () => {
       setRecentlyPlayed([]);
       setHasRealHistory(false);
+      clearPlayEventQueue();
       try {
         localStorage.removeItem(RECENT_KEY);
         localStorage.removeItem("lumbo_has_played");
@@ -104,8 +113,16 @@ export const PlayerProvider = ({ children }) => {
       } catch {}
     };
     window.addEventListener("auth:signed-out", onSignedOut);
-    return () => window.removeEventListener("auth:signed-out", onSignedOut);
+    window.addEventListener("auth:unauthorized", onSignedOut);
+    return () => {
+      window.removeEventListener("auth:signed-out", onSignedOut);
+      window.removeEventListener("auth:unauthorized", onSignedOut);
+    };
   }, []);
+
+  // Retry any play event that a weak connection or an expired session kept
+  // from reaching the server. Highlights are only as good as this queue.
+  useEffect(() => startPlayEventSync(), []);
 
   // Restore a sleep timer that was set before the app was closed/reloaded.
   // Deferred a tick so hydration isn't immediately followed by a state flush.
@@ -368,15 +385,10 @@ export const PlayerProvider = ({ children }) => {
   );
 
   // Write one highlight event per play that actually started. Player owns the
-  // dedupe (pause/resume must not create a second row); this only persists it.
+  // dedupe (pause/resume must not create a second row); the queue owns delivery
+  // so a failed request is retried instead of silently losing the play.
   const recordPlayStart = useCallback((songId) => {
-    if (!songId) return;
-    fetch("/api/data/play_events", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ song_id: songId, played_at: new Date().toISOString() }),
-    }).catch((error) => console.error("Unable to record play event:", error));
+    queuePlayEvent(songId);
   }, []);
 
   const addToQueueNext = useCallback(

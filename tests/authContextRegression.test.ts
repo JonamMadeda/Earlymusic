@@ -11,7 +11,7 @@ const { AuthProvider } = loadAuthModule(new URL("../app/context/AuthContext.js",
 const A = { id: "a", email: "a@example.test" };
 const B = { id: "b", email: "b@example.test" };
 const reply = (body: any, status = 200) => ({ status, ok: status >= 200 && status < 300, json: async () => body });
-const privateKeys = ["lumbo_recently_played", "lumbo_has_played", "lumbo_playback_position", "lumbo_downloaded_songs"];
+const privateKeys = ["lumbo_recently_played", "lumbo_has_played", "lumbo_playback_position", "lumbo_pending_play_events_v1", "lumbo_downloaded_songs"];
 const SESSION_MARKER = "lumbo_had_session";
 
 let frame: AuthHookHarness;

@@ -848,6 +848,58 @@ describe("offline library downloads", () => {
     expect(text(page.tree)).toContain("Second song");
   });
 
+  it("ignores snapshot rows copied from recently_played into play_events", async () => {
+    const first = fixture("one", "First song");
+    const second = fixture("two", "Second song");
+    const h = harness([first, second], "highlights");
+    const original = h.apiFetch.getMockImplementation()!;
+    const snapshotTime = new Date().toISOString();
+    h.apiFetch.mockImplementation((url: string, options?: any) => {
+      if (url.startsWith("/api/data/recently_played?")) {
+        return Promise.resolve([{ song_id: "two", play_count: 4, played_at: snapshotTime }]);
+      }
+      return original(url, options);
+    });
+    h.playEvents.push({ song_id: "two", played_at: snapshotTime });
+
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+    const copy = text(page.tree);
+
+    expect(copy).toContain("No plays yet today");
+    expect(copy).not.toContain("Second song");
+  });
+
+  it("does not turn lifetime play counts into period highlights", async () => {
+    const first = fixture("one", "First song");
+    const second = fixture("two", "Second song");
+    const h = harness([first, second], "highlights");
+    const original = h.apiFetch.getMockImplementation()!;
+    const now = Date.now();
+    h.apiFetch.mockImplementation((url: string, options?: any) => {
+      if (url.startsWith("/api/data/play_events?")) {
+        return Promise.reject(new Error("history unavailable"));
+      }
+      if (url.startsWith("/api/data/recently_played?")) {
+        return Promise.resolve([
+          { song_id: "two", play_count: 9, played_at: new Date(now).toISOString() },
+          { song_id: "one", play_count: 1, played_at: new Date(now - 86_400_000).toISOString() },
+        ]);
+      }
+      return original(url, options);
+    });
+
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+    const copy = text(page.tree);
+
+    expect(copy).toContain("Detailed play history is unavailable");
+    expect(copy).toContain("No plays yet today");
+    expect(copy).not.toContain("Second song");
+  });
+
 
   it("carries collection counts inside the tab bar", async () => {
     const h = harness([fixture("cached")], "top");

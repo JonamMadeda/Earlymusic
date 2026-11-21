@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/neon";
 import { getUserFromRequest } from "@/lib/auth";
 import { getCountryFromHeaders } from "@/lib/geo";
+import { normalizePlayedAt, normalizePlayEventSongId } from "@/lib/playEvents";
 
 const USER_TABLES = new Set([
   "saved_songs",
@@ -43,6 +44,18 @@ const PATCHABLE_COLUMNS: Record<string, Set<string>> = {
   playlist_songs: new Set<string>(),
   saved_songs: new Set<string>(),
   recently_played: new Set(["played_at", "play_count"]),
+};
+
+// Inserts go through the same generic route as reads, so whitelist the columns
+// a client may write. Without this a crafted body can set ids or invent columns
+// that happen to exist on a table.
+const WRITABLE_COLUMNS: Record<string, Set<string>> = {
+  saved_songs: new Set(["user_id", "song_id"]),
+  playlists: new Set(["user_id", "name"]),
+  playlist_songs: new Set(["playlist_id", "song_id"]),
+  recently_played: new Set(["user_id", "song_id", "played_at", "play_count"]),
+  picks: new Set(["user_id", "song_id", "period"]),
+  play_events: new Set(["user_id", "song_id", "played_at"]),
 };
 
 function sanitizeTable(table: string): string {
@@ -268,11 +281,19 @@ export async function POST(
     }
 
     const body = await request.json();
-    const rows = Array.isArray(body) ? body : [body];
+    const incoming = Array.isArray(body) ? body : [body];
+    if (
+      incoming.length === 0 ||
+      incoming.some((row) => !row || typeof row !== "object" || Array.isArray(row))
+    ) {
+      return NextResponse.json({ error: "A JSON object or array is required." }, { status: 400 });
+    }
 
     const results = [];
     const ownedPlaylists = new Set<string>();
-    for (const row of rows) {
+    for (const input of incoming) {
+      const row = { ...input };
+
       // playlist_songs has no user_id column: authorize through the parent
       // playlist instead of stamping a column that doesn't exist.
       if (table === "playlist_songs") {
@@ -307,11 +328,25 @@ export async function POST(
         }
       }
 
+      if (table === "play_events") {
+        const songId = normalizePlayEventSongId(row.song_id);
+        if (!songId) {
+          return NextResponse.json({ error: "A valid song_id is required." }, { status: 400 });
+        }
+        row.song_id = songId;
+        // Never trust a future/past device clock for period ranking.
+        row.played_at = normalizePlayedAt(row.played_at);
+      }
+
+      const writable = WRITABLE_COLUMNS[table] || new Set<string>();
       const keys = Object.keys(row).filter(
-        (k) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(k)
+        (k) => writable.has(k) && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(k)
       );
       const values = keys.map((k) => row[k]);
       const placeholders = keys.map((_, i) => `$${i + 1}`);
+      if (keys.length === 0) {
+        return NextResponse.json({ error: "No writable columns supplied." }, { status: 400 });
+      }
 
       // Conflict handling per table (unique constraints exist — see schema):
       // - recently_played: replaying bumps played_at instead of erroring,

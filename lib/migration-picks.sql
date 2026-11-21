@@ -31,18 +31,14 @@ CREATE TABLE IF NOT EXISTS public.play_events (
 CREATE INDEX IF NOT EXISTS play_events_user_played_idx
   ON public.play_events (user_id, played_at DESC);
 
--- Seed from the existing history so highlights are not blank on day one.
--- recently_played holds at most the ten most recent songs per listener and
--- their latest play timestamp; each becomes one starting event. The NOT
--- EXISTS keeps a re-run from duplicating a row that is already present.
-INSERT INTO public.play_events (user_id, song_id, played_at)
-SELECT rp.user_id, rp.song_id, rp.played_at
-  FROM public.recently_played rp
- WHERE rp.played_at IS NOT NULL
-   AND NOT EXISTS (
-     SELECT 1
-       FROM public.play_events pe
-      WHERE pe.user_id = rp.user_id
-        AND pe.song_id = rp.song_id
-        AND pe.played_at = rp.played_at
-   );
+-- Do NOT seed play_events from recently_played. It only keeps one lifetime
+-- row per song, so copying it creates one "play" at each song's last listen and
+-- makes that song win day, week and year at the same time. Highlights start
+-- empty and fill from real plays recorded by the player. An older install can
+-- remove the old snapshot rows with:
+--
+--   DELETE FROM public.play_events pe
+--    USING public.recently_played rp
+--    WHERE pe.user_id = rp.user_id
+--      AND pe.song_id = rp.song_id
+--      AND pe.played_at = rp.played_at;

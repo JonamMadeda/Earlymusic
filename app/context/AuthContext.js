@@ -25,6 +25,9 @@ const clearPrivateClientData = async () => {
     try { localStorage.removeItem("lumbo_recently_played"); } catch {}
     try { localStorage.removeItem("lumbo_has_played"); } catch {}
     try { localStorage.removeItem("lumbo_playback_position"); } catch {}
+    // Unsent highlight events are account data too; the player clears its
+    // in-memory copy on the same sign-out event.
+    try { localStorage.removeItem("lumbo_pending_play_events_v1"); } catch {}
     // The download list names every track the account saved offline. It is
     // account data, so it must not survive a sign-out on a shared device.
     try { localStorage.removeItem("lumbo_downloaded_songs"); } catch {}
