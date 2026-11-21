@@ -64,6 +64,9 @@ import {
   undoClearDownloads,
 } from "@/lib/downloadManager";
 
+const DOWNLOAD_STICKY_TOP = 8;
+const MOBILE_RAIL_BOTTOM_GAP = 12;
+
 const measureTabOverflow = (element, setter) => {
   if (!element || typeof element.scrollWidth !== "number") return;
   const next = {
@@ -767,7 +770,7 @@ function LibraryContent() {
     const measureRail = () => {
       const rowRect = row.getBoundingClientRect();
       const scRect = scroller.getBoundingClientRect();
-      const top = Math.max(scRect.top, viewport?.offsetTop || 0) + 8;
+      const top = Math.max(scRect.top, viewport?.offsetTop || 0) + DOWNLOAD_STICKY_TOP;
       let bottom = Math.min(
         scRect.bottom,
         viewport ? viewport.offsetTop + viewport.height : window.innerHeight
@@ -776,11 +779,14 @@ function LibraryContent() {
         const rect = element.getBoundingClientRect();
         if (rect.height > 0) bottom = Math.min(bottom, rect.top);
       }
-      const available = Math.max(0, bottom - 12 - top);
-      const height = Math.min(available, downloadLetters.length * 24 + 12);
+      const available = Math.max(0, bottom - DOWNLOAD_STICKY_TOP - top);
+      // Match the Songs rail: half the letter count, with a four-letter floor,
+      // so extra letters scroll inside a short track instead of stretching it.
+      const visibleLetters = Math.max(4, Math.ceil(downloadLetters.length / 2));
+      const height = Math.min(available, visibleLetters * 24 + 12);
       const isPhone = window.matchMedia("(max-width: 639px)").matches;
       const railTop = isPhone
-        ? Math.max(top, bottom - 12 - height)
+        ? Math.max(top, bottom - MOBILE_RAIL_BOTTOM_GAP - height)
         : top + (available - height) / 2;
       const next = {
         top: railTop,
@@ -1051,11 +1057,11 @@ function LibraryContent() {
                         <section
                           key={letter}
                           id={`download-group-${letter}`}
-                          style={{ scrollMarginTop: 42 }}
+                          style={{ scrollMarginTop: DOWNLOAD_STICKY_TOP + 34 }}
                           className="flex flex-col gap-y-1"
                         >
                           <div
-                            style={{ top: 8 }}
+                            style={{ top: DOWNLOAD_STICKY_TOP }}
                             className="sticky z-10 -mx-1.5 flex items-center gap-2 border-b border-neutral-200/70 bg-white/95 px-1.5 py-1.5 backdrop-blur-md"
                           >
                             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/[0.07] text-xs font-bold text-accent">

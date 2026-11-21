@@ -65,4 +65,11 @@ describe("library downloads A-Z rail", () => {
     expect(source).toContain("songs-index fixed z-30 flex w-6 select-none flex-col items-stretch justify-start overflow-y-auto rounded-full bg-neutral-100/80 py-1.5 sm:w-7");
     expect(source).not.toContain('className="songs-index sticky top-24');
   });
+
+  it("uses the Songs page half-height track and bottom gap", () => {
+    expect(source).toContain("bottom - DOWNLOAD_STICKY_TOP - top");
+    expect(source).toContain("Math.max(4, Math.ceil(downloadLetters.length / 2))");
+    expect(source).toContain("visibleLetters * 24 + 12");
+    expect(source).toContain("bottom - MOBILE_RAIL_BOTTOM_GAP - height");
+  });
 });
