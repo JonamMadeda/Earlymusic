@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Disc,
   Download,
+  HardDrive,
   Heart,
   KeyRound,
   Library,
@@ -28,6 +29,11 @@ import AnalyticsConsentControl from "@/app/components/AnalyticsConsentControl";
 import AndroidDownloadSection from "@/app/components/AndroidDownloadSection";
 import ConfirmModal from "@/app/components/ConfirmModal";
 import { LEGAL_EMAIL, LEGAL_MAILTO } from "@/lib/legal";
+import {
+  getStorageEstimate,
+  onDownloadsChanged,
+  onDownloadsProgress,
+} from "@/lib/downloadManager";
 
 const ACCOUNT_SECTIONS = [
   { id: "profile", label: "Profile" },
@@ -64,6 +70,13 @@ function formatTimestamp(iso) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
 }
 
 function SectionCard({ id, title, description, icon: Icon, children }) {
@@ -436,6 +449,7 @@ export default function AccountPage() {
             </Link>
           </div>
           <StatsCards />
+          <DownloadStorageCard />
         </section>
 
         {/* Security */}
@@ -758,6 +772,64 @@ export default function AccountPage() {
         onConfirm={handleDeleteAccount}
         onClose={() => setShowDeleteConfirm(false)}
       />
+    </div>
+  );
+}
+
+function DownloadStorageCard() {
+  const [storage, setStorage] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      getStorageEstimate()
+        .then((estimate) => {
+          if (!cancelled) setStorage(estimate);
+        })
+        .catch((error) => console.error("Unable to read storage estimate:", error));
+    };
+    refresh();
+    const unsubscribeChanged = onDownloadsChanged(refresh);
+    const unsubscribeProgress = onDownloadsProgress(refresh);
+    return () => {
+      cancelled = true;
+      unsubscribeChanged();
+      unsubscribeProgress();
+    };
+  }, []);
+
+  if (!storage || storage.quota <= 0) return null;
+
+  const percent = Math.min(100, Math.round((storage.usage / storage.quota) * 100));
+  const full = storage.usage / storage.quota >= 0.95;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-accent/10 bg-accent/[0.08] text-accent">
+        <HardDrive size={18} aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+          <h3 className="text-sm font-semibold text-neutral-900">Download storage</h3>
+          <p className={`text-xs font-medium ${full ? "text-red-500" : "text-neutral-500"}`}>
+            {full
+              ? "Storage almost full — remove a download to free space"
+              : `${formatBytes(storage.usage)} of ${formatBytes(storage.quota)} used`}
+          </p>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100">
+          <div
+            className={`h-full rounded-full ${full ? "bg-red-500" : "bg-accent/70"}`}
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      </div>
+      <Link
+        href="/library?tab=downloads"
+        className="text-xs font-semibold text-accent transition hover:underline"
+      >
+        Manage downloads
+      </Link>
     </div>
   );
 }

@@ -25,7 +25,6 @@ import {
   X,
   Shuffle,
   ExternalLink,
-  HardDrive,
   WifiOff,
   Award,
   CalendarDays,
@@ -57,7 +56,6 @@ import StandoutsNudgeSettings from "@/app/components/StandoutsNudgeSettings";
 import {
   getDownloadedSongs,
   removeDownload,
-  getStorageEstimate,
   onDownloadsChanged,
   getActiveDownloads,
   onDownloadsProgress,
@@ -73,13 +71,6 @@ const measureTabOverflow = (element, setter) => {
     right: element.scrollLeft + element.clientWidth < element.scrollWidth - 1,
   };
   setter((prev) => (prev.left === next.left && prev.right === next.right ? prev : next));
-};
-
-const formatBytes = (bytes) => {
-  if (!bytes || bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
 };
 
 const tabs = [
@@ -208,7 +199,6 @@ function LibraryContent() {
   // Downloads
   const [downloadedSongs, setDownloadedSongs] = useState([]);
   const [downloading, setDownloading] = useState([]);
-  const [storage, setStorage] = useState(null);
 
   // One undo window serves downloads, liked songs, and picks. The callbacks
   // live in a ref so a dismissal after navigation commits the right change.
@@ -223,9 +213,6 @@ function LibraryContent() {
       )
     );
     setDownloading(getActiveDownloads());
-    getStorageEstimate()
-      .then(setStorage)
-      .catch((error) => console.error("Unable to read storage estimate:", error));
   }, []);
 
   useEffect(() => {
@@ -876,12 +863,6 @@ function LibraryContent() {
     }
   };
 
-  const storagePercent =
-    storage && storage.quota > 0
-      ? Math.min(100, Math.round((storage.usage / storage.quota) * 100))
-      : 0;
-  const storageFull = storage && storage.quota > 0 && storage.usage / storage.quota >= 0.95;
-
   return (
     <div className="min-h-[90vh] bg-white px-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-6 md:px-8 md:pt-5">
       <div className="mx-auto max-w-5xl">
@@ -979,26 +960,6 @@ function LibraryContent() {
                     <p className="mt-0.5 text-xs font-medium text-neutral-500">
                       {downloadedSongs.length} {downloadedSongs.length === 1 ? "song" : "songs"}
                     </p>
-                  )}
-                  {storage && storage.quota > 0 && (
-                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <HardDrive size={14} className="shrink-0 text-neutral-400" />
-                      <div className="h-1 w-20 shrink-0 overflow-hidden rounded-full bg-neutral-100 sm:w-24">
-                        <div
-                          className={`h-full rounded-full ${storageFull ? "bg-red-500" : "bg-accent/70"}`}
-                          style={{ width: `${storagePercent}%` }}
-                        />
-                      </div>
-                      <p
-                        className={`min-w-0 text-xs font-medium break-words ${
-                          storageFull ? "text-red-500" : "text-neutral-500"
-                        }`}
-                      >
-                        {storageFull
-                          ? "Storage almost full — remove a download to free space"
-                          : `${formatBytes(storage.usage)} of ${formatBytes(storage.quota)} used`}
-                      </p>
-                    </div>
                   )}
                 </div>
                 {downloadedSongs.length > 0 && (
