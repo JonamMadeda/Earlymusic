@@ -14,6 +14,10 @@ const featuredCard = readFileSync(
   new URL("../app/components/FeaturedCard.jsx", import.meta.url),
   "utf8"
 );
+const scrollToTop = source.slice(
+  source.indexOf("const ScrollToTop = "),
+  source.indexOf("/* --- COMPACT")
+);
 
 describe("shuffle all", () => {
   it("does not order tracks with a random comparator", () => {
@@ -107,5 +111,13 @@ describe("active track marking", () => {
     // Four card components live in page.js, the fifth is its own module.
     expect(source.match(/aria-current=\{isActive \? "true" : undefined\}/g) ?? []).toHaveLength(4);
     expect(featuredCard).toMatch(/aria-current=\{isActive \? "true" : undefined\}/);
+  });
+});
+
+describe("homepage back-to-top button", () => {
+  it("raises itself only while the bottom player is active", () => {
+    expect(scrollToTop).toContain("hasPlayer ? \"bottom-40 md:bottom-24\" : \"bottom-24 md:bottom-8\"");
+    expect(scrollToTop).not.toMatch(/className="[^"]*\bbottom-/);
+    expect(source).toContain("<ScrollToTop visible={scrollY > 400} hasPlayer={Boolean(activeSong)} />");
   });
 });

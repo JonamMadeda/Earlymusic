@@ -53,7 +53,7 @@ const seededShuffle = (arr, seedStr) => {
 const railSize = (total, base) =>
   total >= base * 2 ? base : Math.max(4, Math.ceil(total / 3));
 
-const ScrollToTop = ({ visible }) => {
+const ScrollToTop = ({ visible, hasPlayer }) => {
   if (!visible) return null;
   return (
     <button
@@ -67,7 +67,9 @@ const ScrollToTop = ({ visible }) => {
           window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
         }
       }}
-      className="fixed left-4 bottom-40 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-lg transition hover:bg-accent/90 active:scale-95 md:bottom-24 lg:left-auto lg:right-8"
+      className={`fixed left-4 z-50 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-accent text-white shadow-lg ring-4 ring-white transition hover:bg-accent/90 active:scale-95 lg:left-auto lg:right-8 ${
+        hasPlayer ? "bottom-40 md:bottom-24" : "bottom-24 md:bottom-8"
+      }`}
     >
       <ArrowUp size={18} />
     </button>
@@ -535,7 +537,7 @@ export default function Home() {
 
   return (
     <div className="bg-white px-3 pb-8 pt-4 sm:px-6 md:px-8 md:pt-6">
-      <ScrollToTop visible={scrollY > 400} />
+      <ScrollToTop visible={scrollY > 400} hasPlayer={Boolean(activeSong)} />
       <div className="mx-auto max-w-5xl space-y-6 md:space-y-7">
 
         <HomeHero
