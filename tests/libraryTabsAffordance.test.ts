@@ -34,4 +34,24 @@ describe("library tab overflow affordance", () => {
     expect(source).toContain("scrollActiveTabIntoView(tablistRef.current");
     expect(source).toContain("scrollActiveTabIntoView(\n      standoutsTablistRef.current");
   });
+
+  it("keeps both tab strips compact", () => {
+    const main = source.slice(
+      source.indexOf('aria-label="Library collections"'),
+      source.indexOf('aria-labelledby="library-tab-downloads"')
+    );
+    const standouts = source.slice(
+      source.indexOf('<div className="relative inline-flex max-w-full min-w-0">'),
+      source.indexOf('aria-labelledby="standouts-tabpanel-top"')
+    );
+
+    expect(main).toContain("inline-flex w-auto max-w-full scroll-mt-4 flex-nowrap items-center gap-0.5");
+    expect(main).toContain("rounded-lg border border-neutral-200 bg-neutral-100/70 p-0.5");
+    expect(main).toContain("rounded-md px-2 py-1.5 text-[11px]");
+    expect(main).toContain("size={13}");
+
+    expect(standouts).toContain("rounded-lg border border-neutral-200 bg-neutral-50 p-0.5");
+    expect(standouts).toContain("rounded-md px-2 py-1.5 text-[11px]");
+    expect(standouts).toContain("size={13}");
+  });
 });

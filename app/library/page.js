@@ -842,13 +842,13 @@ function LibraryContent() {
       <div className="mx-auto max-w-5xl">
         <h1 className="sr-only">Library</h1>
 
-        <div className="relative mt-3 md:mt-4">
+        <div className="relative mt-2 md:mt-2.5">
           <div
             ref={tablistRef}
             role="tablist"
             aria-label="Library collections"
             onScroll={measureTabs}
-            className="flex w-full max-w-full scroll-mt-4 flex-nowrap items-center gap-0.5 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-100/70 p-1 no-scrollbar sm:inline-flex sm:w-auto sm:gap-1 sm:overflow-x-visible"
+            className="inline-flex w-auto max-w-full scroll-mt-4 flex-nowrap items-center gap-0.5 overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-100/70 p-0.5 no-scrollbar sm:overflow-x-visible"
           >
             {tabs.map((tab, idx) => {
               const isActive = activeTab === tab.key;
@@ -866,14 +866,14 @@ function LibraryContent() {
                   tabIndex={isActive ? 0 : -1}
                   onClick={() => selectMainTab(tab.key)}
                   onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                  className={`flex shrink-0 items-center justify-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold whitespace-nowrap transition sm:flex-none sm:gap-2 sm:px-3.5 ${
+                  className={`flex shrink-0 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold whitespace-nowrap transition sm:flex-none sm:gap-1.5 sm:px-2.5 ${
                     isActive
                       ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
                       : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
                   }`}
                 >
                   <tab.icon
-                    size={14}
+                    size={13}
                     strokeWidth={isActive ? 2.5 : 2}
                     className="shrink-0"
                     aria-hidden="true"
@@ -881,7 +881,7 @@ function LibraryContent() {
                   <span>{tab.label}</span>
                   {count !== null && (
                     <span
-                      className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums ${
+                      className={`shrink-0 rounded-full px-1.5 py-px text-[10px] font-bold tabular-nums ${
                         isActive ? "bg-accent/10 text-accent" : "bg-neutral-200/70 text-neutral-500"
                       }`}
                     >
@@ -902,13 +902,13 @@ function LibraryContent() {
 
           <div
             aria-hidden="true"
-            className={`pointer-events-none absolute inset-y-1 left-1 w-8 rounded-l-lg bg-gradient-to-r from-neutral-100 to-transparent transition-opacity ${
+            className={`pointer-events-none absolute inset-y-0.5 left-0.5 w-6 rounded-l-md bg-gradient-to-r from-neutral-100 to-transparent transition-opacity ${
               mainTabsOverflow.left ? "opacity-100" : "opacity-0"
             }`}
           />
           <div
             aria-hidden="true"
-            className={`pointer-events-none absolute inset-y-1 right-1 w-8 rounded-r-lg bg-gradient-to-l from-neutral-100 to-transparent transition-opacity ${
+            className={`pointer-events-none absolute inset-y-0.5 right-0.5 w-6 rounded-r-md bg-gradient-to-l from-neutral-100 to-transparent transition-opacity ${
               mainTabsOverflow.right ? "opacity-100" : "opacity-0"
             }`}
           />
@@ -917,9 +917,9 @@ function LibraryContent() {
               type="button"
               aria-label="Scroll library tabs left"
               onClick={() => scrollTabStrip(tablistRef.current, -1)}
-              className="absolute left-0.5 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200 transition hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+              className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200 transition hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             >
-              <ChevronLeft size={15} aria-hidden="true" />
+              <ChevronLeft size={13} aria-hidden="true" />
             </button>
           )}
           {mainTabsOverflow.right && (
@@ -927,20 +927,20 @@ function LibraryContent() {
               type="button"
               aria-label="Scroll library tabs right"
               onClick={() => scrollTabStrip(tablistRef.current, 1)}
-              className="absolute right-0.5 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200 transition hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+              className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200 transition hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             >
-              <ChevronRight size={15} aria-hidden="true" />
+              <ChevronRight size={13} aria-hidden="true" />
             </button>
           )}
           {mainTabsOverflow.right && (
-            <p className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-neutral-400 sm:hidden">
+            <p className="mt-1 flex items-center gap-1 text-[10px] font-medium text-neutral-400 sm:hidden">
               Swipe for more tabs
               <ChevronRight size={11} aria-hidden="true" />
             </p>
           )}
         </div>
 
-        <div className="mt-5 md:mt-6">
+        <div className="mt-4 md:mt-5">
           {activeTab === "downloads" && (
             <div
               role="tabpanel"
@@ -1352,14 +1352,14 @@ function LibraryContent() {
                   {/* Standouts — top, picks, and highlights */}
                   {activeTab === "standouts" && (
                     <div>
-                      <div className="mb-4 flex flex-wrap items-center gap-2">
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
                         <div className="relative inline-flex max-w-full min-w-0">
                           <div
                             ref={standoutsTablistRef}
                             role="tablist"
                             aria-label="Standouts views"
                             onScroll={measureTabs}
-                            className="inline-flex w-auto max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-1 no-scrollbar"
+                            className="inline-flex w-auto max-w-full flex-nowrap items-center gap-0.5 overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-0.5 no-scrollbar"
                           >
                           {standoutsTabs.map((tab, idx) => {
                             const isActive = standoutsSubTab === tab.key;
@@ -1380,13 +1380,13 @@ function LibraryContent() {
                                   markStandoutsSubTabSeen(tab.key);
                                 }}
                                 onKeyDown={(e) => handleStandoutsTabKeyDown(e, idx)}
-                                className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold whitespace-nowrap transition sm:flex-none ${
+                                className={`flex shrink-0 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold whitespace-nowrap transition sm:flex-none ${
                                   isActive
                                     ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
                                     : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
                                 }`}
                               >
-                                <tab.icon size={14} className="shrink-0" aria-hidden="true" />
+                                <tab.icon size={13} className="shrink-0" aria-hidden="true" />
                                 <span>{tab.label}</span>
                               </button>
                             );
@@ -1395,13 +1395,13 @@ function LibraryContent() {
 
                           <div
                             aria-hidden="true"
-                            className={`pointer-events-none absolute inset-y-1 left-1 w-7 rounded-l-lg bg-gradient-to-r from-neutral-50 to-transparent transition-opacity ${
+                            className={`pointer-events-none absolute inset-y-0.5 left-0.5 w-6 rounded-l-md bg-gradient-to-r from-neutral-50 to-transparent transition-opacity ${
                               standoutsTabsOverflow.left ? "opacity-100" : "opacity-0"
                             }`}
                           />
                           <div
                             aria-hidden="true"
-                            className={`pointer-events-none absolute inset-y-1 right-1 w-7 rounded-r-lg bg-gradient-to-l from-neutral-50 to-transparent transition-opacity ${
+                            className={`pointer-events-none absolute inset-y-0.5 right-0.5 w-6 rounded-r-md bg-gradient-to-l from-neutral-50 to-transparent transition-opacity ${
                               standoutsTabsOverflow.right ? "opacity-100" : "opacity-0"
                             }`}
                           />
@@ -1410,9 +1410,9 @@ function LibraryContent() {
                               type="button"
                               aria-label="Scroll Standouts views left"
                               onClick={() => scrollTabStrip(standoutsTablistRef.current, -1)}
-                              className="absolute left-0.5 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200 transition hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                              className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200 transition hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                             >
-                              <ChevronLeft size={15} aria-hidden="true" />
+                              <ChevronLeft size={13} aria-hidden="true" />
                             </button>
                           )}
                           {standoutsTabsOverflow.right && (
@@ -1420,13 +1420,13 @@ function LibraryContent() {
                               type="button"
                               aria-label="Scroll Standouts views right"
                               onClick={() => scrollTabStrip(standoutsTablistRef.current, 1)}
-                              className="absolute right-0.5 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200 transition hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                              className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200 transition hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                             >
-                              <ChevronRight size={15} aria-hidden="true" />
+                              <ChevronRight size={13} aria-hidden="true" />
                             </button>
                           )}
                           {standoutsTabsOverflow.right && (
-                            <p className="absolute left-0 top-full mt-1 flex items-center gap-1 whitespace-nowrap text-[11px] font-medium text-neutral-400">
+                            <p className="absolute left-0 top-full mt-1 flex items-center gap-1 whitespace-nowrap text-[10px] font-medium text-neutral-400">
                               Swipe for more views
                               <ChevronRight size={11} aria-hidden="true" />
                             </p>
