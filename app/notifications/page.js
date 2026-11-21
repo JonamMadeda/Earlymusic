@@ -132,9 +132,9 @@ export default function NotificationsPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Opening the page clears the shared badge. The store keeps the unread ids so
-  // the "unread" rail stays visible instead of flashing once and vanishing; it
-  // is removed per item when the listener opens or dismisses it.
+  // Opening the page clears the shared unread badge. The store keeps the ids so
+  // the "new" rail stays visible instead of flashing once and vanishing; the
+  // explicit "Clear new markers" action removes them in one step.
   useEffect(() => {
     if (markedRef.current || loading || items.length === 0) return;
     markedRef.current = true;
@@ -174,7 +174,7 @@ export default function NotificationsPage() {
 
   const unreadSet = useMemo(() => new Set(unreadIds), [unreadIds]);
   // Counted across the whole feed, not the filtered slice: switching to an
-  // empty category should not hide the "Mark all read" action.
+  // empty category should not hide the "Clear new markers" action.
   const unreadCount = items.filter((item) => {
     const id = normalizeNotificationId(item.id);
     return id !== null && !dismissed.has(id) && unreadSet.has(id);
@@ -204,7 +204,7 @@ export default function NotificationsPage() {
     setUndo(null);
   };
 
-  const handleMarkAllRead = () => {
+  const handleClearNewMarkers = () => {
     markNotificationsSeen({ clearHighlights: true });
   };
 
@@ -258,7 +258,7 @@ export default function NotificationsPage() {
                 </h1>
                 {hasUnread && (
                   <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-accent">
-                    {unreadCount} unread
+                    {unreadCount} new
                   </span>
                 )}
               </div>
@@ -269,10 +269,10 @@ export default function NotificationsPage() {
             {hasUnread && !loading && (
               <button
                 type="button"
-                onClick={handleMarkAllRead}
+                onClick={handleClearNewMarkers}
                 className="shrink-0 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300 hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
               >
-                Mark all read
+                Clear new markers
               </button>
             )}
           </div>
@@ -433,7 +433,7 @@ export default function NotificationsPage() {
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-0.5">
                                 <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-                                  {unread && <span className="sr-only">Unread · </span>}
+                                  {unread && <span className="sr-only">New · </span>}
                                   {KIND_CARD_LABELS[kind]}
                                 </span>
                                 {normalizeNotificationTarget(item.target) !== "general" && (

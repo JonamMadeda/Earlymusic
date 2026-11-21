@@ -75,6 +75,17 @@ describe("announcement feed store", () => {
     expect(store.getNotificationSnapshot().unread).toBe(0);
   });
 
+  it("clears the new markers on an explicit clear action", async () => {
+    const store = await loadStore();
+    await store.refreshNotifications();
+    store.markNotificationsSeen();
+
+    expect(store.getNotificationSnapshot().unreadIds).toEqual([3, 2]);
+    store.markNotificationsSeen({ clearHighlights: true });
+    expect(store.getNotificationSnapshot().unreadIds).toEqual([]);
+    expect(store.getNotificationSnapshot().unread).toBe(0);
+  });
+
   it("drops one highlight when its announcement is opened", async () => {
     const store = await loadStore();
     await store.refreshNotifications();

@@ -185,8 +185,8 @@ The Songs and Library experiences currently implement separate versions and shou
 
 ### P1 — Clarify read behavior
 
-- **[Pending]** Align the badge, “New” markers, and **Mark all read** behavior. Opening the page currently clears the shared badge while retaining unread highlights, making the later button’s effect unclear.
-- **[Pending]** Either mark items read when viewed or rename the action to **Clear new markers**. See [app/notifications/page.js:105](app/notifications/page.js#L105).
+- **[Done]** Aligned the badge, “New” markers, and clear action. Opening the page clears the shared unread badge; this visit’s markers stay visible until they are cleared.
+- **[Done]** Renamed the action to **Clear new markers** so it describes what it removes. See [app/notifications/page.js](app/notifications/page.js).
 
 ### P0 — Improve dismissal accessibility
 
