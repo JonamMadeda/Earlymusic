@@ -6,6 +6,10 @@ import { describe, expect, it } from "vitest";
 // same approach cacheNames.test.ts takes for literals that cannot share a
 // constant. Each one guards a regression that was shipped once already.
 const source = readFileSync(new URL("../app/page.js", import.meta.url), "utf8");
+const hero = readFileSync(
+  new URL("../app/components/HomeHero.jsx", import.meta.url),
+  "utf8"
+);
 const featuredCard = readFileSync(
   new URL("../app/components/FeaturedCard.jsx", import.meta.url),
   "utf8"
@@ -61,17 +65,17 @@ describe("standouts pool", () => {
 
 describe("verse capsule", () => {
   it("offers a stop control for the auto-rotation", () => {
-    expect(source).toMatch(/"(Pause|Resume) verse rotation"/);
-    expect(source).toMatch(/if \(activeSong \|\| versePaused \|\| reduceMotion\) return;/);
+    expect(hero).toMatch(/"(Pause|Resume) verse rotation"/);
+    expect(hero).toMatch(/if \(activeSong \|\| versePaused \|\| reduceMotion\) return;/);
   });
 
   it("stops rotating under reduced motion", () => {
-    expect(source).toContain('matchMedia("(prefers-reduced-motion: reduce)")');
+    expect(hero).toContain('matchMedia("(prefers-reduced-motion: reduce)")');
   });
 
   it("reports a failed copy instead of swallowing it", () => {
-    expect(source).not.toMatch(/catch \{\s*\/\/ fallback\s*\}/);
-    const copyVerse = source.match(/const copyVerse = useCallback\(async \(\) => \{[\s\S]*?\n {2}\},/);
+    expect(hero).not.toMatch(/catch \{\s*\/\/ fallback\s*\}/);
+    const copyVerse = hero.match(/const copyVerse = useCallback\(async \(\) => \{[\s\S]*?\n {2}\},/);
     expect(copyVerse, "copyVerse callback not found").not.toBeNull();
     expect(copyVerse![0]).toContain('setVerseCopyState("failed")');
   });
@@ -80,8 +84,8 @@ describe("verse capsule", () => {
 describe("homepage layout", () => {
   it("uses the shell main landmark without a second main or progress overlay", () => {
     expect(source).not.toMatch(/<main|ScrollProgress|z-\[600\]/);
-    expect(source).toContain('className="page-title"');
-    expect(source).toContain('disabled={sortedSongs.length === 0}');
+    expect(hero).toContain('className="page-title');
+    expect(hero).toContain("disabled: songs.length === 0");
   });
 
   it("keeps title space and card borders stable when selected", () => {

@@ -20,28 +20,13 @@ import {
   ListMusic,
   ChevronLeft,
   ChevronRight,
-  Copy,
-  Check,
-  Pause,
   Shuffle,
-  Sun,
-  Sunrise,
-  Moon,
-  Quote,
   Compass,
 } from "lucide-react";
 import LazySection from "./components/LazySection";
+import HomeHero from "./components/HomeHero";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
 import { getNewestSongs } from "@/lib/newSongs";
-
-const verses = [
-  { ref: "Psalm 150:6", text: "Let everything that has breath praise the Lord." },
-  { ref: "Psalm 95:1", text: "Oh come, let us sing to the Lord; let us make a joyful noise to the rock of our salvation!" },
-  { ref: "Psalm 100:1-2", text: "Make a joyful noise to the Lord, all the earth! Serve the Lord with gladness!" },
-  { ref: "Colossians 3:16", text: "Let the word of Christ dwell in you richly, singing psalms and hymns and spiritual songs." },
-  { ref: "Psalm 96:1", text: "Oh sing to the Lord a new song; sing to the Lord, all the earth!" },
-  { ref: "Ephesians 5:19", text: "Addressing one another in psalms and hymns and spiritual songs, singing and making melody to the Lord." },
-];
 
 const mulberry32 = (seed) => {
   return () => {
@@ -422,13 +407,9 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
 export default function Home() {
   const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed, activeSong, hasRealHistory } =
     usePlayer();
-  const { profile, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const [verseIndex, setVerseIndex] = useState(0);
-  const [verseCopyState, setVerseCopyState] = useState("idle");
-  const [versePaused, setVersePaused] = useState(false);
-  const [reduceMotion, setReduceMotion] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
   const [scrollY, setScrollY] = useState(0);
 
@@ -443,25 +424,6 @@ export default function Home() {
     scroller.addEventListener("scroll", handleScroll, { passive: true });
     return () => scroller.removeEventListener("scroll", handleScroll);
   }, []);
-
-  // WCAG 2.2.2: the capsule updates on its own, so it needs a stop control and
-  // has to respect reduced motion. It also only rotates while it is on screen —
-  // a playing track replaces it with the Now Playing card.
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setReduceMotion(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  useEffect(() => {
-    if (activeSong || versePaused || reduceMotion) return;
-    const interval = setInterval(() => {
-      setVerseIndex((prev) => (prev + 1) % verses.length);
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [activeSong, versePaused, reduceMotion]);
 
   const [sessionSeed] = useState(() => Math.random().toString(36).slice(2));
 
@@ -553,37 +515,6 @@ export default function Home() {
     return seededShuffle(list, `recommend-${songIdsKey}-${sessionSeed}-${activeFilter}`).slice(0, 15);
   }, [songIdsKey, sessionSeed, sortedSongs, activeFilter, newestSongs]);
 
-  const stats = {
-    total: allSongs?.length || 0,
-    artists: new Set(sortedSongs.map(s => s.author).filter(Boolean)).size,
-  };
-
-  const getGreetingData = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return { text: "Good morning", icon: Sunrise };
-    if (hour < 18) return { text: "Good afternoon", icon: Sun };
-    return { text: "Good evening", icon: Moon };
-  };
-
-  const { text: greetingText, icon: GreetingIcon } = getGreetingData();
-  // Only a name the user actually gave us. An email handle reads like a
-  // username, not a greeting.
-  const userName = profile?.first_name || null;
-
-  const copyVerse = useCallback(async () => {
-    const verse = verses[verseIndex];
-    const text = `"${verse.text}" — ${verse.ref}`;
-    try {
-      // navigator.clipboard is absent outside secure contexts, which throws
-      // here rather than failing the write quietly.
-      await navigator.clipboard.writeText(text);
-      setVerseCopyState("copied");
-    } catch {
-      setVerseCopyState("failed");
-    }
-    setTimeout(() => setVerseCopyState("idle"), 2500);
-  }, [verseIndex]);
-
   const shuffleAll = useCallback(() => {
     if (sortedSongs.length > 0) {
       // Seeded so the order is an unbiased Fisher-Yates rather than a
@@ -607,115 +538,14 @@ export default function Home() {
       <ScrollToTop visible={scrollY > 400} />
       <div className="mx-auto max-w-5xl space-y-6 md:space-y-7">
 
-        {/* --- COMPACT HERO BANNER WITH SUBTLE RETRO BORDER --- */}
-        <section className="relative overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 sm:p-5 md:p-6 shadow-2xs">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            
-            {/* Left side: Greeting, Title, Action Buttons, Metrics */}
-            <div className="flex-1 min-w-0 space-y-2.5">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-700">
-                  <GreetingIcon size={12} className="text-accent" />
-                  <span>
-                    {greetingText}
-                    {userName && <>, <strong className="text-neutral-900 font-bold">{userName}</strong></>}
-                  </span>
-                </span>
-              </div>
-
-              <div>
-                <h1 className="page-title">Worship Sessions</h1>
-                <p className="mt-1 max-w-md text-sm leading-relaxed text-neutral-500">
-                  Praise and worship to sing along with, any time of day.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={shuffleAll}
-                  disabled={sortedSongs.length === 0}
-                  className="btn-primary"
-                >
-                  <Shuffle size={16} aria-hidden="true" />
-                  <span>Shuffle All</span>
-                </button>
-                <Link href="/songs" className="tap-sm inline-flex min-h-9 items-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-100 hover:text-accent">
-                  Browse songs <ArrowRight size={14} aria-hidden="true" />
-                </Link>
-              </div>
-              {!isLoading && stats.total > 0 && (
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500">
-                  <span>{stats.total} {stats.total === 1 ? "track" : "tracks"}</span>
-                  <span aria-hidden="true">·</span>
-                  <span>{stats.artists} {stats.artists === 1 ? "artist" : "artists"}</span>
-                  {hasRealHistory && recentlyPlayed.length > 0 && (
-                    <a href="#recently-played" className="tap-sm inline-flex items-center gap-1 rounded-md font-semibold text-accent hover:underline">
-                      <Clock size={13} aria-hidden="true" /> Recently played
-                    </a>
-                  )}
-                </p>
-              )}
-            </div>
-
-            {/* Right side: Compact Live Playback or Scripture Capsule */}
-            <div className="min-w-0 w-full shrink-0 border-t border-neutral-100 pt-3 lg:w-64 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
-              {activeSong ? (
-                <div className="flex min-w-0 items-center gap-3 w-full">
-                  <SongAvatar title={activeSong.title} size="sm" variant="mono" />
-                  <div className="min-w-0 flex-1">
-                    <span className="text-xs font-medium leading-4 text-neutral-500">In your player</span>
-                    <p className="truncate text-sm font-semibold leading-5 text-neutral-900">{activeSong.title}</p>
-                    <p className="mt-0.5 truncate text-xs leading-4 text-neutral-500">{activeSong.author}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex min-w-0 items-start justify-between gap-2 text-left w-full">
-                  <div className="flex items-start gap-2 min-w-0">
-                    <Quote size={12} className="text-accent shrink-0 mt-0.5" />
-                    <div className="min-w-0">
-                      <p className="text-xs italic text-neutral-700 leading-snug line-clamp-2">
-                        “{verses[verseIndex].text}”
-                      </p>
-                      <p className="text-xs font-bold text-accent mt-0.5">
-                        {verses[verseIndex].ref}
-                      </p>
-                      {verseCopyState === "failed" && (
-                        <p role="alert" className="mt-1 text-xs font-semibold text-red-600">
-                          Couldn’t copy — select the verse and copy it by hand.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center">
-                    {!reduceMotion && (
-                      <button
-                        type="button"
-                        onClick={() => setVersePaused((p) => !p)}
-                        aria-pressed={versePaused}
-                        aria-label={versePaused ? "Resume verse rotation" : "Pause verse rotation"}
-                        title={versePaused ? "Resume verse rotation" : "Pause verse rotation"}
-                        className="tap-sm shrink-0 rounded-lg p-1.5 text-neutral-400 hover:text-neutral-700 transition"
-                      >
-                        {versePaused ? <Play size={14} /> : <Pause size={14} />}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={copyVerse}
-                      aria-label={verseCopyState === "copied" ? "Verse copied" : "Copy verse"}
-                      className="tap-sm shrink-0 rounded-lg p-1.5 text-neutral-400 hover:text-neutral-700 transition"
-                      title="Copy verse"
-                    >
-                      {verseCopyState === "copied" ? <Check size={14} className="text-accent font-bold" /> : <Copy size={14} />}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-          </div>
-        </section>
+        <HomeHero
+          songs={sortedSongs}
+          newestSongs={newestSongs}
+          featuredSongs={featuredSongs}
+          standoutSong={standoutSong}
+          onShuffleAll={shuffleAll}
+          isLoading={isLoading}
+        />
 
         {/* --- MAIN CONTENT SECTIONS --- */}
         {isLoading ? (
@@ -743,62 +573,6 @@ export default function Home() {
                 cardType="history"
                 isHistory
               />
-            )}
-
-            {/* --- COMPACT PLAY STANDOUTS BANNER (Guaranteed Dark Background + 100% White Text Contrast) --- */}
-            {standoutSong && (
-              <LazySection>
-                <section className="scroll-mt-24">
-                  <div
-                    className="relative overflow-hidden rounded-xl border border-neutral-800 p-4 md:p-5 text-white shadow-sm"
-                    style={{ backgroundColor: "#0f172a", color: "#ffffff" }}
-                    onMouseEnter={() => prefetchSongAudio(standoutSong)}
-                  >
-                    <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
-                      <div className="flex min-w-0 flex-1 items-center gap-3.5">
-                        {/* Artwork container with retro grooves */}
-                        <div
-                          className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-white/20 text-2xl font-black text-white shadow-sm retro-grooves"
-                          style={{ backgroundColor: "#0f172a" }}
-                        >
-                          {initialLetter(standoutSong.title)}
-                        </div>
-
-                        {/* Metadata in pure, guaranteed white text */}
-                        <div className="min-w-0">
-                          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wider text-white">
-                              <Star size={9} fill="currentColor" />
-                              Standouts
-                            </span>
-                            {standoutSong.category && (
-                              <span className="rounded border border-white/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wider text-neutral-300">
-                                {standoutSong.category}
-                              </span>
-                            )}
-                          </div>
-                          <h2 className="truncate text-sm font-bold leading-5 text-white sm:text-base">
-                            {standoutSong.title}
-                          </h2>
-                          <p className="mt-0.5 truncate text-xs leading-4 text-neutral-300">
-                            {standoutSong.author}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Play Action: Pure white button with dark text */}
-                      <button
-                        type="button"
-                        onClick={() => setActiveSong(standoutSong, sortedSongs)}
-                        className="tap-sm inline-flex min-h-9 shrink-0 items-center justify-center gap-2 self-start rounded-full bg-white px-4 py-2 text-xs font-semibold text-accent transition hover:bg-neutral-100 active:scale-95 sm:self-auto"
-                      >
-                        <Play size={14} fill="currentColor" />
-                        <span>Play Standouts</span>
-                      </button>
-                    </div>
-                  </div>
-                </section>
-              </LazySection>
             )}
 
             {/* --- FEATURED --- */}

@@ -37,6 +37,11 @@ export const PlayerProvider = ({ children }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isShuffle, setIsShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState("off");
+  // The Player owns the audio element, so other surfaces ask it to act through
+  // signals instead of duplicating playback state. A bumped counter is enough:
+  // the Player compares it with the last value it handled.
+  const [togglePlaySignal, setTogglePlaySignal] = useState(0);
+  const [openPlayerSignal, setOpenPlayerSignal] = useState(0);
   // True once the user has genuinely played something (seeded suggestions
   // for new users don't count — see the seed effect below).
   const [hasRealHistory, setHasRealHistory] = useState(() => {
@@ -236,6 +241,14 @@ export const PlayerProvider = ({ children }) => {
     try {
       localStorage.removeItem(SLEEP_TIMER_KEY);
     } catch {}
+  }, []);
+
+  const requestTogglePlay = useCallback(() => {
+    setTogglePlaySignal((count) => count + 1);
+  }, []);
+
+  const requestOpenPlayer = useCallback(() => {
+    setOpenPlayerSignal((count) => count + 1);
   }, []);
 
   // Seed with random songs for new users (no recently played yet).
@@ -444,6 +457,10 @@ export const PlayerProvider = ({ children }) => {
         setIsShuffle,
         repeatMode,
         setRepeatMode,
+        togglePlaySignal,
+        openPlayerSignal,
+        requestTogglePlay,
+        requestOpenPlayer,
         sleepTimerEnd,
         sleepTimerDuration,
         sleepTimerRemaining,

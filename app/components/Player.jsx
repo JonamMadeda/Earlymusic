@@ -9,6 +9,7 @@ import { getSongArtwork } from "@/lib/artwork";
 import { pickNextSong } from "@/lib/playbackQueue";
 import { isSongDownloaded } from "@/lib/downloadManager";
 import { usePlayer, PLAYBACK_POSITION_KEY } from "../context/PlayerContext";
+import { reportPlayback } from "../context/playbackStatus";
 import {
   Play,
   Pause,
@@ -68,6 +69,8 @@ const Player = () => {
     removeFromQueue,
     clearQueue,
     moveInQueue,
+    togglePlaySignal = 0,
+    openPlayerSignal = 0,
   } = usePlayer();
 
   // Skip/auto-advance queue. Pages normally pass the visible list as the
@@ -151,6 +154,9 @@ const Player = () => {
   // is idempotent per token, so pausing and resuming cannot double-count.
   const playSessionRef = useRef({ token: 0, recorded: -1 });
   const lastAudioTimeRef = useRef(0);
+  const lastStatusReportRef = useRef(0);
+  const handledTogglePlayRef = useRef(togglePlaySignal);
+  const handledOpenPlayerRef = useRef(openPlayerSignal);
   const lastPlayRequestRef = useRef(playRequestId);
   const closeButtonRef = useRef(null);
   const modalRef = useRef(null);
@@ -163,7 +169,23 @@ const Player = () => {
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
+    reportPlayback({ isPlaying });
   }, [isPlaying]);
+
+  // The hero needs the current track and its length even before the first
+  // timeupdate lands (a restored session mounts paused at the saved position).
+  useEffect(() => {
+    reportPlayback({ songId: song?.id ?? null });
+  }, [song?.id]);
+
+  useEffect(() => {
+    reportPlayback({ duration });
+  }, [duration]);
+
+  useEffect(() => {
+    lastStatusReportRef.current = 0;
+    reportPlayback({ currentTime: 0 });
+  }, [song?.id]);
 
   const markNewPlay = useCallback(() => {
     playSessionRef.current.token += 1;
@@ -284,6 +306,14 @@ const Player = () => {
       clearAutoAdvanceTimer();
     };
   }, [clearAutoAdvanceTimer]);
+
+  // The Player unmounts when the active song is cleared; leaving a stale
+  // "playing" snapshot behind would make the hero claim a track that is gone.
+  useEffect(() => {
+    return () => {
+      reportPlayback({ isPlaying: false, currentTime: 0, duration: 0, songId: null });
+    };
+  }, []);
 
   // Sleep timer expired — stop playback and release media resources.
   useEffect(() => {
@@ -634,6 +664,20 @@ const Player = () => {
   const togglePlay = useCallback(() => {
     setPlayState(!isPlayingRef.current);
   }, [setPlayState]);
+
+  // Commands from the home hero. The initial value is already recorded in the
+  // refs above, so only a later bump triggers an action.
+  useEffect(() => {
+    if (togglePlaySignal === handledTogglePlayRef.current) return;
+    handledTogglePlayRef.current = togglePlaySignal;
+    togglePlay();
+  }, [togglePlaySignal, togglePlay]);
+
+  useEffect(() => {
+    if (openPlayerSignal === handledOpenPlayerRef.current) return;
+    handledOpenPlayerRef.current = openPlayerSignal;
+    openFullPlayer();
+  }, [openPlayerSignal, openFullPlayer]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => !prev);
@@ -1006,6 +1050,13 @@ const Player = () => {
             lastAudioTimeRef.current = current;
           }
           const now = Date.now();
+          if (now - lastStatusReportRef.current > 1000 && audioRef.current) {
+            lastStatusReportRef.current = now;
+            reportPlayback({
+              currentTime: audioRef.current.currentTime,
+              duration: Number.isFinite(audioRef.current.duration) ? audioRef.current.duration : 0,
+            });
+          }
           if (now - lastPositionSaveRef.current > 5000) {
             lastPositionSaveRef.current = now;
             savePlaybackPosition();
@@ -1041,6 +1092,11 @@ const Player = () => {
               audioRef.current.currentTime = resume.position;
             }
             lastAudioTimeRef.current = audioRef.current.currentTime;
+            reportPlayback({
+              currentTime: audioRef.current.currentTime,
+              duration: total,
+              songId: audioSongId,
+            });
             syncMediaPosition();
           }
         }}

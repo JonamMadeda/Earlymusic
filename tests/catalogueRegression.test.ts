@@ -8,6 +8,9 @@ import * as newSongs from "../lib/newSongs";
 import * as songGrouping from "../lib/songGrouping";
 import * as highlightsLib from "../lib/highlights";
 import * as shareLib from "../lib/share";
+import * as notificationsLib from "../lib/notifications";
+import * as worshipSeason from "../lib/worshipSeason";
+import * as timeFormat from "../lib/timeFormat";
 
 // Isolated hooks let the real JSX run without a DOM or live services.
 type Element = { type: any; key?: string; props: Record<string, any> };
@@ -35,6 +38,15 @@ function find(tree: Element, predicate: (node: Element) => boolean) {
 }
 const button = (tree: Element, label: string) =>
   find(tree, (node) => node.type === "button" && text(node) === label);
+// HomeHero is its own module, so walk the page tree to the hero element and
+// mount it with the props the page passed down.
+function heroOf(h: any, page: any) {
+  const node = find(
+    page.tree,
+    (entry) => typeof entry.type === "function" && entry.type.name === "HomeHero"
+  );
+  return h.mount(node.type, node.props);
+}
 const change = (node: Element, value: string) => node.props.onChange({ target: { value } });
 const songRows = (tree: Element) => nodes(tree).filter((node) => node.props.song && "isNew" in node.props);
 
@@ -96,9 +108,11 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
   };
   const setActiveSong = vi.fn();
   const alert = vi.fn();
+  const playback = { isPlaying: false, currentTime: 0, duration: 0, songId: null as string | null };
   const player = {
     allSongs: songs, setAllSongs: vi.fn(), setActiveSong, isLoading: false, setIsLoading: vi.fn(),
     recentlyPlayed: [] as Song[], activeSong: null as Song | null, hasRealHistory: false,
+    requestTogglePlay: vi.fn(), requestOpenPlayer: vi.fn(),
   };
   const fetch = vi.fn(async (url: string, options?: any) => {
     let body: any;
@@ -158,6 +172,12 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
     "@/lib/audioHealth": { summarizeHealth: () => ({}), verifyAudioUrl: vi.fn() },
     "@/lib/prefetchAudio": { prefetchSongAudio: vi.fn() },
     "@/lib/useOnlineStatus": { useOnlineStatus: () => connection.online },
+    "@/lib/notificationFeed": {
+      useNotificationFeed: () => ({ items: [], loading: false, unread: 0, unreadIds: [], dismissedIds: [] }),
+    },
+    "@/lib/notifications": notificationsLib,
+    "@/lib/worshipSeason": worshipSeason,
+    "@/lib/timeFormat": timeFormat,
     "@/lib/downloadManager": {
       getDownloadedSongs: () => localSongs.songs,
       getStorageEstimate: async () => null,
@@ -188,6 +208,8 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       require: (id: string) => {
         if (id.endsWith("/context/PlayerContext")) return { usePlayer: () => player };
         if (id.endsWith("/context/AuthContext")) return { useAuth: () => auth };
+        if (id.endsWith("/context/playbackStatus")) return { usePlaybackStatus: () => playback };
+        if (id === "./components/HomeHero") return load("app/components/HomeHero.jsx");
         if (id.endsWith("/SongAvatar")) return { default: "avatar", initialLetter: (title: string) => title[0], hashStr: (value: string) => [...value].reduce((hash, char) => hash * 31 + char.charCodeAt(0) | 0, 0) };
         if (["/ActionMenu", "/ConfirmModal", "/EmptyState", "/PlaylistNameDialog", "/StandoutsNudgeSettings"].some((name) => id.endsWith(name))) {
           return load(`app/components${id.slice(id.lastIndexOf("/"))}.jsx`);
@@ -247,8 +269,9 @@ describe("homepage navigation and recovery", () => {
     const page = h.mount(h.load("app/page.js"));
     expect(nodes(page.tree).some((node) => node.props.id === "recently-played")).toBe(false);
     expect(nodes(page.tree).some((node) => node.props.id === "suggested-starters")).toBe(true);
-    expect(nodes(page.tree).some((node) => node.props.href === "#recently-played")).toBe(false);
-    button(page.tree, "Shuffle All").props.onClick();
+    const hero = heroOf(h, page);
+    expect(nodes(hero.tree).some((node) => node.props.href === "#recently-played")).toBe(false);
+    button(hero.tree, "Shuffle All").props.onClick();
     const [song, queue] = h.setActiveSong.mock.calls[0];
     expect(queue.map((item: Song) => item.id).sort()).toEqual(["one", "two"]);
     expect(song).toBe(queue[0]);
@@ -270,8 +293,9 @@ describe("homepage navigation and recovery", () => {
     const h = harness([fixture("one")]);
     h.player.activeSong = h.player.allSongs[0];
     const page = h.mount(h.load("app/page.js"));
-    expect(text(page.tree)).toContain("In your player");
-    expect(text(page.tree)).not.toContain("Now Playing");
+    const hero = heroOf(h, page);
+    expect(text(hero.tree)).toContain("Ready in the player");
+    expect(text(hero.tree)).not.toContain("Now playing");
   });
 
   it("offers retry without a contradictory empty-library message", async () => {
@@ -292,7 +316,8 @@ describe("homepage navigation and recovery", () => {
   it("disables empty shuffle and routes admin uploads to the uploader", () => {
     const h = harness([]);
     const page = h.mount(h.load("app/page.js"));
-    expect(button(page.tree, "Shuffle All").props.disabled).toBe(true);
+    const hero = heroOf(h, page);
+    expect(button(hero.tree, "Shuffle All").props.disabled).toBe(true);
     expect(find(page.tree, (node) => node.props.href === "/upload")).toBeDefined();
     const shelves = nodes(page.tree).filter((node) => node.props.items);
     for (const shelf of shelves) expect(h.mount(shelf.type, shelf.props).tree).toBeNull();
