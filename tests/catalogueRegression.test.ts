@@ -684,13 +684,13 @@ describe("offline library downloads", () => {
     const wrapper = h.mount(h.load("app/library/page.js"));
     const page = h.mount(wrapper.tree.props.children.type);
     await page.startEffects();
-    const rail = find(page.tree, (node) => node.type === "nav");
+    const rail = find(page.tree, (node) => node.props.role === "group" && node.props["aria-label"] === "Jump to letter in downloads");
     expect(text(rail)).toBe("AB");
     expect(find(page.tree, (node) => node.props.id === "download-group-A")).toBeDefined();
     h.localSongs.songs = [a];
     h.downloadsChanged();
     page.render();
-    expect(nodes(page.tree).some((node) => node.type === "nav" && text(node) === "A")).toBe(false);
+    expect(nodes(page.tree).some((node) => node.props.role === "group" && node.props["aria-label"] === "Jump to letter in downloads")).toBe(false);
   });
 
   it("clears downloads behind an undo toast and restores them on undo", async () => {

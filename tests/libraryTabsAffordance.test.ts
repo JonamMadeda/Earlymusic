@@ -23,9 +23,11 @@ describe("library tab overflow affordance", () => {
     expect(source).toContain('window.addEventListener?.("resize", onResize)');
   });
 
-  it("offers a chevron and a plain-language swipe hint for hidden tabs", () => {
-    expect(source).toContain('aria-label="Scroll library tabs right"');
-    expect(source).toContain('aria-label="Scroll Standouts views right"');
+  it("uses swipe hints without extra button controls", () => {
+    expect(source).not.toContain('aria-label="Scroll library tabs');
+    expect(source).not.toContain('aria-label="Scroll Standouts views');
+    expect(source).not.toContain("ChevronLeft");
+    expect(source).not.toContain("ChevronRight");
     expect(source).toContain("Swipe for more tabs");
     expect(source).toContain("Swipe for more views");
   });
@@ -53,5 +55,14 @@ describe("library tab overflow affordance", () => {
     expect(standouts).toContain("rounded-lg border border-neutral-200 bg-neutral-50 p-0.5");
     expect(standouts).toContain("rounded-md px-2 py-1.5 text-[11px]");
     expect(standouts).toContain("size={13}");
+  });
+});
+
+describe("library downloads A-Z rail", () => {
+  it("pins the rail above the bottom player/nav instead of the top of the list", () => {
+    expect(source).toContain('["bottom-nav", "now-playing-bar", "mobile-now-playing-bar"]');
+    expect(source).toContain('aria-label="Jump to letter in downloads"');
+    expect(source).toContain("songs-index fixed z-30 flex w-6 select-none flex-col items-stretch justify-start overflow-y-auto rounded-full bg-neutral-100/80 py-1.5 sm:w-7");
+    expect(source).not.toContain('className="songs-index sticky top-24');
   });
 });

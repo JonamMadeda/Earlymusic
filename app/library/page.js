@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import SongItem from "../components/SongItem";
 import SongAvatar from "@/app/components/SongAvatar";
@@ -13,8 +13,6 @@ import { useOnlineStatus } from "@/lib/useOnlineStatus";
 import {
   Disc,
   LogIn,
-  ChevronLeft,
-  ChevronRight,
   Heart,
   ListMusic,
   Download,
@@ -589,6 +587,7 @@ function LibraryContent() {
   );
 
   const jumpToDownloadLetter = (letter) => {
+    setJumpDownloadLetter(letter);
     document.getElementById(`download-group-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -718,6 +717,9 @@ function LibraryContent() {
     left: false,
     right: false,
   });
+  const downloadListRowRef = useRef(null);
+  const [downloadRailBox, setDownloadRailBox] = useState(null);
+  const [jumpDownloadLetter, setJumpDownloadLetter] = useState(null);
   const tabCounts = {
     downloads: downloadedSongs.length,
     playlists: playlists.length,
@@ -726,24 +728,12 @@ function LibraryContent() {
   };
   const showTabCounts = isOnline && !!user && !loading;
 
-  // A hidden scrollbar gives no clue that a tab strip continues. Track both
-  // edges so the strip can show a chevron/fade and a short swipe hint only when
-  // there really are tabs out of view.
+  // A hidden scrollbar gives no clue that a tab strip continues. Track the
+  // right edge so the fade and swipe hint appear only when tabs are hidden.
   const measureTabs = useCallback(() => {
     measureTabOverflow(tablistRef.current, setMainTabsOverflow);
     measureTabOverflow(standoutsTablistRef.current, setStandoutsTabsOverflow);
   }, []);
-
-  const scrollTabStrip = (element, direction) => {
-    if (!element || typeof element.scrollBy !== "function") return;
-    const reduceMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    element.scrollBy({
-      left: direction * Math.max(120, element.clientWidth * 0.8),
-      behavior: reduceMotion ? "auto" : "smooth",
-    });
-  };
 
   const scrollActiveTabIntoView = (element, index) => {
     const buttons = element?.querySelectorAll?.('[role="tab"]');
@@ -775,6 +765,61 @@ function LibraryContent() {
       standoutsTabs.findIndex((tab) => tab.key === standoutsSubTab)
     );
   }, [standoutsSubTab]);
+
+  // The A-Z rail is pinned to the visible list area, just above the bottom
+  // player/nav, instead of following the list from the top. Measuring the real
+  // app chrome keeps it clear of whichever player is on screen.
+  useLayoutEffect(() => {
+    const row = downloadListRowRef.current;
+    const scroller = document.getElementById("app-scroll");
+    if (!row || !scroller) return;
+    const chrome = ["bottom-nav", "now-playing-bar", "mobile-now-playing-bar"]
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
+    const viewport = window.visualViewport;
+    const measureRail = () => {
+      const rowRect = row.getBoundingClientRect();
+      const scRect = scroller.getBoundingClientRect();
+      const top = Math.max(scRect.top, viewport?.offsetTop || 0) + 8;
+      let bottom = Math.min(
+        scRect.bottom,
+        viewport ? viewport.offsetTop + viewport.height : window.innerHeight
+      );
+      for (const element of chrome) {
+        const rect = element.getBoundingClientRect();
+        if (rect.height > 0) bottom = Math.min(bottom, rect.top);
+      }
+      const available = Math.max(0, bottom - 12 - top);
+      const height = Math.min(available, downloadLetters.length * 24 + 12);
+      const isPhone = window.matchMedia("(max-width: 639px)").matches;
+      const railTop = isPhone
+        ? Math.max(top, bottom - 12 - height)
+        : top + (available - height) / 2;
+      const next = {
+        top: railTop,
+        height,
+        right: Math.max(8, window.innerWidth - rowRect.right),
+      };
+      setDownloadRailBox((previous) =>
+        previous && previous.top === next.top && previous.height === next.height && previous.right === next.right
+          ? previous
+          : next
+      );
+    };
+    measureRail();
+    const ResizeObserverClass = window.ResizeObserver;
+    const observer = ResizeObserverClass ? new ResizeObserverClass(measureRail) : null;
+    [scroller, row, ...chrome].forEach((element) => observer?.observe(element));
+    window.addEventListener("resize", measureRail);
+    viewport?.addEventListener("resize", measureRail);
+    viewport?.addEventListener("scroll", measureRail);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measureRail);
+      viewport?.removeEventListener("resize", measureRail);
+      viewport?.removeEventListener("scroll", measureRail);
+    };
+  }, [activeTab, activeSong, downloadLetters.length]);
 
   const selectMainTab = (key) => {
     setActiveTab(key);
@@ -912,30 +957,9 @@ function LibraryContent() {
               mainTabsOverflow.right ? "opacity-100" : "opacity-0"
             }`}
           />
-          {mainTabsOverflow.left && (
-            <button
-              type="button"
-              aria-label="Scroll library tabs left"
-              onClick={() => scrollTabStrip(tablistRef.current, -1)}
-              className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200 transition hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-            >
-              <ChevronLeft size={13} aria-hidden="true" />
-            </button>
-          )}
           {mainTabsOverflow.right && (
-            <button
-              type="button"
-              aria-label="Scroll library tabs right"
-              onClick={() => scrollTabStrip(tablistRef.current, 1)}
-              className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200 transition hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-            >
-              <ChevronRight size={13} aria-hidden="true" />
-            </button>
-          )}
-          {mainTabsOverflow.right && (
-            <p className="mt-1 flex items-center gap-1 text-[10px] font-medium text-neutral-400 sm:hidden">
+            <p className="mt-1 text-[10px] font-medium text-neutral-400 sm:hidden">
               Swipe for more tabs
-              <ChevronRight size={11} aria-hidden="true" />
             </p>
           )}
         </div>
@@ -1023,7 +1047,7 @@ function LibraryContent() {
                   }
                 />
               ) : (
-                <div className="mt-4 flex items-start gap-2">
+                <div ref={downloadListRowRef} className="mt-4 flex gap-1.5 sm:gap-4">
                   <div className="flex min-w-0 flex-1 flex-col gap-y-3">
                     {downloading.length > 0 && (
                       <div className="flex flex-col gap-y-1">
@@ -1169,21 +1193,37 @@ function LibraryContent() {
                   </div>
 
                   {downloadLetters.length > 1 && (
-                    <nav
-                      aria-label="Jump to letter in downloads"
-                      className="songs-index sticky top-24 flex w-6 shrink-0 flex-col items-stretch overflow-y-auto rounded-full bg-neutral-100/80 py-1.5"
-                    >
-                      {downloadLetters.map((letter) => (
-                        <button
-                          key={letter}
-                          type="button"
-                          onClick={() => jumpToDownloadLetter(letter)}
-                          className="flex h-6 min-h-0 w-full shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none text-neutral-500 transition-colors hover:bg-neutral-200 hover:text-neutral-800 active:bg-neutral-200 active:text-neutral-800"
-                        >
-                          {letter}
-                        </button>
-                      ))}
-                    </nav>
+                    <>
+                      <div aria-hidden="true" className="w-6 shrink-0 sm:w-7" />
+                      <div
+                        style={downloadRailBox && downloadRailBox.height > 0 ? {
+                          top: downloadRailBox.top,
+                          height: downloadRailBox.height,
+                          right: downloadRailBox.right,
+                          touchAction: "pan-y",
+                        } : { visibility: "hidden" }}
+                        aria-label="Jump to letter in downloads"
+                        role="group"
+                        className="songs-index fixed z-30 flex w-6 select-none flex-col items-stretch justify-start overflow-y-auto rounded-full bg-neutral-100/80 py-1.5 sm:w-7"
+                      >
+                        {downloadLetters.map((letter) => (
+                          <button
+                            key={letter}
+                            type="button"
+                            onClick={() => jumpToDownloadLetter(letter)}
+                            aria-label={`Jump to ${letter}`}
+                            aria-current={jumpDownloadLetter === letter ? "location" : undefined}
+                            className={`flex h-6 min-h-0 w-full shrink-0 cursor-pointer items-center justify-center rounded-full text-[11px] font-bold leading-none transition-colors duration-150 select-none ${
+                              jumpDownloadLetter === letter
+                                ? "bg-accent text-white"
+                                : "text-neutral-500 hover:bg-neutral-200 hover:text-neutral-800 active:bg-neutral-200 active:text-neutral-800"
+                            }`}
+                          >
+                            {letter}
+                          </button>
+                        ))}
+                      </div>
+                    </>
                   )}
                 </div>
               )}
@@ -1405,30 +1445,9 @@ function LibraryContent() {
                               standoutsTabsOverflow.right ? "opacity-100" : "opacity-0"
                             }`}
                           />
-                          {standoutsTabsOverflow.left && (
-                            <button
-                              type="button"
-                              aria-label="Scroll Standouts views left"
-                              onClick={() => scrollTabStrip(standoutsTablistRef.current, -1)}
-                              className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200 transition hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-                            >
-                              <ChevronLeft size={13} aria-hidden="true" />
-                            </button>
-                          )}
                           {standoutsTabsOverflow.right && (
-                            <button
-                              type="button"
-                              aria-label="Scroll Standouts views right"
-                              onClick={() => scrollTabStrip(standoutsTablistRef.current, 1)}
-                              className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200 transition hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-                            >
-                              <ChevronRight size={13} aria-hidden="true" />
-                            </button>
-                          )}
-                          {standoutsTabsOverflow.right && (
-                            <p className="absolute left-0 top-full mt-1 flex items-center gap-1 whitespace-nowrap text-[10px] font-medium text-neutral-400">
+                            <p className="absolute left-0 top-full mt-1 whitespace-nowrap text-[10px] font-medium text-neutral-400">
                               Swipe for more views
-                              <ChevronRight size={11} aria-hidden="true" />
                             </p>
                           )}
                         </div>
