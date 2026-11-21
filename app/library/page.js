@@ -840,12 +840,7 @@ function LibraryContent() {
   return (
     <div className="min-h-[90vh] bg-white px-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-6 md:px-8 md:pt-5">
       <div className="mx-auto max-w-5xl">
-        <header className="border-b border-neutral-100 pb-3">
-          <h1 className="sr-only">Library</h1>
-          <p className="text-xs font-medium leading-5 text-neutral-500 sm:text-sm">
-            Your saved music and standout moments, in one place.
-          </p>
-        </header>
+        <h1 className="sr-only">Library</h1>
 
         <div className="relative mt-3 md:mt-4">
           <div
@@ -956,11 +951,11 @@ function LibraryContent() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                   <h2 className="section-title">Downloads</h2>
-                  <p className="mt-0.5 text-xs font-medium text-neutral-500">
-                    {downloadedSongs.length > 0
-                      ? `${downloadedSongs.length} ${downloadedSongs.length === 1 ? "song" : "songs"} available offline`
-                      : "Saved on this device for offline listening"}
-                  </p>
+                  {downloadedSongs.length > 0 && (
+                    <p className="mt-0.5 text-xs font-medium text-neutral-500">
+                      {downloadedSongs.length} {downloadedSongs.length === 1 ? "song" : "songs"}
+                    </p>
+                  )}
                   {storage && storage.quota > 0 && (
                     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
                       <HardDrive size={14} className="shrink-0 text-neutral-400" />
@@ -1019,11 +1014,6 @@ function LibraryContent() {
                 <EmptyState
                   icon={Download}
                   title="No downloaded songs"
-                  description={
-                    isOnline
-                      ? "Save songs to your device for smooth listening without an internet connection."
-                      : "Reconnect to download songs, then listen here without an internet connection."
-                  }
                   action={
                     isOnline ? (
                       <Link href="/songs" className="btn-primary min-h-9 px-4 py-2 text-xs">
@@ -1172,11 +1162,7 @@ function LibraryContent() {
               className="animate-fade-in"
             >
               {!isOnline ? (
-                <EmptyState
-                  icon={WifiOff}
-                  title="You’re offline"
-                  description="Downloads still play on this device. Playlists, liked songs, and your Standouts will be here when you reconnect."
-                />
+                <EmptyState icon={WifiOff} title="You’re offline" />
               ) : authLoading || (user && loading) ? (
                 <PageSkeleton />
               ) : !user ? (
@@ -1188,25 +1174,7 @@ function LibraryContent() {
                     <h2 className="mt-4 text-lg font-bold tracking-tight text-neutral-900">
                       Sign in to see your library
                     </h2>
-                    <p className="mt-1.5 text-xs leading-relaxed text-neutral-500 sm:text-sm">
-                      Keep your liked songs, playlists, and listening stats together across your devices.
-                      Downloads stay available on this device without an account.
-                    </p>
-                    <ul className="mt-4 space-y-2 text-xs font-medium text-neutral-600">
-                      <li className="flex items-center gap-2.5">
-                        <Heart size={13} className="shrink-0 text-neutral-400" />
-                        Like songs and build a personal collection
-                      </li>
-                      <li className="flex items-center gap-2.5">
-                        <ListMusic size={13} className="shrink-0 text-neutral-400" />
-                        Create playlists for any moment
-                      </li>
-                      <li className="flex items-center gap-2.5">
-                        <TrendingUp size={13} className="shrink-0 text-neutral-400" />
-                        Explore your top songs, picks, and highlights
-                      </li>
-                    </ul>
-                    <Link href="/auth" className="btn-primary mt-5 px-4.5 text-xs">
+                    <Link href="/auth" className="btn-primary mt-4 px-4.5 text-xs">
                       <LogIn size={14} /> Sign In
                     </Link>
                   </div>
@@ -1219,13 +1187,12 @@ function LibraryContent() {
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div className="min-w-0">
                           <h2 className="section-title">Liked songs</h2>
-                          <p className="mt-0.5 text-xs font-medium text-neutral-500">
-                            {savedSongs.length > 0
-                              ? `${filteredSavedSongs.length} of ${savedSongs.length} ${
-                                  savedSongs.length === 1 ? "song" : "songs"
-                                } · sorted A–Z`
-                              : "Songs you like will collect here"}
-                          </p>
+                          {savedSongs.length > 0 && (
+                            <p className="mt-0.5 text-xs font-medium text-neutral-500">
+                              {filteredSavedSongs.length} of {savedSongs.length}{" "}
+                              {savedSongs.length === 1 ? "song" : "songs"}
+                            </p>
+                          )}
                         </div>
                         {savedSongs.length > 0 && (
                           <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -1289,7 +1256,6 @@ function LibraryContent() {
                         <EmptyState
                           icon={Heart}
                           title="No liked songs yet"
-                          description="Tap the heart on any song while listening to collect your favorites here."
                           action={
                             <Link href="/songs" className="btn-primary min-h-9 px-4 py-2 text-xs">
                               Discover songs
@@ -1301,7 +1267,6 @@ function LibraryContent() {
                           compact
                           icon={Search}
                           title="No matching songs"
-                          description={`Nothing in your liked songs matches “${likedQuery}”.`}
                           action={
                             <button
                               type="button"
@@ -1450,9 +1415,6 @@ function LibraryContent() {
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                               <div className="min-w-0">
                                 <h2 className="section-title">Your most played</h2>
-                                <p className="mt-0.5 text-xs font-medium text-neutral-500">
-                                  The tracks you return to most, ranked by play count.
-                                </p>
                               </div>
                               <button
                                 type="button"
@@ -1514,7 +1476,6 @@ function LibraryContent() {
                           <EmptyState
                             icon={Trophy}
                             title="No plays counted yet"
-                            description="Listen to songs while signed in and your personal top 10 will build up here."
                             action={
                               <Link href="/songs" className="btn-primary min-h-9 px-4 py-2 text-xs">
                                 Discover songs
@@ -1531,13 +1492,7 @@ function LibraryContent() {
                         id="standouts-tabpanel-picks"
                         aria-labelledby="standouts-tab-picks"
                       >
-                        <div className="min-w-0">
-                          <h2 className="section-title">Your picks</h2>
-                          <p className="mt-0.5 max-w-2xl text-xs font-medium leading-5 text-neutral-500">
-                            Choose a song for the day, week, month, or year. Your picks are saved
-                            to your account and can be shared with a tap.
-                          </p>
-                        </div>
+                        <h2 className="section-title">Your picks</h2>
 
                         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                           {PICK_PERIODS.map((period) => {
@@ -1663,9 +1618,6 @@ function LibraryContent() {
                                     <span className="text-xs font-semibold text-neutral-700">
                                       Choose a song
                                     </span>
-                                    <span className="text-xs font-medium text-neutral-400">
-                                      Share your {period.range.toLowerCase()} favorite
-                                    </span>
                                   </button>
                                 )}
                               </div>
@@ -1681,13 +1633,7 @@ function LibraryContent() {
                         id="standouts-tabpanel-highlights"
                         aria-labelledby="standouts-tab-highlights"
                       >
-                        <div className="min-w-0">
-                          <h2 className="section-title">Your highlights</h2>
-                          <p className="mt-0.5 max-w-2xl text-xs font-medium leading-5 text-neutral-500">
-                            Your standout song for each period, chosen by how often you played
-                            it — not by listening time.
-                          </p>
-                        </div>
+                        <h2 className="section-title">Your highlights</h2>
 
                         {highlightsLoading ? (
                           <div className="mt-4">
@@ -1788,9 +1734,6 @@ function LibraryContent() {
                                       <p className="mt-2 text-xs font-semibold text-neutral-700">
                                         {item.empty}
                                       </p>
-                                      <p className="mt-0.5 max-w-[230px] text-xs leading-relaxed text-neutral-400">
-                                        Every play counts toward your next highlight.
-                                      </p>
                                     </div>
                                   )}
                                 </div>
@@ -1801,8 +1744,7 @@ function LibraryContent() {
 
                         {highlightsFallback && !highlightsLoading && (
                           <p className="mt-3 text-xs font-medium text-neutral-400">
-                            Detailed play history is unavailable right now, so highlights are
-                            paused until it returns. New plays are still being saved.
+                            Play history is unavailable.
                           </p>
                         )}
                       </div>
@@ -1816,11 +1758,11 @@ function LibraryContent() {
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div className="min-w-0">
                           <h2 className="section-title">Playlists</h2>
-                          <p className="mt-0.5 text-xs font-medium text-neutral-500">
-                            {playlists.length > 0
-                              ? `${playlists.length} ${playlists.length === 1 ? "collection" : "collections"}`
-                              : "Collections for any moment"}
-                          </p>
+                          {playlists.length > 0 && (
+                            <p className="mt-0.5 text-xs font-medium text-neutral-500">
+                              {playlists.length} {playlists.length === 1 ? "collection" : "collections"}
+                            </p>
+                          )}
                         </div>
                         <button
                           type="button"
@@ -1867,11 +1809,7 @@ function LibraryContent() {
                       )}
 
                       {playlists.length === 0 ? (
-                        <EmptyState
-                          icon={ListMusic}
-                          title="No playlists yet"
-                          description="Use New Playlist above to create a collection for praise, meditation, personal worship, or study."
-                        />
+                        <EmptyState icon={ListMusic} title="No playlists yet" />
                       ) : (
                         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                           {playlists.map((pl) => {

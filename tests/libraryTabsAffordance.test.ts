@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 // The tab strips hide their scrollbars. Without an explicit edge treatment a
 // listener cannot tell that another tab is one swipe away, so these guards keep
 // the scroll affordance wired to both tablists.
-const source = readFileSync(new URL("../app/library/page.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../app/library/page.js", import.meta.url), "utf8").replace(/\r\n/g, "\n");
 
 describe("library tab overflow affordance", () => {
   it("measures both tablists on scroll and resize", () => {

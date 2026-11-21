@@ -637,8 +637,8 @@ describe("offline library downloads", () => {
     page.render();
     expect(hasEmptyState(page.tree, "No downloaded songs")).toBe(true);
     if (!online) {
-      const empty = find(page.tree, (node) => node.props.title === "No downloaded songs");
-      expect(String(empty.props.description)).toContain("Reconnect");
+      // Offline has no browse action to explain; the empty title is enough.
+      expect(nodes(page.tree).some((node) => text(node) === "Browse songs")).toBe(false);
     }
     find(page.tree, (node) => node.props.role === "tab" && text(node) === "Liked").props.onClick();
     page.render();
@@ -895,11 +895,34 @@ describe("offline library downloads", () => {
     await page.startEffects();
     const copy = text(page.tree);
 
-    expect(copy).toContain("Detailed play history is unavailable");
+    expect(copy).toContain("Play history is unavailable.");
     expect(copy).toContain("No plays yet today");
     expect(copy).not.toContain("Second song");
   });
 
+
+  it("keeps the library free of explanatory filler copy", () => {
+    const source = readFileSync(
+      new URL("../app/library/page.js", import.meta.url),
+      "utf8"
+    );
+    const removedCopy = [
+      "Your saved music and standout moments",
+      "Saved on this device for offline listening",
+      "Songs you like will collect here",
+      "Tap the heart on any song",
+      "The tracks you return to most",
+      "Listen to songs while signed in",
+      "Choose a song for the day",
+      "Your standout song for each period",
+      "Every play counts toward your next highlight",
+      "Collections for any moment",
+      "Use New Playlist above",
+      "Downloads still play on this device",
+      "Share your {period.range.toLowerCase()} favorite",
+    ];
+    for (const phrase of removedCopy) expect(source).not.toContain(phrase);
+  });
 
   it("carries collection counts inside the tab bar", async () => {
     const h = harness([fixture("cached")], "top");
