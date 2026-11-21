@@ -113,7 +113,7 @@ const shuffleSongs = (queue) => {
 
 function LibraryContent() {
   const { user, loading: authLoading } = useAuth();
-  const { allSongs, setAllSongs, setActiveSong } = usePlayer();
+  const { allSongs, setAllSongs, setActiveSong, activeSong } = usePlayer();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1026,25 +1026,31 @@ function LibraryContent() {
                 <div className="mt-4 flex items-start gap-2">
                   <div className="flex min-w-0 flex-1 flex-col gap-y-3">
                     {downloading.length > 0 && (
-                      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
-                        <div className="flex items-center gap-2 border-b border-neutral-100 px-3.5 py-2.5 text-xs font-semibold text-neutral-500">
-                          <Loader2 size={13} className="animate-spin" aria-hidden="true" />
-                          Downloading {downloading.length}
+                      <div className="flex flex-col gap-y-1">
+                        <div className="sticky z-10 -mx-1.5 flex items-center gap-2 border-b border-neutral-200/70 bg-white/95 px-1.5 py-1.5 backdrop-blur-md">
+                          <Loader2 size={13} className="animate-spin text-neutral-500" aria-hidden="true" />
+                          <span className="text-xs font-medium text-neutral-500">
+                            Downloading {downloading.length}
+                          </span>
                         </div>
-                        <div className="divide-y divide-neutral-100">
+                        <div className="flex flex-col divide-y divide-neutral-200/70">
                           {downloading.map((song) => (
                             <div
                               key={`dl-${song.id}`}
-                              className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left opacity-80"
+                              className="group relative flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left opacity-80 transition-colors duration-150 sm:px-3 sm:py-2.5 sm:gap-3.5"
                             >
-                              <SongAvatar title={song.title} size="row" variant="mono" />
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
-                                  {song.title}
-                                </p>
-                                <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
-                                  {song.author}
-                                </p>
+                              <div className="relative shrink-0">
+                                <SongAvatar title={song.title} variant="mono" size="md" />
+                              </div>
+                              <div className="flex min-h-11 min-w-0 flex-1 flex-col justify-center gap-0.5 rounded text-left">
+                                <span className="flex w-full min-w-0 items-center gap-1.5">
+                                  <span className="truncate text-sm font-semibold leading-5 tracking-tight text-neutral-900">
+                                    {song.title}
+                                  </span>
+                                </span>
+                                <span className="flex w-full min-w-0 items-center gap-1.5 text-xs leading-4 text-neutral-500">
+                                  <span className="truncate font-medium">{song.author}</span>
+                                </span>
                               </div>
                               <span className="shrink-0 text-xs font-semibold text-neutral-500">
                                 Saving&hellip;
@@ -1055,76 +1061,107 @@ function LibraryContent() {
                       </div>
                     )}
 
-                    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
-                      {downloadLetters.map((letter, groupIndex) => (
+                    <div className="flex flex-col gap-y-3 sm:gap-y-4">
+                      {downloadLetters.map((letter) => (
                         <section
                           key={letter}
                           id={`download-group-${letter}`}
-                          className={`scroll-mt-24 ${groupIndex > 0 ? "border-t border-neutral-100" : ""}`}
+                          style={{ scrollMarginTop: 42 }}
+                          className="flex flex-col gap-y-1"
                         >
-                          <div className="flex items-center gap-2 bg-neutral-50/80 px-3.5 py-1.5">
-                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-accent/10 bg-accent/[0.06] text-xs font-bold text-accent">
+                          <div
+                            style={{ top: 8 }}
+                            className="sticky z-10 -mx-1.5 flex items-center gap-2 border-b border-neutral-200/70 bg-white/95 px-1.5 py-1.5 backdrop-blur-md"
+                          >
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/[0.07] text-xs font-bold text-accent">
                               {letter}
-                            </span>
-                            <span className="text-xs font-semibold text-neutral-400">
+                            </div>
+                            <span className="text-xs font-medium text-neutral-500">
                               {groupedDownloads[letter].length}{" "}
                               {groupedDownloads[letter].length === 1 ? "song" : "songs"}
                             </span>
                           </div>
-                          <div className="divide-y divide-neutral-100">
-                            {groupedDownloads[letter].map((song) => (
-                              <div
-                                key={song.id}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => setActiveSong(song, downloadQueue)}
-                                onKeyDown={(e) => {
-                                  if (e.target !== e.currentTarget) return;
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    setActiveSong(song, downloadQueue);
-                                  }
-                                }}
-                                className="group flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left transition-colors duration-150 hover:bg-neutral-50 active:bg-neutral-100"
-                              >
-                                <SongAvatar title={song.title} size="row" variant="mono" />
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate text-sm font-semibold tracking-tight text-neutral-900">
-                                    {song.title}
-                                  </p>
-                                  <p className="mt-0.5 truncate text-xs font-medium text-neutral-400">
-                                    {song.author}
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <span
-                                    aria-hidden="true"
-                                    className="hidden h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-colors group-hover:bg-accent group-hover:text-white sm:flex"
-                                  >
-                                    <Play size={12} fill="currentColor" className="ml-0.5" />
-                                  </span>
-                                  <ActionMenu
-                                    label={`More actions for ${song.title || "downloaded song"}`}
-                                    triggerTitle="More"
-                                    className="shrink-0"
-                                  >
-                                    {({ close }) => (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          close();
-                                          handleRemoveDownload(song.id);
-                                        }}
-                                        className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                                      >
-                                        <Trash2 size={15} aria-hidden="true" />
-                                        Remove download
-                                      </button>
+                          <div className="flex flex-col divide-y divide-neutral-200/70">
+                            {groupedDownloads[letter].map((song) => {
+                              const isActive = activeSong?.id === song.id;
+                              const isNew = newSongIds.has(song.id);
+                              return (
+                                <div
+                                  key={song.id}
+                                  className={`group relative flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors duration-150 sm:px-3 sm:py-2.5 sm:gap-3.5 ${
+                                    isActive ? "bg-accent/[0.07]" : "hover:bg-neutral-50 active:bg-neutral-100"
+                                  }`}
+                                >
+                                  <div className="relative shrink-0">
+                                    <SongAvatar title={song.title} variant="mono" size="md" />
+                                    {isActive && (
+                                      <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white" />
                                     )}
-                                  </ActionMenu>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveSong(song, downloadQueue)}
+                                    aria-current={isActive ? "true" : undefined}
+                                    aria-label={`${isActive ? "Playing" : "Play"}: ${song.title || "this song"}`}
+                                    className="flex min-h-11 min-w-0 flex-1 cursor-pointer flex-col justify-center gap-0.5 rounded text-left after:absolute after:inset-0"
+                                  >
+                                    <span className="flex w-full min-w-0 items-center gap-1.5">
+                                      <span className={`truncate text-sm font-semibold leading-5 tracking-tight ${isActive ? "text-accent" : "text-neutral-900 group-hover:text-accent"}`}>
+                                        {song.title}
+                                      </span>
+                                      {isActive && (
+                                        <span className="waveform shrink-0 text-accent" aria-hidden="true">
+                                          <span /><span /><span /><span />
+                                        </span>
+                                      )}
+                                      {isNew && !isActive && (
+                                        <span className="shrink-0 rounded-full bg-gold/10 px-1.5 py-0.5 text-[10px] font-semibold leading-3 text-gold">
+                                          New
+                                        </span>
+                                      )}
+                                    </span>
+                                    <span className="flex w-full min-w-0 items-center gap-1.5 text-xs leading-4 text-neutral-500">
+                                      <span className="truncate font-medium">
+                                        {song.author || "Unknown Artist"}
+                                      </span>
+                                      {song.category && (
+                                        <>
+                                          <span className="sm:hidden text-neutral-300" aria-hidden="true">•</span>
+                                          <span className="sm:hidden shrink-0">{song.category}</span>
+                                        </>
+                                      )}
+                                    </span>
+                                  </button>
+                                  <div className="relative z-20 flex items-center gap-1.5">
+                                    {song.category && (
+                                      <span className="hidden sm:inline-flex tap-sm items-center rounded-full border border-neutral-200/80 bg-neutral-50 px-2.5 py-0.5 text-[11px] font-medium text-neutral-600">
+                                        {song.category}
+                                      </span>
+                                    )}
+                                    <ActionMenu
+                                      label={`More actions for ${song.title || "downloaded song"}`}
+                                      triggerTitle="More"
+                                      className="shrink-0"
+                                      triggerClassName="tap-sm flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-accent"
+                                    >
+                                      {({ close }) => (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            close();
+                                            handleRemoveDownload(song.id);
+                                          }}
+                                          className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                                        >
+                                          <Trash2 size={15} aria-hidden="true" />
+                                          Remove download
+                                        </button>
+                                      )}
+                                    </ActionMenu>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </section>
                       ))}
@@ -1134,14 +1171,14 @@ function LibraryContent() {
                   {downloadLetters.length > 1 && (
                     <nav
                       aria-label="Jump to letter in downloads"
-                      className="songs-index sticky top-24 flex shrink-0 flex-col items-center gap-0.5 py-1 pl-1"
+                      className="songs-index sticky top-24 flex w-6 shrink-0 flex-col items-stretch overflow-y-auto rounded-full bg-neutral-100/80 py-1.5"
                     >
                       {downloadLetters.map((letter) => (
                         <button
                           key={letter}
                           type="button"
                           onClick={() => jumpToDownloadLetter(letter)}
-                          className="rounded px-1 py-0.5 text-xs font-bold leading-tight text-neutral-400 transition hover:text-accent"
+                          className="flex h-6 min-h-0 w-full shrink-0 items-center justify-center rounded-full text-[11px] font-bold leading-none text-neutral-500 transition-colors hover:bg-neutral-200 hover:text-neutral-800 active:bg-neutral-200 active:text-neutral-800"
                         >
                           {letter}
                         </button>

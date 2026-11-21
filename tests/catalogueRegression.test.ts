@@ -630,7 +630,11 @@ describe("offline library downloads", () => {
     // Signed-out downloads never touch the private library endpoints; at most
     // the public catalogue prefetch (proven not to be waited on below).
     expect(h.apiFetch.mock.calls.every(([url]) => url.startsWith("/api/data/songs?"))).toBe(true);
-    find(page.tree, node => node.props.role === "button").props.onClick();
+    const play = find(
+      page.tree,
+      (node) => node.type === "button" && node.props["aria-label"] === "Play: Downloaded track"
+    );
+    play.props.onClick();
     expect(h.setActiveSong).toHaveBeenCalledWith(tracks[0], tracks);
     h.localSongs.songs = [];
     h.downloadsChanged();
@@ -969,7 +973,7 @@ async function keyboardRow(kind: string) {
 describe("playable row keyboard isolation", () => {
   // SongRow is not in this list any more: it no longer has a row-level key
   // handler to hijack anything (see "songs row is a container, not a button").
-  it.each(["SongItem", "library top", "library downloads"])("activates only a directly focused %s", async (kind) => {
+  it.each(["SongItem", "library top"])("activates only a directly focused %s", async (kind) => {
     const { h, row } = await keyboardRow(kind);
     for (const key of ["Enter", " "]) {
       const event = keyEvent(key, row(), row());
@@ -1028,6 +1032,48 @@ describe("playable row keyboard isolation", () => {
   });
 });
 
+describe("downloads list matches the songs list style", () => {
+  const library = readFileSync(
+    new URL("../app/library/page.js", import.meta.url),
+    "utf8"
+  ).replace(/\r\n/g, "\n");
+  const songs = readFileSync(
+    new URL("../app/songs/songs-view.js", import.meta.url),
+    "utf8"
+  ).replace(/\r\n/g, "\n");
+
+  it("uses the same row container, play target, avatar, and type scale", () => {
+    const rowClass = "group relative flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors duration-150 sm:px-3 sm:py-2.5 sm:gap-3.5";
+    expect(songs).toContain(rowClass);
+    expect(library).toContain(rowClass);
+
+    for (const token of [
+      "flex min-h-11 min-w-0 flex-1 cursor-pointer flex-col justify-center gap-0.5 rounded text-left",
+      "after:absolute after:inset-0",
+      'variant="mono" size="md"',
+      "truncate text-sm font-semibold leading-5 tracking-tight",
+      "text-xs leading-4 text-neutral-500",
+      "relative z-20 flex items-center gap-1.5",
+      "tap-sm flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-accent",
+    ]) {
+      expect(library).toContain(token);
+    }
+  });
+
+  it("uses frameless divided groups and the same sticky letter headers", () => {
+    const listClass = 'className="flex flex-col divide-y divide-neutral-200/70"';
+    expect(songs).toContain(listClass);
+    expect(library).toContain(listClass);
+
+    for (const token of [
+      "sticky z-10 -mx-1.5 flex items-center gap-2 border-b border-neutral-200/70 bg-white/95 px-1.5 py-1.5 backdrop-blur-md",
+      "flex h-6 w-6 items-center justify-center rounded-full bg-accent/[0.07] text-xs font-bold text-accent",
+    ]) {
+      expect(library).toContain(token);
+    }
+  });
+});
+
 // The songs-page row used to be one `role="button"` div holding the category chip
 // and the ⋯ menu inside it — invalid, and announced as a single control whose name
 // was the entire line. It is a container now, with a real button doing the playing.
@@ -1047,6 +1093,21 @@ describe("songs row is a container, not a button", () => {
     expect(playControl(page.tree).props.className).toMatch(/after:absolute after:inset-0/);
     playControl(page.tree).props.onClick();
     expect(h.setActiveSong).toHaveBeenCalledOnce();
+  });
+
+  it("uses the same container-and-play-button pattern for downloaded rows", async () => {
+    const tracks = [fixture("song")];
+    const h = harness(tracks, "downloads");
+    const wrapper = h.mount(h.load("app/library/page.js"));
+    const page = h.mount(wrapper.tree.props.children.type);
+    await page.startEffects();
+
+    expect(nodes(page.tree).some((node) => node.props.role === "button" && !!node.props.onKeyDown)).toBe(false);
+    expect(interactive(playControl(page.tree))).toEqual([]);
+    expect(playControl(page.tree).props.className).toMatch(/after:absolute after:inset-0/);
+    expect(playControl(page.tree).props["aria-label"]).toBe("Play: song");
+    playControl(page.tree).props.onClick();
+    expect(h.setActiveSong).toHaveBeenCalledWith(tracks[0], tracks);
   });
 
   it("names the control after what it does, and marks the row that is playing", async () => {
