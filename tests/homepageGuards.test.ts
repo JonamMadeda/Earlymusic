@@ -85,6 +85,16 @@ describe("verse capsule", () => {
   });
 });
 
+describe("homepage banner", () => {
+  it("uses a restrained navy wash instead of a plain white panel", () => {
+    expect(hero).toContain(
+      "border-accent/10 bg-gradient-to-br from-accent/[0.07] via-white to-accent/[0.025]"
+    );
+    expect(hero).toContain("border-accent/10 bg-accent/[0.05]");
+    expect(hero).not.toContain("border-neutral-200 bg-white p-4");
+  });
+});
+
 describe("homepage layout", () => {
   it("uses the shell main landmark without a second main or progress overlay", () => {
     expect(source).not.toMatch(/<main|ScrollProgress|z-\[600\]/);

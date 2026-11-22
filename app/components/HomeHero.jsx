@@ -597,12 +597,12 @@ export default function HomeHero({
   return (
     <section
       aria-labelledby="home-hero-title"
-      className="relative overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 shadow-2xs sm:p-5 md:p-6"
+      className="relative overflow-hidden rounded-xl border border-accent/10 bg-gradient-to-br from-accent/[0.07] via-white to-accent/[0.025] p-4 shadow-2xs sm:p-5 md:p-6"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 flex-1 space-y-2.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold text-neutral-700">
+            <span className="inline-flex items-center gap-1.5 rounded border border-accent/10 bg-accent/[0.05] px-2 py-0.5 text-xs font-semibold text-neutral-700">
               <GreetingIcon size={12} className="text-accent" aria-hidden="true" />
               <span>
                 {greeting.text}
@@ -639,7 +639,7 @@ export default function HomeHero({
             {secondaryAction && actionButton(secondaryAction, "secondary")}
             <Link
               href="/songs"
-              className="tap-sm inline-flex min-h-9 items-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-100 hover:text-accent"
+              className="tap-sm inline-flex min-h-9 items-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold text-neutral-600 transition hover:bg-accent/[0.06] hover:text-accent"
             >
               Browse songs <ArrowRight size={14} aria-hidden="true" />
             </Link>
@@ -691,7 +691,7 @@ export default function HomeHero({
           )}
         </div>
 
-        <div className="min-w-0 w-full shrink-0 border-t border-neutral-100 pt-3 lg:w-72 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+        <div className="min-w-0 w-full shrink-0 border-t border-accent/10 pt-3 lg:w-72 lg:border-l lg:border-accent/10 lg:border-t-0 lg:pl-5 lg:pt-0">
           {rightRail}
         </div>
       </div>
