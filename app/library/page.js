@@ -880,7 +880,7 @@ function LibraryContent() {
             role="tablist"
             aria-label="Library collections"
             onScroll={measureTabs}
-            className="inline-flex w-auto max-w-full scroll-mt-4 flex-nowrap items-center gap-0.5 overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-100/70 p-0.5 no-scrollbar sm:overflow-x-visible"
+            className="inline-flex w-auto max-w-full scroll-mt-4 flex-nowrap items-center gap-0.5 overflow-x-auto rounded-full border border-neutral-200 bg-neutral-100/70 p-0.5 no-scrollbar sm:overflow-x-visible"
           >
             {tabs.map((tab, idx) => {
               const isActive = activeTab === tab.key;
@@ -898,7 +898,7 @@ function LibraryContent() {
                   tabIndex={isActive ? 0 : -1}
                   onClick={() => selectMainTab(tab.key)}
                   onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                  className={`flex shrink-0 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold whitespace-nowrap transition sm:flex-none sm:gap-1.5 sm:px-2.5 ${
+                  className={`flex shrink-0 items-center justify-center gap-1 rounded-full px-2 py-1.5 text-[11px] font-semibold whitespace-nowrap transition sm:flex-none sm:gap-1.5 sm:px-2.5 ${
                     isActive
                       ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
                       : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
@@ -934,13 +934,13 @@ function LibraryContent() {
 
           <div
             aria-hidden="true"
-            className={`pointer-events-none absolute inset-y-0.5 left-0.5 w-6 rounded-l-md bg-gradient-to-r from-neutral-100 to-transparent transition-opacity ${
+            className={`pointer-events-none absolute inset-y-0.5 left-0.5 w-6 rounded-l-full bg-gradient-to-r from-neutral-100 to-transparent transition-opacity ${
               mainTabsOverflow.left ? "opacity-100" : "opacity-0"
             }`}
           />
           <div
             aria-hidden="true"
-            className={`pointer-events-none absolute inset-y-0.5 right-0.5 w-6 rounded-r-md bg-gradient-to-l from-neutral-100 to-transparent transition-opacity ${
+            className={`pointer-events-none absolute inset-y-0.5 right-0.5 w-6 rounded-r-full bg-gradient-to-l from-neutral-100 to-transparent transition-opacity ${
               mainTabsOverflow.right ? "opacity-100" : "opacity-0"
             }`}
           />
@@ -1366,7 +1366,7 @@ function LibraryContent() {
                             role="tablist"
                             aria-label="Standouts views"
                             onScroll={measureTabs}
-                            className="inline-flex w-auto max-w-full flex-nowrap items-center gap-0.5 overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-0.5 no-scrollbar"
+                            className="inline-flex w-auto max-w-full flex-nowrap items-center gap-0.5 overflow-x-auto rounded-full border border-neutral-200 bg-neutral-50 p-0.5 no-scrollbar"
                           >
                           {standoutsTabs.map((tab, idx) => {
                             const isActive = standoutsSubTab === tab.key;
@@ -1387,7 +1387,7 @@ function LibraryContent() {
                                   markStandoutsSubTabSeen(tab.key);
                                 }}
                                 onKeyDown={(e) => handleStandoutsTabKeyDown(e, idx)}
-                                className={`flex shrink-0 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold whitespace-nowrap transition sm:flex-none ${
+                                className={`flex shrink-0 items-center justify-center gap-1 rounded-full px-2 py-1.5 text-[11px] font-semibold whitespace-nowrap transition sm:flex-none ${
                                   isActive
                                     ? "bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200/70"
                                     : "text-neutral-500 hover:bg-white/60 hover:text-neutral-900"
@@ -1402,13 +1402,13 @@ function LibraryContent() {
 
                           <div
                             aria-hidden="true"
-                            className={`pointer-events-none absolute inset-y-0.5 left-0.5 w-6 rounded-l-md bg-gradient-to-r from-neutral-50 to-transparent transition-opacity ${
+                            className={`pointer-events-none absolute inset-y-0.5 left-0.5 w-6 rounded-l-full bg-gradient-to-r from-neutral-50 to-transparent transition-opacity ${
                               standoutsTabsOverflow.left ? "opacity-100" : "opacity-0"
                             }`}
                           />
                           <div
                             aria-hidden="true"
-                            className={`pointer-events-none absolute inset-y-0.5 right-0.5 w-6 rounded-r-md bg-gradient-to-l from-neutral-50 to-transparent transition-opacity ${
+                            className={`pointer-events-none absolute inset-y-0.5 right-0.5 w-6 rounded-r-full bg-gradient-to-l from-neutral-50 to-transparent transition-opacity ${
                               standoutsTabsOverflow.right ? "opacity-100" : "opacity-0"
                             }`}
                           />

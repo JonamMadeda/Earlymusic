@@ -48,12 +48,16 @@ describe("library tab overflow affordance", () => {
     );
 
     expect(main).toContain("inline-flex w-auto max-w-full scroll-mt-4 flex-nowrap items-center gap-0.5");
-    expect(main).toContain("rounded-lg border border-neutral-200 bg-neutral-100/70 p-0.5");
-    expect(main).toContain("rounded-md px-2 py-1.5 text-[11px]");
+    expect(main).toContain("rounded-full border border-neutral-200 bg-neutral-100/70 p-0.5");
+    expect(main).toContain("rounded-full px-2 py-1.5 text-[11px]");
+    expect(main).toContain("rounded-l-full bg-gradient-to-r");
+    expect(main).toContain("rounded-r-full bg-gradient-to-l");
     expect(main).toContain("size={13}");
 
-    expect(standouts).toContain("rounded-lg border border-neutral-200 bg-neutral-50 p-0.5");
-    expect(standouts).toContain("rounded-md px-2 py-1.5 text-[11px]");
+    expect(standouts).toContain("rounded-full border border-neutral-200 bg-neutral-50 p-0.5");
+    expect(standouts).toContain("rounded-full px-2 py-1.5 text-[11px]");
+    expect(standouts).toContain("rounded-l-full bg-gradient-to-r");
+    expect(standouts).toContain("rounded-r-full bg-gradient-to-l");
     expect(standouts).toContain("size={13}");
   });
 });
