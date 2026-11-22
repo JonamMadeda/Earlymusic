@@ -75,11 +75,23 @@ const Player = () => {
 
   // Skip/auto-advance queue. Pages normally pass the visible list as the
   // queue; fall back to the full library so next/previous still work when a
-  // song was started without one (share links, single-song deep links).
-  const songs = useMemo(
-    () => (queue && queue.length > 0 ? queue : allSongs || []),
-    [queue, allSongs]
-  );
+  // song was started without one (share links, single-song deep links). Keep
+  // the first fallback snapshot for this listen: opening another page refreshes
+  // the global catalogue, and letting that swap the queue mid-listen can make
+  // the next-track lookup fail and stop playback.
+  const fallbackQueueRef = useRef(null);
+  const songs = useMemo(() => {
+    if (queue && queue.length > 0) return queue;
+    const fallback = allSongs || [];
+    if (
+      fallback.length > 0 &&
+      (!fallbackQueueRef.current ||
+        !fallbackQueueRef.current.some((item) => item.id === song?.id))
+    ) {
+      fallbackQueueRef.current = fallback;
+    }
+    return fallbackQueueRef.current || fallback;
+  }, [queue, allSongs, song?.id]);
   // Only an explicit queue can be reordered — the library fallback is not ours
   // to edit.
   const queueEditable = queue.length > 0;
@@ -222,9 +234,11 @@ const Player = () => {
       const saved = JSON.parse(localStorage.getItem(PLAYBACK_POSITION_KEY) || "null");
       if (!saved?.song?.id || !saved.song.song_path || !(saved.position > 5)) return;
       resumePositionRef.current = { songId: saved.song.id, position: saved.position };
-      // Resuming the same listen after a reload is not a new play.
+      // Resuming the same listen after a reload is not a new play. Only resume
+      // automatically when the snapshot says audio was actually running; a
+      // deliberate pause must stay paused after a reload.
       playSessionRef.current.recorded = playSessionRef.current.token;
-      skipWhilePausedRef.current = true;
+      skipWhilePausedRef.current = saved.playing !== true;
       restorePlayback(saved.song);
     } catch {
       localStorage.removeItem(PLAYBACK_POSITION_KEY);
@@ -245,7 +259,12 @@ const Player = () => {
       }
       localStorage.setItem(
         PLAYBACK_POSITION_KEY,
-        JSON.stringify({ song, position, updatedAt: Date.now() })
+        JSON.stringify({
+          song,
+          position,
+          playing: isPlayingRef.current,
+          updatedAt: Date.now(),
+        })
       );
     } catch {}
   }, [song, audioSongId]);

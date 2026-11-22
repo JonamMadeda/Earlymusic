@@ -239,6 +239,35 @@ afterEach(() => {
 });
 
 describe("Player same-source selections", () => {
+  it("resumes automatically when the saved position says audio was playing", async () => {
+    storage.set("lumbo_playback_position", JSON.stringify({
+      song: songs[0],
+      position: 42,
+      playing: true,
+    }));
+    await player.settle();
+    await player.ready();
+    expect(player.audio.paused).toBe(false);
+    expect(player.audio.play).toHaveBeenCalled();
+    expect(player.audio.currentTime).toBe(42);
+  });
+
+  it("keeps the restored listen's queue when the catalogue is refreshed", async () => {
+    storage.set("lumbo_playback_position", JSON.stringify({ song: songs[0], position: 42 }));
+    await player.settle();
+    await player.ready();
+
+    // Opening another page refetches the same catalogue; a reordered array must
+    // not replace the queue this listen started with.
+    mocks.context.allSongs = [songs[2], songs[0]];
+    player.dirty = true;
+    await player.settle();
+
+    player.audio.currentTime = 180;
+    await player.event("onEnded");
+    expect(mocks.context.activeSong.id).toBe("b");
+  });
+
   it("plays a fetched copy of restored uncached A without resetting its load state", async () => {
     storage.set("lumbo_playback_position", JSON.stringify({ song: songs[0], position: 42 }));
     await player.settle();
@@ -328,6 +357,19 @@ describe("Player same-source selections", () => {
     await player.ready();
     expect(player.audio.paused).toBe(false);
     expect(player.duration).toBe(180);
+  });
+});
+
+describe("Player playback snapshots", () => {
+  it("records whether audio was running so a reload resumes only real playback", async () => {
+    await player.settle();
+    await player.ready();
+    player.audio.currentTime = 40;
+    await player.event("onTimeUpdate");
+    expect(JSON.parse(storage.get("lumbo_playback_position")!).playing).toBe(true);
+
+    await player.click("Pause");
+    expect(JSON.parse(storage.get("lumbo_playback_position")!).playing).toBe(false);
   });
 });
 
