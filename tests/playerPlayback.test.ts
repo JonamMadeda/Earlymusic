@@ -360,6 +360,57 @@ describe("Player same-source selections", () => {
   });
 });
 
+describe("Player output changes", () => {
+  it("syncs an OS pause and resumes when the output returns", async () => {
+    await player.settle();
+    await player.ready();
+    expect(player.hasButton("Pause")).toBe(true);
+
+    // The media element paused itself (headphone unplug / audio focus loss).
+    await player.event("onPause");
+    expect(player.hasButton("Play")).toBe(true);
+    expect(player.audio.paused).toBe(true);
+
+    player.audio.play.mockClear();
+    await player.wait(1600);
+    expect(player.audio.play).toHaveBeenCalled();
+    expect(player.audio.paused).toBe(false);
+
+    await player.event("onPlay");
+    expect(player.hasButton("Pause")).toBe(true);
+  });
+
+  it("does not resume after a deliberate pause", async () => {
+    await player.settle();
+    await player.ready();
+    await player.click("Pause");
+    await player.event("onPause");
+    player.audio.play.mockClear();
+
+    await player.wait(2000);
+    expect(player.audio.play).not.toHaveBeenCalled();
+    expect(player.audio.paused).toBe(true);
+    expect(player.hasButton("Play")).toBe(true);
+  });
+
+  it("ignores a raw media pause when there was no intent to play", async () => {
+    await player.settle();
+    await player.ready();
+    await player.click("Pause");
+
+    // Another surface starts and stops audio without going through our
+    // controls. The icons follow the element, but intent stays paused.
+    await player.event("onPlay");
+    await player.event("onPause");
+    player.audio.play.mockClear();
+
+    await player.wait(2000);
+    expect(player.audio.play).not.toHaveBeenCalled();
+    expect(player.audio.paused).toBe(true);
+    expect(player.hasButton("Play")).toBe(true);
+  });
+});
+
 describe("Player playback snapshots", () => {
   it("records whether audio was running so a reload resumes only real playback", async () => {
     await player.settle();

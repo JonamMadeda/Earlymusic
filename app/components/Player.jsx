@@ -138,6 +138,14 @@ const Player = () => {
   const playRef = useRef(false);
   const loadIdRef = useRef(0);
   const isPlayingRef = useRef(false);
+  // playRef is a one-shot "start this load" flag; this is the persistent
+  // listener intent. It stays true across an OS-driven pause so the output can
+  // be resumed, and goes false only on an explicit stop or a genuine track end.
+  const wantsPlayRef = useRef(false);
+  // Set when the audio element pauses even though the listener still wanted it
+  // to play (headphone unplug, OS audio-focus change). It survives the UI's
+  // paused state so the output-return watcher can resume the same listen.
+  const outputInterruptedRef = useRef(false);
   const skipWhilePausedRef = useRef(false);
   const blobUrlRef = useRef(null);
   const publicUrlRef = useRef(null);
@@ -340,7 +348,9 @@ const Player = () => {
     handledSleepStopRef.current = sleepTimerStopSignal;
 
     playRef.current = false;
+    wantsPlayRef.current = false;
     isPlayingRef.current = false;
+    outputInterruptedRef.current = false;
     setIsPlaying(false);
     setIsBuffering(false);
     clearAutoAdvanceTimer();
@@ -600,6 +610,9 @@ const Player = () => {
         // End of the queue (or everything in it failed). Stop instead of
         // looping forever; a manual pick or retry starts a fresh cycle.
         failedSongIdsRef.current.clear();
+        wantsPlayRef.current = false;
+        isPlayingRef.current = false;
+        outputInterruptedRef.current = false;
         setIsPlaying(false);
         setIsBuffering(false);
         return;
@@ -671,6 +684,10 @@ const Player = () => {
 
 
   const setPlayState = useCallback((playing) => {
+    // An explicit command (button, OS control, sleep timer) always wins over a
+    // pending output-return resume.
+    outputInterruptedRef.current = false;
+    wantsPlayRef.current = playing;
     playRef.current = playing;
     isPlayingRef.current = playing;
     if (!playing) {
@@ -683,6 +700,41 @@ const Player = () => {
   const togglePlay = useCallback(() => {
     setPlayState(!isPlayingRef.current);
   }, [setPlayState]);
+
+  // A headphone unplug can pause the media element without going through any
+  // of our controls. Keep one small watcher alive for that listen: as soon as
+  // the output returns (or the tab regains focus), issue play again. A
+  // deliberate pause clears outputInterruptedRef, so this never overrides the
+  // listener.
+  useEffect(() => {
+    const tryResume = () => {
+      if (!outputInterruptedRef.current) return;
+      // A deliberate pause leaves wantsPlayRef false. A raw play/pause pair
+      // from another app must not turn that into an auto-resume either.
+      if (!wantsPlayRef.current) return;
+      const audio = audioRef.current;
+      if (!audio || !audio.paused || audioSongId !== song?.id) return;
+      audio.play().catch(() => {
+        // Still no output or autoplay was refused. Leave the flag set so the
+        // next device/focus event or interval tick gets another chance.
+      });
+    };
+
+    const mediaDevices = typeof navigator === "undefined" ? null : navigator.mediaDevices;
+    mediaDevices?.addEventListener?.("devicechange", tryResume);
+    if (typeof window !== "undefined") {
+      window.addEventListener?.("focus", tryResume);
+    }
+    const intervalId = setInterval(tryResume, 1500);
+
+    return () => {
+      mediaDevices?.removeEventListener?.("devicechange", tryResume);
+      if (typeof window !== "undefined") {
+        window.removeEventListener?.("focus", tryResume);
+      }
+      clearInterval(intervalId);
+    };
+  }, [audioSongId, song?.id]);
 
   // Commands from the home hero. The initial value is already recorded in the
   // refs above, so only a later bump triggers an action.
@@ -842,9 +894,12 @@ const Player = () => {
       title: song.title,
       artist: song.author,
       album: "Luumbo",
+      // The OS control bar uses a white tile to match the app theme. The
+      // generated per-song initial keeps tracks distinguishable without the
+      // old navy/violet gradient.
       artwork: generated
         ? [{ src: generated, sizes: "512x512", type: "image/png" }]
-        : [{ src: "/favicon.ico", sizes: "192x192", type: "image/png" }],
+        : [{ src: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" }],
     });
 
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
@@ -900,6 +955,7 @@ const Player = () => {
     let cancelled = false;
 
     const loadAudio = async () => {
+      outputInterruptedRef.current = false;
       setAudioError(false);
       setDuration(0);
       setIsBuffering(true);
@@ -935,7 +991,8 @@ const Player = () => {
         setAudioSongId(loadingSongId);
         loadedSourceRef.current = { songId: loadingSongId, publicUrl };
 
-        playRef.current = !skipWhilePausedRef.current;
+        wantsPlayRef.current = !skipWhilePausedRef.current;
+        playRef.current = wantsPlayRef.current;
         skipWhilePausedRef.current = false;
       } catch (error) {
         console.error("Unable to load audio:", error);
@@ -1002,6 +1059,7 @@ const Player = () => {
         setAudioError(false);
         errorCountRef.current = 0;
         clearAutoAdvanceTimer();
+        wantsPlayRef.current = true;
         playRef.current = true;
         setAudioUrl(networkUrl);
       });
@@ -1011,6 +1069,7 @@ const Player = () => {
     setAudioError(false);
     errorCountRef.current = 0;
     clearAutoAdvanceTimer();
+    wantsPlayRef.current = true;
     playRef.current = true;
     if (audioRef.current) {
       audioRef.current.load();
@@ -1050,6 +1109,22 @@ const Player = () => {
         preload="auto"
         playsInline
         loop={repeatMode === "one"}
+        onPlay={() => {
+          isPlayingRef.current = true;
+          outputInterruptedRef.current = false;
+          setIsPlaying(true);
+        }}
+        onPause={() => {
+          // Mirror the element's real state so every play/pause icon and the
+          // home hero follow an OS-driven pause. Intent lives in the interrupt
+          // flag, which is only set when we did not ask for this pause.
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+          if (wantsPlayRef.current && !audioError && errorCountRef.current === 0) {
+            outputInterruptedRef.current = true;
+            setIsBuffering(false);
+          }
+        }}
         onTimeUpdate={() => {
           const audio = audioRef.current;
           if (audio) {
@@ -1124,6 +1199,7 @@ const Player = () => {
           // An error from the previous source can arrive while the replacement
           // is still loading; reacting to it would cancel the new load.
           if (audioSongId !== song?.id || activeSongIdRef.current !== song?.id) return;
+          outputInterruptedRef.current = false;
           const mediaError = audioRef.current?.error;
           console.error("Playback error:", {
             songId: song?.id,
@@ -1162,6 +1238,9 @@ const Player = () => {
         }}
         onEnded={() => {
           playRef.current = false;
+          wantsPlayRef.current = false;
+          isPlayingRef.current = false;
+          outputInterruptedRef.current = false;
           try { localStorage.removeItem(PLAYBACK_POSITION_KEY); } catch {}
           advanceToNext({ reason: "ended" });
         }}
