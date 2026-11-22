@@ -50,6 +50,28 @@
   }
 }
 
+/* Controls read as pills everywhere. Older rounded-md/lg/xl button classes are
+   overridden here rather than rewritten across pages; cards and rows that only
+   use role="button" keep their own corner radius. Explicit rounded-none still
+   wins, so genuinely square controls stay square. */
+@layer base {
+  button {
+    border-radius: 9999px;
+  }
+}
+
+@layer utilities {
+  button.rounded,
+  button.rounded-sm,
+  button.rounded-md,
+  button.rounded-lg,
+  button.rounded-xl,
+  button.rounded-2xl,
+  button.rounded-3xl {
+    border-radius: 9999px;
+  }
+}
+
 /* Touch targets, sized by importance. Controls start at the 44px minimum and
    step down deliberately — nothing drops below the floor (24px in WCAG 2.5.8,
    and 34px here keeps a third of that as slack):
