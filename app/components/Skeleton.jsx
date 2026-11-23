@@ -54,7 +54,12 @@ export const LetterGroupSkeleton = () => (
 );
 
 export const PageSkeleton = ({ letterGroups = 2 }) => (
-  <main className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6">
+  // app/layout.js owns the page's main landmark, so the loading shell is a
+  // plain div: a nested <main> would give the page two main landmarks.
+  <div
+    aria-busy="true"
+    className="min-h-[90vh] bg-transparent px-4 pb-40 pt-2 md:px-8 md:pt-6"
+  >
     <div className="max-w-5xl mx-auto">
       <div className="mb-8 space-y-3">
         <div className="flex items-center gap-3">
@@ -69,7 +74,7 @@ export const PageSkeleton = ({ letterGroups = 2 }) => (
         ))}
       </div>
     </div>
-  </main>
+  </div>
 );
 
 export default Skeleton;
