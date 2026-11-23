@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/apiFetch";
-import { usePlayer } from "./context/PlayerContext";
+import { usePlayer, PLAYBACK_POSITION_KEY } from "./context/PlayerContext";
 import { useAuth } from "./context/AuthContext";
 import { PageSkeleton } from "./components/Skeleton";
 import SongAvatar, { initialLetter, hashStr } from "./components/SongAvatar";
@@ -27,6 +28,7 @@ import LazySection from "./components/LazySection";
 import HomeHero from "./components/HomeHero";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
 import { getNewestSongs } from "@/lib/newSongs";
+import { formatTime, toSeconds, homepageLengthLabel } from "@/lib/timeFormat";
 
 const mulberry32 = (seed) => {
   return () => {
@@ -48,10 +50,34 @@ const seededShuffle = (arr, seedStr) => {
   return a;
 };
 
-// Rail sizes shrink with small libraries so Featured / Fresh / Explore
+// Rail sizes shrink with small libraries so Featured / Recent / Explore shelves
 // don't just repeat the same handful of songs at each other.
 const railSize = (total, base) =>
   total >= base * 2 ? base : Math.max(4, Math.ceil(total / 3));
+
+const CURATED_FILTER_IDS = ["all", "praise", "worship", "short", "new"];
+const normalizeCuratedFilter = (value) =>
+  CURATED_FILTER_IDS.includes(value) ? value : "all";
+
+// One quiet metadata line shared by the homepage cards. A single-artist
+// catalog repeats the same name on every row, so the session cue (length or
+// resume position) outranks the artist visually. The artist stays in the DOM
+// and in the button's accessible name for screen readers and multi-artist
+// catalogs. The line keeps its 16px height so card heights never shift.
+const cardMetaLine = ({ song, cue = null, cueTone = "text-neutral-600", cueLabel = "Length: " }) => (
+  <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-neutral-400">
+    {cue && (
+      <span className={`shrink-0 font-semibold tabular-nums ${cueTone}`}>
+        <span className="sr-only">{cueLabel}</span>
+        {cue}
+      </span>
+    )}
+    <span className="min-w-0 truncate">
+      <span className="sr-only">by </span>
+      {song.author || "Unknown artist"}
+    </span>
+  </p>
+);
 
 const ScrollToTop = ({ visible, hasPlayer }) => {
   if (!visible) return null;
@@ -78,9 +104,10 @@ const ScrollToTop = ({ visible, hasPlayer }) => {
 
 /* --- COMPACT, RETRO-LINED MONOCHROMATIC CARD COMPONENTS --- */
 
-// Horizontal pill card (Used in Jump Back In / Rails)
+// Horizontal pill card (Used in Continue Listening / rails)
 // "New" badge is rank-based (recent 15) — parent passes isNew explicitly.
 const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
+  const length = homepageLengthLabel(song);
 
   return (
     <button
@@ -98,15 +125,15 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
       <div className="relative shrink-0">
         <SongAvatar title={song.title} size="md" variant="mono" />
         {isActive && (
-          <span className="absolute -top-1 -right-1 flex h-2 w-2 rounded-full bg-accent">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-50" />
+          <span aria-hidden="true" className="absolute -top-1 -right-1 flex h-2 w-2 rounded-full bg-accent">
+            <span aria-hidden="true" className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-50" />
           </span>
         )}
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className={`min-w-0 flex-1 truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
+          <p title={song.title} className={`min-w-0 flex-1 truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
             {song.title}
           </p>
           {isNew && (
@@ -115,9 +142,7 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
             </span>
           )}
         </div>
-        <p className="mt-0.5 truncate text-xs font-medium leading-4 text-neutral-500">
-          {song.author}
-        </p>
+        {cardMetaLine({ song, cue: length })}
       </div>
 
       <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${
@@ -133,10 +158,11 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
 
 // Vertical card shared with the songs page (see ./components/FeaturedCard)
 
-// Album-style showcase card (used in Featured) with subtle retro grooves
+// Album-style showcase card (used in Recently Added) with subtle retro grooves
 const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
   const letter = initialLetter(song.title);
   const categoryTag = song.category || "Worship";
+  const length = homepageLengthLabel(song);
 
   return (
     <button
@@ -153,7 +179,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
       <span className="sr-only">Play: </span>
       {/* Retro Lined Cover Art with Concentric Grooves */}
       <div
-        className="relative mb-3 aspect-square w-full overflow-hidden rounded-lg border border-neutral-800 flex flex-col justify-between p-2.5 retro-grooves shadow-inner"
+        className="relative mb-3 aspect-square w-full overflow-hidden rounded-lg border border-white/10 flex flex-col justify-between p-2.5 retro-grooves shadow-inner"
         style={{ backgroundColor: "#0f172a" }}
       >
         {/* Top Tag: Clean monochromatic badge */}
@@ -162,15 +188,15 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
             {categoryTag}
           </span>
           {isActive && (
-            <span className="flex h-2 w-2 rounded-full bg-white">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+            <span aria-hidden="true" className="flex h-2 w-2 rounded-full bg-white">
+              <span aria-hidden="true" className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
             </span>
           )}
         </div>
 
         {/* Big Crisp Letter Centerpiece */}
         <div className="z-10 flex items-center justify-center py-1">
-          <span className="text-3xl font-black text-white select-none drop-shadow-sm">
+          <span className="text-3xl font-bold tracking-tight text-white/95 select-none drop-shadow-sm">
             {letter}
           </span>
         </div>
@@ -184,7 +210,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
       {/* Track Info */}
       <div className="w-full min-w-0 px-0.5">
         <div className="flex items-start gap-2">
-          <p className={`min-w-0 flex-1 truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
+          <p title={song.title} className={`min-w-0 flex-1 truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
             {song.title}
           </p>
           {isNew && (
@@ -193,9 +219,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
             </span>
           )}
         </div>
-        <p className="mt-0.5 truncate text-xs font-medium leading-4 text-neutral-500">
-          {song.author}
-        </p>
+        {cardMetaLine({ song, cue: length })}
       </div>
     </button>
   );
@@ -203,6 +227,8 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
 
 // Tracklist item (Used in Curated Recommendations)
 const RecommendationCard = ({ song, index, onClick, isActive }) => {
+  const length = homepageLengthLabel(song);
+
   return (
     <button
       type="button"
@@ -218,7 +244,7 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
       <span className="sr-only">Play: </span>
       <div className="w-5 shrink-0 text-center">
         {isActive ? (
-          <div className="waveform text-accent flex h-3.5 justify-center items-end">
+          <div aria-hidden="true" className="waveform text-accent flex h-3.5 justify-center items-end">
             <span /><span /><span /><span />
           </div>
         ) : (
@@ -231,20 +257,31 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
         )}
       </div>
 
-      <SongAvatar title={song.title} size="sm" variant="mono" />
+      <SongAvatar title={song.title} size="sm" variant="mono" className="rounded-full" />
 
       <div className="min-w-0 flex-1">
-        <p className={`truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
+        <p title={song.title} className={`truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
           {song.title}
         </p>
-        <p className="mt-0.5 truncate text-xs font-medium leading-4 text-neutral-500">
-          {song.author}
-        </p>
+        {cardMetaLine({ song })}
       </div>
 
-      {song.category && (
-        <span className="hidden shrink-0 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold leading-none text-neutral-600 sm:inline-block">
-          {song.category}
+      {/* Category and session length read as one pair: the tag names the kind
+          of worship, the length says whether it is a quick song or an extended
+          session. The length stays visible on phones, where the tag is hidden. */}
+      {(song.category || length) && (
+        <span className="flex shrink-0 items-center gap-2">
+          {song.category && (
+            <span className="hidden shrink-0 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold leading-none text-neutral-600 sm:inline-block">
+              {song.category}
+            </span>
+          )}
+          {length && (
+            <span className="shrink-0 text-[11px] font-semibold leading-4 tabular-nums text-neutral-600">
+              <span className="sr-only">Length: </span>
+              {length}
+            </span>
+          )}
         </span>
       )}
 
@@ -259,8 +296,22 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
   );
 };
 
-// History row (Used in Jump Back In) — vertical timeline list, distinct from rails
-const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory = true }) => {
+// History row (Used in Continue Listening) — vertical timeline list, distinct from rails
+const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory = true, resumeProgress = null }) => {
+  const length = homepageLengthLabel(song);
+  // The Player writes a resume snapshot on pause and on the way out; the page
+  // hands it to the row it belongs to. A row playing right now shows its
+  // waveform instead, so the cue only marks a genuinely paused session.
+  const resume = !isActive && resumeProgress?.songId === song.id ? resumeProgress : null;
+  const total = toSeconds(song.duration);
+  const remaining =
+    resume && total != null && total > resume.position ? formatTime(total - resume.position) : null;
+  const resumeCue = resume
+    ? remaining
+      ? `${remaining} left`
+      : `${formatTime(resume.position)} in`
+    : null;
+
   return (
     <button
       type="button"
@@ -276,7 +327,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
       <span className="sr-only">Play: </span>
       <div className="w-7 shrink-0 text-center">
         {isActive ? (
-          <div className="waveform text-accent flex h-3.5 justify-center items-end">
+          <div aria-hidden="true" className="waveform text-accent flex h-3.5 justify-center items-end">
             <span /><span /><span /><span />
           </div>
         ) : (
@@ -289,11 +340,11 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
         )}
       </div>
 
-      <SongAvatar title={song.title} size="sm" variant="mono" />
+      <SongAvatar title={song.title} size="sm" variant="mono" className="rounded-full" />
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className={`min-w-0 truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
+          <p title={song.title} className={`min-w-0 truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
             {song.title}
           </p>
           {index === 0 && isHistory && !isActive && (
@@ -307,9 +358,12 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
             </span>
           )}
         </div>
-        <p className="mt-0.5 truncate text-xs font-medium leading-4 text-neutral-500">
-          {song.author}
-        </p>
+        {cardMetaLine({
+          song,
+          cue: resumeCue || length,
+          cueTone: resume ? "text-neutral-700" : "text-neutral-600",
+          cueLabel: resume ? `Resume at ${formatTime(resume.position)}. ` : "Length: ",
+        })}
       </div>
 
       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-150 ${
@@ -323,15 +377,18 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
   );
 };
 
-const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, cardType, activeSongId, newSongIds, isHistory = false }) => {
+const SectionBlock = ({ id, title, subtitle = null, icon: Icon, items, onPlay, onPlayAll, cta, cardType, activeSongId, newSongIds, isHistory = false, resumeProgress = null }) => {
   const Card = cardType === "spotify" ? SpotifyCard : cardType === "featured" ? FeaturedCard : cardType === "history" ? HistoryCard : SongRailCard;
   const scrollRef = useRef(null);
   const [edges, setEdges] = useState({ left: false, right: false });
   const updateEdges = useCallback(() => {
     const rail = scrollRef.current;
     if (!rail) return;
-    const left = rail.scrollLeft > 2;
-    const right = rail.scrollLeft + rail.clientWidth < rail.scrollWidth - 2;
+    const maxScroll = Math.max(0, rail.scrollWidth - rail.clientWidth);
+    // A one-pixel tolerance keeps fractional layout values from leaving a
+    // chevron enabled after the rail has already reached that edge.
+    const left = rail.scrollLeft > 1;
+    const right = rail.scrollLeft < maxScroll - 1;
     setEdges((prev) => prev.left === left && prev.right === right ? prev : { left, right });
   }, []);
 
@@ -359,17 +416,22 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
       <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {Icon && <Icon size={18} className="shrink-0 text-neutral-500" aria-hidden="true" />}
-          <h2 id={`${id}-title`} className="section-title">{title}</h2>
+          <div className="min-w-0">
+            <h2 id={`${id}-title`} className="section-title">{title}</h2>
+            {subtitle && (
+              <p className="mt-0.5 truncate text-xs font-medium leading-4 text-neutral-500">{subtitle}</p>
+            )}
+          </div>
         </div>
         {cta && (
-          <Link href={cta.href} aria-label={`View all ${title.toLowerCase()}`} className="tap-sm inline-flex shrink-0 items-center gap-1 rounded-md text-xs font-semibold text-neutral-600 transition hover:text-accent">
+          <Link href={cta.href} aria-label={`View all from ${title}`} className="tap-sm inline-flex min-h-8.5 shrink-0 items-center gap-1 rounded-md text-xs font-semibold text-neutral-600 transition hover:text-accent">
             View all <ArrowRight size={14} aria-hidden="true" />
           </Link>
         )}
       </div>
       <div className="mb-2 flex items-center justify-between gap-2">
         {onPlayAll && (
-          <button type="button" onClick={() => onPlayAll(items[0])} aria-label={`Play all ${title.toLowerCase()}`} className="tap-sm inline-flex min-h-8.5 items-center gap-1.5 rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/15">
+          <button type="button" onClick={() => onPlayAll(items[0])} aria-label={`Play all from ${title}`} className="tap-sm inline-flex min-h-8.5 items-center gap-1.5 rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/15">
             <Play size={14} fill="currentColor" aria-hidden="true" /> Play all
           </button>
         )}
@@ -388,7 +450,7 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
         id={`${id}-rail`}
         ref={scrollRef}
         role="region"
-        aria-label={`${title} — scrollable songs`}
+        aria-label={`${title} — scrollable worship sessions`}
         tabIndex={0}
         onScroll={updateEdges}
         onKeyDown={(e) => {
@@ -396,11 +458,14 @@ const SectionBlock = ({ id, title, icon: Icon, items, onPlay, onPlayAll, cta, ca
           e.preventDefault();
           scrollRail(e.key === "ArrowRight" ? 1 : -1);
         }}
-        className="flex snap-x snap-mandatory gap-3.5 overflow-x-auto overscroll-x-contain p-1 -m-1 no-scrollbar"
+        className="flex snap-x snap-mandatory scroll-px-1 gap-3.5 overflow-x-auto overscroll-x-contain px-1 py-2 -mx-1 -my-2 no-scrollbar"
       >
         {items.map((song, index) => (
-          <Card key={song.id} song={song} index={index} isHistory={isHistory} isActive={song.id === activeSongId} isNew={newSongIds?.has(song.id) || false} onClick={() => onPlay(song)} />
+          <Card key={song.id} song={song} index={index} isHistory={isHistory} isActive={song.id === activeSongId} isNew={newSongIds?.has(song.id) || false} resumeProgress={resumeProgress} onClick={() => onPlay(song)} />
         ))}
+        {/* Trailing room lets the final card settle fully inside the rail
+            instead of ending flush against the right edge. */}
+        <span aria-hidden="true" className="h-px w-2 shrink-0" />
       </div>
     </section>
   );
@@ -410,10 +475,73 @@ export default function Home() {
   const { allSongs, setAllSongs, setActiveSong, isLoading, setIsLoading, recentlyPlayed, activeSong, hasRealHistory } =
     usePlayer();
   const { isAdmin } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [activeFilter, setActiveFilter] = useState("all");
   const [scrollY, setScrollY] = useState(0);
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  const activeFilterRef = useRef(activeFilter);
+  activeFilterRef.current = activeFilter;
+  const skipNextFilterWrite = useRef(false);
+
+  const applyUrlFilter = useCallback((nextFilter) => {
+    setActiveFilter((current) => (current === nextFilter ? current : nextFilter));
+  }, []);
+
+  // Read a shared link after hydration rather than during render, so the
+  // server and client markup agree. popstate covers Back/Forward navigation;
+  // the router calls below use scroll: false so neither direction jumps.
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const raw = new URLSearchParams(window.location.search).get("filter");
+      const normalized = normalizeCuratedFilter(raw);
+      if (normalized !== activeFilterRef.current) skipNextFilterWrite.current = true;
+      applyUrlFilter(normalized);
+    };
+    syncFromUrl();
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, [applyUrlFilter]);
+
+  const writeFilterUrl = useCallback(
+    (nextFilter, method = "push") => {
+      const params = new URLSearchParams(
+        typeof window === "undefined" ? "" : window.location.search
+      );
+      if (nextFilter === "all") params.delete("filter");
+      else params.set("filter", nextFilter);
+      const query = params.toString();
+      const href = query ? `${pathname}?${query}` : pathname;
+      if (method === "replace") routerRef.current.replace?.(href, { scroll: false });
+      else routerRef.current.push?.(href, { scroll: false });
+    },
+    [pathname]
+  );
+
+  // URL -> state changes set the skip flag above; the first write effect after
+  // that runs with the previous state, so ignore it instead of clobbering a
+  // shared link or a Back/Forward navigation.
+  useEffect(() => {
+    if (skipNextFilterWrite.current) {
+      skipNextFilterWrite.current = false;
+      return;
+    }
+    const raw = new URLSearchParams(
+      typeof window === "undefined" ? "" : window.location.search
+    ).get("filter");
+    if (activeFilter === "all") {
+      if (raw === null) return;
+      // An unsupported value is a stale link, so clean it without adding a
+      // history entry; a real "All" choice should remain navigable via Back.
+      writeFilterUrl("all", CURATED_FILTER_IDS.includes(raw) ? "push" : "replace");
+      return;
+    }
+    if (raw === activeFilter) return;
+    writeFilterUrl(activeFilter);
+  }, [activeFilter, writeFilterUrl]);
 
   // The app scrolls inside #app-scroll, not window.
   useEffect(() => {
@@ -426,6 +554,40 @@ export default function Home() {
     scroller.addEventListener("scroll", handleScroll, { passive: true });
     return () => scroller.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Resume context for Continue Listening. The Player stores the paused position on
+  // pause and on the way out; read it after mount (never during render, so
+  // hydration stays clean) and refresh when the track or history changes, or
+  // when the listener returns to the tab.
+  const [savedProgress, setSavedProgress] = useState(null);
+  useEffect(() => {
+    const read = () => {
+      let next = null;
+      try {
+        const raw = window.localStorage?.getItem(PLAYBACK_POSITION_KEY);
+        const saved = raw ? JSON.parse(raw) : null;
+        if (saved?.song?.id && saved.position > 5) {
+          next = { songId: saved.song.id, position: saved.position };
+        }
+      } catch {
+        next = null;
+      }
+      setSavedProgress(next);
+    };
+    read();
+    window.addEventListener("focus", read);
+    document.addEventListener("visibilitychange", read);
+    return () => {
+      window.removeEventListener("focus", read);
+      document.removeEventListener("visibilitychange", read);
+    };
+  }, [activeSong?.id, recentlyPlayed]);
+
+  // The end-of-feed block has its own "Back to top" button. Once it scrolls
+  // into view the floating one would sit on top of its twin, so it steps aside
+  // until the reader scrolls back up. The scroller is #app-scroll, not window.
+  const endOfFeedRef = useRef(null);
+  const [endOfFeedVisible, setEndOfFeedVisible] = useState(false);
 
   const [sessionSeed] = useState(() => Math.random().toString(36).slice(2));
 
@@ -458,6 +620,23 @@ export default function Home() {
     );
   }, [allSongs]);
 
+  // Attach after the end-of-feed block exists in the DOM: it only renders once
+  // the library has loaded, so the effect re-runs when that changes.
+  useEffect(() => {
+    const marker = endOfFeedRef.current;
+    const scroller = document.getElementById("app-scroll");
+    if (!marker || !scroller || typeof IntersectionObserver === "undefined") {
+      setEndOfFeedVisible(false);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => setEndOfFeedVisible(Boolean(entry?.isIntersecting)),
+      { root: scroller, threshold: 0 }
+    );
+    observer.observe(marker);
+    return () => observer.disconnect();
+  }, [isLoading, sortedSongs.length]);
+
   const songIdsKey = useMemo(
     () => sortedSongs.map((song) => song.id).join(","),
     [sortedSongs]
@@ -465,7 +644,7 @@ export default function Home() {
 
   const newestSongs = useMemo(() => {
     // "New" = 15 most recently added songs (rank-based, not a time window).
-    // This same list drives the NEW badge + Fresh Releases section.
+    // This same list drives the NEW badge + Recently Added section.
     return getNewestSongs(sortedSongs);
   }, [sortedSongs]);
 
@@ -537,7 +716,9 @@ export default function Home() {
 
   return (
     <div className="bg-white px-3 pb-8 pt-4 sm:px-6 md:px-8 md:pt-6">
-      <ScrollToTop visible={scrollY > 400} hasPlayer={Boolean(activeSong)} />
+      {!endOfFeedVisible && (
+        <ScrollToTop visible={scrollY > 400} hasPlayer={Boolean(activeSong)} />
+      )}
       <div className="mx-auto max-w-5xl space-y-6 md:space-y-7">
 
         <HomeHero
@@ -565,7 +746,8 @@ export default function Home() {
             {hasRealHistory && recentlyPlayed.length > 0 && (
               <SectionBlock
                 id="recently-played"
-                title="Jump Back In"
+                title="Continue Listening"
+                resumeProgress={savedProgress}
                 icon={Clock}
                 items={recentlyPlayed}
                 onPlay={(song) => setActiveSong(song, recentlyPlayed)}
@@ -593,11 +775,11 @@ export default function Home() {
               />
             </LazySection>
 
-            {/* --- FRESH RELEASES SECTION --- */}
+            {/* --- RECENTLY ADDED SECTION --- */}
             <LazySection delay={100}>
               <SectionBlock
                 id="newest-songs"
-                title="Fresh Releases"
+                title="Recently Added"
                 icon={Sparkles}
                 items={newestSongs}
                 onPlay={(song) => setActiveSong(song, newestSongs)}
@@ -641,63 +823,78 @@ export default function Home() {
               </LazySection>
             )}
 
-            {/* --- CURATED RECOMMENDATIONS LIST --- */}
+            {/* --- CURATED FOR YOU --- */}
             {(recommendedSongs.length > 0 || activeFilter !== "all") && (
               <LazySection delay={200}>
-                <section id="recommended" className="scroll-mt-24">
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/8 text-accent">
-                        <ListMusic size={13} />
+                <section id="recommended" aria-labelledby="curated-for-you-title" className="scroll-mt-24">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent/8 text-accent">
+                        <ListMusic size={13} aria-hidden="true" />
                       </div>
-                      <h2 className="text-base md:text-lg font-bold tracking-tight text-neutral-900">
-                        Curated for You
-                      </h2>
+                      <div className="min-w-0">
+                        <h2 id="curated-for-you-title" className="text-base md:text-lg font-bold tracking-tight text-neutral-900">
+                          Curated for You
+                        </h2>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
                       {recommendedSongs.length > 0 && (
                         <button
                           type="button"
                           onClick={() => setActiveSong(recommendedSongs[0], recommendedSongs)}
-                          className="tap-sm flex items-center gap-1.5 rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-bold text-accent transition hover:bg-accent/15"
+                          aria-label="Play all from Curated for You"
+                          className="tap-sm inline-flex min-h-8.5 items-center gap-1.5 rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/15"
                         >
-                          <Play size={12} fill="currentColor" />
-                          Play All
+                          <Play size={14} fill="currentColor" aria-hidden="true" />
+                          Play all
                         </button>
                       )}
                       <Link
                         href="/songs"
-                        className="group flex items-center gap-1 text-xs font-semibold text-neutral-500 transition hover:text-neutral-900"
+                        aria-label="View all from Curated for You"
+                        className="tap-sm group inline-flex min-h-8.5 items-center gap-1 rounded-md text-xs font-semibold text-neutral-600 transition hover:text-accent"
                       >
                         <span>View all</span>
-                        <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+                        <ArrowRight size={14} aria-hidden="true" className="transition-transform group-hover:translate-x-0.5" />
                       </Link>
                     </div>
                   </div>
 
-                  <div
-                    role="group"
-                    aria-label="Filter Curated for You"
-                    className="mb-4 flex flex-wrap items-center gap-2"
-                  >
-                    {filterCategories.map((cat) => {
-                      const isSelected = activeFilter === cat.id;
-                      return (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          aria-pressed={isSelected}
-                          onClick={() => setActiveFilter(cat.id)}
-                          className={`tap-sm min-h-8.5 shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-                            isSelected
-                              ? "border-accent bg-accent text-white"
-                              : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50"
-                          }`}
-                        >
-                          {cat.label}
-                        </button>
-                      );
-                    })}
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                    <div
+                      role="group"
+                      aria-label="Filter Curated for You"
+                      className="flex flex-wrap items-center gap-2"
+                    >
+                      {filterCategories.map((cat) => {
+                        const isSelected = activeFilter === cat.id;
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            aria-pressed={isSelected}
+                            onClick={() => setActiveFilter(cat.id)}
+                            className={`tap-sm min-h-8.5 shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                              isSelected
+                                ? "border-accent bg-accent text-white"
+                                : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50"
+                            }`}
+                          >
+                            {cat.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {activeFilter !== "all" && (
+                      <p
+                        aria-live="polite"
+                        className="ml-auto shrink-0 text-[11px] font-medium leading-4 text-neutral-400"
+                      >
+                        <span className="sr-only">Matching sessions: </span>
+                        {recommendedSongs.length} {recommendedSongs.length === 1 ? "session" : "sessions"}
+                      </p>
+                    )}
                   </div>
 
                   {/* Short results must not clamp the page scroll and move the filters. */}
@@ -721,8 +918,17 @@ export default function Home() {
                         );
                       })
                     ) : (
-                      <div className="w-full rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 py-8 text-center text-xs font-medium text-neutral-400">
-                        No songs match this filter yet — try another one.
+                      <div className="flex w-full flex-col items-center gap-3 rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 px-4 py-8 text-center text-xs font-medium text-neutral-400">
+                        <p>No songs match this filter yet — try another one.</p>
+                        {activeFilter !== "all" && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveFilter("all")}
+                            className="tap-sm inline-flex min-h-8.5 items-center rounded-lg border border-accent bg-accent px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent/90"
+                          >
+                            Show all
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -758,7 +964,7 @@ export default function Home() {
 
             {/* --- END OF FEED --- */}
             {sortedSongs.length > 0 && (
-              <div className="flex flex-col items-center gap-2.5 pt-2 pb-1 text-center">
+              <div id="end-of-feed" ref={endOfFeedRef} className="flex flex-col items-center gap-2.5 pt-2 pb-1 text-center">
                 <div className="flex w-full items-center gap-3">
                   <div className="h-px flex-1 bg-neutral-200" />
                   <div className="flex h-7 w-7 items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 text-neutral-400">

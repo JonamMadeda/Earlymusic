@@ -314,7 +314,7 @@ export default function HomeHero({
   }, [newRelease, songs]);
 
   // Date.now() is impure, so the clock is read after mount and refreshed hourly.
-  // It also keeps "new this week" honest on a tab left open across midnight.
+  // It also keeps "recently added" honest on a tab left open across midnight.
   const [now, setNow] = useState(null);
   useEffect(() => {
     const tick = () => setNow(Date.now());
@@ -385,7 +385,7 @@ export default function HomeHero({
 
   // WCAG 2.2.2: the capsule updates on its own, so it needs a stop control and
   // has to respect reduced motion. It also only rotates while no track is in
-  // the player — that surface is replaced by the progress card.
+  // the player — the rail shows the player, a standout or the verse instead.
   useEffect(() => {
     if (activeSong || versePaused || reduceMotion) return;
     const interval = setInterval(() => {
@@ -567,8 +567,31 @@ export default function HomeHero({
     };
   }, [heroState, requestOpenPlayer, onShuffleAll, songs.length]);
 
+  // PlayerWrapper mounts the persistent mini-player for every active track, so
+  // a paused hero would otherwise repeat the same song in its right rail. The
+  // hero keeps its headline, "Ready in the player" label, timing description,
+  // Resume and Open player actions; only the duplicate card is dropped.
+  const pausedWithMiniPlayer = heroState === "paused" && Boolean(activeSong);
+  const railStandout =
+    standoutSong && standoutSong.id !== activeSong?.id ? standoutSong : null;
+  const scriptureRail = verseCard({
+    verse,
+    copyState: verseCopyState,
+    paused: versePaused,
+    reduceMotion,
+    onCopy: copyVerse,
+    onPause: () => setVersePaused((prev) => !prev),
+    onPrev: () => stepVerse(-1),
+    onNext: () => stepVerse(1),
+  });
+
   let rightRail;
-  if (heroState === "playing" || heroState === "paused") {
+  if (pausedWithMiniPlayer) {
+    // Non-duplicate rail: the standout, or the scripture capsule as fallback.
+    rightRail = railStandout
+      ? standoutCard({ song: railStandout, onPlay: () => playSong(railStandout, songs) })
+      : scriptureRail;
+  } else if (heroState === "playing" || heroState === "paused") {
     rightRail = progressCard({ song: activeSong, isPlaying, currentTime, duration });
   } else if (heroState === "announcement" || heroState === "new") {
     rightRail = newCard({
@@ -576,22 +599,13 @@ export default function HomeHero({
       label: heroContent.label,
       description: heroContent.description,
     });
-  } else if (heroState === "returning" && standoutSong) {
+  } else if (heroState === "returning" && railStandout) {
     rightRail = standoutCard({
-      song: standoutSong,
-      onPlay: () => playSong(standoutSong, songs),
+      song: railStandout,
+      onPlay: () => playSong(railStandout, songs),
     });
   } else {
-    rightRail = verseCard({
-      verse,
-      copyState: verseCopyState,
-      paused: versePaused,
-      reduceMotion,
-      onCopy: copyVerse,
-      onPause: () => setVersePaused((prev) => !prev),
-      onPrev: () => stepVerse(-1),
-      onNext: () => stepVerse(1),
-    });
+    rightRail = scriptureRail;
   }
 
   return (
@@ -627,6 +641,7 @@ export default function HomeHero({
               </p>
             )}
             <h1 id="home-hero-title" className="page-title mt-1">
+              <span className="sr-only">Luumbo Home — </span>
               {heroContent.title}
             </h1>
             <p className="mt-1 line-clamp-2 max-w-md text-sm leading-relaxed text-neutral-500">
@@ -646,46 +661,59 @@ export default function HomeHero({
           </div>
 
           {!isLoading && stats.total > 0 && (
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500">
-              <span>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs leading-4 text-neutral-500">
+              <span className="whitespace-nowrap">
                 {stats.total} {stats.total === 1 ? "track" : "tracks"}
               </span>
-              <span aria-hidden="true">·</span>
-              <span>
-                {stats.artists} {stats.artists === 1 ? "artist" : "artists"}
-              </span>
+              {stats.artists > 0 && (
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                  <span aria-hidden="true" className="text-neutral-300">·</span>
+                  <span>
+                    {stats.artists} {stats.artists === 1 ? "artist" : "artists"}
+                  </span>
+                </span>
+              )}
               {stats.newCount > 0 && (
-                <>
-                  <span aria-hidden="true">·</span>
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                  <span aria-hidden="true" className="text-neutral-300">·</span>
                   <a
                     href="#newest-songs"
-                    className="tap-sm inline-flex items-center gap-1 rounded-md font-semibold text-accent hover:underline"
+                    className="tap-sm inline-flex min-h-8.5 items-center gap-1 rounded-md font-semibold text-accent hover:underline"
                   >
-                    {stats.newCount} new this week
+                    {stats.newCount} recently added
                   </a>
-                </>
+                </span>
               )}
               {hasRealHistory && recentlyPlayed.length > 0 && (
-                <a
-                  href="#recently-played"
-                  className="tap-sm inline-flex items-center gap-1 rounded-md font-semibold text-accent hover:underline"
-                >
-                  <Clock size={13} aria-hidden="true" /> Recently played
-                </a>
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                  <span aria-hidden="true" className="text-neutral-300">·</span>
+                  <a
+                    href="#recently-played"
+                    className="tap-sm inline-flex min-h-8.5 items-center gap-1 rounded-md font-semibold text-accent hover:underline"
+                  >
+                    <Clock size={13} aria-hidden="true" /> Continue Listening
+                  </a>
+                </span>
               )}
-              <Link
-                href="/library?tab=standouts"
-                className="tap-sm inline-flex items-center gap-1 rounded-md font-semibold text-neutral-500 transition hover:text-accent"
-              >
-                <Star size={13} aria-hidden="true" /> Standouts
-              </Link>
-              {!authLoading && !user && (
-                <Link
-                  href="/auth"
-                  className="tap-sm inline-flex items-center gap-1 rounded-md font-semibold text-neutral-500 transition hover:text-accent"
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                <span aria-hidden="true" className="text-neutral-300">·</span>
+                <a
+                  href="#featured-songs"
+                  className="tap-sm inline-flex min-h-8.5 items-center gap-1 rounded-md font-semibold text-neutral-500 transition hover:text-accent"
                 >
-                  <LogIn size={13} aria-hidden="true" /> Sign in to save your place
-                </Link>
+                  <Star size={13} aria-hidden="true" /> Featured
+                </a>
+              </span>
+              {!authLoading && !user && (
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                  <span aria-hidden="true" className="text-neutral-300">·</span>
+                  <Link
+                    href="/auth"
+                    className="tap-sm inline-flex min-h-8.5 items-center gap-1 rounded-md font-semibold text-neutral-500 transition hover:text-accent"
+                  >
+                    <LogIn size={13} aria-hidden="true" /> Sign in to save your place
+                  </Link>
+                </span>
               )}
             </p>
           )}

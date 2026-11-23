@@ -44,7 +44,17 @@ describe("rail scroll arrows", () => {
   });
 });
 
-describe("curated filter pills", () => {
+describe("homepage card duration tags", () => {
+  it("uses the tag-free length helper on every homepage card", () => {
+    expect(source).not.toContain("sessionLengthLabel(");
+    expect(source).toContain("homepageLengthLabel(");
+    expect(featuredCard).not.toContain("sessionLengthLabel(");
+    expect(featuredCard).toContain("homepageLengthLabel(");
+    expect(source).toContain('{ id: "short", label: "Short" }');
+  });
+});
+
+describe("curated for you filter pills", () => {
   it("renders inside the section the pills filter, not above the fold", () => {
     const section = source.indexOf(`id="recommended"`);
     const pills = source.indexOf(`aria-label="Filter Curated for You"`);
@@ -55,6 +65,76 @@ describe("curated filter pills", () => {
   it("leaves the page still when a pill is tapped", () => {
     expect(source).not.toMatch(/\.scrollIntoView\(/);
     expect(source).toContain("min-h-[60dvh]");
+  });
+});
+
+describe("homepage shelf headings", () => {
+  it("uses the exact warm, familiar shelf names", () => {
+    for (const heading of [
+      'title="Continue Listening"',
+      'title="Recently Added"',
+      'title="Featured"',
+      'title="Keep Exploring"',
+      "Curated for You",
+    ]) {
+      expect(source, `missing heading: ${heading}`).toContain(heading);
+    }
+    for (const oldHeading of [
+      'title="Continue Where You Left Off"',
+      'title="Praise Songs"',
+      'title="New Songs"',
+      'title="More Songs to Explore"',
+      "Browse All Songs",
+      "browse-songs-title",
+      'title="Continue Your Worship"',
+      'title="Praise & Adoration"',
+      'title="New Worship Recordings"',
+      'title="Full Worship Archive"',
+      "Browse Worship Sessions",
+      "browse-sessions-title",
+      'title="Resume Worship"',
+      'title="Newly Recorded"',
+      'title="Deeper Sessions"',
+      "Session Index",
+      "session-index-title",
+      'title="Continue Worshipping"',
+      'title="Signature Sessions"',
+      'title="Recent Sessions"',
+      'title="From the Archive"',
+    ]) {
+      expect(source, `stale heading: ${oldHeading}`).not.toContain(oldHeading);
+    }
+    expect(source).toContain('aria-labelledby="curated-for-you-title"');
+    expect(source).not.toContain('subtitle="');
+    expect(source).not.toContain("Filter by praise, worship, length, or new");
+    expect(source).toContain('aria-live="polite"');
+    expect(source).toContain("Matching sessions: ");
+  });
+
+  it("points hero jumps at the exact shelf names", () => {
+    expect(hero).toContain('href="#newest-songs"');
+    expect(hero).toContain('href="#recently-played"');
+    expect(hero).toContain('href="#featured-songs"');
+    expect(hero).toContain("Continue Listening");
+    expect(hero).toContain("Featured");
+    expect(hero).toContain("recently added");
+    expect(hero).not.toContain("Continue Where You Left Off");
+    expect(hero).not.toContain("Praise Songs");
+    expect(hero).not.toContain("new songs");
+    expect(hero).not.toContain("Continue Your Worship");
+    expect(hero).not.toContain("Praise & Adoration");
+    expect(hero).not.toContain("new recordings");
+    expect(hero).not.toContain("Resume Worship");
+    expect(hero).not.toContain("newly recorded");
+    expect(hero).not.toContain("Continue Worshipping");
+    expect(hero).not.toContain("Signature Sessions");
+    expect(hero).not.toContain("recent sessions");
+    expect(hero).not.toContain("Recently played");
+    expect(hero).not.toContain("new this week");
+    expect(source).toContain('aria-label="Play all from Curated for You"');
+    expect(source).toContain('aria-label="View all from Curated for You"');
+    expect(source).toContain('aria-label="Filter Curated for You"');
+    expect(source).toContain("scrollable worship sessions");
   });
 });
 
