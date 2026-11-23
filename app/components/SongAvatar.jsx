@@ -101,16 +101,21 @@ export const VinylArtwork = ({
   );
 };
 
-const SongAvatar = ({ title, size = "md", variant = "brand", dark = false }) => {
-  const classes = sizeMap[size] || sizeMap.md;
+const SongAvatar = ({ title, size = "md", variant = "brand", dark = false, className = "" }) => {
+  const baseClasses = sizeMap[size] || sizeMap.md;
+  // Callers can ask for a circular row avatar without fighting the size map's
+  // default square radius; utility order alone would leave it rounded-md.
+  const classes = className.includes("rounded-full")
+    ? `${baseClasses.replace(/rounded-(?:none|sm|md|lg|xl|2xl|3xl)\b/g, "")} ${className}`.trim()
+    : `${baseClasses} ${className}`.trim();
   const letter = initialLetter(title);
   if (variant === "mono") {
     return (
       <div
-        className={`flex shrink-0 items-center justify-center font-bold shadow-sm ${classes} ${
+        className={`flex shrink-0 items-center justify-center border font-semibold tracking-tight shadow-sm ${classes} ${
           dark
-            ? "text-white bg-white/10 border border-white/20"
-            : "text-accent bg-accent/[0.08] border border-accent/10"
+            ? "border-white/20 bg-white/10 text-white/85"
+            : "border-neutral-300 bg-neutral-100 text-accent"
         }`}
       >
         {letter}

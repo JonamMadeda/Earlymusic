@@ -3,6 +3,7 @@
 import { Play } from "lucide-react";
 import { initialLetter } from "./SongAvatar";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
+import { homepageLengthLabel } from "@/lib/timeFormat";
 
 const timeAgo = (dateStr) => {
   if (!dateStr) return "";
@@ -21,12 +22,13 @@ const timeAgo = (dateStr) => {
   return months <= 1 ? "1mo ago" : `${months}mo ago`;
 };
 
-// Fresh drop card (Fresh Releases rail) — centered + circular,
-// deliberately different silhouette from Featured's square covers.
+// New song card (Recently Added rail) — centered square letter tile,
+// deliberately different from the Spotify card's dark retro artwork.
 // Vertical card in a horizontal rail. App palette only.
 const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
   const letter = initialLetter(song.title);
   const added = timeAgo(song.created_at);
+  const length = homepageLengthLabel(song);
 
   return (
     <button
@@ -46,20 +48,20 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
         {added || (isNew ? "New" : "Fresh")}
       </span>
 
-      {/* circular artwork */}
+      {/* square fallback artwork tile */}
       <span className="relative block">
         <span
-          className={`flex h-16 w-16 items-center justify-center rounded-md border text-2xl font-black select-none transition-colors duration-200 md:h-[72px] md:w-[72px] ${
+          className={`flex h-16 w-16 items-center justify-center rounded-md border text-2xl font-bold tracking-tight select-none transition-colors duration-200 md:h-[72px] md:w-[72px] ${
             isActive
               ? "border-accent bg-accent text-white"
-              : "border-accent/15 bg-accent/[0.06] text-accent group-hover:border-accent/30"
+              : "border-neutral-300 bg-neutral-50 text-accent group-hover:border-neutral-400 group-hover:bg-neutral-100"
           }`}
         >
           {letter}
         </span>
         {isActive && (
-          <span className="absolute -right-1 -top-1 flex h-4 w-4 rounded-md bg-accent ring-2 ring-white">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-md bg-accent opacity-50" />
+          <span aria-hidden="true" className="absolute -right-1 -top-1 flex h-4 w-4 rounded-md bg-accent ring-2 ring-white">
+            <span aria-hidden="true" className="absolute inline-flex h-full w-full animate-ping rounded-md bg-accent opacity-50" />
           </span>
         )}
         {/* Keep the new badge visible while the track is playing too; it sits
@@ -78,7 +80,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
           }`}
         >
           {isActive ? (
-            <span className="waveform text-white flex h-3 items-end">
+            <span aria-hidden="true" className="waveform text-white flex h-3 items-end">
               <span /><span /><span /><span />
             </span>
           ) : (
@@ -89,11 +91,26 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
 
       {/* track info */}
       <span className="mt-5 block w-full min-w-0">
-        <span className={`block truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
+        <span
+          title={song.title}
+          className={`block truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}
+        >
           {song.title}
         </span>
-        <span className="mt-0.5 block truncate text-xs font-medium leading-4 text-neutral-500">
-          {song.author}
+        {/* Length outranks the artist: a single-artist catalog repeats the same
+            name on every card. The artist stays in the DOM and the accessible
+            name, and the line keeps its 16px height. */}
+        <span className="mt-0.5 flex min-w-0 items-center justify-center gap-1.5 text-[11px] leading-4 text-neutral-400">
+          {length && (
+            <span className="shrink-0 font-semibold tabular-nums text-neutral-600">
+              <span className="sr-only">Length: </span>
+              {length}
+            </span>
+          )}
+          <span className="min-w-0 truncate">
+            <span className="sr-only">by </span>
+            {song.author}
+          </span>
         </span>
       </span>
     </button>

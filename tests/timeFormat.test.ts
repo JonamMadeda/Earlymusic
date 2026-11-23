@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatTime, sumDurations, toSeconds } from "../lib/timeFormat";
+import { formatTime, homepageLengthLabel, sumDurations, toSeconds } from "../lib/timeFormat";
 
 describe("time formatting", () => {
   it("reads short tracks as minutes and seconds", () => {
@@ -29,6 +29,13 @@ describe("time formatting", () => {
     expect(toSeconds(-5)).toBeNull();
     expect(toSeconds(Number.POSITIVE_INFINITY)).toBeNull();
     expect(formatTime(null)).toBe("0:00");
+  });
+
+  it("hides legacy duration tags on homepage cards but keeps real times", () => {
+    expect(homepageLengthLabel({ duration: "Short" })).toBeNull();
+    expect(homepageLengthLabel({ duration: "long" })).toBeNull();
+    expect(homepageLengthLabel({ duration: "245" })).toBe("4:05");
+    expect(homepageLengthLabel({ duration: null })).toBeNull();
   });
 
   it("totals a queue and reports how much of it was measurable", () => {
