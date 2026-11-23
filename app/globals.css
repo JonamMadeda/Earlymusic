@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 @theme {
+  /* One silhouette for every button. Kept as a token so the shared .btn-*
+     patterns and the global button override below cannot drift apart. */
+  --radius-button: 1rem;
   --color-accent: #0f172a;
   /* "New" badge only. Monochrome on purpose: the rest of the UI is accent
      near-black plus neutral grays, and the chips this badge sits beside
@@ -18,23 +21,23 @@
    the same class is safe on touch without per-page overrides. */
 @layer components {
   .btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-accent/90 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-button bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-accent/90 disabled:pointer-events-none disabled:opacity-50;
   }
 
   .btn-secondary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white px-5 py-2.5 text-sm font-bold text-neutral-700 transition hover:bg-neutral-50 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-button border border-neutral-200 bg-white px-5 py-2.5 text-sm font-bold text-neutral-700 transition hover:bg-neutral-50 disabled:pointer-events-none disabled:opacity-50;
   }
 
   .btn-tertiary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold text-neutral-600 transition hover:bg-neutral-100 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-button px-4 py-2.5 text-sm font-bold text-neutral-600 transition hover:bg-neutral-100 disabled:pointer-events-none disabled:opacity-50;
   }
 
   .btn-destructive {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-button bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 disabled:pointer-events-none disabled:opacity-50;
   }
 
   .btn-destructive-outline {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-button border border-red-200 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:pointer-events-none disabled:opacity-50;
   }
 
   .card {
@@ -50,13 +53,16 @@
   }
 }
 
-/* Controls read as pills everywhere. Older rounded-md/lg/xl button classes are
-   overridden here rather than rewritten across pages; cards and rows that only
-   use role="button" keep their own corner radius. Explicit rounded-none still
-   wins, so genuinely square controls stay square. */
+/* Buttons share one moderately rounded silhouette. Older rounded-md/lg/xl
+   utilities are overridden here rather than rewritten across every page.
+   Buttons that name individual corners (rounded-l-lg, rounded-r-full, …) keep
+   that shape: only their radius value is raised, and the unset corners stay
+   square so segmented groups still meet cleanly. Circular icon buttons keep
+   rounded-full, and cards or rows that only use role="button" are untouched
+   because they are not real buttons. */
 @layer base {
-  button {
-    border-radius: 9999px;
+  button:not([class*="rounded-"]) {
+    border-radius: var(--radius-button);
   }
 }
 
@@ -68,7 +74,29 @@
   button.rounded-xl,
   button.rounded-2xl,
   button.rounded-3xl {
-    border-radius: 9999px;
+    border-radius: var(--radius-button);
+  }
+
+  button.rounded-l,
+  button.rounded-l-sm,
+  button.rounded-l-md,
+  button.rounded-l-lg,
+  button.rounded-l-xl,
+  button.rounded-l-2xl,
+  button.rounded-l-3xl {
+    border-top-left-radius: var(--radius-button);
+    border-bottom-left-radius: var(--radius-button);
+  }
+
+  button.rounded-r,
+  button.rounded-r-sm,
+  button.rounded-r-md,
+  button.rounded-r-lg,
+  button.rounded-r-xl,
+  button.rounded-r-2xl,
+  button.rounded-r-3xl {
+    border-top-right-radius: var(--radius-button);
+    border-bottom-right-radius: var(--radius-button);
   }
 }
 
