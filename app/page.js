@@ -55,29 +55,62 @@ const seededShuffle = (arr, seedStr) => {
 const railSize = (total, base) =>
   total >= base * 2 ? base : Math.max(4, Math.ceil(total / 3));
 
-const CURATED_FILTER_IDS = ["all", "praise", "worship", "short", "new"];
+const CURATED_FILTER_IDS = ["all", "praise", "worship", "new"];
 const normalizeCuratedFilter = (value) =>
   CURATED_FILTER_IDS.includes(value) ? value : "all";
 
+// Spiritual posture / atmosphere helper for single-artist worship catalog.
+const songPostureLabel = (song) => {
+  const cat = (song?.category || "").trim();
+  if (cat) {
+    if (/^worship$/i.test(cat)) return "Worship";
+    if (/^praise$/i.test(cat)) return "Praise";
+    return cat;
+  }
+  const sec = toSeconds(song?.duration);
+  if (sec != null && sec >= 1800) return "Deep Soaking";
+  if (sec != null && sec >= 900) return "Worship";
+  return "Worship Flow";
+};
+
 // One quiet metadata line shared by the homepage cards. A single-artist
 // catalog repeats the same name on every row, so the session cue (length or
-// resume position) outranks the artist visually. The artist stays in the DOM
+// resume position) and spiritual posture outrank the artist visually. The artist stays in the DOM
 // and in the button's accessible name for screen readers and multi-artist
 // catalogs. The line keeps its 16px height so card heights never shift.
-const cardMetaLine = ({ song, cue = null, cueTone = "text-neutral-600", cueLabel = "Length: " }) => (
-  <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-neutral-400">
-    {cue && (
-      <span className={`shrink-0 font-semibold tabular-nums ${cueTone}`}>
-        <span className="sr-only">{cueLabel}</span>
-        {cue}
-      </span>
-    )}
-    <span className="min-w-0 truncate">
-      <span className="sr-only">by </span>
-      {song.author || "Unknown artist"}
-    </span>
-  </p>
-);
+const cardMetaLine = ({
+  song,
+  cue = null,
+  cueTone = "text-neutral-700",
+  cueLabel = "Length: ",
+  showPosture = true,
+}) => {
+  const posture = songPostureLabel(song);
+  return (
+    <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-neutral-500">
+      {cue && (
+        <span className={`shrink-0 font-semibold tabular-nums ${cueTone}`}>
+          <span className="sr-only">{cueLabel}</span>
+          {cue}
+        </span>
+      )}
+      {cue && <span aria-hidden="true" className="text-neutral-300">·</span>}
+      {showPosture ? (
+        <>
+          <span className="min-w-0 truncate font-medium text-neutral-500">{posture}</span>
+          <span className="sr-only">by {song.author || "Unknown artist"}</span>
+        </>
+      ) : (
+        // Curated rows already show the posture as a chip on sm+, so leave the
+        // posture to that single chip and keep the artist line visible here.
+        <span className="min-w-0 truncate">
+          <span className="sr-only">by </span>
+          {song.author || "Unknown artist"}
+        </span>
+      )}
+    </p>
+  );
+};
 
 const ScrollToTop = ({ visible, hasPlayer }) => {
   if (!visible) return null;
@@ -123,12 +156,14 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
     >
       <span className="sr-only">Play: </span>
       <div className="relative shrink-0">
-        <SongAvatar title={song.title} size="md" variant="mono" />
-        {isActive && (
-          <span aria-hidden="true" className="absolute -top-1 -right-1 flex h-2 w-2 rounded-full bg-accent">
-            <span aria-hidden="true" className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-50" />
-          </span>
-        )}
+        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-neutral-300 bg-neutral-100 text-base font-bold text-accent shadow-2xs">
+          {initialLetter(song.title)}
+          {isActive && (
+            <span aria-hidden="true" className="absolute -top-1 -right-1 flex h-2 w-2 rounded-full bg-accent">
+              <span aria-hidden="true" className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-50" />
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="min-w-0 flex-1">
@@ -137,7 +172,7 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="shrink-0 rounded bg-gold/10 px-1.5 py-0.5 text-[10px] font-normal uppercase leading-none tracking-wider text-gold">
+            <span className="shrink-0 rounded bg-ink/10 px-1.5 py-0.5 text-[10px] font-normal uppercase leading-none tracking-wider text-ink">
               New
             </span>
           )}
@@ -148,7 +183,7 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
       <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${
         isActive
           ? "bg-accent text-white"
-          : "bg-neutral-100 text-neutral-600 group-hover:bg-accent group-hover:text-white"
+          : "border border-neutral-200 bg-white text-neutral-600 group-hover:border-accent group-hover:bg-accent group-hover:text-white"
       }`}>
         <Play size={12} fill="currentColor" className="ml-0.5" />
       </div>
@@ -161,7 +196,7 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
 // Album-style showcase card (used in Recently Added) with subtle retro grooves
 const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
   const letter = initialLetter(song.title);
-  const categoryTag = song.category || "Worship";
+  const postureTag = songPostureLabel(song);
   const length = homepageLengthLabel(song);
 
   return (
@@ -182,10 +217,10 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
         className="relative mb-3 aspect-square w-full overflow-hidden rounded-lg border border-white/10 flex flex-col justify-between p-2.5 retro-grooves shadow-inner"
         style={{ backgroundColor: "#0f172a" }}
       >
-        {/* Top Tag: Clean monochromatic badge */}
+        {/* Top Tag: Clean monochromatic posture badge */}
         <div className="z-10 flex items-center justify-between">
-          <span className="max-w-full truncate rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
-            {categoryTag}
+          <span className="max-w-[75%] truncate rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
+            {postureTag}
           </span>
           {isActive && (
             <span aria-hidden="true" className="flex h-2 w-2 rounded-full bg-white">
@@ -201,9 +236,17 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
           </span>
         </div>
 
-        {/* Hover play trigger */}
-        <div className="absolute bottom-2.5 right-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white text-accent shadow-sm">
-          <Play size={13} fill="currentColor" className="ml-0.5" />
+        {/* Bottom Bar: Duration tag & play trigger */}
+        <div className="z-10 flex items-center justify-between">
+          {length ? (
+            <span className="flex items-center gap-1 rounded bg-black/45 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white/90 backdrop-blur-xs">
+              <Clock size={10} className="text-white/70" aria-hidden="true" />
+              {length}
+            </span>
+          ) : <span />}
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-accent shadow-sm transition-transform group-hover:scale-105">
+            <Play size={13} fill="currentColor" className="ml-0.5" />
+          </div>
         </div>
       </div>
 
@@ -214,7 +257,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-[10px] font-normal uppercase leading-none tracking-wider text-gold">
+            <span className="shrink-0 rounded bg-ink/10 px-1 py-0.5 text-[10px] font-normal uppercase leading-none tracking-wider text-ink">
               New
             </span>
           )}
@@ -228,6 +271,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
 // Tracklist item (Used in Curated Recommendations)
 const RecommendationCard = ({ song, index, onClick, isActive }) => {
   const length = homepageLengthLabel(song);
+  const posture = songPostureLabel(song);
 
   return (
     <button
@@ -235,7 +279,7 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
       aria-current={isActive ? "true" : undefined}
-      className={`group flex w-full items-center gap-3.5 rounded-lg border px-3.5 py-3 text-left transition-all duration-150 ${
+      className={`group flex w-full items-center gap-3.5 rounded-xl border px-3.5 py-3 text-left transition-all duration-150 ${
         isActive
           ? "border-accent bg-neutral-50 ring-1 ring-inset ring-accent"
           : "border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50/70 shadow-2xs"
@@ -248,7 +292,7 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
             <span /><span /><span /><span />
           </div>
         ) : (
-          <span className="text-xs font-bold text-neutral-600 group-hover:hidden">
+          <span className="text-xs font-bold text-neutral-500 group-hover:hidden">
             {String(index + 1).padStart(2, "0")}
           </span>
         )}
@@ -257,27 +301,30 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
         )}
       </div>
 
-      <SongAvatar title={song.title} size="sm" variant="mono" className="rounded-full" />
+      <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neutral-300 bg-neutral-100 text-sm font-bold text-accent shadow-2xs">
+        {initialLetter(song.title)}
+      </div>
 
       <div className="min-w-0 flex-1">
         <p title={song.title} className={`truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
           {song.title}
         </p>
-        {cardMetaLine({ song })}
+        {cardMetaLine({ song, showPosture: false })}
       </div>
 
-      {/* Category and session length read as one pair: the tag names the kind
+      {/* Posture and session length read as one pair: the posture names the kind
           of worship, the length says whether it is a quick song or an extended
-          session. The length stays visible on phones, where the tag is hidden. */}
-      {(song.category || length) && (
+          session. The length stays visible on phones, where the posture is hidden. */}
+      {(posture || length) && (
         <span className="flex shrink-0 items-center gap-2">
-          {song.category && (
+          {posture && (
             <span className="hidden shrink-0 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold leading-none text-neutral-600 sm:inline-block">
-              {song.category}
+              {posture}
             </span>
           )}
           {length && (
-            <span className="shrink-0 text-[11px] font-semibold leading-4 tabular-nums text-neutral-600">
+            <span className="flex shrink-0 items-center gap-1 rounded bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold leading-4 tabular-nums text-neutral-700">
+              <Clock size={10} className="text-neutral-500" aria-hidden="true" />
               <span className="sr-only">Length: </span>
               {length}
             </span>
@@ -288,7 +335,7 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
       <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-150 ${
         isActive
           ? "bg-accent text-white"
-          : "bg-neutral-100 text-neutral-500 group-hover:bg-accent group-hover:text-white"
+          : "border border-neutral-200 bg-white text-neutral-600 group-hover:border-accent group-hover:bg-accent group-hover:text-white"
       }`}>
         <Play size={10} fill="currentColor" className="ml-0.5" />
       </div>
@@ -311,6 +358,9 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
       ? `${remaining} left`
       : `${formatTime(resume.position)} in`
     : null;
+  const percent = resume && total != null && total > 0
+    ? Math.min(100, Math.max(0, (resume.position / total) * 100))
+    : 0;
 
   return (
     <button
@@ -318,61 +368,73 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
       aria-current={isActive ? "true" : undefined}
-      className={`group flex w-[min(80vw,320px)] max-w-full shrink-0 snap-start items-center gap-2.5 rounded-lg border px-3 py-3 text-left transition-colors ${
+      className={`group relative flex w-[min(80vw,320px)] max-w-full shrink-0 snap-start flex-col justify-between overflow-hidden rounded-lg border p-3 text-left transition-colors ${
         isActive
           ? "border-accent bg-accent/[0.04]"
           : "border-neutral-200 bg-neutral-50/60 hover:border-accent/40 hover:bg-neutral-50"
       }`}
     >
       <span className="sr-only">Play: </span>
-      <div className="w-7 shrink-0 text-center">
-        {isActive ? (
-          <div aria-hidden="true" className="waveform text-accent flex h-3.5 justify-center items-end">
-            <span /><span /><span /><span />
-          </div>
-        ) : (
-          <span className="text-xs font-black tabular-nums text-neutral-600 group-hover:hidden">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-        )}
-        {!isActive && (
-          <Play size={11} fill="currentColor" className="hidden text-accent group-hover:inline ml-1.5" />
-        )}
-      </div>
-
-      <SongAvatar title={song.title} size="sm" variant="mono" className="rounded-full" />
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p title={song.title} className={`min-w-0 truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
-            {song.title}
-          </p>
-          {index === 0 && isHistory && !isActive && (
-            <span className="shrink-0 text-[10px] font-medium leading-4 text-neutral-500">
-              Last played
+      <div className="flex w-full items-center gap-2.5">
+        <div className="w-7 shrink-0 text-center">
+          {isActive ? (
+            <div aria-hidden="true" className="waveform text-accent flex h-3.5 justify-center items-end">
+              <span /><span /><span /><span />
+            </div>
+          ) : (
+            <span className="text-xs font-black tabular-nums text-neutral-600 group-hover:hidden">
+              {String(index + 1).padStart(2, "0")}
             </span>
           )}
-          {isNew && (
-            <span className="shrink-0 rounded bg-gold/10 px-1 py-0.5 text-[10px] font-normal uppercase leading-none tracking-wider text-gold">
-              New
-            </span>
+          {!isActive && (
+            <Play size={11} fill="currentColor" className="hidden text-accent group-hover:inline ml-1.5" />
           )}
         </div>
-        {cardMetaLine({
-          song,
-          cue: resumeCue || length,
-          cueTone: resume ? "text-neutral-700" : "text-neutral-600",
-          cueLabel: resume ? `Resume at ${formatTime(resume.position)}. ` : "Length: ",
-        })}
+
+        <SongAvatar title={song.title} size="sm" variant="mono" className="rounded-full" />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p title={song.title} className={`min-w-0 truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}>
+              {song.title}
+            </p>
+            {index === 0 && isHistory && !isActive && (
+              <span className="shrink-0 text-[10px] font-medium leading-4 text-neutral-500">
+                Last played
+              </span>
+            )}
+            {isNew && (
+              <span className="shrink-0 rounded bg-ink/10 px-1 py-0.5 text-[10px] font-normal uppercase leading-none tracking-wider text-ink">
+                New
+              </span>
+            )}
+          </div>
+          {cardMetaLine({
+            song,
+            cue: resumeCue || length,
+            cueTone: resume ? "text-neutral-700" : "text-neutral-600",
+            cueLabel: resume ? `Resume at ${formatTime(resume.position)}. ` : "Length: ",
+          })}
+        </div>
+
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-150 ${
+          isActive
+            ? "bg-accent text-white"
+            : "border border-neutral-200 bg-white text-neutral-600 group-hover:border-accent group-hover:bg-accent group-hover:text-white"
+        }`}>
+          <Play size={11} fill="currentColor" className="ml-0.5" />
+        </div>
       </div>
 
-      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-150 ${
-        isActive
-          ? "bg-accent text-white"
-          : "bg-white text-neutral-500 border border-neutral-200 group-hover:bg-accent group-hover:border-accent group-hover:text-white"
-      }`}>
-        <Play size={11} fill="currentColor" className="ml-0.5" />
-      </div>
+      {/* Progress track for paused station */}
+      {resume && percent > 0 && (
+        <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-neutral-200/80">
+          <div
+            className="h-full rounded-full bg-accent"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      )}
     </button>
   );
 };
@@ -413,38 +475,61 @@ const SectionBlock = ({ id, title, subtitle = null, icon: Icon, items, onPlay, o
   if (items.length === 0) return null;
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="min-w-0 scroll-mt-4">
-      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           {Icon && <Icon size={18} className="shrink-0 text-neutral-500" aria-hidden="true" />}
           <div className="min-w-0">
-            <h2 id={`${id}-title`} className="section-title">{title}</h2>
+            <h2 id={`${id}-title`} className="section-title truncate">{title}</h2>
             {subtitle && (
               <p className="mt-0.5 truncate text-xs font-medium leading-4 text-neutral-500">{subtitle}</p>
             )}
           </div>
         </div>
-        {cta && (
-          <Link href={cta.href} aria-label={`View all from ${title}`} className="tap-sm inline-flex min-h-8.5 shrink-0 items-center gap-1 rounded-md text-xs font-semibold text-neutral-600 transition hover:text-accent">
-            View all <ArrowRight size={14} aria-hidden="true" />
-          </Link>
-        )}
-      </div>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        {onPlayAll && (
-          <button type="button" onClick={() => onPlayAll(items[0])} aria-label={`Play all from ${title}`} className="tap-sm inline-flex min-h-8.5 items-center gap-1.5 rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/15">
-            <Play size={14} fill="currentColor" aria-hidden="true" /> Play all
-          </button>
-        )}
-        {(edges.left || edges.right) && (
-          <div className="ml-auto flex items-center gap-1">
-            <button type="button" onClick={() => scrollRail(-1)} disabled={!edges.left} aria-label={`Scroll ${title} left`} aria-controls={`${id}-rail`} className="tap-sm flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-neutral-200 text-neutral-600 transition hover:bg-neutral-100 disabled:cursor-default disabled:opacity-30">
-              <ChevronLeft size={16} aria-hidden="true" />
+        <div className="flex shrink-0 items-center gap-2">
+          {onPlayAll && (
+            <button
+              type="button"
+              onClick={() => onPlayAll(items[0])}
+              aria-label={`Play all from ${title}`}
+              className="tap-sm inline-flex min-h-8.5 items-center gap-1.5 rounded-lg bg-accent/8 px-2.5 py-1 text-xs font-semibold text-accent transition hover:bg-accent/15"
+            >
+              <Play size={13} fill="currentColor" aria-hidden="true" /> Play all
             </button>
-            <button type="button" onClick={() => scrollRail(1)} disabled={!edges.right} aria-label={`Scroll ${title} right`} aria-controls={`${id}-rail`} className="tap-sm flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-neutral-200 text-neutral-600 transition hover:bg-neutral-100 disabled:cursor-default disabled:opacity-30">
-              <ChevronRight size={16} aria-hidden="true" />
-            </button>
-          </div>
-        )}
+          )}
+          {cta && (
+            <Link
+              href={cta.href}
+              aria-label={`View all from ${title}`}
+              className="tap-sm inline-flex min-h-8.5 items-center gap-1 rounded-md text-xs font-semibold text-neutral-600 transition hover:text-accent"
+            >
+              View all <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          )}
+          {(edges.left || edges.right) && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => scrollRail(-1)}
+                disabled={!edges.left}
+                aria-label={`Scroll ${title} left`}
+                aria-controls={`${id}-rail`}
+                className="tap-sm flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-600 transition hover:bg-neutral-100 disabled:cursor-default disabled:opacity-30"
+              >
+                <ChevronLeft size={15} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollRail(1)}
+                disabled={!edges.right}
+                aria-label={`Scroll ${title} right`}
+                aria-controls={`${id}-rail`}
+                className="tap-sm flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-600 transition hover:bg-neutral-100 disabled:cursor-default disabled:opacity-30"
+              >
+                <ChevronRight size={15} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       <div
         id={`${id}-rail`}
@@ -657,10 +742,12 @@ export default function Home() {
     const praiseFirst = sortedSongs.filter(
       (song) => (song.category || "").toLowerCase() === "praise"
     );
-    const mixed = [...praiseFirst, ...sortedSongs].filter(
-      (song, index, list) => list.findIndex((item) => item.id === song.id) === index
-    );
-    return seededShuffle(mixed, `featured-${songIdsKey}-${sessionSeed}`).slice(0, railSize(sortedSongs.length, 15));
+    // Duplicate the preferred tracks before shuffling, then de-duplicate the
+    // shuffled order: praise still gets extra weight without being pinned.
+    const mixed = [...praiseFirst, ...sortedSongs];
+    return seededShuffle(mixed, `featured-${songIdsKey}-${sessionSeed}`)
+      .filter((song, index, list) => list.findIndex((item) => item.id === song.id) === index)
+      .slice(0, railSize(sortedSongs.length, 15));
   }, [songIdsKey, sessionSeed, sortedSongs]);
 
   const keepExploring = useMemo(() => {
@@ -669,7 +756,19 @@ export default function Home() {
       ...newestSongs.map((s) => s.id),
     ]);
     const rest = sortedSongs.filter((s) => !exclude.has(s.id));
-    return seededShuffle(rest, `explore-${songIdsKey}-${sessionSeed}`).slice(0, railSize(sortedSongs.length, 12));
+    // Posture curation: prioritize extended soaking and lingering prayer flow
+    const soakingFirst = [
+      ...rest.filter((s) => {
+        const sec = toSeconds(s.duration);
+        return (sec != null && sec >= 1200) || (s.category || "").toLowerCase().includes("worship");
+      }),
+      ...rest,
+    ];
+    // De-duplicate only after the shuffle so the extra copies give soaking
+    // tracks a higher chance of landing in the first rail without pinning them.
+    return seededShuffle(soakingFirst, `explore-${songIdsKey}-${sessionSeed}`)
+      .filter((song, index, list) => list.findIndex((item) => item.id === song.id) === index)
+      .slice(0, railSize(sortedSongs.length, 12));
   }, [sortedSongs, featuredSongs, newestSongs, songIdsKey, sessionSeed]);
 
   const standoutSong = useMemo(() => {
@@ -688,8 +787,6 @@ export default function Home() {
       list = sortedSongs.filter(s => (s.category || "").toLowerCase().includes("praise"));
     } else if (activeFilter === "worship") {
       list = sortedSongs.filter(s => (s.category || "").toLowerCase().includes("worship"));
-    } else if (activeFilter === "short") {
-      list = sortedSongs.filter((s) => (s.duration || "Long") === "Short");
     } else if (activeFilter === "new") {
       list = newestSongs;
     }
@@ -710,7 +807,6 @@ export default function Home() {
     { id: "all", label: "All" },
     { id: "praise", label: "Praise" },
     { id: "worship", label: "Worship" },
-    { id: "short", label: "Short" },
     { id: "new", label: "New" },
   ];
 
@@ -802,7 +898,6 @@ export default function Home() {
                   onPlayAll={(song) => setActiveSong(song, recentlyPlayed)}
                   activeSongId={activeSong?.id}
                   newSongIds={newSongIds}
-                  cardType="history"
                 />
               </LazySection>
             )}
@@ -825,28 +920,28 @@ export default function Home() {
 
             {/* --- CURATED FOR YOU --- */}
             {(recommendedSongs.length > 0 || activeFilter !== "all") && (
-              <LazySection delay={200}>
+              <LazySection delay={150}>
                 <section id="recommended" aria-labelledby="curated-for-you-title" className="scroll-mt-24">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                  <div className="mb-3 flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
                       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent/8 text-accent">
                         <ListMusic size={13} aria-hidden="true" />
                       </div>
                       <div className="min-w-0">
-                        <h2 id="curated-for-you-title" className="text-base md:text-lg font-bold tracking-tight text-neutral-900">
+                        <h2 id="curated-for-you-title" className="section-title truncate">
                           Curated for You
                         </h2>
                       </div>
                     </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       {recommendedSongs.length > 0 && (
                         <button
                           type="button"
                           onClick={() => setActiveSong(recommendedSongs[0], recommendedSongs)}
                           aria-label="Play all from Curated for You"
-                          className="tap-sm inline-flex min-h-8.5 items-center gap-1.5 rounded-lg bg-accent/8 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/15"
+                          className="tap-sm inline-flex min-h-8.5 items-center gap-1.5 rounded-lg bg-accent/8 px-2.5 py-1 text-xs font-semibold text-accent transition hover:bg-accent/15"
                         >
-                          <Play size={14} fill="currentColor" aria-hidden="true" />
+                          <Play size={13} fill="currentColor" aria-hidden="true" />
                           Play all
                         </button>
                       )}
@@ -889,7 +984,7 @@ export default function Home() {
                     {activeFilter !== "all" && (
                       <p
                         aria-live="polite"
-                        className="ml-auto shrink-0 text-[11px] font-medium leading-4 text-neutral-400"
+                        className="ml-auto shrink-0 text-[11px] font-medium leading-4 text-neutral-500"
                       >
                         <span className="sr-only">Matching sessions: </span>
                         {recommendedSongs.length} {recommendedSongs.length === 1 ? "session" : "sessions"}
@@ -918,15 +1013,21 @@ export default function Home() {
                         );
                       })
                     ) : (
-                      <div className="flex w-full flex-col items-center gap-3 rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 px-4 py-8 text-center text-xs font-medium text-neutral-400">
-                        <p>No songs match this filter yet — try another one.</p>
+                      <div className="flex w-full flex-col items-center gap-4 rounded-xl border border-dashed border-neutral-200 bg-neutral-50/30 px-6 py-10 text-center">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/8 text-accent">
+                          <Music size={18} aria-hidden="true" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-neutral-700">No songs match this filter</p>
+                          <p className="text-xs font-medium text-neutral-500">Try a different filter to find your next worship session.</p>
+                        </div>
                         {activeFilter !== "all" && (
                           <button
                             type="button"
                             onClick={() => setActiveFilter("all")}
-                            className="tap-sm inline-flex min-h-8.5 items-center rounded-lg border border-accent bg-accent px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent/90"
+                            className="tap-sm inline-flex min-h-8.5 items-center rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent/90"
                           >
-                            Show all
+                            Show all sessions
                           </button>
                         )}
                       </div>

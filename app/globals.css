@@ -9,8 +9,10 @@
      near-black plus neutral grays, and the chips this badge sits beside
      (category tags) are neutral too. One step darker than their text so a
      new track stays findable without being the loudest thing in the row.
-     Holds 8.8:1 on its own 10% tint and 10.4:1 reversed under white text. */
-  --color-gold: #404040;
+     Holds 8.8:1 on its own 10% tint and 10.4:1 reversed under white text.
+     Named "ink", not "gold": the value is a neutral near-black, and navy
+     stays the only brand accent. */
+  --color-ink: #404040;
 }
 
 :root {

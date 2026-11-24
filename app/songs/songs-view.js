@@ -435,7 +435,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
             </span>
           )}
           {isNew && !isActive && (
-            <span className="shrink-0 rounded-full bg-gold/10 px-1.5 py-0.5 text-[10px] font-semibold leading-3 text-gold">
+            <span className="shrink-0 rounded-full bg-ink/10 px-1.5 py-0.5 text-[10px] font-semibold leading-3 text-ink">
               New
             </span>
           )}

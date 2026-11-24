@@ -230,7 +230,7 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="shrink-0 rounded bg-gold/10 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wider text-gold">
+            <span className="shrink-0 rounded bg-ink/10 px-1.5 py-0.5 text-[10px] font-normal uppercase tracking-wider text-ink">
               New
             </span>
           )}

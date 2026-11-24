@@ -122,6 +122,15 @@ const SongAvatar = ({ title, size = "md", variant = "brand", dark = false, class
       </div>
     );
   }
+  if (variant === "navy") {
+    return (
+      <div
+        className={`flex shrink-0 items-center justify-center border border-neutral-800 bg-[#0f172a] font-bold text-white shadow-sm retro-grooves ${classes}`}
+      >
+        {letter}
+      </div>
+    );
+  }
   if (variant === "pastel") {
     return (
       <div

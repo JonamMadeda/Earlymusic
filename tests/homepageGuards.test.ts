@@ -50,7 +50,71 @@ describe("homepage card duration tags", () => {
     expect(source).toContain("homepageLengthLabel(");
     expect(featuredCard).not.toContain("sessionLengthLabel(");
     expect(featuredCard).toContain("homepageLengthLabel(");
-    expect(source).toContain('{ id: "short", label: "Short" }');
+  });
+});
+
+describe("homepage posture labels", () => {
+  it("shows the curated posture once, not in both the metadata line and chip", () => {
+    const recommendation = source.slice(
+      source.indexOf("const RecommendationCard"),
+      source.indexOf("const HistoryCard")
+    );
+    expect(recommendation, "RecommendationCard not found").not.toBe("");
+    expect(recommendation).toContain("cardMetaLine({ song, showPosture: false })");
+    expect(recommendation).toContain("{posture}");
+  });
+});
+
+describe("homepage section artwork themes", () => {
+  it("keeps navy artwork as the Featured section's signature treatment", () => {
+    const spotify = source.slice(
+      source.indexOf("const SpotifyCard"),
+      source.indexOf("const RecommendationCard")
+    );
+    expect(spotify).toContain('backgroundColor: "#0f172a"');
+  });
+
+  it("uses the app's neutral artwork treatment in the other homepage sections", () => {
+    const rail = source.slice(
+      source.indexOf("const SongRailCard"),
+      source.indexOf("const SpotifyCard")
+    );
+    const recommendation = source.slice(
+      source.indexOf("const RecommendationCard"),
+      source.indexOf("const HistoryCard")
+    );
+    const history = source.slice(
+      source.indexOf("const HistoryCard"),
+      source.indexOf("const SectionBlock")
+    );
+    for (const card of [rail, recommendation, history]) {
+      expect(card).not.toContain('bg-[#0f172a]');
+      expect(card).not.toContain('backgroundColor: "#0f172a"');
+    }
+    expect(history).toContain('variant="mono"');
+    for (const card of [rail, recommendation]) {
+      expect(card).toContain("border-neutral-300 bg-neutral-100");
+      expect(card).toContain("text-accent");
+    }
+    expect(featuredCard).not.toContain("#0f172a");
+    expect(featuredCard).toContain("border-neutral-300 bg-neutral-100");
+    expect(featuredCard).toContain("text-accent");
+  });
+});
+
+describe("homepage weighted curation", () => {
+  it("de-duplicates after shuffling so preferred tracks keep their extra weight", () => {
+    const dedupe = ".filter((song, index, list) => list.findIndex((item) => item.id === song.id) === index)";
+    for (const [name, shuffle] of [
+      ["featured", "seededShuffle(mixed,"],
+      ["explore", "seededShuffle(soakingFirst,"],
+    ] as const) {
+      const at = source.indexOf(shuffle);
+      const after = source.indexOf(dedupe, at);
+      expect(at, `${name} shuffle not found`).toBeGreaterThan(-1);
+      expect(after, `${name} de-duplication must follow the shuffle`).toBeGreaterThan(at);
+      expect(after - at, `${name} de-duplication is too far from its shuffle`).toBeLessThan(200);
+    }
   });
 });
 
@@ -65,6 +129,19 @@ describe("curated for you filter pills", () => {
   it("leaves the page still when a pill is tapped", () => {
     expect(source).not.toMatch(/\.scrollIntoView\(/);
     expect(source).toContain("min-h-[60dvh]");
+  });
+
+  it("offers only the category filters, without a duration dial", () => {
+    expect(source).not.toContain('activeFilter === "short"');
+    expect(source).not.toContain('label: "Quick Sessions"');
+    expect(source).not.toContain('label: "Full Sessions"');
+    expect(source).not.toContain("Select by Duration");
+    for (const pill of ["All", "Praise", "Worship", "New"]) {
+      expect(source).toContain(`label: "${pill}"`);
+    }
+    expect(source).not.toContain('{ id: "soaking"');
+    expect(source).not.toContain('{ id: "devotional"');
+    expect(source).not.toContain('{ id: "extended"');
   });
 });
 
@@ -172,6 +249,27 @@ describe("homepage banner", () => {
     );
     expect(hero).toContain("border-accent/10 bg-accent/[0.05]");
     expect(hero).not.toContain("border-neutral-200 bg-white p-4");
+  });
+
+  it("keeps live playback UI in the persistent player while retaining quick links", () => {
+    for (const duplicate of [
+      "usePlaybackStatus",
+      "progressCard",
+      'role="progressbar"',
+      "requestTogglePlay",
+      "formatTime",
+    ]) {
+      expect(hero, `duplicate player UI: ${duplicate}`).not.toContain(duplicate);
+    }
+    expect(hero).toContain('label: "In your player"');
+    expect(hero).toContain("requestOpenPlayer");
+    expect(hero).toContain("Repeat All");
+    expect(hero).toContain("Worship Timer");
+  });
+
+  it("does not clip the worship timer menu inside the banner", () => {
+    const section = hero.slice(hero.indexOf("<section"), hero.indexOf("</section>"));
+    expect(section).not.toContain("overflow-hidden");
   });
 });
 

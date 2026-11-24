@@ -1,6 +1,6 @@
 "use client";
 
-import { Play } from "lucide-react";
+import { Play, Clock } from "lucide-react";
 import { initialLetter } from "./SongAvatar";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
 import { homepageLengthLabel } from "@/lib/timeFormat";
@@ -29,6 +29,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
   const letter = initialLetter(song.title);
   const added = timeAgo(song.created_at);
   const length = homepageLengthLabel(song);
+  const posture = (song.category || "").trim() || "Worship";
 
   return (
     <button
@@ -36,83 +37,78 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
       onClick={onClick}
       onMouseEnter={() => prefetchSongAudio(song)}
       aria-current={isActive ? "true" : undefined}
-      className={`group relative flex w-[152px] max-w-full shrink-0 snap-start flex-col items-center rounded-xl border px-3 pb-4 pt-4 text-center transition-colors md:w-[168px] ${
+      className={`group relative flex w-[160px] max-w-full md:w-[184px] shrink-0 snap-start flex-col rounded-xl p-3 text-left transition-colors ${
         isActive
-          ? "border-accent bg-neutral-50 ring-1 ring-inset ring-accent"
-          : "border-neutral-200 bg-white hover:border-neutral-400/70"
+          ? "border border-accent bg-neutral-50 ring-1 ring-inset ring-accent"
+          : "border border-neutral-200 bg-white hover:border-neutral-400/80 shadow-2xs"
       }`}
     >
       <span className="sr-only">Play: </span>
-      {/* freshness stamp — matches app meta type */}
-      <span className="mb-2.5 text-xs font-medium leading-4 text-neutral-500">
-        {added || (isNew ? "New" : "Fresh")}
-      </span>
-
-      {/* square fallback artwork tile */}
-      <span className="relative block">
-        <span
-          className={`flex h-16 w-16 items-center justify-center rounded-md border text-2xl font-bold tracking-tight select-none transition-colors duration-200 md:h-[72px] md:w-[72px] ${
-            isActive
-              ? "border-accent bg-accent text-white"
-              : "border-neutral-300 bg-neutral-50 text-accent group-hover:border-neutral-400 group-hover:bg-neutral-100"
-          }`}
-        >
-          {letter}
-        </span>
-        {isActive && (
-          <span aria-hidden="true" className="absolute -right-1 -top-1 flex h-4 w-4 rounded-md bg-accent ring-2 ring-white">
-            <span aria-hidden="true" className="absolute inline-flex h-full w-full animate-ping rounded-md bg-accent opacity-50" />
+      {/* Retro Lined Cover Art with Concentric Grooves */}
+      <div className="relative mb-3 aspect-square w-full overflow-hidden rounded-lg border border-neutral-300 bg-neutral-100 flex flex-col justify-between p-2.5 shadow-inner">
+        {/* Top Tag: Freshness badge */}
+        <div className="z-10 flex items-center justify-between">
+          <span className="max-w-[75%] truncate rounded border border-neutral-300 bg-white/70 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-600">
+            {added || (isNew ? "New" : "Fresh")}
           </span>
-        )}
-        {/* Keep the new badge visible while the track is playing too; it sits
-            above the pulsing active dot so the "N" text never disappears. */}
-        {isNew && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-md bg-gold px-1 text-[10px] font-normal uppercase tracking-wider text-white ring-2 ring-white">
-            N
-          </span>
-        )}
-        {/* play trigger overlapping the circle */}
-        <span
-          className={`absolute -bottom-1.5 left-1/2 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-lg text-white shadow-md ring-2 ring-white transition-all duration-200 ${
-            isActive
-              ? "bg-accent"
-              : "bg-neutral-900"
-          }`}
-        >
-          {isActive ? (
-            <span aria-hidden="true" className="waveform text-white flex h-3 items-end">
-              <span /><span /><span /><span />
+          {isActive && (
+            <span aria-hidden="true" className="flex h-2 w-2 rounded-full bg-accent">
+              <span aria-hidden="true" className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-50" />
             </span>
-          ) : (
-            <Play size={11} fill="currentColor" className="ml-px" />
           )}
-        </span>
-      </span>
+          {!isActive && isNew && (
+            <span className="shrink-0 rounded bg-ink px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider text-white">
+              New
+            </span>
+          )}
+        </div>
 
-      {/* track info */}
-      <span className="mt-5 block w-full min-w-0">
-        <span
+        {/* Big Crisp Letter Centerpiece */}
+        <div className="z-10 flex items-center justify-center py-1">
+          <span className="text-3xl font-bold tracking-tight text-accent select-none">
+            {letter}
+          </span>
+        </div>
+
+        {/* Bottom Bar: Duration tag & play trigger */}
+        <div className="z-10 flex items-center justify-between">
+          {length ? (
+            <span className="flex items-center gap-1 rounded bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-neutral-700">
+              <Clock size={10} className="text-neutral-500" aria-hidden="true" />
+              {length}
+            </span>
+          ) : <span />}
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white shadow-sm transition-transform group-hover:scale-105">
+            <Play size={13} fill="currentColor" className="ml-0.5" />
+          </div>
+        </div>
+      </div>
+
+      {/* Track Info */}
+      <div className="w-full min-w-0 px-0.5">
+        <p
           title={song.title}
-          className={`block truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}
+          className={`truncate text-sm font-semibold leading-5 ${isActive ? "text-accent" : "text-neutral-900"}`}
         >
           {song.title}
-        </span>
-        {/* Length outranks the artist: a single-artist catalog repeats the same
-            name on every card. The artist stays in the DOM and the accessible
-            name, and the line keeps its 16px height. */}
-        <span className="mt-0.5 flex min-w-0 items-center justify-center gap-1.5 text-[11px] leading-4 text-neutral-400">
+        </p>
+        {/* Session length and spiritual posture outrank redundant single-artist name.
+            The artist stays in screen-reader text for accessibility, and the line
+            keeps its stable height. */}
+        <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-neutral-500">
           {length && (
             <span className="shrink-0 font-semibold tabular-nums text-neutral-600">
               <span className="sr-only">Length: </span>
               {length}
             </span>
           )}
-          <span className="min-w-0 truncate">
-            <span className="sr-only">by </span>
-            {song.author}
+          {length && <span aria-hidden="true" className="text-neutral-300">·</span>}
+          <span className="min-w-0 truncate font-medium text-neutral-500">
+            {posture}
           </span>
-        </span>
-      </span>
+          <span className="sr-only">by {song.author}</span>
+        </p>
+      </div>
     </button>
   );
 };

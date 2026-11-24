@@ -289,13 +289,17 @@ describe("homepage navigation and recovery", () => {
     expect(h.setActiveSong).toHaveBeenCalledWith(h.player.allSongs[1], h.player.recentlyPlayed);
   });
 
-  it("does not claim a selected track is currently playing", () => {
+  it("shows active-song context without duplicating playback controls or progress", () => {
     const h = harness([fixture("one")]);
     h.player.activeSong = h.player.allSongs[0];
     const page = h.mount(h.load("app/page.js"));
     const hero = heroOf(h, page);
-    expect(text(hero.tree)).toContain("Ready in the player");
-    expect(text(hero.tree)).not.toContain("Now playing");
+    expect(text(hero.tree)).toContain("In your player");
+    expect(text(hero.tree)).toContain(h.player.activeSong.title);
+    expect(button(hero.tree, "Open player").props.onClick).toBe(h.player.requestOpenPlayer);
+    expect(nodes(hero.tree).some((node) => node.props.role === "progressbar")).toBe(false);
+    expect(nodes(hero.tree).some((node) => node.type === "button" && ["Pause", "Resume"].includes(text(node)))).toBe(false);
+    expect(text(hero.tree)).not.toContain(h.player.activeSong.duration);
   });
 
   it("offers retry without a contradictory empty-library message", async () => {
@@ -326,10 +330,10 @@ describe("homepage navigation and recovery", () => {
   it("filters only curated tracks and retains a recoverable empty state", () => {
     const h = harness([fixture("one")]);
     const page = h.mount(h.load("app/page.js"));
-    button(page.tree, "Short").props.onClick();
+    button(page.tree, "Praise").props.onClick();
     page.render();
     expect(text(page.tree)).toContain("No songs match this filter");
-    expect(button(page.tree, "Short").props["aria-pressed"]).toBe(true);
+    expect(button(page.tree, "Praise").props["aria-pressed"]).toBe(true);
     button(page.tree, "All").props.onClick();
     page.render();
     expect(text(page.tree)).not.toContain("No songs match this filter");

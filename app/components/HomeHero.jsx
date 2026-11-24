@@ -18,14 +18,15 @@ import {
   Star,
   Sun,
   Sunrise,
+  Sparkles,
+  X,
 } from "lucide-react";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
-import { usePlaybackStatus } from "../context/playbackStatus";
 import { useNotificationFeed } from "@/lib/notificationFeed";
 import { normalizeNotificationId, normalizeNotificationKind } from "@/lib/notifications";
 import { getWorshipSeason } from "@/lib/worshipSeason";
-import { formatTime } from "@/lib/timeFormat";
+import { homepageLengthLabel } from "@/lib/timeFormat";
 import { prefetchSongAudio } from "@/lib/prefetchAudio";
 import { initialLetter } from "./SongAvatar";
 
@@ -39,9 +40,9 @@ const verses = [
 ];
 
 const greetingFor = (hour) => {
-  if (hour < 12) return { text: "Good morning", icon: Sunrise };
-  if (hour < 18) return { text: "Good afternoon", icon: Sun };
-  return { text: "Good evening", icon: Moon };
+  if (hour < 12) return { text: "Good morning", watch: "Morning Altar", icon: Sunrise };
+  if (hour < 18) return { text: "Good afternoon", watch: "Midday Sanctuary", icon: Sun };
+  return { text: "Good evening", watch: "Evening Vigil", icon: Moon };
 };
 
 const addedLabel = (dateStr, now) => {
@@ -59,63 +60,16 @@ const addedLabel = (dateStr, now) => {
 // These are plain render helpers, not components: the hero is a single
 // surface, and calling them inline keeps the whole tree visible to tests that
 // walk page.js without a DOM.
-const heroArtwork = ({ title, badge = "", active = false }) => (
+const heroArtwork = ({ title, badge = "" }) => (
   <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-neutral-800 bg-[#0f172a] text-2xl font-black text-white shadow-sm retro-grooves">
     {initialLetter(title)}
     {badge && (
-      <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-md bg-gold px-1 text-[10px] font-bold uppercase tracking-wider text-white ring-2 ring-white">
+      <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-md bg-ink px-1 text-[10px] font-bold uppercase tracking-wider text-white ring-2 ring-white">
         {badge}
       </span>
     )}
-    {active && (
-      <span className="absolute -bottom-1 -right-1 flex h-3 w-3 rounded-full bg-accent ring-2 ring-white" />
-    )}
   </div>
 );
-
-const progressCard = ({ song, isPlaying, currentTime, duration }) => {
-  const progress = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
-  const max = Math.max(1, Math.round(duration));
-  const now = Math.round(Math.min(currentTime, duration || 0));
-
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      {heroArtwork({ title: song.title, active: isPlaying })}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="min-w-0 truncate text-sm font-semibold leading-5 text-neutral-900">
-            {song.title}
-          </p>
-          {isPlaying && (
-            <span className="waveform flex h-3 shrink-0 items-end text-accent" aria-hidden="true">
-              <span /><span /><span /><span />
-            </span>
-          )}
-        </div>
-        <p className="mt-0.5 truncate text-xs leading-4 text-neutral-500">
-          {song.author || "Unknown artist"}
-        </p>
-        <div
-          className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-neutral-200"
-          role="progressbar"
-          aria-label="Playback progress"
-          aria-valuemin={0}
-          aria-valuemax={max}
-          aria-valuenow={now}
-        >
-          <div
-            className="h-full rounded-full bg-accent transition-[width] duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <div className="mt-1 flex justify-between text-[10px] tabular-nums text-neutral-500">
-          <span>{formatTime(currentTime)}</span>
-          <span>{duration > 0 ? formatTime(duration) : "--:--"}</span>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const newCard = ({ title, label, description }) => (
   <div className="flex min-w-0 items-center gap-3">
@@ -130,38 +84,52 @@ const newCard = ({ title, label, description }) => (
   </div>
 );
 
-const standoutCard = ({ song, onPlay }) => (
-  <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
-    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase leading-none tracking-wider text-neutral-500">
-      <Star size={10} aria-hidden="true" />
-      Standout
-    </div>
-    <div className="mt-2.5 flex min-w-0 items-center gap-2.5">
-      {heroArtwork({ title: song.title })}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold leading-5 text-neutral-900">{song.title}</p>
-        <p className="mt-0.5 truncate text-xs leading-4 text-neutral-500">
-          {song.author || "Unknown artist"}
-        </p>
+const standoutCard = ({ song, onPlay }) => {
+  const length = homepageLengthLabel(song);
+  const posture = (song.category || "").trim() || "Worship";
+
+  return (
+    <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+      <div className="flex items-center justify-between text-[10px] font-bold uppercase leading-none tracking-wider text-neutral-500">
+        <span className="flex items-center gap-1.5">
+          <Star size={10} aria-hidden="true" />
+          Standout Station
+        </span>
+        {length && (
+          <span className="flex items-center gap-1 font-semibold tabular-nums text-neutral-600">
+            <Clock size={10} aria-hidden="true" />
+            {length}
+          </span>
+        )}
       </div>
-      <button
-        type="button"
-        onClick={onPlay}
-        onMouseEnter={() => prefetchSongAudio(song)}
-        aria-label={`Play ${song.title}`}
-        className="tap-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-white transition hover:bg-accent/90 active:scale-95"
+      <div className="mt-2.5 flex min-w-0 items-center gap-2.5">
+        {heroArtwork({ title: song.title })}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold leading-5 text-neutral-900">{song.title}</p>
+          <p className="mt-0.5 truncate text-xs leading-4 text-neutral-500">
+            <span className="font-medium text-accent">{posture}</span>
+            <span className="sr-only"> by {song.author || "Unknown artist"}</span>
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onPlay}
+          onMouseEnter={() => prefetchSongAudio(song)}
+          aria-label={`Play ${song.title}`}
+          className="tap-sm flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-white transition hover:bg-accent/90 active:scale-95"
+        >
+          <Play size={13} fill="currentColor" className="ml-0.5" />
+        </button>
+      </div>
+      <Link
+        href="/library?tab=standouts"
+        className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-500 transition hover:text-accent"
       >
-        <Play size={13} fill="currentColor" className="ml-0.5" />
-      </button>
+        View Standouts <ArrowRight size={12} aria-hidden="true" />
+      </Link>
     </div>
-    <Link
-      href="/library?tab=standouts"
-      className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-500 transition hover:text-accent"
-    >
-      View Standouts <ArrowRight size={12} aria-hidden="true" />
-    </Link>
-  </div>
-);
+  );
+};
 
 const verseCard = ({
   verse,
@@ -280,12 +248,16 @@ export default function HomeHero({
     setActiveSong,
     recentlyPlayed,
     hasRealHistory,
-    requestTogglePlay,
     requestOpenPlayer,
+    repeatMode,
+    setRepeatMode,
+    sleepTimerRemaining,
+    setSleepTimer,
+    cancelSleepTimer,
   } = usePlayer();
+  const [timerMenuOpen, setTimerMenuOpen] = useState(false);
   const { user, profile, loading: authLoading } = useAuth();
   const { items, unread, unreadIds, dismissedIds } = useNotificationFeed();
-  const { isPlaying, currentTime, duration } = usePlaybackStatus();
 
   const season = getWorshipSeason();
   const greeting = greetingFor(new Date().getHours());
@@ -323,6 +295,27 @@ export default function HomeHero({
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!timerMenuOpen) return;
+    const handleDown = (e) => {
+      if (
+        !e.target.closest('[role="dialog"]') &&
+        !e.target.closest('[aria-label="Set worship timer"]')
+      ) {
+        setTimerMenuOpen(false);
+      }
+    };
+    const handleKey = (e) => {
+      if (e.key === "Escape") setTimerMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", handleDown);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("pointerdown", handleDown);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [timerMenuOpen]);
+
   const newThisWeek = useMemo(() => {
     if (now == null) return [];
     const cutoff = now - 7 * 86_400_000;
@@ -340,12 +333,12 @@ export default function HomeHero({
   );
 
   const heroState = useMemo(() => {
-    if (activeSong) return isPlaying ? "playing" : "paused";
+    if (activeSong) return "active";
     if (newRelease) return "announcement";
     if (hasRealHistory && latestNewUnplayed) return "new";
     if (hasRealHistory && recentlyPlayed.length > 0) return "returning";
     return "discover";
-  }, [activeSong, isPlaying, newRelease, hasRealHistory, latestNewUnplayed, recentlyPlayed.length]);
+  }, [activeSong, newRelease, hasRealHistory, latestNewUnplayed, recentlyPlayed.length]);
 
   const stats = useMemo(
     () => ({
@@ -385,7 +378,7 @@ export default function HomeHero({
 
   // WCAG 2.2.2: the capsule updates on its own, so it needs a stop control and
   // has to respect reduced motion. It also only rotates while no track is in
-  // the player — the rail shows the player, a standout or the verse instead.
+  // the player — the rail shows a standout or the verse instead.
   useEffect(() => {
     if (activeSong || versePaused || reduceMotion) return;
     const interval = setInterval(() => {
@@ -421,24 +414,12 @@ export default function HomeHero({
   // Content per state ------------------------------------------------------
   const heroContent = useMemo(() => {
     switch (heroState) {
-      case "playing":
-      case "paused": {
-        const paused = heroState === "paused";
-        const elapsed = currentTime > 0 ? formatTime(currentTime) : null;
-        const total = duration > 0 ? formatTime(duration) : null;
-        const timing = paused
-          ? elapsed
-            ? `Paused at ${elapsed}`
-            : null
-          : elapsed && total
-            ? `${elapsed} of ${total}`
-            : null;
+      case "active":
         return {
-          label: paused ? "Ready in the player" : "Now playing",
+          label: "In your player",
           title: activeSong?.title || "Untitled",
-          description: [activeSong?.author, timing].filter(Boolean).join(" · "),
+          description: activeSong?.author || "Ready to keep listening.",
         };
-      }
       case "announcement":
         return {
           label:
@@ -466,9 +447,13 @@ export default function HomeHero({
           title: "Pick up where you left off",
           description: recentlyPlayed[0]
             ? `Last played: ${recentlyPlayed[0].title}${
-                recentlyPlayed[0].author ? ` — ${recentlyPlayed[0].author}` : ""
+                homepageLengthLabel(recentlyPlayed[0])
+                  ? ` · ${homepageLengthLabel(recentlyPlayed[0])} station`
+                  : recentlyPlayed[0].author
+                    ? ` — ${recentlyPlayed[0].author}`
+                    : ""
               }`
-            : "Your recent listening is ready.",
+            : "Your worship stations are ready.",
         };
       default:
         return {
@@ -480,8 +465,6 @@ export default function HomeHero({
   }, [
     heroState,
     activeSong,
-    currentTime,
-    duration,
     newRelease,
     releaseSong,
     latestNewSong,
@@ -492,10 +475,8 @@ export default function HomeHero({
 
   const primaryAction = useMemo(() => {
     switch (heroState) {
-      case "playing":
-        return { type: "button", label: "Pause", icon: Pause, onClick: requestTogglePlay };
-      case "paused":
-        return { type: "button", label: "Resume", icon: Play, onClick: requestTogglePlay };
+      case "active":
+        return { type: "button", label: "Open player", icon: ArrowRight, onClick: requestOpenPlayer };
       case "announcement":
         if (releaseSong) {
           return {
@@ -547,14 +528,11 @@ export default function HomeHero({
     newestSongs,
     songs,
     playSong,
-    requestTogglePlay,
+    requestOpenPlayer,
     newRelease,
   ]);
 
   const secondaryAction = useMemo(() => {
-    if (heroState === "playing" || heroState === "paused") {
-      return { type: "button", label: "Open player", onClick: requestOpenPlayer };
-    }
     if (heroState === "announcement") {
       return { type: "link", label: "All announcements", href: "/notifications" };
     }
@@ -565,13 +543,8 @@ export default function HomeHero({
       onClick: onShuffleAll,
       disabled: songs.length === 0,
     };
-  }, [heroState, requestOpenPlayer, onShuffleAll, songs.length]);
+  }, [heroState, onShuffleAll, songs.length]);
 
-  // PlayerWrapper mounts the persistent mini-player for every active track, so
-  // a paused hero would otherwise repeat the same song in its right rail. The
-  // hero keeps its headline, "Ready in the player" label, timing description,
-  // Resume and Open player actions; only the duplicate card is dropped.
-  const pausedWithMiniPlayer = heroState === "paused" && Boolean(activeSong);
   const railStandout =
     standoutSong && standoutSong.id !== activeSong?.id ? standoutSong : null;
   const scriptureRail = verseCard({
@@ -586,20 +559,13 @@ export default function HomeHero({
   });
 
   let rightRail;
-  if (pausedWithMiniPlayer) {
-    // Non-duplicate rail: the standout, or the scripture capsule as fallback.
-    rightRail = railStandout
-      ? standoutCard({ song: railStandout, onPlay: () => playSong(railStandout, songs) })
-      : scriptureRail;
-  } else if (heroState === "playing" || heroState === "paused") {
-    rightRail = progressCard({ song: activeSong, isPlaying, currentTime, duration });
-  } else if (heroState === "announcement" || heroState === "new") {
+  if (heroState === "announcement" || heroState === "new") {
     rightRail = newCard({
       title: heroContent.title,
       label: heroContent.label,
       description: heroContent.description,
     });
-  } else if (heroState === "returning" && railStandout) {
+  } else if ((heroState === "returning" || heroState === "active") && railStandout) {
     rightRail = standoutCard({
       song: railStandout,
       onPlay: () => playSong(railStandout, songs),
@@ -611,7 +577,7 @@ export default function HomeHero({
   return (
     <section
       aria-labelledby="home-hero-title"
-      className="relative overflow-hidden rounded-xl border border-accent/10 bg-gradient-to-br from-accent/[0.07] via-white to-accent/[0.025] p-4 shadow-2xs sm:p-5 md:p-6"
+      className="relative rounded-xl border border-accent/10 bg-gradient-to-br from-accent/[0.07] via-white to-accent/[0.025] p-4 shadow-2xs sm:p-5 md:p-6"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 flex-1 space-y-2.5">
@@ -626,6 +592,12 @@ export default function HomeHero({
                   </>
                 )}
               </span>
+              {greeting.watch && (
+                <>
+                  <span aria-hidden="true" className="text-neutral-300">·</span>
+                  <span className="font-medium text-neutral-500">{greeting.watch}</span>
+                </>
+              )}
             </span>
             {season.label && (
               <span className="inline-flex items-center rounded border border-accent/15 bg-accent/[0.04] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
@@ -660,17 +632,99 @@ export default function HomeHero({
             </Link>
           </div>
 
+          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setRepeatMode(repeatMode === "all" ? "off" : "all")}
+              aria-pressed={repeatMode === "all"}
+              title={repeatMode === "all" ? "Disable Repeat All" : "Enable Repeat All (repeats the current queue)"}
+              className={`tap-sm inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all ${
+                repeatMode === "all"
+                  ? "border border-accent/25 bg-accent/10 text-accent ring-1 ring-inset ring-accent/20"
+                  : "border border-neutral-200 bg-white/80 text-neutral-600 hover:border-neutral-300 hover:bg-white"
+              }`}
+            >
+              <Sparkles size={12} className={repeatMode === "all" ? "text-accent" : "text-neutral-400"} aria-hidden="true" />
+              <span>Repeat All: {repeatMode === "all" ? "On" : "Off"}</span>
+            </button>
+
+            <div className="relative">
+              {sleepTimerRemaining > 0 ? (
+                <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-ink/30 bg-ink/10 px-2.5 py-1 text-xs font-semibold text-ink">
+                  <Clock size={12} className="text-ink" aria-hidden="true" />
+                  <span>Timer: {Math.max(1, Math.ceil(sleepTimerRemaining / 60000))}m left</span>
+                  <button
+                    type="button"
+                    onClick={() => cancelSleepTimer?.()}
+                    aria-label="Cancel worship timer"
+                    className="ml-0.5 rounded-full p-0.5 hover:bg-ink/20 text-ink transition"
+                  >
+                    <X size={12} aria-hidden="true" />
+                  </button>
+                </span>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setTimerMenuOpen((prev) => !prev)}
+                    aria-expanded={timerMenuOpen}
+                    aria-label="Set worship timer"
+                    className="tap-sm inline-flex min-h-8 items-center gap-1.5 rounded-full border border-neutral-200 bg-white/80 px-2.5 py-1 text-xs font-semibold text-neutral-600 hover:border-neutral-300 hover:bg-white"
+                  >
+                    <Clock size={12} className="text-neutral-400" aria-hidden="true" />
+                    <span>Worship Timer</span>
+                  </button>
+                  {timerMenuOpen && (
+                    <div
+                      role="dialog"
+                      aria-label="Worship timer options"
+                      className="absolute left-0 top-full z-30 mt-1.5 flex w-44 flex-col rounded-xl border border-neutral-200 bg-white p-1.5 shadow-lg"
+                    >
+                      <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                        Timer Duration
+                      </div>
+                      {[
+                        { label: "15 min (Altar)", mins: 15 },
+                        { label: "30 min (Devotion)", mins: 30 },
+                        { label: "45 min (Soaking)", mins: 45 },
+                        { label: "60 min (Vigil)", mins: 60 },
+                      ].map((preset) => (
+                        <button
+                          key={preset.mins}
+                          type="button"
+                          onClick={() => {
+                            setSleepTimer(preset.mins);
+                            setTimerMenuOpen(false);
+                          }}
+                          className="flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-100"
+                        >
+                          <span>{preset.label}</span>
+                          <span className="text-[10px] text-neutral-500 tabular-nums">{preset.mins}m</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
           {!isLoading && stats.total > 0 && (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs leading-4 text-neutral-500">
               <span className="whitespace-nowrap">
-                {stats.total} {stats.total === 1 ? "track" : "tracks"}
+                {stats.total} {stats.total === 1 ? "station" : "stations"}
               </span>
-              {stats.artists > 0 && (
+              {stats.artists > 1 ? (
                 <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                   <span aria-hidden="true" className="text-neutral-300">·</span>
                   <span>
-                    {stats.artists} {stats.artists === 1 ? "artist" : "artists"}
+                    {stats.artists} artists
                   </span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                  <span aria-hidden="true" className="text-neutral-300">·</span>
+                  <span>Ministry Archive</span>
                 </span>
               )}
               {stats.newCount > 0 && (

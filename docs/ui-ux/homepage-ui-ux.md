@@ -37,7 +37,7 @@ The homepage is rendered inside the persistent application shell; it does not ow
 | **Header** | On `/`, shows a full-width search trigger on desktop, a search icon on mobile, notification bell, and sign-in when signed out. The offline status strip appears below the header. |
 | **Main scroll container** | `#app-scroll` owns vertical scrolling, not `window`. The shell reserves bottom padding (`pb-44 md:pb-32`) for the mini-player and mobile bottom nav. |
 | **Mobile bottom nav** | Home / Songs / Library / Account. Hidden at `md+`. |
-| **Persistent player** | Mounted once in the shell. The homepage adapts the hero and floating back-to-top position when a track is active. |
+| **Persistent player** | Mounted once in the shell. It owns playback controls and live progress; the homepage banner adds active-song context and lightweight shortcuts without becoming a second player. |
 | **Skip link** | Keyboard users can jump directly to `#app-scroll`. |
 
 ### Page container
@@ -101,18 +101,15 @@ The hero chooses **one** state using this precedence:
 
 | Priority | State | Condition | Headline | Primary CTA | Secondary CTA | Right rail |
 | ---: | --- | --- | --- | --- | --- | --- |
-| 1 | **Playing** | A song is active and playing | Song title, labelled "Now playing" | Pause | Open player | Progress card |
-| 2 | **Paused** | A song is active but paused | Song title, labelled "Ready in the player" | Resume | Open player | Progress card |
-| 3 | **Announcement** | An unread, undismissed notification of kind `release` or `update` | Notification title | "Listen now" when it links to a known song, otherwise "Open announcement" | All announcements | New-release card |
-| 4 | **New** | Real history exists, there is a track from the last 7 days, and it has not been played | Newest track title, labelled "New this week" | Listen now | Shuffle All | New-release card |
-| 5 | **Returning** | Real history exists with at least one recent track | "Pick up where you left off", labelled "Welcome back" | Continue listening | Shuffle All | Standout card |
-| 6 | **Discover** | Default for new listeners / no history | Seasonal title or "Worship Sessions" | Start listening (first Featured song) | Shuffle All | Scripture card |
+| 1 | **Active** | A song is selected in the player | Active song title, labelled "In your player" | Open player | Shuffle All | Standout card when available, otherwise Scripture card |
+| 2 | **Announcement** | An unread, undismissed notification of kind `release` or `update` | Notification title | "Listen now" when it links to a known song, otherwise "Open announcement" | All announcements | New-release card |
+| 3 | **New** | Real history exists, there is a track from the last 7 days, and it has not been played | Newest track title, labelled "New this week" | Listen now | Shuffle All | New-release card |
+| 4 | **Returning** | Real history exists with at least one recent track | "Pick up where you left off", labelled "Welcome back" | Continue listening | Shuffle All | Standout card |
+| 5 | **Discover** | Default for new listeners / no history | Seasonal title or "Worship Sessions" | Start listening (first Featured song) | Shuffle All | Scripture card |
 
 Key details:
 
-- **Playback wins over announcements and personalization.** If audio is active, the hero is a playback surface.
-- **"Ready in the player"** is used for a selected-but-paused track so the UI does not falsely claim it is playing.
-- The **playing/paused description** combines artist and timing: "Artist · 1:23 of 3:45", or "Paused at 1:23".
+- **Playback stays in the persistent player.** The banner reacts to the selected song but omits duration, live progress, timing, and Pause/Resume controls. "Open player" is a navigation shortcut, not a transport control.
 - **Shuffle All** is disabled when the catalogue is empty and uses a fresh seeded Fisher–Yates shuffle on every press.
 - **Browse songs** is always available as a quiet tertiary link to `/songs`.
 
@@ -131,9 +128,8 @@ The right rail is contextual, not decorative. Exactly one variant renders:
 
 | Variant | Shown when | Content |
 | --- | --- | --- |
-| **Progress card** | Playing or paused | Letter artwork with active dot, song title, animated waveform while playing, artist, accessible progress bar (`role="progressbar"` with min/max/now), current time and duration |
 | **New card** | Announcement or New | Artwork with an "N" badge, contextual label, title, two-line description |
-| **Standout card** | Returning with a standout song | "Standout" label, artwork, title, artist, circular play button, "View Standouts" link to `/library?tab=standouts` |
+| **Standout card** | Returning or Active with a standout song other than the active track | "Standout" label, artwork, title, artist, circular play button, "View Standouts" link to `/library?tab=standouts` |
 | **Scripture card** | Discover (and any fallback) | Two-line verse, reference, previous / pause / next / copy controls, and a visible failure message if copying is blocked |
 
 Scripture behavior:
@@ -145,7 +141,16 @@ Scripture behavior:
 - Copy uses the Clipboard API; a failure is reported inline ("Couldn't copy — select the verse and copy it by hand.") instead of being swallowed.
 - A screen-reader `role="status"` announces successful copies.
 
-### 4.5 Statistics and shortcut row
+### 4.5 Quick features
+
+Two lightweight controls keep the banner connected to listening without duplicating the player:
+
+- **Repeat All** repeats the current queue when it reaches the end (`repeatMode: "all"`) and exposes its state through `aria-pressed` plus an "On" or "Off" label.
+- **Worship Timer** offers 15-, 30-, 45-, and 60-minute presets. While active, it shows the remaining minutes and a cancel action. The menu closes on selection, outside pointer press, or Escape.
+
+These controls share the player's repeat and sleep-timer state, so changes made here and in the persistent player stay in sync.
+
+### 4.6 Statistics and shortcut row
 
 When data is loaded and the catalogue is non-empty, the hero shows one compact metadata row:
 
@@ -247,14 +252,14 @@ Every card is a real `<button>`, so it is keyboard reachable by default. Each ca
 | **SpotifyCard** | Featured | Vertical cover card; 160px / 184px | Square navy "cover" with category badge, large initial, retro grooves, white play circle | Accent border/ring, accent title, pulsing white dot |
 | **FeaturedCard** | Recently Added | Vertical centered card; 152px / 168px | Freshness stamp ("2d ago"), rounded letter artwork, overlapping play trigger | Accent border/ring, filled accent artwork, animated waveform, accent title |
 | **RecommendationCard** | Curated for You | Full-width row | Two-digit index, avatar, title/artist, category chip on `sm+`, play chip | Waveform replaces index, accent ring, accent title |
-| **HistoryCard** | Continue Listening / Suggested Starters | Horizontal row; `min(80vw, 320px)` | Index, avatar, title/artist, "Last played" on first row | Waveform replaces index, accent border and tint, filled play chip |
+| **HistoryCard** | Continue Listening / Suggested Starters | Horizontal row; `min(80vw, 320px)` | Index, navy letter avatar, title/artist, "Last played" on first row | Waveform replaces index, accent border and tint, filled play chip |
 
 Shared card rules:
 
 - Titles are single-line and truncated; the artist line never drifts because a title wraps.
 - Borders stay one pixel in every state to avoid layout shift.
 - The active state uses **more than color**: ring, filled control, pulsing dot or waveform, and `aria-current`.
-- "New" badges are gold-tinted in CSS but the token is intentionally monochrome near-black; the badge also carries explicit "New" or "N" text.
+- "New" badges use the `ink` token, a monochrome near-black tint rather than a warm accent; the badge also carries explicit "New" or "N" text.
 - Cards use `rounded-xl` while controls inside them use smaller radii.
 - Cards remain one consistent height per rail.
 
@@ -281,7 +286,6 @@ Filter pills sit **inside the section they control**, directly below the header 
 | **All** | Entire catalogue |
 | **Praise** | Category contains "praise" (case-insensitive) |
 | **Worship** | Category contains "worship" (case-insensitive) |
-| **Short** | Duration equals "Short"; missing duration is treated as "Long" |
 | **New** | The same 15 newest tracks used by Recently Added |
 
 Behavior:
@@ -297,7 +301,7 @@ Behavior:
 - Up to **15** recommendations, shuffled with a filter-specific seed.
 - Rendered in groups of five, each group a vertical stack.
 - Results area reserves `min-h-[60dvh]` so short result sets do not clamp the page and shift the filter row.
-- If a filter matches nothing, a dashed panel says: "No songs match this filter yet — try another one." A **Show all** button clears the filter, and an `aria-live="polite"` line announces the matching session count.
+- If a filter matches nothing, a dashed panel says: "No songs match this filter" with a hint to try another filter. A **Show all sessions** button clears the filter, and an `aria-live="polite"` line announces the matching session count.
 - Each row plays immediately and queues the full filtered recommendation list.
 
 ---
@@ -375,7 +379,7 @@ The homepage currently implements:
 - `aria-current="true"` on the active track in all five card types.
 - Screen-reader-only "Play: " context before card content.
 - Scoped accessible names for play-all, scroll, copy, verse, and back-to-top controls.
-- `role="progressbar"` with current/max values in the hero progress card.
+- Playback progress and timing remain available in the persistent player, without a duplicate hero progress bar.
 - Arrow-key scrolling on focused rails.
 - Visible focus rings across the app (navy outline with offset; white in the dark player).
 - Coarse-pointer minimums: 44px for ordinary controls, 52px for large CTAs, 34px for dense chips/icon buttons.
@@ -385,7 +389,7 @@ The homepage currently implements:
 
 Potential accessibility follow-ups:
 
-- The hero `h1` is **dynamic** (song title, notification title, seasonal phrase), so the page's top-level heading does not consistently name the destination.
+- The hero `h1` is **dynamic** (notification title, seasonal phrase, or listening prompt), so the page's top-level heading does not consistently name the destination.
 - The statistics row packs several small links into one line; narrow screens may benefit from fewer simultaneous actions.
 - Rails are horizontal scroll regions with `tabIndex=0`; each card is separately focusable, which is correct but produces a long tab sequence on large libraries.
 
@@ -415,7 +419,7 @@ The standalone "standout" is intentionally drawn from the whole catalogue rather
 | Token / pattern | Value / behavior |
 | --- | --- |
 | `--color-accent` | `#0f172a` (near-black navy) |
-| `--color-gold` | `#404040` — monochrome by design; used for the "New" badge tint, not a warm gold |
+| `--color-ink` | `#404040` — monochrome by design; used for the "New" badge tint, not a warm accent |
 | Page background | White |
 | Card border | `border-neutral-200`, one-pixel in every state |
 | Hero radius | `rounded-xl` |
@@ -427,7 +431,7 @@ The standalone "standout" is intentionally drawn from the whole catalogue rather
 | Body font | Inter (loaded in the root layout) |
 | Animation | Lazy-section fade/rise 450ms; waveform 0.9s; scripture 10s; all disabled or reduced under reduced motion |
 
-The "gold" name is legacy; comments in `app/globals.css` document that the value is intentionally monochrome so "New" does not become a competing CTA color.
+The `ink` name reflects the value: a neutral near-black used only for the "New" badge so it does not become a competing CTA color. Navy remains the only brand accent.
 
 ---
 
@@ -442,8 +446,8 @@ Featured uses square album covers; Recently Added uses a centered square letter 
 **Why filters live inside Curated for You.**
 An earlier pattern placed filters near the top and scrolled the user to the content. The current pattern keeps cause and effect together and never moves the page under the user's finger.
 
-**Why the hero changes so much.**
-The hero is the page's primary action surface. A static welcome banner would waste the most valuable space when a listener already has a track paused, a new release available, or history to resume.
+**Why the hero is playback-aware but not a second player.**
+The banner reflects the selected song and shares repeat/timer shortcuts, while the persistent player alone owns live timing and transport controls. This keeps the banner connected to the current session without repeating durations, progress, or Pause/Resume controls.
 
 Remaining opportunities:
 
@@ -459,7 +463,7 @@ Remaining opportunities:
 | Concern | File |
 | --- | --- |
 | Page composition, sections, filters, empty/error/end states | [`app/page.js`](../../app/page.js) |
-| Hero greeting, seasonal state machine, verse capsule, progress rail | [`app/components/HomeHero.jsx`](../../app/components/HomeHero.jsx) |
+| Hero greeting, active-song context, quick features, seasonal state machine, verse capsule | [`app/components/HomeHero.jsx`](../../app/components/HomeHero.jsx) |
 | Recently Added card | [`app/components/FeaturedCard.jsx`](../../app/components/FeaturedCard.jsx) |
 | Lazy reveal behavior | [`app/components/LazySection.jsx`](../../app/components/LazySection.jsx) |
 | Loading skeleton | [`app/components/Skeleton.jsx`](../../app/components/Skeleton.jsx) |
