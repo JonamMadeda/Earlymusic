@@ -32,6 +32,13 @@ describe("shuffle all", () => {
 });
 
 describe("rail scroll arrows", () => {
+  it("keeps section headers limited to titles and rail navigation", () => {
+    expect(source).not.toContain("Play all");
+    expect(source).not.toContain("View all");
+    expect(source).not.toContain("onPlayAll");
+    expect(source).not.toContain("cta=");
+  });
+
   it("uses measured overflow and visible controls instead of hover-only arrows", () => {
     const rail = source.slice(source.indexOf("const SectionBlock"), source.indexOf("export default function Home"));
     expect(rail).toContain("new ResizeObserver(updateEdges)");
@@ -208,8 +215,8 @@ describe("homepage shelf headings", () => {
     expect(hero).not.toContain("recent sessions");
     expect(hero).not.toContain("Recently played");
     expect(hero).not.toContain("new this week");
-    expect(source).toContain('aria-label="Play all from Curated for You"');
-    expect(source).toContain('aria-label="View all from Curated for You"');
+    expect(source).not.toContain('aria-label="Play all from Curated for You"');
+    expect(source).not.toContain('aria-label="View all from Curated for You"');
     expect(source).toContain('aria-label="Filter Curated for You"');
     expect(source).toContain("scrollable worship sessions");
   });

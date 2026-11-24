@@ -11,7 +11,6 @@ import SongAvatar, { initialLetter, hashStr } from "./components/SongAvatar";
 import FeaturedCard from "./components/FeaturedCard";
 import {
   Music,
-  ArrowRight,
   ArrowUp,
   Play,
   Upload,
@@ -439,7 +438,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
   );
 };
 
-const SectionBlock = ({ id, title, subtitle = null, icon: Icon, items, onPlay, onPlayAll, cta, cardType, activeSongId, newSongIds, isHistory = false, resumeProgress = null }) => {
+const SectionBlock = ({ id, title, subtitle = null, icon: Icon, items, onPlay, cardType, activeSongId, newSongIds, isHistory = false, resumeProgress = null }) => {
   const Card = cardType === "spotify" ? SpotifyCard : cardType === "featured" ? FeaturedCard : cardType === "history" ? HistoryCard : SongRailCard;
   const scrollRef = useRef(null);
   const [edges, setEdges] = useState({ left: false, right: false });
@@ -486,25 +485,6 @@ const SectionBlock = ({ id, title, subtitle = null, icon: Icon, items, onPlay, o
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {onPlayAll && (
-            <button
-              type="button"
-              onClick={() => onPlayAll(items[0])}
-              aria-label={`Play all from ${title}`}
-              className="tap-sm inline-flex min-h-8.5 items-center gap-1.5 rounded-lg bg-accent/8 px-2.5 py-1 text-xs font-semibold text-accent transition hover:bg-accent/15"
-            >
-              <Play size={13} fill="currentColor" aria-hidden="true" /> Play all
-            </button>
-          )}
-          {cta && (
-            <Link
-              href={cta.href}
-              aria-label={`View all from ${title}`}
-              className="tap-sm inline-flex min-h-8.5 items-center gap-1 rounded-md text-xs font-semibold text-neutral-600 transition hover:text-accent"
-            >
-              View all <ArrowRight size={14} aria-hidden="true" />
-            </Link>
-          )}
           {(edges.left || edges.right) && (
             <div className="flex items-center gap-1">
               <button
@@ -847,7 +827,6 @@ export default function Home() {
                 icon={Clock}
                 items={recentlyPlayed}
                 onPlay={(song) => setActiveSong(song, recentlyPlayed)}
-                onPlayAll={(song) => setActiveSong(song, recentlyPlayed)}
                 activeSongId={activeSong?.id}
                 newSongIds={newSongIds}
                 cardType="history"
@@ -863,10 +842,8 @@ export default function Home() {
                 icon={Star}
                 items={featuredSongs}
                 onPlay={(song) => setActiveSong(song, featuredSongs)}
-                onPlayAll={(song) => setActiveSong(song, featuredSongs)}
                 activeSongId={activeSong?.id}
                 newSongIds={newSongIds}
-                cta={{ href: "/songs" }}
                 cardType="spotify"
               />
             </LazySection>
@@ -879,10 +856,8 @@ export default function Home() {
                 icon={Sparkles}
                 items={newestSongs}
                 onPlay={(song) => setActiveSong(song, newestSongs)}
-                onPlayAll={(song) => setActiveSong(song, newestSongs)}
                 activeSongId={activeSong?.id}
                 newSongIds={newSongIds}
-                cta={{ href: "/songs" }}
                 cardType="featured"
               />
             </LazySection>
@@ -895,7 +870,6 @@ export default function Home() {
                   icon={Compass}
                   items={recentlyPlayed}
                   onPlay={(song) => setActiveSong(song, recentlyPlayed)}
-                  onPlayAll={(song) => setActiveSong(song, recentlyPlayed)}
                   activeSongId={activeSong?.id}
                   newSongIds={newSongIds}
                 />
@@ -910,10 +884,8 @@ export default function Home() {
                   icon={Shuffle}
                   items={keepExploring}
                   onPlay={(song) => setActiveSong(song, keepExploring)}
-                  onPlayAll={(song) => setActiveSong(song, keepExploring)}
                   activeSongId={activeSong?.id}
                   newSongIds={newSongIds}
-                  cta={{ href: "/songs" }}
                 />
               </LazySection>
             )}
@@ -922,38 +894,13 @@ export default function Home() {
             {(recommendedSongs.length > 0 || activeFilter !== "all") && (
               <LazySection delay={150}>
                 <section id="recommended" aria-labelledby="curated-for-you-title" className="scroll-mt-24">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent/8 text-accent">
-                        <ListMusic size={13} aria-hidden="true" />
-                      </div>
-                      <div className="min-w-0">
-                        <h2 id="curated-for-you-title" className="section-title truncate">
-                          Curated for You
-                        </h2>
-                      </div>
+                  <div className="mb-3 flex min-w-0 items-center gap-2">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent/8 text-accent">
+                      <ListMusic size={13} aria-hidden="true" />
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {recommendedSongs.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveSong(recommendedSongs[0], recommendedSongs)}
-                          aria-label="Play all from Curated for You"
-                          className="tap-sm inline-flex min-h-8.5 items-center gap-1.5 rounded-lg bg-accent/8 px-2.5 py-1 text-xs font-semibold text-accent transition hover:bg-accent/15"
-                        >
-                          <Play size={13} fill="currentColor" aria-hidden="true" />
-                          Play all
-                        </button>
-                      )}
-                      <Link
-                        href="/songs"
-                        aria-label="View all from Curated for You"
-                        className="tap-sm group inline-flex min-h-8.5 items-center gap-1 rounded-md text-xs font-semibold text-neutral-600 transition hover:text-accent"
-                      >
-                        <span>View all</span>
-                        <ArrowRight size={14} aria-hidden="true" className="transition-transform group-hover:translate-x-0.5" />
-                      </Link>
-                    </div>
+                    <h2 id="curated-for-you-title" className="section-title truncate">
+                      Curated for You
+                    </h2>
                   </div>
 
                   <div className="mb-4 flex flex-wrap items-center gap-2">

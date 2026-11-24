@@ -172,14 +172,12 @@ All card rails share the same `SectionBlock` anatomy.
 ### 5.1 Section header and controls
 
 ```text
-[icon] Section title ............................ View all →
-[▶ Play all]                         [←] [→]
+[icon] Section title ............................ [←] [→]
 ```
 
 - Icon is decorative (`aria-hidden`) and neutral.
 - Title is an `h2`, connected to the section through `aria-labelledby`.
-- **View all** is optional and links to `/songs`.
-- **Play all** starts the first item and queues the entire rail. Its accessible name is scoped to the section ("Play all from Featured").
+- Section headers do not repeat bulk playback or catalogue navigation controls; individual cards remain the playback entry points.
 - **Chevrons** only render when the rail actually overflows in at least one direction.
   - They are measured live with `ResizeObserver` and `onScroll`.
   - The left/right button is disabled at the corresponding edge.
@@ -199,14 +197,14 @@ All card rails share the same `SectionBlock` anatomy.
 
 ### 5.3 Section inventory
 
-| Order | Section | ID | Icon | Card type | Source | "View all" | Condition |
-| ---: | --- | --- | --- | --- | --- | --- | --- |
-| 1 | **Continue Listening** | `recently-played` | Clock | History row | `recentlyPlayed` | — | Real history and non-empty history |
-| 2 | **Featured** | `featured-songs` | Star | Album showcase | Praise-first catalogue, shuffled | `/songs` | Catalogue non-empty |
-| 3 | **Recently Added** | `newest-songs` | Sparkles | Recently added card | 15 newest tracks | `/songs` | Catalogue non-empty |
-| 4 | **Suggested Starters** | `suggested-starters` | Compass | History row | Seeded suggestions | — | No real history, but suggestions exist |
-| 5 | **Keep Exploring** | `keep-exploring` | Shuffle | Horizontal pill | Catalogue minus Featured and Fresh, shuffled | `/songs` | Unused tracks remain |
-| 6 | **Curated for You** | `recommended` | ListMusic | Tracklist row | Filtered + shuffled catalogue | `/songs` | Recommendations exist or a non-All filter is active |
+| Order | Section | ID | Icon | Card type | Source | Condition |
+| ---: | --- | --- | --- | --- | --- | --- |
+| 1 | **Continue Listening** | `recently-played` | Clock | History row | `recentlyPlayed` | Real history and non-empty history |
+| 2 | **Featured** | `featured-songs` | Star | Album showcase | Praise-first catalogue, shuffled | Catalogue non-empty |
+| 3 | **Recently Added** | `newest-songs` | Sparkles | Recently added card | 15 newest tracks | Catalogue non-empty |
+| 4 | **Suggested Starters** | `suggested-starters` | Compass | History row | Seeded suggestions | No real history, but suggestions exist |
+| 5 | **Keep Exploring** | `keep-exploring` | Shuffle | Horizontal pill | Catalogue minus Featured and Fresh, shuffled | Unused tracks remain |
+| 6 | **Curated for You** | `recommended` | ListMusic | Tracklist row | Filtered + shuffled catalogue | Recommendations exist or a non-All filter is active |
 
 Behavioral notes:
 
@@ -272,10 +270,7 @@ This is the only homepage section with user-controlled filtering.
 ### 7.1 Header
 
 - Rounded icon tile plus "Curated for You" heading.
-- **Play all from Curated for You** starts the first visible recommendation and queues the filtered list.
-- **View all** links to `/songs`.
-
-> The action label is scoped to the section, matching the rail play-all labels.
+- The header has no bulk playback or catalogue navigation actions; playback starts from an individual recommendation row.
 
 ### 7.2 Filters
 
@@ -356,7 +351,6 @@ Only when the catalogue is non-empty:
 | Play a card | Playback starts immediately; the card becomes active everywhere |
 | Hover a card | Audio is prefetched; play affordance gains contrast |
 | Active track | Ring/border, accent title, pulsing dot or animated waveform, `aria-current` |
-| Play all | Starts the first track and queues the rail/filtered list |
 | Rail overflow | Chevrons fade in and enable only in scrollable directions |
 | Filter change | Pills update instantly; list reshuffles without page movement |
 | Copy scripture | Check icon plus screen-reader status; inline error if denied |
@@ -378,7 +372,7 @@ The homepage currently implements:
 - Real buttons for every card, not clickable divs.
 - `aria-current="true"` on the active track in all five card types.
 - Screen-reader-only "Play: " context before card content.
-- Scoped accessible names for play-all, scroll, copy, verse, and back-to-top controls.
+- Scoped accessible names for scroll, copy, verse, and back-to-top controls.
 - Playback progress and timing remain available in the persistent player, without a duplicate hero progress bar.
 - Arrow-key scrolling on focused rails.
 - Visible focus rings across the app (navy outline with offset; white in the dark player).
@@ -454,7 +448,6 @@ Remaining opportunities:
 - Distinguish **Featured** and **Keep Exploring** more strongly; both are shuffled catalogue selections with overlapping character.
 - Keep the filter result count and **Show all** reset prominent on narrow screens.
 - Decide whether the translated `h1` should remain the hero title or whether the stable "Luumbo Home — " prefix should become the whole heading.
-- Keep play-all and view-all labels consistent as section names change.
 
 ---
 

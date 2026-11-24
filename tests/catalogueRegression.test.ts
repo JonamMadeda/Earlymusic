@@ -277,7 +277,7 @@ describe("homepage navigation and recovery", () => {
     expect(song).toBe(queue[0]);
   });
 
-  it("puts real history first and plays its own queue", () => {
+  it("puts real history first and plays its own queue from a song card", () => {
     const h = harness([fixture("one"), fixture("two")]);
     h.player.recentlyPlayed = [h.player.allSongs[1]];
     h.player.hasRealHistory = true;
@@ -285,8 +285,14 @@ describe("homepage navigation and recovery", () => {
     const shelves = nodes(page.tree).filter((node) => node.props.items);
     expect(shelves[0].props.id).toBe("recently-played");
     const history = h.mount(shelves[0].type, shelves[0].props);
-    button(history.tree, " Play all").props.onClick();
+    const card = find(
+      history.tree,
+      (node) => typeof node.type === "function" && node.props.song?.id === "two"
+    );
+    card.props.onClick();
     expect(h.setActiveSong).toHaveBeenCalledWith(h.player.allSongs[1], h.player.recentlyPlayed);
+    expect(text(history.tree)).not.toContain("Play all");
+    expect(text(history.tree)).not.toContain("View all");
   });
 
   it("shows active-song context without duplicating playback controls or progress", () => {
