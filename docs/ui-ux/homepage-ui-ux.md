@@ -37,7 +37,7 @@ The homepage is rendered inside the persistent application shell; it does not ow
 | **Header** | On `/`, shows a full-width search trigger on desktop, a search icon on mobile, notification bell, and sign-in when signed out. The offline status strip appears below the header. |
 | **Main scroll container** | `#app-scroll` owns vertical scrolling, not `window`. The shell reserves bottom padding (`pb-44 md:pb-32`) for the mini-player and mobile bottom nav. |
 | **Mobile bottom nav** | Home / Songs / Library / Account. Hidden at `md+`. |
-| **Persistent player** | Mounted once in the shell. It owns playback controls and live progress; the homepage banner adds active-song context and lightweight shortcuts without becoming a second player. |
+| **Persistent player** | Mounted once in the shell. It owns playback controls and live progress; the homepage banner adds active-song context and an "Open player" link without becoming a second player. |
 | **Skip link** | Keyboard users can jump directly to `#app-scroll`. |
 
 ### Page container
@@ -115,8 +115,10 @@ Key details:
 
 ### 4.3 Typography and actions
 
-- The contextual label is small, uppercase, tracked, and accent-colored.
+- The contextual label is small, uppercase, tracked, semibold, and accent-colored.
 - The hero headline is the page's only `h1` and uses the shared `.page-title` style (20–24px, bold, tight tracking).
+- The homepage follows the app's weight ladder: bold headings and rank numerals, semibold song titles/actions/compact labels and badges, medium metadata and chips, and regular body copy. It does not introduce a heavier 900-weight tier.
+- Small letter avatars are semibold like the shared mono avatar; cover and hero artwork initials remain bold.
 - The description is capped at two lines (`line-clamp-2`) with a `max-w-md` measure.
 - Primary and secondary actions use the global `.btn-primary` / `.btn-secondary` patterns, which carry a 44px minimum height.
 - Actions wrap on narrow screens rather than overflowing.
@@ -141,16 +143,7 @@ Scripture behavior:
 - Copy uses the Clipboard API; a failure is reported inline ("Couldn't copy — select the verse and copy it by hand.") instead of being swallowed.
 - A screen-reader `role="status"` announces successful copies.
 
-### 4.5 Quick features
-
-Two lightweight controls keep the banner connected to listening without duplicating the player:
-
-- **Repeat All** repeats the current queue when it reaches the end (`repeatMode: "all"`) and exposes its state through `aria-pressed` plus an "On" or "Off" label.
-- **Worship Timer** offers 15-, 30-, 45-, and 60-minute presets. While active, it shows the remaining minutes and a cancel action. The menu closes on selection, outside pointer press, or Escape.
-
-These controls share the player's repeat and sleep-timer state, so changes made here and in the persistent player stay in sync.
-
-### 4.6 Statistics and shortcut row
+### 4.5 Statistics and shortcut row
 
 When data is loaded and the catalogue is non-empty, the hero shows one compact metadata row:
 
@@ -202,7 +195,7 @@ All card rails share the same `SectionBlock` anatomy.
 | 1 | **Continue Listening** | `recently-played` | Clock | History row | `recentlyPlayed` | Real history and non-empty history |
 | 2 | **Featured** | `featured-songs` | Star | Album showcase | Praise-first catalogue, shuffled | Catalogue non-empty |
 | 3 | **Recently Added** | `newest-songs` | Sparkles | Recently added card | 15 newest tracks | Catalogue non-empty |
-| 4 | **Suggested Starters** | `suggested-starters` | Compass | History row | Seeded suggestions | No real history, but suggestions exist |
+| 4 | **Suggested Starters** | `suggested-starters` | Compass | Compact rail card with navy letter tile | Seeded suggestions | No real history, but suggestions exist |
 | 5 | **Keep Exploring** | `keep-exploring` | Shuffle | Horizontal pill | Catalogue minus Featured and Fresh, shuffled | Unused tracks remain |
 | 6 | **Curated for You** | `recommended` | ListMusic | Tracklist row | Filtered + shuffled catalogue | Recommendations exist or a non-All filter is active |
 
@@ -246,17 +239,18 @@ Every card is a real `<button>`, so it is keyboard reachable by default. Each ca
 
 | Card | Used in | Shape and size | Visual language | Active state |
 | --- | --- | --- | --- | --- |
-| **SongRailCard** | Keep Exploring | Horizontal pill; `74vw` / 260px / 275px | Mono letter avatar, title, artist, tinted play chip | Accent border and inset ring, accent title, pulsing dot, filled play chip |
-| **SpotifyCard** | Featured | Vertical cover card; 160px / 184px | Square navy "cover" with category badge, large initial, retro grooves, white play circle | Accent border/ring, accent title, pulsing white dot |
-| **FeaturedCard** | Recently Added | Vertical centered card; 152px / 168px | Freshness stamp ("2d ago"), rounded letter artwork, overlapping play trigger | Accent border/ring, filled accent artwork, animated waveform, accent title |
-| **RecommendationCard** | Curated for You | Full-width row | Two-digit index, avatar, title/artist, category chip on `sm+`, play chip | Waveform replaces index, accent ring, accent title |
-| **HistoryCard** | Continue Listening / Suggested Starters | Horizontal row; `min(80vw, 320px)` | Index, navy letter avatar, title/artist, "Last played" on first row | Waveform replaces index, accent border and tint, filled play chip |
+| **SongRailCard** | Keep Exploring / Suggested Starters | Horizontal pill; `74vw` / 260px / 275px | Mono letter avatar (navy in Suggested Starters), title, artist, tinted play chip | Accent border and inset ring, accent title, soft pulsing dot, filled play chip |
+| **SpotifyCard** | Featured | Vertical cover card; 160px / 184px | Square navy "cover" with category badge, large initial, retro grooves, white play circle | Accent border/ring, accent title, soft pulsing white dot |
+| **FeaturedCard** | Recently Added | Vertical centered card; 152px / 168px | Freshness stamp ("2d ago"), rounded letter artwork, overlapping play trigger | Accent border/ring, filled accent artwork, soft pulsing dot, accent title |
+| **RecommendationCard** | Curated for You | Full-width row | Two-digit index, avatar, title/artist, category chip on `sm+`, play chip | Soft pulsing dot replaces index, accent ring, accent title |
+| **HistoryCard** | Continue Listening | Horizontal row; `min(80vw, 320px)` | Index, navy letter avatar, title/artist, "Last played" on first row | Soft pulsing dot replaces index, accent border and tint, filled play chip |
 
 Shared card rules:
 
-- Titles are single-line and truncated; the artist line never drifts because a title wraps.
+- Titles are single-line, truncated, and semibold; the artist line never drifts because a title wraps.
+- "New" badges are semibold; duration, posture, and artist metadata stay medium so they do not compete with titles.
 - Borders stay one pixel in every state to avoid layout shift.
-- The active state uses **more than color**: ring, filled control, pulsing dot or waveform, and `aria-current`.
+- The active state uses **more than color**: ring, filled control, one soft pulsing dot, and `aria-current`.
 - "New" badges use the `ink` token, a monochrome near-black tint rather than a warm accent; the badge also carries explicit "New" or "N" text.
 - Cards use `rounded-xl` while controls inside them use smaller radii.
 - Cards remain one consistent height per rail.
@@ -350,7 +344,7 @@ Only when the catalogue is non-empty:
 | --- | --- |
 | Play a card | Playback starts immediately; the card becomes active everywhere |
 | Hover a card | Audio is prefetched; play affordance gains contrast |
-| Active track | Ring/border, accent title, pulsing dot or animated waveform, `aria-current` |
+| Active track | Ring/border, accent title, soft pulsing dot, `aria-current` |
 | Rail overflow | Chevrons fade in and enable only in scrollable directions |
 | Filter change | Pills update instantly; list reshuffles without page movement |
 | Copy scripture | Check icon plus screen-reader status; inline error if denied |
@@ -423,7 +417,7 @@ The standalone "standout" is intentionally drawn from the whole catalogue rather
 | Rail headings | `.section-title` — 16px, 18px at `sm+` |
 | Body/metadata | 14px titles, 12px artist/metadata, 10px labels in tight spaces |
 | Body font | Inter (loaded in the root layout) |
-| Animation | Lazy-section fade/rise 450ms; waveform 0.9s; scripture 10s; all disabled or reduced under reduced motion |
+| Animation | Lazy-section fade/rise 450ms; active-song pulse 1.4s; scripture 10s; all disabled or reduced under reduced motion |
 
 The `ink` name reflects the value: a neutral near-black used only for the "New" badge so it does not become a competing CTA color. Navy remains the only brand accent.
 
@@ -441,7 +435,7 @@ Featured uses square album covers; Recently Added uses a centered square letter 
 An earlier pattern placed filters near the top and scrolled the user to the content. The current pattern keeps cause and effect together and never moves the page under the user's finger.
 
 **Why the hero is playback-aware but not a second player.**
-The banner reflects the selected song and shares repeat/timer shortcuts, while the persistent player alone owns live timing and transport controls. This keeps the banner connected to the current session without repeating durations, progress, or Pause/Resume controls.
+The banner reflects the selected song and links back to the persistent player, which alone owns live timing and transport controls. This keeps the banner connected to the current session without repeating durations, progress, or Pause/Resume controls.
 
 Remaining opportunities:
 
@@ -456,7 +450,7 @@ Remaining opportunities:
 | Concern | File |
 | --- | --- |
 | Page composition, sections, filters, empty/error/end states | [`app/page.js`](../../app/page.js) |
-| Hero greeting, active-song context, quick features, seasonal state machine, verse capsule | [`app/components/HomeHero.jsx`](../../app/components/HomeHero.jsx) |
+| Hero greeting, active-song context, seasonal state machine, verse capsule | [`app/components/HomeHero.jsx`](../../app/components/HomeHero.jsx) |
 | Recently Added card | [`app/components/FeaturedCard.jsx`](../../app/components/FeaturedCard.jsx) |
 | Lazy reveal behavior | [`app/components/LazySection.jsx`](../../app/components/LazySection.jsx) |
 | Loading skeleton | [`app/components/Skeleton.jsx`](../../app/components/Skeleton.jsx) |

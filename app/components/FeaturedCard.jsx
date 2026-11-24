@@ -52,12 +52,10 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
             {added || (isNew ? "New" : "Fresh")}
           </span>
           {isActive && (
-            <span aria-hidden="true" className="flex h-2 w-2 rounded-full bg-accent">
-              <span aria-hidden="true" className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-50" />
-            </span>
+            <span aria-hidden="true" className="playing-pulse h-2 w-2 rounded-full bg-accent" />
           )}
           {!isActive && isNew && (
-            <span className="shrink-0 rounded bg-ink px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider text-white">
+            <span className="shrink-0 rounded bg-ink px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none tracking-wider text-white">
               New
             </span>
           )}
@@ -73,7 +71,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
         {/* Bottom Bar: Duration tag & play trigger */}
         <div className="z-10 flex items-center justify-between">
           {length ? (
-            <span className="flex items-center gap-1 rounded bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-neutral-700">
+            <span className="flex items-center gap-1 rounded bg-white/80 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-neutral-700">
               <Clock size={10} className="text-neutral-500" aria-hidden="true" />
               {length}
             </span>
@@ -97,7 +95,7 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
             keeps its stable height. */}
         <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-neutral-500">
           {length && (
-            <span className="shrink-0 font-semibold tabular-nums text-neutral-600">
+            <span className="shrink-0 font-medium tabular-nums text-neutral-600">
               <span className="sr-only">Length: </span>
               {length}
             </span>

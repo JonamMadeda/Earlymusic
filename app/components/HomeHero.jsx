@@ -18,8 +18,6 @@ import {
   Star,
   Sun,
   Sunrise,
-  Sparkles,
-  X,
 } from "lucide-react";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
@@ -61,10 +59,10 @@ const addedLabel = (dateStr, now) => {
 // surface, and calling them inline keeps the whole tree visible to tests that
 // walk page.js without a DOM.
 const heroArtwork = ({ title, badge = "" }) => (
-  <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-neutral-800 bg-[#0f172a] text-2xl font-black text-white shadow-sm retro-grooves">
+  <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-neutral-800 bg-[#0f172a] text-2xl font-bold text-white shadow-sm retro-grooves">
     {initialLetter(title)}
     {badge && (
-      <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-md bg-ink px-1 text-[10px] font-bold uppercase tracking-wider text-white ring-2 ring-white">
+      <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-md bg-ink px-1 text-[10px] font-semibold uppercase tracking-wider text-white ring-2 ring-white">
         {badge}
       </span>
     )}
@@ -75,7 +73,7 @@ const newCard = ({ title, label, description }) => (
   <div className="flex min-w-0 items-center gap-3">
     {heroArtwork({ title, badge: "N" })}
     <div className="min-w-0">
-      <p className="text-[10px] font-bold uppercase leading-none tracking-wider text-accent">
+      <p className="text-[10px] font-semibold uppercase leading-none tracking-wider text-accent">
         {label}
       </p>
       <p className="mt-1 truncate text-sm font-semibold leading-5 text-neutral-900">{title}</p>
@@ -90,7 +88,7 @@ const standoutCard = ({ song, onPlay }) => {
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
-      <div className="flex items-center justify-between text-[10px] font-bold uppercase leading-none tracking-wider text-neutral-500">
+      <div className="flex items-center justify-between text-[10px] font-semibold uppercase leading-none tracking-wider text-neutral-500">
         <span className="flex items-center gap-1.5">
           <Star size={10} aria-hidden="true" />
           Standout Station
@@ -148,7 +146,7 @@ const verseCard = ({
         <p className="line-clamp-2 text-xs italic leading-snug text-neutral-700">
           “{verse.text}”
         </p>
-        <p className="mt-0.5 text-xs font-bold text-accent">{verse.ref}</p>
+        <p className="mt-0.5 text-xs font-semibold text-accent">{verse.ref}</p>
         {copyState === "failed" && (
           <p role="alert" className="mt-1 text-xs font-semibold text-red-600">
             Couldn’t copy — select the verse and copy it by hand.
@@ -249,13 +247,7 @@ export default function HomeHero({
     recentlyPlayed,
     hasRealHistory,
     requestOpenPlayer,
-    repeatMode,
-    setRepeatMode,
-    sleepTimerRemaining,
-    setSleepTimer,
-    cancelSleepTimer,
   } = usePlayer();
-  const [timerMenuOpen, setTimerMenuOpen] = useState(false);
   const { user, profile, loading: authLoading } = useAuth();
   const { items, unread, unreadIds, dismissedIds } = useNotificationFeed();
 
@@ -294,27 +286,6 @@ export default function HomeHero({
     const interval = setInterval(tick, 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    if (!timerMenuOpen) return;
-    const handleDown = (e) => {
-      if (
-        !e.target.closest('[role="dialog"]') &&
-        !e.target.closest('[aria-label="Set worship timer"]')
-      ) {
-        setTimerMenuOpen(false);
-      }
-    };
-    const handleKey = (e) => {
-      if (e.key === "Escape") setTimerMenuOpen(false);
-    };
-    document.addEventListener("pointerdown", handleDown);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("pointerdown", handleDown);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [timerMenuOpen]);
 
   const newThisWeek = useMemo(() => {
     if (now == null) return [];
@@ -600,7 +571,7 @@ export default function HomeHero({
               )}
             </span>
             {season.label && (
-              <span className="inline-flex items-center rounded border border-accent/15 bg-accent/[0.04] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
+              <span className="inline-flex items-center rounded border border-accent/15 bg-accent/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-accent">
                 {season.label}
               </span>
             )}
@@ -608,7 +579,7 @@ export default function HomeHero({
 
           <div>
             {heroContent.label && (
-              <p className="text-[10px] font-bold uppercase leading-none tracking-wider text-accent">
+              <p className="text-[10px] font-semibold uppercase leading-none tracking-wider text-accent">
                 {heroContent.label}
               </p>
             )}
@@ -630,83 +601,6 @@ export default function HomeHero({
             >
               Browse songs <ArrowRight size={14} aria-hidden="true" />
             </Link>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setRepeatMode(repeatMode === "all" ? "off" : "all")}
-              aria-pressed={repeatMode === "all"}
-              title={repeatMode === "all" ? "Disable Repeat All" : "Enable Repeat All (repeats the current queue)"}
-              className={`tap-sm inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all ${
-                repeatMode === "all"
-                  ? "border border-accent/25 bg-accent/10 text-accent ring-1 ring-inset ring-accent/20"
-                  : "border border-neutral-200 bg-white/80 text-neutral-600 hover:border-neutral-300 hover:bg-white"
-              }`}
-            >
-              <Sparkles size={12} className={repeatMode === "all" ? "text-accent" : "text-neutral-400"} aria-hidden="true" />
-              <span>Repeat All: {repeatMode === "all" ? "On" : "Off"}</span>
-            </button>
-
-            <div className="relative">
-              {sleepTimerRemaining > 0 ? (
-                <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-ink/30 bg-ink/10 px-2.5 py-1 text-xs font-semibold text-ink">
-                  <Clock size={12} className="text-ink" aria-hidden="true" />
-                  <span>Timer: {Math.max(1, Math.ceil(sleepTimerRemaining / 60000))}m left</span>
-                  <button
-                    type="button"
-                    onClick={() => cancelSleepTimer?.()}
-                    aria-label="Cancel worship timer"
-                    className="ml-0.5 rounded-full p-0.5 hover:bg-ink/20 text-ink transition"
-                  >
-                    <X size={12} aria-hidden="true" />
-                  </button>
-                </span>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setTimerMenuOpen((prev) => !prev)}
-                    aria-expanded={timerMenuOpen}
-                    aria-label="Set worship timer"
-                    className="tap-sm inline-flex min-h-8 items-center gap-1.5 rounded-full border border-neutral-200 bg-white/80 px-2.5 py-1 text-xs font-semibold text-neutral-600 hover:border-neutral-300 hover:bg-white"
-                  >
-                    <Clock size={12} className="text-neutral-400" aria-hidden="true" />
-                    <span>Worship Timer</span>
-                  </button>
-                  {timerMenuOpen && (
-                    <div
-                      role="dialog"
-                      aria-label="Worship timer options"
-                      className="absolute left-0 top-full z-30 mt-1.5 flex w-44 flex-col rounded-xl border border-neutral-200 bg-white p-1.5 shadow-lg"
-                    >
-                      <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-                        Timer Duration
-                      </div>
-                      {[
-                        { label: "15 min (Altar)", mins: 15 },
-                        { label: "30 min (Devotion)", mins: 30 },
-                        { label: "45 min (Soaking)", mins: 45 },
-                        { label: "60 min (Vigil)", mins: 60 },
-                      ].map((preset) => (
-                        <button
-                          key={preset.mins}
-                          type="button"
-                          onClick={() => {
-                            setSleepTimer(preset.mins);
-                            setTimerMenuOpen(false);
-                          }}
-                          className="flex items-center justify-between rounded-lg px-2 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-100"
-                        >
-                          <span>{preset.label}</span>
-                          <span className="text-[10px] text-neutral-500 tabular-nums">{preset.mins}m</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
           </div>
 
           {!isLoading && stats.total > 0 && (

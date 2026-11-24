@@ -88,7 +88,7 @@ const cardMetaLine = ({
   return (
     <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-4 text-neutral-500">
       {cue && (
-        <span className={`shrink-0 font-semibold tabular-nums ${cueTone}`}>
+        <span className={`shrink-0 font-medium tabular-nums ${cueTone}`}>
           <span className="sr-only">{cueLabel}</span>
           {cue}
         </span>
@@ -102,7 +102,7 @@ const cardMetaLine = ({
       ) : (
         // Curated rows already show the posture as a chip on sm+, so leave the
         // posture to that single chip and keep the artist line visible here.
-        <span className="min-w-0 truncate">
+        <span className="min-w-0 truncate font-medium">
           <span className="sr-only">by </span>
           {song.author || "Unknown artist"}
         </span>
@@ -138,7 +138,7 @@ const ScrollToTop = ({ visible, hasPlayer }) => {
 
 // Horizontal pill card (Used in Continue Listening / rails)
 // "New" badge is rank-based (recent 15) — parent passes isNew explicitly.
-const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
+const SongRailCard = ({ song, onClick, isActive, isNew = false, navyArtwork = false }) => {
   const length = homepageLengthLabel(song);
 
   return (
@@ -155,12 +155,14 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
     >
       <span className="sr-only">Play: </span>
       <div className="relative shrink-0">
-        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-neutral-300 bg-neutral-100 text-base font-bold text-accent shadow-2xs">
+        <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border text-base font-semibold shadow-2xs ${
+          navyArtwork
+            ? "border-neutral-800 bg-[#0f172a] text-white"
+            : "border-neutral-300 bg-neutral-100 text-accent"
+        }`}>
           {initialLetter(song.title)}
           {isActive && (
-            <span aria-hidden="true" className="absolute -top-1 -right-1 flex h-2 w-2 rounded-full bg-accent">
-              <span aria-hidden="true" className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-50" />
-            </span>
+            <span aria-hidden="true" className={`playing-pulse absolute -top-1 -right-1 h-2 w-2 rounded-full ${navyArtwork ? "bg-white" : "bg-accent"}`} />
           )}
         </div>
       </div>
@@ -171,7 +173,7 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="shrink-0 rounded bg-ink/10 px-1.5 py-0.5 text-[10px] font-normal uppercase leading-none tracking-wider text-ink">
+            <span className="shrink-0 rounded bg-ink/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wider text-ink">
               New
             </span>
           )}
@@ -222,9 +224,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
             {postureTag}
           </span>
           {isActive && (
-            <span aria-hidden="true" className="flex h-2 w-2 rounded-full bg-white">
-              <span aria-hidden="true" className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
-            </span>
+            <span aria-hidden="true" className="playing-pulse h-2 w-2 rounded-full bg-white" />
           )}
         </div>
 
@@ -238,7 +238,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
         {/* Bottom Bar: Duration tag & play trigger */}
         <div className="z-10 flex items-center justify-between">
           {length ? (
-            <span className="flex items-center gap-1 rounded bg-black/45 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white/90 backdrop-blur-xs">
+            <span className="flex items-center gap-1 rounded bg-black/45 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90 backdrop-blur-xs">
               <Clock size={10} className="text-white/70" aria-hidden="true" />
               {length}
             </span>
@@ -256,7 +256,7 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
             {song.title}
           </p>
           {isNew && (
-            <span className="shrink-0 rounded bg-ink/10 px-1 py-0.5 text-[10px] font-normal uppercase leading-none tracking-wider text-ink">
+            <span className="shrink-0 rounded bg-ink/10 px-1 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wider text-ink">
               New
             </span>
           )}
@@ -287,9 +287,9 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
       <span className="sr-only">Play: </span>
       <div className="w-5 shrink-0 text-center">
         {isActive ? (
-          <div aria-hidden="true" className="waveform text-accent flex h-3.5 justify-center items-end">
-            <span /><span /><span /><span />
-          </div>
+          <span aria-hidden="true" className="inline-flex h-3.5 w-5 items-center justify-center">
+            <span className="playing-pulse h-2.5 w-2.5 rounded-full bg-accent" />
+          </span>
         ) : (
           <span className="text-xs font-bold text-neutral-500 group-hover:hidden">
             {String(index + 1).padStart(2, "0")}
@@ -300,7 +300,7 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
         )}
       </div>
 
-      <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neutral-300 bg-neutral-100 text-sm font-bold text-accent shadow-2xs">
+      <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neutral-300 bg-neutral-100 text-sm font-semibold text-accent shadow-2xs">
         {initialLetter(song.title)}
       </div>
 
@@ -317,12 +317,12 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
       {(posture || length) && (
         <span className="flex shrink-0 items-center gap-2">
           {posture && (
-            <span className="hidden shrink-0 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-semibold leading-none text-neutral-600 sm:inline-block">
+            <span className="hidden shrink-0 rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-medium leading-none text-neutral-600 sm:inline-block">
               {posture}
             </span>
           )}
           {length && (
-            <span className="flex shrink-0 items-center gap-1 rounded bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold leading-4 tabular-nums text-neutral-700">
+            <span className="flex shrink-0 items-center gap-1 rounded bg-neutral-100 px-2 py-0.5 text-[11px] font-medium leading-4 tabular-nums text-neutral-700">
               <Clock size={10} className="text-neutral-500" aria-hidden="true" />
               <span className="sr-only">Length: </span>
               {length}
@@ -346,8 +346,8 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
 const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory = true, resumeProgress = null }) => {
   const length = homepageLengthLabel(song);
   // The Player writes a resume snapshot on pause and on the way out; the page
-  // hands it to the row it belongs to. A row playing right now shows its
-  // waveform instead, so the cue only marks a genuinely paused session.
+  // hands it to the row it belongs to. The active row shows its indicator
+  // instead, so the cue only marks a genuinely paused session.
   const resume = !isActive && resumeProgress?.songId === song.id ? resumeProgress : null;
   const total = toSeconds(song.duration);
   const remaining =
@@ -377,11 +377,11 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
       <div className="flex w-full items-center gap-2.5">
         <div className="w-7 shrink-0 text-center">
           {isActive ? (
-            <div aria-hidden="true" className="waveform text-accent flex h-3.5 justify-center items-end">
-              <span /><span /><span /><span />
-            </div>
+            <span aria-hidden="true" className="inline-flex h-3.5 w-7 items-center justify-center">
+              <span className="playing-pulse h-2.5 w-2.5 rounded-full bg-accent" />
+            </span>
           ) : (
-            <span className="text-xs font-black tabular-nums text-neutral-600 group-hover:hidden">
+            <span className="text-xs font-bold tabular-nums text-neutral-600 group-hover:hidden">
               {String(index + 1).padStart(2, "0")}
             </span>
           )}
@@ -403,7 +403,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
               </span>
             )}
             {isNew && (
-              <span className="shrink-0 rounded bg-ink/10 px-1 py-0.5 text-[10px] font-normal uppercase leading-none tracking-wider text-ink">
+              <span className="shrink-0 rounded bg-ink/10 px-1 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wider text-ink">
                 New
               </span>
             )}
@@ -438,7 +438,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
   );
 };
 
-const SectionBlock = ({ id, title, subtitle = null, icon: Icon, items, onPlay, cardType, activeSongId, newSongIds, isHistory = false, resumeProgress = null }) => {
+const SectionBlock = ({ id, title, subtitle = null, icon: Icon, items, onPlay, cardType, activeSongId, newSongIds, isHistory = false, resumeProgress = null, navyArtwork = false }) => {
   const Card = cardType === "spotify" ? SpotifyCard : cardType === "featured" ? FeaturedCard : cardType === "history" ? HistoryCard : SongRailCard;
   const scrollRef = useRef(null);
   const [edges, setEdges] = useState({ left: false, right: false });
@@ -526,7 +526,7 @@ const SectionBlock = ({ id, title, subtitle = null, icon: Icon, items, onPlay, c
         className="flex snap-x snap-mandatory scroll-px-1 gap-3.5 overflow-x-auto overscroll-x-contain px-1 py-2 -mx-1 -my-2 no-scrollbar"
       >
         {items.map((song, index) => (
-          <Card key={song.id} song={song} index={index} isHistory={isHistory} isActive={song.id === activeSongId} isNew={newSongIds?.has(song.id) || false} resumeProgress={resumeProgress} onClick={() => onPlay(song)} />
+          <Card key={song.id} song={song} index={index} isHistory={isHistory} isActive={song.id === activeSongId} isNew={newSongIds?.has(song.id) || false} resumeProgress={resumeProgress} navyArtwork={navyArtwork} onClick={() => onPlay(song)} />
         ))}
         {/* Trailing room lets the final card settle fully inside the rail
             instead of ending flush against the right edge. */}
@@ -872,6 +872,7 @@ export default function Home() {
                   onPlay={(song) => setActiveSong(song, recentlyPlayed)}
                   activeSongId={activeSong?.id}
                   newSongIds={newSongIds}
+                  navyArtwork
                 />
               </LazySection>
             )}

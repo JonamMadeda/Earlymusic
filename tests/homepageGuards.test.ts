@@ -51,6 +51,37 @@ describe("rail scroll arrows", () => {
   });
 });
 
+describe("homepage active song motion", () => {
+  it("uses one soft pulse instead of pings or equalizer bars", () => {
+    for (const cardSource of [source, featuredCard]) {
+      expect(cardSource).toContain("playing-pulse");
+      expect(cardSource).not.toContain("animate-ping");
+      expect(cardSource).not.toContain("waveform");
+    }
+  });
+});
+
+describe("homepage typography weights", () => {
+  it("uses the app weight ladder without extra-heavy or normal badge text", () => {
+    for (const cardSource of [source, featuredCard, hero]) {
+      expect(cardSource).not.toMatch(/font-(black|normal)\b/);
+    }
+    expect(source).toContain("text-[10px] font-semibold uppercase leading-none tracking-wider text-ink");
+    expect(hero).toContain("text-[10px] font-semibold uppercase");
+    expect(hero).toContain("text-2xl font-bold text-white");
+  });
+
+  it("keeps compact metadata medium and rank numerals bold", () => {
+    const metadata = source.slice(source.indexOf("const cardMetaLine"), source.indexOf("const ScrollToTop"));
+    expect(metadata).toContain("shrink-0 font-medium tabular-nums");
+    expect(metadata).toContain("min-w-0 truncate font-medium");
+    expect(featuredCard).toContain("shrink-0 font-medium tabular-nums");
+    expect(featuredCard).toContain("text-[9px] font-semibold uppercase");
+    expect(source).toContain("text-xs font-bold tabular-nums text-neutral-600");
+    expect(source).not.toContain("text-[11px] font-semibold leading-4 tabular-nums");
+  });
+});
+
 describe("homepage card duration tags", () => {
   it("uses the tag-free length helper on every homepage card", () => {
     expect(source).not.toContain("sessionLengthLabel(");
@@ -81,7 +112,7 @@ describe("homepage section artwork themes", () => {
     expect(spotify).toContain('backgroundColor: "#0f172a"');
   });
 
-  it("uses the app's neutral artwork treatment in the other homepage sections", () => {
+  it("keeps the app's neutral artwork treatment in the other homepage sections", () => {
     const rail = source.slice(
       source.indexOf("const SongRailCard"),
       source.indexOf("const SpotifyCard")
@@ -94,7 +125,7 @@ describe("homepage section artwork themes", () => {
       source.indexOf("const HistoryCard"),
       source.indexOf("const SectionBlock")
     );
-    for (const card of [rail, recommendation, history]) {
+    for (const card of [recommendation, history]) {
       expect(card).not.toContain('bg-[#0f172a]');
       expect(card).not.toContain('backgroundColor: "#0f172a"');
     }
@@ -106,6 +137,25 @@ describe("homepage section artwork themes", () => {
     expect(featuredCard).not.toContain("#0f172a");
     expect(featuredCard).toContain("border-neutral-300 bg-neutral-100");
     expect(featuredCard).toContain("text-accent");
+  });
+
+  it("uses navy letter tiles only for Suggested Starters", () => {
+    const rail = source.slice(
+      source.indexOf("const SongRailCard"),
+      source.indexOf("const SpotifyCard")
+    );
+    const suggested = source.slice(
+      source.indexOf('id="suggested-starters"'),
+      source.indexOf('id="keep-exploring"')
+    );
+    const exploring = source.slice(
+      source.indexOf('id="keep-exploring"'),
+      source.indexOf('id="recommended"')
+    );
+    expect(rail).toContain('border-neutral-800 bg-[#0f172a] text-white');
+    expect(rail).toContain('navyArtwork ? "bg-white" : "bg-accent"');
+    expect(suggested).toContain("navyArtwork");
+    expect(exploring).not.toContain("navyArtwork");
   });
 });
 
@@ -258,25 +308,23 @@ describe("homepage banner", () => {
     expect(hero).not.toContain("border-neutral-200 bg-white p-4");
   });
 
-  it("keeps live playback UI in the persistent player while retaining quick links", () => {
+  it("keeps playback controls in the persistent player without hero duplicates", () => {
     for (const duplicate of [
       "usePlaybackStatus",
       "progressCard",
       'role="progressbar"',
       "requestTogglePlay",
       "formatTime",
+      "Repeat All",
+      "Worship Timer",
+      "repeatMode",
+      "setSleepTimer",
+      "timerMenuOpen",
     ]) {
       expect(hero, `duplicate player UI: ${duplicate}`).not.toContain(duplicate);
     }
     expect(hero).toContain('label: "In your player"');
     expect(hero).toContain("requestOpenPlayer");
-    expect(hero).toContain("Repeat All");
-    expect(hero).toContain("Worship Timer");
-  });
-
-  it("does not clip the worship timer menu inside the banner", () => {
-    const section = hero.slice(hero.indexOf("<section"), hero.indexOf("</section>"));
-    expect(section).not.toContain("overflow-hidden");
   });
 });
 
