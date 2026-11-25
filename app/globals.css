@@ -418,15 +418,6 @@ input[type="range"].seek-bar {
   animation-play-state: paused;
 }
 
-@keyframes playingPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.playing-pulse {
-  animation: playingPulse 1.4s ease-in-out infinite;
-}
-
 /* Animated waveform equalizer */
 @keyframes waveBar {
   0%, 100% { transform: scaleY(0.35); }
@@ -556,10 +547,6 @@ input[type="range"].seek-bar {
   }
 
   .vinyl-spin {
-    animation: none;
-  }
-
-  .playing-pulse {
     animation: none;
   }
 

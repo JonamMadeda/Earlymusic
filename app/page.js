@@ -161,9 +161,6 @@ const SongRailCard = ({ song, onClick, isActive, isNew = false, navyArtwork = fa
             : "border-neutral-300 bg-neutral-100 text-accent"
         }`}>
           {initialLetter(song.title)}
-          {isActive && (
-            <span aria-hidden="true" className={`playing-pulse absolute -top-1 -right-1 h-2 w-2 rounded-full ${navyArtwork ? "bg-white" : "bg-accent"}`} />
-          )}
         </div>
       </div>
 
@@ -223,9 +220,6 @@ const SpotifyCard = ({ song, onClick, isActive, isNew = false }) => {
           <span className="max-w-[75%] truncate rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
             {postureTag}
           </span>
-          {isActive && (
-            <span aria-hidden="true" className="playing-pulse h-2 w-2 rounded-full bg-white" />
-          )}
         </div>
 
         {/* Big Crisp Letter Centerpiece */}
@@ -286,15 +280,9 @@ const RecommendationCard = ({ song, index, onClick, isActive }) => {
     >
       <span className="sr-only">Play: </span>
       <div className="w-5 shrink-0 text-center">
-        {isActive ? (
-          <span aria-hidden="true" className="inline-flex h-3.5 w-5 items-center justify-center">
-            <span className="playing-pulse h-2.5 w-2.5 rounded-full bg-accent" />
-          </span>
-        ) : (
-          <span className="text-xs font-bold text-neutral-500 group-hover:hidden">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-        )}
+        <span className={isActive ? "text-xs font-bold text-neutral-500" : "text-xs font-bold text-neutral-500 group-hover:hidden"}>
+          {String(index + 1).padStart(2, "0")}
+        </span>
         {!isActive && (
           <Play size={11} fill="currentColor" className="hidden text-accent group-hover:inline ml-0.5" />
         )}
@@ -376,15 +364,9 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
       <span className="sr-only">Play: </span>
       <div className="flex w-full items-center gap-2.5">
         <div className="w-7 shrink-0 text-center">
-          {isActive ? (
-            <span aria-hidden="true" className="inline-flex h-3.5 w-7 items-center justify-center">
-              <span className="playing-pulse h-2.5 w-2.5 rounded-full bg-accent" />
-            </span>
-          ) : (
-            <span className="text-xs font-bold tabular-nums text-neutral-600 group-hover:hidden">
-              {String(index + 1).padStart(2, "0")}
-            </span>
-          )}
+          <span className={isActive ? "text-xs font-bold tabular-nums text-neutral-600" : "text-xs font-bold tabular-nums text-neutral-600 group-hover:hidden"}>
+            {String(index + 1).padStart(2, "0")}
+          </span>
           {!isActive && (
             <Play size={11} fill="currentColor" className="hidden text-accent group-hover:inline ml-1.5" />
           )}

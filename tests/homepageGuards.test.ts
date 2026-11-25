@@ -52,9 +52,9 @@ describe("rail scroll arrows", () => {
 });
 
 describe("homepage active song motion", () => {
-  it("uses one soft pulse instead of pings or equalizer bars", () => {
+  it("marks the active card without a pulsing dot or equalizer bars", () => {
     for (const cardSource of [source, featuredCard]) {
-      expect(cardSource).toContain("playing-pulse");
+      expect(cardSource).not.toContain("playing-pulse");
       expect(cardSource).not.toContain("animate-ping");
       expect(cardSource).not.toContain("waveform");
     }
@@ -153,7 +153,7 @@ describe("homepage section artwork themes", () => {
       source.indexOf('id="recommended"')
     );
     expect(rail).toContain('border-neutral-800 bg-[#0f172a] text-white');
-    expect(rail).toContain('navyArtwork ? "bg-white" : "bg-accent"');
+    expect(rail).not.toContain("playing-pulse");
     expect(suggested).toContain("navyArtwork");
     expect(exploring).not.toContain("navyArtwork");
   });

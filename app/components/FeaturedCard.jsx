@@ -51,9 +51,6 @@ const FeaturedCard = ({ song, onClick, isActive, isNew = false }) => {
           <span className="max-w-[75%] truncate rounded border border-neutral-300 bg-white/70 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-600">
             {added || (isNew ? "New" : "Fresh")}
           </span>
-          {isActive && (
-            <span aria-hidden="true" className="playing-pulse h-2 w-2 rounded-full bg-accent" />
-          )}
           {!isActive && isNew && (
             <span className="shrink-0 rounded bg-ink px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none tracking-wider text-white">
               New

@@ -240,18 +240,18 @@ Every card is a real `<button>`, so it is keyboard reachable by default. Each ca
 
 | Card | Used in | Shape and size | Visual language | Active state |
 | --- | --- | --- | --- | --- |
-| **SongRailCard** | Keep Exploring / Suggested Starters | Horizontal pill; `74vw` / 260px / 275px | Mono letter avatar (navy in Suggested Starters), title, artist, tinted play chip | Accent border and inset ring, accent title, soft pulsing dot, filled play chip |
-| **SpotifyCard** | Featured | Vertical cover card; 160px / 184px | Square navy "cover" with category badge, large initial, retro grooves, white play circle | Accent border/ring, accent title, soft pulsing white dot |
-| **FeaturedCard** | Recently Added | Vertical centered card; 152px / 168px | Freshness stamp ("2d ago"), rounded letter artwork, overlapping play trigger | Accent border/ring, filled accent artwork, soft pulsing dot, accent title |
-| **RecommendationCard** | Curated for You | Full-width row | Two-digit index, avatar, title/artist, category chip on `sm+`, play chip | Soft pulsing dot replaces index, accent ring, accent title |
-| **HistoryCard** | Continue Listening | Horizontal row; `min(80vw, 320px)` | Index, navy letter avatar, title/artist, "Last played" on first row | Soft pulsing dot replaces index, accent border and tint, filled play chip |
+| **SongRailCard** | Keep Exploring / Suggested Starters | Horizontal pill; `74vw` / 260px / 275px | Mono letter avatar (navy in Suggested Starters), title, artist, tinted play chip | Accent border and inset ring, accent title, filled play chip |
+| **SpotifyCard** | Featured | Vertical cover card; 160px / 184px | Square navy "cover" with category badge, large initial, retro grooves, white play circle | Accent border/ring, accent title |
+| **FeaturedCard** | Recently Added | Vertical centered card; 152px / 168px | Freshness stamp ("2d ago"), rounded letter artwork, overlapping play trigger | Accent border/ring, filled accent artwork, accent title |
+| **RecommendationCard** | Curated for You | Full-width row | Two-digit index, avatar, title/artist, category chip on `sm+`, play chip | Index stays visible, accent ring, accent title |
+| **HistoryCard** | Continue Listening | Horizontal row; `min(80vw, 320px)` | Index, navy letter avatar, title/artist, "Last played" on first row | Index stays visible, accent border and tint, filled play chip |
 
 Shared card rules:
 
 - Titles are single-line, truncated, and semibold; the artist line never drifts because a title wraps.
 - "New" badges are semibold; duration, posture, and artist metadata stay medium so they do not compete with titles.
 - Borders stay one pixel in every state to avoid layout shift.
-- The active state uses **more than color**: ring, filled control, one soft pulsing dot, and `aria-current`.
+- The active state uses **more than color**: ring, filled control, and `aria-current`.
 - "New" badges use the `ink` token, a monochrome near-black tint rather than a warm accent; the badge also carries explicit "New" or "N" text.
 - Cards use `rounded-xl` while controls inside them use smaller radii.
 - Cards remain one consistent height per rail.
@@ -345,7 +345,7 @@ Only when the catalogue is non-empty:
 | --- | --- |
 | Play a card | Playback starts immediately; the card becomes active everywhere |
 | Hover a card | Audio is prefetched; play affordance gains contrast |
-| Active track | Ring/border, accent title, soft pulsing dot, `aria-current` |
+| Active track | Ring/border, accent title, `aria-current` |
 | Rail overflow | Chevrons fade in and enable only in scrollable directions |
 | Filter change | Pills update instantly; list reshuffles without page movement |
 | Copy scripture | Check icon plus screen-reader status; inline error if denied |
@@ -418,7 +418,7 @@ The standalone "standout" is intentionally drawn from the whole catalogue rather
 | Rail headings | `.section-title` — 16px, 18px at `sm+` |
 | Body/metadata | 14px titles, 12px artist/metadata, 10px labels in tight spaces |
 | Body font | Inter (loaded in the root layout) |
-| Animation | Lazy-section fade/rise 450ms; active-song pulse 1.4s; scripture 10s; all disabled or reduced under reduced motion |
+| Animation | Lazy-section fade/rise 450ms; active song marked by accent border/ring and title color (no pulse dot); scripture 10s; all disabled or reduced under reduced motion |
 
 The `ink` name reflects the value: a neutral near-black used only for the "New" badge so it does not become a competing CTA color. Navy remains the only brand accent.
 
