@@ -299,6 +299,14 @@ describe("verse capsule", () => {
   });
 });
 
+describe("homepage greeting", () => {
+  it("shows the greeting without time-of-day tags", () => {
+    expect(hero).toContain("greeting.text");
+    expect(hero).not.toContain("greeting.watch");
+    expect(hero).not.toMatch(/Morning Altar|Midday Sanctuary|Evening Vigil|Night Vigil/);
+  });
+});
+
 describe("homepage banner", () => {
   it("uses a restrained navy wash instead of a plain white panel", () => {
     expect(hero).toContain(

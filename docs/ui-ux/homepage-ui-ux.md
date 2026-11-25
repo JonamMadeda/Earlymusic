@@ -92,6 +92,7 @@ On `lg+` it is split into a flexible content column and a fixed `18rem` (288px) 
   - 12:00–17:59 → "Good afternoon" with sun icon
   - 18:00+ → "Good evening" with moon icon
 - The signed-in user's first name is appended in bold (for example, "Good evening, **Ada**").
+- The greeting chip contains only the greeting and optional first name; it has no time-of-day subtitle or altar/vigil tag.
 - A **season chip** appears when the worship calendar is in a named season: Advent, Christmas, Lent, or Easter. Ordinary Time shows no chip.
 - Seasons are computed locally, including the moving Easter date and the fourth Sunday of Advent.
 

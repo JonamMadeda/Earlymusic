@@ -38,9 +38,9 @@ const verses = [
 ];
 
 const greetingFor = (hour) => {
-  if (hour < 12) return { text: "Good morning", watch: "Morning Altar", icon: Sunrise };
-  if (hour < 18) return { text: "Good afternoon", watch: "Midday Sanctuary", icon: Sun };
-  return { text: "Good evening", watch: "Evening Vigil", icon: Moon };
+  if (hour < 12) return { text: "Good morning", icon: Sunrise };
+  if (hour < 18) return { text: "Good afternoon", icon: Sun };
+  return { text: "Good evening", icon: Moon };
 };
 
 const addedLabel = (dateStr, now) => {
@@ -563,12 +563,6 @@ export default function HomeHero({
                   </>
                 )}
               </span>
-              {greeting.watch && (
-                <>
-                  <span aria-hidden="true" className="text-neutral-300">·</span>
-                  <span className="font-medium text-neutral-500">{greeting.watch}</span>
-                </>
-              )}
             </span>
             {season.label && (
               <span className="inline-flex items-center rounded border border-accent/15 bg-accent/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-accent">
