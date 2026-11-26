@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -72,22 +73,33 @@ const groupByDate = (items) => {
   const now = new Date();
   const todayKey = now.toDateString();
   const yesterdayKey = new Date(now.getTime() - 86400000).toDateString();
-  const today = [];
-  const yesterday = [];
-  const earlier = [];
+  const groups = [];
 
   items.forEach((item) => {
-    const key = new Date(item.created_at).toDateString();
-    if (key === todayKey) today.push(item);
-    else if (key === yesterdayKey) yesterday.push(item);
-    else earlier.push(item);
+    const date = new Date(item.created_at);
+    const key = date.toDateString();
+    const label = key === todayKey
+      ? "Today"
+      : key === yesterdayKey
+        ? "Yesterday"
+        : Number.isNaN(date.getTime())
+          ? "Earlier"
+          : date.toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              ...(date.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+            });
+    const existing = groups.find((group) => group.key === key);
+    if (existing) existing.items.push(item);
+    else groups.push({ key, label, items: [item] });
   });
 
-  return [
-    { label: "Today", items: today },
-    { label: "Yesterday", items: yesterday },
-    { label: "Earlier", items: earlier },
-  ].filter((group) => group.items.length > 0);
+  return groups;
+};
+
+const filterFromUrl = () => {
+  const value = new URLSearchParams(window.location.search).get("filter");
+  return FILTERS.some((entry) => entry.key === value) ? value : "all";
 };
 
 const NotificationBody = ({ body, unread }) => {
@@ -97,7 +109,7 @@ const NotificationBody = ({ body, unread }) => {
   return (
     <>
       <p
-        className={`mt-1.5 break-words whitespace-pre-line text-[13px] leading-relaxed md:text-sm ${
+        className={`mt-1 break-words whitespace-pre-line text-[13px] leading-snug md:text-sm ${
           unread ? "text-neutral-600" : "text-neutral-500"
         } ${long && !expanded ? "line-clamp-3" : ""}`}
       >
@@ -108,7 +120,7 @@ const NotificationBody = ({ body, unread }) => {
           type="button"
           onClick={() => setExpanded((value) => !value)}
           aria-expanded={expanded}
-          className="relative z-10 mt-1.5 inline-flex rounded text-xs font-semibold text-neutral-600 transition hover:text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          className="tap-sm relative z-10 mt-1 inline-flex min-h-9 items-center rounded text-xs font-semibold text-neutral-600 transition hover:text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 md:min-h-8"
         >
           {expanded ? "Show less" : "Show more"}
         </button>
@@ -119,6 +131,8 @@ const NotificationBody = ({ body, unread }) => {
 
 export default function NotificationsPage() {
   const { items, loading, error, unreadIds, dismissedIds } = useNotificationFeed();
+  const router = useRouter();
+  const pathname = usePathname();
   const [filter, setFilter] = useState("all");
   const dismissed = useMemo(() => new Set(dismissedIds), [dismissedIds]);
   const [undo, setUndo] = useState(null);
@@ -132,9 +146,16 @@ export default function NotificationsPage() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const syncFilter = () => setFilter(filterFromUrl());
+    syncFilter();
+    window.addEventListener("popstate", syncFilter);
+    return () => window.removeEventListener("popstate", syncFilter);
+  }, []);
+
   // Opening the page clears the shared unread badge. The store keeps the ids so
   // the "new" rail stays visible instead of flashing once and vanishing; the
-  // explicit "Clear new markers" action removes them in one step.
+  // explicit "Mark all as read" action removes them in one step.
   useEffect(() => {
     if (markedRef.current || loading || items.length === 0) return;
     markedRef.current = true;
@@ -174,7 +195,7 @@ export default function NotificationsPage() {
 
   const unreadSet = useMemo(() => new Set(unreadIds), [unreadIds]);
   // Counted across the whole feed, not the filtered slice: switching to an
-  // empty category should not hide the "Clear new markers" action.
+  // empty category should not hide the "Mark all as read" action.
   const unreadCount = items.filter((item) => {
     const id = normalizeNotificationId(item.id);
     return id !== null && !dismissed.has(id) && unreadSet.has(id);
@@ -204,7 +225,17 @@ export default function NotificationsPage() {
     setUndo(null);
   };
 
-  const handleClearNewMarkers = () => {
+  const handleFilterChange = (nextFilter) => {
+    if (nextFilter === filter) return;
+    setFilter(nextFilter);
+    const params = new URLSearchParams(window.location.search);
+    if (nextFilter === "all") params.delete("filter");
+    else params.set("filter", nextFilter);
+    const query = params.toString();
+    router.push(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
+  };
+
+  const handleMarkAllRead = () => {
     markNotificationsSeen({ clearHighlights: true });
   };
 
@@ -213,7 +244,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <main className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
+    <section aria-labelledby="notifications-heading" className="min-h-[90vh] bg-transparent px-3 pb-36 pt-2 md:px-8 md:pt-6">
       <div className="mx-auto max-w-3xl">
         {undo && (
           <div
@@ -250,11 +281,11 @@ export default function NotificationsPage() {
         )}
 
         <header className="mb-5 md:mb-7">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
-                  Notifications
+                <h1 id="notifications-heading" className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
+                  What&rsquo;s new
                 </h1>
                 {hasUnread && (
                   <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-accent">
@@ -262,17 +293,14 @@ export default function NotificationsPage() {
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-neutral-500 md:text-sm">
-                New releases, app updates and news from the team.
-              </p>
             </div>
             {hasUnread && !loading && (
               <button
                 type="button"
-                onClick={handleClearNewMarkers}
-                className="shrink-0 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300 hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                onClick={handleMarkAllRead}
+                className="min-h-11 shrink-0 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-600 transition hover:border-neutral-300 hover:bg-neutral-50 outline-none focus-visible:ring-2 focus-visible:ring-accent/50 md:min-h-9"
               >
-                Clear new markers
+                Mark all as read
               </button>
             )}
           </div>
@@ -280,21 +308,21 @@ export default function NotificationsPage() {
           <div
             role="group"
             aria-label="Filter notifications"
-            className="mt-4 flex flex-wrap gap-2 pb-1"
+            className="mt-3 flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {FILTERS.map((entry) => {
               const active = filter === entry.key;
               const count = counts[entry.key] ?? 0;
-              // A category with nothing in it is a dead end; keep the current
-              // one visible so the empty state can explain itself.
-              if (count === 0 && !active) return null;
+              const disabled = count === 0 && !active;
               return (
                 <button
                   key={entry.key}
                   type="button"
-                  onClick={() => setFilter(entry.key)}
+                  onClick={() => handleFilterChange(entry.key)}
                   aria-pressed={active}
-                  className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                  aria-label={`${entry.label}, ${count} ${count === 1 ? "notification" : "notifications"}`}
+                  disabled={disabled}
+                  className={`tap-sm flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold transition disabled:pointer-events-none disabled:opacity-45 ${
                     active
                       ? "border-accent bg-accent text-white shadow-sm"
                       : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50"
@@ -302,7 +330,7 @@ export default function NotificationsPage() {
                 >
                   {entry.label}
                   <span
-                    className={`rounded-full px-1.5 py-0.5 text-xs font-bold leading-none tabular-nums ${
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none tabular-nums ${
                       active ? "bg-white/20 text-white" : "bg-neutral-100 text-neutral-500"
                     }`}
                   >
@@ -319,10 +347,10 @@ export default function NotificationsPage() {
             {[0, 1, 2].map((index) => (
               <div
                 key={index}
-                className="animate-pulse rounded-2xl border border-neutral-100 bg-white p-4 md:p-5"
+                className="animate-pulse rounded-xl border border-neutral-100 bg-white p-3"
               >
-                <div className="flex gap-3">
-                  <div className="h-9 w-9 shrink-0 rounded-xl bg-neutral-100" />
+                <div className="flex gap-2.5">
+                  <div className="h-8 w-8 shrink-0 rounded-xl bg-neutral-100" />
                   <div className="flex-1 space-y-2">
                     <div className="h-3 w-24 rounded bg-neutral-100" />
                     <div className="h-4 w-3/4 rounded bg-neutral-100" />
@@ -335,16 +363,21 @@ export default function NotificationsPage() {
           </div>
         )}
 
-        {!loading && error && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle size={16} className="text-amber-700" aria-hidden="true" />
-              <p className="text-sm font-medium text-amber-900">{error}</p>
+        {error && (
+          <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <AlertTriangle size={16} className="shrink-0 text-amber-700" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-medium text-amber-900">{error}</p>
+                {items.length > 0 && (
+                  <p className="mt-0.5 text-xs text-amber-800">Showing previously loaded announcements.</p>
+                )}
+              </div>
             </div>
             <button
               type="button"
               onClick={handleRetry}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-amber-800 active:scale-95"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-amber-800 active:scale-95 md:min-h-9"
             >
               <RefreshCw size={12} aria-hidden="true" />
               Retry
@@ -353,7 +386,7 @@ export default function NotificationsPage() {
         )}
 
         {!loading && !error && visibleItems.length === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-white/70 px-6 py-20 text-center">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-200 bg-white/70 px-6 py-12 text-center md:py-16">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
               {filter === "all" ? <CheckCircle2 size={22} aria-hidden="true" /> : <Bell size={22} aria-hidden="true" />}
             </div>
@@ -370,7 +403,7 @@ export default function NotificationsPage() {
             {filter !== "all" && (
               <button
                 type="button"
-                onClick={() => setFilter("all")}
+                onClick={() => handleFilterChange("all")}
                 className="mt-4 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50"
               >
                 Show all
@@ -379,11 +412,11 @@ export default function NotificationsPage() {
           </div>
         )}
 
-        {!loading && !error && visibleItems.length > 0 && (
-          <div className="space-y-7">
+        {visibleItems.length > 0 && (
+          <div className="space-y-4">
             {groupByDate(visibleItems).map((group) => (
-              <section key={group.label}>
-                <div className="mb-3 flex items-center gap-2.5">
+              <section key={group.key}>
+                <div className="mb-2.5 flex items-center gap-2.5">
                   <h2 className="text-xs font-bold uppercase tracking-[0.16em] text-neutral-500">
                     {group.label}
                   </h2>
@@ -393,7 +426,7 @@ export default function NotificationsPage() {
                   </span>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {group.items.map((item) => {
                     const kind = normalizeNotificationKind(item.kind);
                     const Icon = KIND_ICONS[kind];
@@ -402,17 +435,17 @@ export default function NotificationsPage() {
                     const unread = unreadSet.has(normalizeNotificationId(item.id));
                     const actionLabel =
                       kind === "release" || kind === "update" ? "Listen to" : "Read";
-                    const titleClass = `mt-1.5 text-sm font-bold leading-snug tracking-tight md:text-[15px] ${
+                    const titleClass = `mt-1 text-sm font-bold leading-snug tracking-tight ${
                       unread ? "text-neutral-900" : "text-neutral-700"
                     }`;
                     const linkClass =
-                      "rounded outline-none transition hover:text-accent focus-visible:ring-2 focus-visible:ring-accent/50 after:absolute after:inset-0 after:rounded-2xl";
+                      "rounded outline-none transition hover:text-accent focus-visible:ring-2 focus-visible:ring-accent/50 after:absolute after:inset-0 after:rounded-xl";
 
                     return (
                       <article
                         key={item.id}
-                        className={`group relative overflow-hidden rounded-2xl border bg-white transition-all duration-200 focus-within:border-neutral-300 hover:border-neutral-300 hover:shadow-md ${
-                          unread ? "border-neutral-200 shadow-sm" : "border-neutral-100"
+                        className={`group relative overflow-hidden rounded-xl border bg-white transition-all duration-200 focus-within:border-neutral-300 hover:border-neutral-300 hover:shadow-sm ${
+                          unread ? "border-neutral-200 bg-neutral-50/40" : "border-neutral-100"
                         }`}
                       >
                         {unread && (
@@ -422,17 +455,17 @@ export default function NotificationsPage() {
                           />
                         )}
 
-                        <div className="flex gap-3 p-4 md:gap-3.5 md:p-5">
+                        <div className="flex gap-2.5 p-2.5 md:gap-3 md:p-3">
                           <div
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${KIND_PILLS[kind]}`}
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border ${KIND_PILLS[kind]}`}
                           >
-                            <Icon size={16} strokeWidth={2} aria-hidden="true" />
+                            <Icon size={15} strokeWidth={2} aria-hidden="true" />
                           </div>
 
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-0.5">
-                                <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pt-0.5">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
                                   {unread && <span className="sr-only">New · </span>}
                                   {KIND_CARD_LABELS[kind]}
                                 </span>
@@ -449,7 +482,7 @@ export default function NotificationsPage() {
                                   dateTime={item.created_at}
                                   title={new Date(item.created_at).toLocaleString()}
                                   suppressHydrationWarning
-                                  className="text-xs font-medium text-neutral-500"
+                                  className="text-[11px] font-medium text-neutral-500"
                                 >
                                   {relativeTime(item.created_at)}
                                 </time>
@@ -458,9 +491,9 @@ export default function NotificationsPage() {
                                 type="button"
                                 onClick={() => handleDismiss(item)}
                                 aria-label={`Dismiss announcement: ${item.title}`}
-                                className="relative z-10 -mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                                className="tap-sm relative z-10 -mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                               >
-                                <X size={15} aria-hidden="true" />
+                                <X size={14} aria-hidden="true" />
                               </button>
                             </div>
 
@@ -516,6 +549,6 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
-    </main>
+    </section>
   );
 }
