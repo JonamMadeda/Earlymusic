@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import {
+  SONG_RIGHTS_LABELS,
+  SONG_RIGHTS_STATUSES,
+  type SongRightsStatus,
+} from "@/lib/songRights";
+import {
   ArrowLeft,
   UploadCloud,
   Plus,
@@ -55,7 +60,9 @@ export default function UploadPage() {
   const [originalSongs, setOriginalSongs] = useState<OriginalSong[]>([{ title: "", artist: "" }]);
   const [category, setCategory] = useState("Worship");
   const [duration, setDuration] = useState("Long");
-  const [publicationStatus, setPublicationStatus] = useState<SongStatus>("approved");
+  const [publicationStatus, setPublicationStatus] = useState<SongStatus>("pending");
+  const [rightsStatus, setRightsStatus] = useState<SongRightsStatus>("unknown");
+  const [rightsNote, setRightsNote] = useState("");
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [isPublishing, setIsPublishing] = useState(false);
   const [doneCount, setDoneCount] = useState(0);
@@ -145,7 +152,7 @@ export default function UploadPage() {
 
   const publishOne = async (
     item: QueueItem,
-    shared: { author: string; originals: OriginalSong[]; category: string; duration: string; status: SongStatus }
+    shared: { author: string; originals: OriginalSong[]; category: string; duration: string; status: SongStatus; rightsStatus: SongRightsStatus; rightsNote: string }
   ) => {
     let uploadedStorageUrl: string | null = null;
     try {
@@ -184,6 +191,8 @@ export default function UploadPage() {
           original_songs: shared.originals,
           category: shared.category,
           duration: shared.duration,
+          rights_status: shared.rightsStatus,
+          rights_note: shared.rightsNote.trim() || null,
           status: shared.status,
           song_path: publicStorageUrl,
         }),
@@ -229,6 +238,10 @@ export default function UploadPage() {
       setFormError(`Give “${untitled.file.name}” a track title first.`);
       return;
     }
+    if (publicationStatus === "approved" && rightsStatus === "unknown") {
+      setFormError("Choose a verified rights classification before publishing.");
+      return;
+    }
 
     setIsPublishing(true);
     setFormError(null);
@@ -243,6 +256,8 @@ export default function UploadPage() {
         category: category.trim(),
         duration,
         status: publicationStatus,
+        rightsStatus,
+        rightsNote,
       };
 
       let succeeded = 0;
@@ -272,7 +287,9 @@ export default function UploadPage() {
   const resetAll = () => {
     setQueue([]);
     setAuthor("Pastor Marita Mbae");
-    setPublicationStatus("approved");
+    setPublicationStatus("pending");
+    setRightsStatus("unknown");
+    setRightsNote("");
     setOriginalSongs([{ title: "", artist: "" }]);
     setDoneCount(0);
     setPublishTotal(0);
@@ -298,7 +315,7 @@ export default function UploadPage() {
           <div className="min-w-0">
             <h1 className="text-xl font-bold tracking-tight text-neutral-900">Upload Tracks</h1>
             <p className="text-xs leading-5 text-neutral-500">
-              Admin uploads are public by default. Choose Hold for review to approve them later in the Vault.
+              New uploads are held for review. Classify their rights before publishing them from the Vault.
             </p>
           </div>
         </div>
@@ -456,6 +473,44 @@ export default function UploadPage() {
                 ))}
               </div>
             </div>
+          </div>
+
+          <div className="mt-3 flex flex-col gap-1.5">
+            <label htmlFor="upload-rights-status" className="text-xs font-semibold text-neutral-500">
+              Listener-facing rights tag
+            </label>
+            <select
+              id="upload-rights-status"
+              value={rightsStatus}
+              onChange={(event) => setRightsStatus(event.target.value as SongRightsStatus)}
+              disabled={isPublishing}
+              className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm font-medium text-neutral-900 outline-none focus:border-accent disabled:opacity-60"
+            >
+              {SONG_RIGHTS_STATUSES.map((value) => (
+                <option key={value} value={value}>
+                  {SONG_RIGHTS_LABELS[value]}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs leading-5 text-neutral-500">
+              Public tracks need a verified classification. A live recording of another writer&rsquo;s song remains a third-party song, even if Luumbo owns the recording.
+            </p>
+          </div>
+
+          <div className="mt-3 flex flex-col gap-1.5">
+            <label htmlFor="upload-rights-note" className="text-xs font-semibold text-neutral-500">
+              Rights note shown to listeners (optional)
+            </label>
+            <textarea
+              id="upload-rights-note"
+              value={rightsNote}
+              onChange={(event) => setRightsNote(event.target.value)}
+              maxLength={500}
+              rows={3}
+              disabled={isPublishing}
+              placeholder="Attribution, permission context, or arrangement details"
+              className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-900 outline-none focus:border-accent disabled:opacity-60"
+            />
           </div>
 
           <div className="mt-3 flex flex-col gap-1.5">

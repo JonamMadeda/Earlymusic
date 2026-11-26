@@ -213,6 +213,9 @@ export default function SettingsPage() {
               <Link href="/terms" className="text-accent hover:underline">
                 Terms of Service
               </Link>
+              <Link href="/terms#content" className="text-accent hover:underline">
+                Music rights
+              </Link>
               <Link href="/privacy#choices" className="text-accent hover:underline">
                 Your rights
               </Link>

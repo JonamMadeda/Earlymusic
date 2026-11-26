@@ -24,7 +24,16 @@ describe("songs row menu", () => {
     expect(row).toMatch(/aria-controls=\{showMenu \? menuId : undefined\}/);
     expect(menu).toMatch(/role="menu"/);
     expect(menu).toMatch(/id=\{menuId\}/);
-    expect(menu.match(/role="menuitem"/g)).toHaveLength(6);
+    expect(menu.match(/role="menuitem"/g)).toHaveLength(7);
+  });
+
+  it("tracks the rights subview separately and closes it with the other overlays", () => {
+    expect(row).toContain("const [showRights, setShowRights] = useState(false)");
+    expect(row).toContain("setShowRights(true)");
+    expect(row).toContain("{showRights && (");
+    expect(row).toContain("<SongRightsNotice song={song} compact");
+    expect(row).toMatch(/if \(!showMenu && !showInfo && !showRights && !showPlaylists && !showReport\) return;/);
+    expect(row).toMatch(/\[showMenu, showInfo, showRights, showPlaylists, showReport\]/);
   });
 
   it("takes Escape for itself and hands focus back to the ⋯", () => {

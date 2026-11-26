@@ -12,6 +12,7 @@ import { prefetchSongAudio } from "@/lib/prefetchAudio";
 import { getNewestSongs } from "@/lib/newSongs";
 import { groupSongs } from "@/lib/songGrouping";
 import ReportSongDialog from "../components/ReportSongDialog";
+import SongRightsNotice from "../components/SongRightsNotice";
 
 import {
   ChevronDown,
@@ -37,6 +38,7 @@ import {
   ArrowUp,
   Share2,
   Flag,
+  ShieldCheck,
   Upload,
   Loader as SpinnerIcon,
 } from "lucide-react";
@@ -125,7 +127,7 @@ const Chip = ({ label, active, onClick }) => (
 
 // Measured, not guessed: the ⋯ popup is ~235px tall and its top sits ~55px below
 // the row's top edge (it hangs off the ⋯ cluster, which is centred in the row).
-const MENU_ROOM = 300;
+const MENU_ROOM = 380;
 
 const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) => {
   const { user } = useAuth();
@@ -137,6 +139,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
   const [isSaved, setIsSaved] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showRights, setShowRights] = useState(false);
   const [showPlaylists, setShowPlaylists] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [playlists, setPlaylists] = useState([]);
@@ -170,31 +173,34 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
     }
     setShowMenu(true);
     setShowInfo(false);
+    setShowRights(false);
     setShowPlaylists(false);
   };
 
   const closeMenus = () => {
     setShowMenu(false);
     setShowInfo(false);
+    setShowRights(false);
     setShowPlaylists(false);
   };
 
   // Escape belongs to whichever popup is open: the page-level handler clears the
   // search, and leaving a menu should never also wipe the query.
   useEffect(() => {
-    if (!showMenu && !showInfo && !showPlaylists && !showReport) return;
+    if (!showMenu && !showInfo && !showRights && !showPlaylists && !showReport) return;
     const handleEscape = (e) => {
       if (e.key !== "Escape") return;
       e.preventDefault();
       setShowMenu(false);
       setShowInfo(false);
+      setShowRights(false);
       setShowPlaylists(false);
       setShowReport(false);
       menuButtonRef.current?.focus();
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [showMenu, showInfo, showPlaylists, showReport]);
+  }, [showMenu, showInfo, showRights, showPlaylists, showReport]);
 
   // role="menu" promises arrow keys, so they move between the items rather than
   // leaving the popup to tab order alone.
@@ -307,19 +313,20 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
   };
 
   useEffect(() => {
-    if (!showMenu && !showInfo && !showPlaylists) return;
+    if (!showMenu && !showInfo && !showRights && !showPlaylists) return;
 
     const handleClickOutside = (e) => {
       if (rowRef.current && !rowRef.current.contains(e.target)) {
         setShowMenu(false);
         setShowInfo(false);
+        setShowRights(false);
         setShowPlaylists(false);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showMenu, showInfo, showPlaylists]);
+  }, [showMenu, showInfo, showRights, showPlaylists]);
 
   useEffect(() => {
     if (!user) {
@@ -405,7 +412,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
   return (
     <div
       ref={rowRef}
-      style={{ zIndex: showMenu || showInfo || showPlaylists ? 40 : undefined }}
+      style={{ zIndex: showMenu || showInfo || showRights || showPlaylists ? 40 : undefined }}
       onMouseEnter={() => prefetchSongAudio(song)}
       className={`group relative flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors duration-150 sm:px-3 sm:py-2.5 sm:gap-3.5 ${
         isActive ? "bg-accent/[0.07]" : "hover:bg-neutral-50 active:bg-neutral-100"
@@ -507,6 +514,7 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
               role="menuitem"
               onClick={() => {
                 setShowInfo(true);
+                setShowRights(false);
                 setShowMenu(false);
                 setShowPlaylists(false);
               }}
@@ -518,12 +526,26 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
             <button
               role="menuitem"
               onClick={() => {
+                setShowRights(true);
+                setShowInfo(false);
+                setShowPlaylists(false);
+                setShowMenu(false);
+              }}
+              className="flex w-full cursor-pointer items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
+            >
+              <ShieldCheck size={15} className="text-neutral-400" />
+              <span className="text-xs font-semibold">Rights &amp; archive use</span>
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
                 if (!user) {
                   router.push(`/auth?redirectTo=${encodeURIComponent(pathname)}`);
                   return;
                 }
                 setShowPlaylists(true);
                 setShowInfo(false);
+                setShowRights(false);
                 setShowMenu(false);
               }}
               className="flex w-full cursor-pointer items-center gap-x-3 rounded-lg px-3 py-2.5 text-left text-neutral-700 transition hover:bg-neutral-50 hover:text-neutral-900"
@@ -630,6 +652,15 @@ const SongRow = ({ song, onClick, isActive, isNew = false, onCategoryClick }) =>
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {showRights && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`absolute right-0 z-50 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-neutral-100 bg-white p-2 shadow-lg ${menuPos}`}
+        >
+          <SongRightsNotice song={song} compact />
         </div>
       )}
 

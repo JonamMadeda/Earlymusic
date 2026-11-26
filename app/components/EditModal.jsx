@@ -3,6 +3,11 @@
 import { useState, useEffect } from "react";
 
 import { X, Plus, Trash2, ShieldCheck } from "lucide-react";
+import {
+  SONG_RIGHTS_LABELS,
+  SONG_RIGHTS_STATUSES,
+  normalizeSongRightsStatus,
+} from "@/lib/songRights";
 
 const EditModal = ({ isOpen, onClose, onSuccess, song, approveOnOpen = false }) => {
   const [title, setTitle] = useState("");
@@ -14,6 +19,8 @@ const EditModal = ({ isOpen, onClose, onSuccess, song, approveOnOpen = false }) 
   const [licenseType, setLicenseType] = useState("");
   const [licenseUrl, setLicenseUrl] = useState("");
   const [rightsClearanceDate, setRightsClearanceDate] = useState("");
+  const [rightsStatus, setRightsStatus] = useState("unknown");
+  const [rightsNote, setRightsNote] = useState("");
   const [status, setStatus] = useState("approved");
   const [regionRestricted, setRegionRestricted] = useState(false);
   const [allowedCountries, setAllowedCountries] = useState("");
@@ -52,6 +59,8 @@ const EditModal = ({ isOpen, onClose, onSuccess, song, approveOnOpen = false }) 
           ? String(song.rights_clearance_date).slice(0, 10)
           : ""
       );
+      setRightsStatus(normalizeSongRightsStatus(song.rights_status) || "unknown");
+      setRightsNote(song.rights_note || "");
       setStatus(approveOnOpen ? "approved" : song.status || "pending");
       setRegionRestricted(Boolean(song.region_restricted));
       setAllowedCountries(
@@ -91,6 +100,10 @@ const EditModal = ({ isOpen, onClose, onSuccess, song, approveOnOpen = false }) 
       licenseType.trim() ||
       licenseUrl.trim() ||
       rightsClearanceDate;
+    if (status === "approved" && rightsStatus === "unknown") {
+      alert("Choose a verified rights classification before publishing this track.");
+      return;
+    }
     if (status === "approved" && !hasRightsMetadata && !rightsAttested) {
       alert(
         "Add the rights holder, licence, or clearance date before approving this track, or confirm the self-owned / public-domain attestation."
@@ -121,6 +134,8 @@ const EditModal = ({ isOpen, onClose, onSuccess, song, approveOnOpen = false }) 
           license_type: licenseType.trim() || null,
           license_url: licenseUrl.trim() || null,
           rights_clearance_date: rightsClearanceDate || null,
+          rights_status: rightsStatus,
+          rights_note: rightsNote.trim() || null,
           status,
           region_restricted: regionRestricted,
           allowed_countries: allowedCountries,
@@ -325,6 +340,43 @@ const EditModal = ({ isOpen, onClose, onSuccess, song, approveOnOpen = false }) 
 
             <div className="flex flex-col gap-y-3">
               <div className="flex flex-col gap-y-1">
+                <label htmlFor="edit-rights-status" className="text-xs font-medium text-neutral-500">
+                  Listener-facing rights tag
+                </label>
+                <select
+                  id="edit-rights-status"
+                  value={rightsStatus}
+                  onChange={(e) => setRightsStatus(e.target.value)}
+                  disabled={isLoading}
+                  className={smallInputClass}
+                >
+                  {SONG_RIGHTS_STATUSES.map((value) => (
+                    <option key={value} value={value}>
+                      {SONG_RIGHTS_LABELS[value]}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs leading-relaxed text-neutral-500">
+                  A live recording of another writer&rsquo;s song is still a third-party song, even if Luumbo owns the recording.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-y-1">
+                <label htmlFor="edit-rights-note" className="text-xs font-medium text-neutral-500">
+                  Rights note shown to listeners (optional)
+                </label>
+                <textarea
+                  id="edit-rights-note"
+                  value={rightsNote}
+                  onChange={(e) => setRightsNote(e.target.value)}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="Attribution, permission context, or arrangement details"
+                  className={smallInputClass}
+                />
+              </div>
+
+              <div className="flex flex-col gap-y-1">
                 <label className="text-xs font-medium text-neutral-500">
                   Copyright holder
                 </label>
@@ -423,8 +475,8 @@ const EditModal = ({ isOpen, onClose, onSuccess, song, approveOnOpen = false }) 
                       onChange={(e) => setRightsAttested(e.target.checked)}
                       className="mt-0.5 h-4 w-4 shrink-0 rounded border-amber-300 text-accent focus:ring-accent"
                     />
-                    I confirm Luumbo owns this recording, or it is public domain
-                    or covered by a licence that permits streaming.
+                    I confirm this classification and that Luumbo has permission
+                    or a licence covering streaming and any offered downloads.
                   </label>
                 )}
             </div>

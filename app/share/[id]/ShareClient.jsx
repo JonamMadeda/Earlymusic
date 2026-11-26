@@ -7,6 +7,7 @@ import { usePlayer } from "@/app/context/PlayerContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { getSongShareUrl, shareSong, copyTextToClipboard } from "@/lib/share";
 import { VinylArtwork } from "@/app/components/SongAvatar";
+import SongRightsNotice, { SongRightsTag } from "@/app/components/SongRightsNotice";
 
 export default function ShareClient({ song }) {
   const { activeSong, setActiveSong, allSongs, setAllSongs } = usePlayer();
@@ -99,6 +100,9 @@ export default function ShareClient({ song }) {
                 {song.category}
               </span>
             )}
+            <div className="mt-3">
+              <SongRightsTag song={song} dark />
+            </div>
           </div>
 
           {/* Actions */}
@@ -159,6 +163,8 @@ export default function ShareClient({ song }) {
                 {shareState}
               </p>
             )}
+
+            <SongRightsNotice song={song} />
 
             {song.original_songs && song.original_songs.length > 0 && (
               <div className="rounded-lg bg-neutral-50 p-3 text-left">

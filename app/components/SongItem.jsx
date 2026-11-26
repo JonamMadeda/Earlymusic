@@ -13,10 +13,12 @@ import {
   Check,
   Flag,
   ArrowLeft,
+  ShieldCheck,
 } from "lucide-react";
 import SongAvatar from "@/app/components/SongAvatar";
 import ActionMenu from "@/app/components/ActionMenu";
 import ReportSongDialog from "@/app/components/ReportSongDialog";
+import SongRightsNotice from "@/app/components/SongRightsNotice";
 
 import { useAuth } from "@/app/context/AuthContext";
 
@@ -46,6 +48,7 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
 
   const [internalSaved, setInternalSaved] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showRights, setShowRights] = useState(false);
   const [showPlaylists, setShowPlaylists] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [newPlaylistName, setNewPlaylistName] = useState("");
@@ -85,11 +88,13 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
       return;
     }
     setShowInfo(false);
+    setShowRights(false);
     setShowPlaylists(true);
   };
 
   const backToMenu = () => {
     setShowInfo(false);
+    setShowRights(false);
     setShowPlaylists(false);
   };
 
@@ -304,43 +309,6 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
                       </p>
                     )}
                   </div>
-
-                  {(song.copyright_holder ||
-                    song.license_type ||
-                    song.license_url ||
-                    song.rights_clearance_date) && (
-                    <div className="border-t border-neutral-100 px-3 py-3">
-                      <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-neutral-400">
-                        Rights &amp; Licensing
-                      </h4>
-                      {song.copyright_holder && (
-                        <p className="text-xs font-medium text-neutral-700">
-                          <span className="font-bold">Copyright:</span> {song.copyright_holder}
-                        </p>
-                      )}
-                      {song.license_type && (
-                        <p className="text-xs font-medium text-neutral-700">
-                          <span className="font-bold">License:</span> {song.license_type}
-                        </p>
-                      )}
-                      {song.license_url && (
-                        <a
-                          href={song.license_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-block text-xs font-medium text-accent hover:underline"
-                        >
-                          View license
-                        </a>
-                      )}
-                      {song.rights_clearance_date && (
-                        <p className="text-xs font-medium text-neutral-700">
-                          <span className="font-bold">Cleared on:</span>{" "}
-                          {new Date(song.rights_clearance_date).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  )}
                 </div>
               </>
             ) : showPlaylists ? (
@@ -394,18 +362,41 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
                   </div>
                 </div>
               </>
+            ) : showRights ? (
+              <>
+                <button type="button" onClick={backToMenu} className={menuItemClass}>
+                  <ArrowLeft size={16} className="text-neutral-400" aria-hidden="true" />
+                  Back
+                </button>
+                <div className="mt-1">
+                  <SongRightsNotice song={song} compact />
+                </div>
+              </>
             ) : (
               <>
                 <button
                   type="button"
                   onClick={() => {
                     setShowInfo(true);
+                    setShowRights(false);
                     setShowPlaylists(false);
                   }}
                   className={menuItemClass}
                 >
                   <Info size={16} className="text-neutral-400" aria-hidden="true" />
                   Compilation Details
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRights(true);
+                    setShowInfo(false);
+                    setShowPlaylists(false);
+                  }}
+                  className={menuItemClass}
+                >
+                  <ShieldCheck size={16} className="text-neutral-400" aria-hidden="true" />
+                  Rights &amp; archive use
                 </button>
                 <button type="button" onClick={openPlaylists} className={menuItemClass}>
                   <ListPlus size={16} className="text-neutral-400" aria-hidden="true" />

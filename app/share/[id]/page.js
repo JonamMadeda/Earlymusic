@@ -10,7 +10,7 @@ async function getSharedSong(id) {
     const { rows } = await db.query(
       `SELECT id, title, author, song_path, category, duration, original_songs,
               created_at, copyright_holder, license_type, license_url,
-              rights_clearance_date, status, region_restricted,
+              rights_clearance_date, rights_status, rights_note, status, region_restricted,
               allowed_countries, download_allowed
          FROM public.songs
         WHERE id = $1 AND status = 'approved'

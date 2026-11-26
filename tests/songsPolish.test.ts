@@ -256,6 +256,6 @@ describe("songs rows answer the pointer", () => {
       "mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-accent",
     ];
     for (const anchor of anchors) expect(view, anchor).toContain(anchor);
-    expect(view.match(/flex w-full cursor-pointer items-center gap-x-3/g)).toHaveLength(7);
+    expect(view.match(/flex w-full cursor-pointer items-center gap-x-3/g)).toHaveLength(8);
   });
 });

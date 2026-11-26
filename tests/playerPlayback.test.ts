@@ -40,9 +40,15 @@ vi.mock("../app/components/PlayerQueue", () => ({ default: () => null }));
 vi.mock("../app/components/SongOverflowMenu", () => ({ default: () => null }));
 
 import Player from "../app/components/Player";
+import { SONG_RIGHTS_ARCHIVE_NOTICE } from "../lib/songRights";
 
 const songs = ["a", "b", "c"].map((id) => ({
   id, title: `Song ${id}`, author: "Artist", song_path: `https://audio.example/${id}.mp3`,
+  rights_status: id === "a" ? "third_party" : "unknown",
+  rights_note: id === "a" ? "Permission confirmed for archive listening." : "",
+  copyright_holder: id === "a" ? "Song writer" : "",
+  license_type: id === "a" ? "Direct permission" : "",
+  license_url: id === "a" ? "https://example.org/permission" : "",
 }));
 type Song = typeof songs[number];
 const sameDeps = (a?: unknown[], b?: unknown[]) =>
@@ -357,6 +363,46 @@ describe("Player same-source selections", () => {
     await player.ready();
     expect(player.audio.paused).toBe(false);
     expect(player.duration).toBe(180);
+  });
+});
+
+describe("Player rights disclosure", () => {
+  it("renders the active song's rights in the full-player shared notice and updates on selection", async () => {
+    const renderedText = (node: any): string => {
+      if (Array.isArray(node)) return node.map(renderedText).join("");
+      if (node == null || typeof node === "boolean") return "";
+      if (typeof node.type === "function") return renderedText(node.type(node.props));
+      if (typeof node === "object") return renderedText(node.props?.children);
+      return String(node);
+    };
+    const disclosureText = () => {
+      const disclosure = player.nodes().find((node) =>
+        node.type === "details" && renderedText(node).includes("Rights & archive use")
+      );
+      expect(disclosure).toBeDefined();
+      return renderedText(disclosure);
+    };
+
+    vi.stubGlobal("document", {
+      activeElement: null,
+      getElementById: () => null,
+      contains: () => false,
+    });
+    (window as any).history = { pushState: vi.fn(), back: vi.fn() };
+    (window as any).location = { href: "http://localhost/" };
+    await player.settle();
+    await player.click(`Open now playing: ${songs[0].title}`);
+    expect(disclosureText()).toContain("Third-party song");
+    expect(disclosureText()).toContain(SONG_RIGHTS_ARCHIVE_NOTICE);
+    expect(disclosureText()).toContain("Permission confirmed for archive listening.");
+    expect(disclosureText()).toContain("Song writer");
+    expect(disclosureText()).toContain("Direct permission");
+
+    await player.select(songs[1]);
+    expect(disclosureText()).toContain("Archive recording");
+    expect(disclosureText()).toContain(SONG_RIGHTS_ARCHIVE_NOTICE);
+    expect(disclosureText()).not.toContain("Permission confirmed for archive listening.");
+    expect(disclosureText()).not.toContain("Third-party song");
   });
 });
 

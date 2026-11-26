@@ -5,6 +5,7 @@ import { logAdminAction } from "@/lib/adminAudit";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getR2Client } from "@/lib/r2";
 import { verifyStoredAudio, getR2ObjectKey } from "@/lib/audioVerify";
+import { normalizeSongRightsStatus } from "@/lib/songRights";
 import { announceNewSong, announceSongUpdate, retractSongAnnouncements } from "@/lib/announcement";
 import { db } from "@/lib/neon";
 
@@ -31,12 +32,35 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const { rows: existingRows } = await db.query(
-      "SELECT status, song_path, region_restricted, allowed_countries FROM public.songs WHERE id = $1",
+      "SELECT status, song_path, region_restricted, allowed_countries, rights_status FROM public.songs WHERE id = $1",
       [id]
     );
     const existing = existingRows?.[0];
     if (!existing) {
       return NextResponse.json({ error: "Song not found." }, { status: 404 });
+    }
+
+    let nextRightsStatus = existing.rights_status || "unknown";
+    if (body.rights_status !== undefined) {
+      const normalized = normalizeSongRightsStatus(body.rights_status);
+      if (!normalized) {
+        return NextResponse.json({ error: "Invalid song rights classification." }, { status: 400 });
+      }
+      nextRightsStatus = normalized;
+      body.rights_status = normalized;
+    }
+    const nextStatus = body.status ?? existing.status;
+    if (nextStatus === "approved" && nextRightsStatus === "unknown") {
+      return NextResponse.json(
+        { error: "Classify the song's rights before publishing it." },
+        { status: 400 }
+      );
+    }
+    if (typeof body.rights_note === "string" && body.rights_note.trim().length > 500) {
+      return NextResponse.json(
+        { error: "The rights note must be 500 characters or fewer." },
+        { status: 400 }
+      );
     }
 
     // Replace-audio flow swaps the referenced file — verify the new object
@@ -67,7 +91,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const changedColumns: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
-    for (const key of ["title", "author", "song_path", "category", "duration", "copyright_holder", "license_type", "license_url", "rights_clearance_date", "status", "region_restricted", "download_allowed"] as const) {
+    for (const key of ["title", "author", "song_path", "category", "duration", "copyright_holder", "license_type", "license_url", "rights_clearance_date", "rights_status", "rights_note", "status", "region_restricted", "download_allowed"] as const) {
       if (body[key] !== undefined) {
         // status is NOT NULL with a CHECK constraint: reject bad values here
         // instead of letting "" become null and surface as a generic 500.
@@ -131,12 +155,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     values.push(id);
+    let updateGuard = "";
+    if (nextStatus === "approved" && body.rights_status === undefined) {
+      updateGuard = " AND rights_status <> 'unknown'";
+    } else if (nextRightsStatus === "unknown") {
+      updateGuard = " AND status <> 'approved'";
+    }
     const { rows } = await db.query(
-      `UPDATE public.songs SET ${fields.join(", ")} WHERE id = $${idx} RETURNING *`,
+      `UPDATE public.songs SET ${fields.join(", ")} WHERE id = $${idx}${updateGuard} RETURNING *`,
       values
     );
     if (!rows?.length) {
-      return NextResponse.json({ error: "Song not found." }, { status: 404 });
+      const { rows: currentRows } = await db.query(
+        "SELECT id FROM public.songs WHERE id = $1",
+        [id]
+      );
+      return NextResponse.json(
+        { error: currentRows?.length ? "The song changed while you were editing it. Reload and try again." : "Song not found." },
+        { status: currentRows?.length ? 409 : 404 }
+      );
     }
 
     const updatedSong = rows[0];

@@ -13,12 +13,14 @@ import {
   Plus,
   Share2,
   Trash2,
+  ShieldCheck,
   X,
 } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { downloadSong, isSongDownloaded, onDownloadsChanged, removeDownload } from "@/lib/downloadManager";
 import ReportSongDialog from "@/app/components/ReportSongDialog";
+import SongRightsNotice from "@/app/components/SongRightsNotice";
 
 /**
  * The player's overflow menu. Add-to-playlist, offline download and reporting
@@ -235,6 +237,17 @@ const SongOverflowMenu = ({
                 <ListPlus size={16} className="text-neutral-400" />
                 Add to playlist
               </button>
+              <button
+                type="button"
+                className={itemClass}
+                onClick={() => {
+                  setView("rights");
+                  setError("");
+                }}
+              >
+                <ShieldCheck size={16} className="text-neutral-400" />
+                Rights &amp; archive use
+              </button>
               {onShare && (
                 <button
                   type="button"
@@ -286,6 +299,10 @@ const SongOverflowMenu = ({
                 Report this song
               </button>
             </>
+          )}
+
+          {view === "rights" && (
+            <SongRightsNotice song={song} compact />
           )}
 
           {view === "playlists" && (

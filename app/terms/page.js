@@ -2,13 +2,13 @@ import Link from "next/link";
 import LegalPage from "@/app/components/LegalPage";
 import {
   LEGAL_EFFECTIVE_DATE,
-  LEGAL_LAST_UPDATED,
+  LEGAL_TERMS_LAST_UPDATED,
 } from "@/lib/legal";
 
 export const metadata = {
   title: "Terms of Service",
   description:
-    "The rules for using Luumbo: accounts, streaming, offline downloads, acceptable use, copyright complaints, and liability.",
+    "The rules for using Luumbo: accounts, the worship archive, music rights, streaming, offline downloads, acceptable use, copyright complaints, and liability.",
 };
 
 const sections = [
@@ -101,11 +101,34 @@ const sections = [
     content: (
       <>
         <p>
+          Luumbo is a worship archive: it makes live service recordings available
+          so church members and followers can revisit the worship session. The
+          fact that a recording was made or uploaded by Luumbo does not mean
+          Luumbo owns the underlying song, composition, lyrics, or performance
+          rights.
+        </p>
+        <p>
+          Luumbo does not claim ownership of third-party songs. Those rights
+          remain with their respective rights holders, even where Luumbo owns or
+          controls the live recording itself. Recordings are not sold or offered
+          for commercial redistribution by Luumbo, and the archive is not intended
+          to generate financial gain from third-party songs.
+        </p>
+        <p>
+          Administrators classify songs as a Luumbo Original, Third-party song,
+          Public-domain hymn, or Archive recording. A Luumbo Original tag is used
+          only for verified in-house-owned songs. An Archive recording tag means
+          the ownership classification has not yet been verified; it is not a
+          claim of ownership. Available copyright, licence, and clearance details
+          appear under &ldquo;Rights &amp; archive use&rdquo; in song menus, the
+          full player, and public share pages.
+        </p>
+        <p>
           Songs, artwork, metadata, and other content are owned by their
           respective rights holders and are made available by the app&rsquo;s
-          administrators. The administrators represent that they hold the
-          rights, licences, or permissions needed to host and stream each
-          recording. Copyright and licence information is shown where available.
+          administrators. Administrators must confirm the rights, licences, or
+          permissions needed to host, stream, and where applicable offer each
+          recording for download before publishing it.
         </p>
         <p>
           We grant you a personal, non-exclusive, non-transferable, revocable
@@ -316,8 +339,8 @@ export default function TermsPage() {
       title="Terms of Service"
       description="The agreement between you and Luumbo: what the service is, how accounts and downloads work, what we expect from you, and how copyright complaints are handled."
       effectiveDate={LEGAL_EFFECTIVE_DATE}
-      lastUpdated={LEGAL_LAST_UPDATED}
-      summary="Use Luumbo lawfully, keep your account secure, and listen personally. Streams and downloads are licensed for in-app listening only — no ripping, redistributing, or scraping. If you own the rights to a recording, use the report option and we will review it."
+      lastUpdated={LEGAL_TERMS_LAST_UPDATED}
+      summary="Luumbo archives live worship recordings for church members and followers; Luumbo does not claim ownership of third-party songs or offer them for commercial redistribution. Use the App lawfully, keep your account secure, and listen personally — no ripping, redistributing, or scraping."
       sections={sections}
       related={[
         {

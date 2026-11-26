@@ -11,6 +11,7 @@ import * as shareLib from "../lib/share";
 import * as notificationsLib from "../lib/notifications";
 import * as worshipSeason from "../lib/worshipSeason";
 import * as timeFormat from "../lib/timeFormat";
+import * as songRights from "../lib/songRights";
 
 // Isolated hooks let the real JSX run without a DOM or live services.
 type Element = { type: any; key?: string; props: Record<string, any> };
@@ -152,7 +153,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
     react: hooks,
     "react/jsx-runtime": jsxRuntime,
     "next/navigation": { useRouter: () => ({}), usePathname: () => "/songs", useSearchParams: () => new URLSearchParams(search ?? { tab }) },
-    "next/link": { default: "a" },
+    "next/link": { __esModule: true, default: "a" },
     "lucide-react": new Proxy({}, { get: (_, name) => `icon:${String(name)}` }),
     "@/lib/newSongs": newSongs,
     "@/lib/songGrouping": songGrouping,
@@ -178,6 +179,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
     "@/lib/notifications": notificationsLib,
     "@/lib/worshipSeason": worshipSeason,
     "@/lib/timeFormat": timeFormat,
+    "@/lib/songRights": songRights,
     "@/lib/downloadManager": {
       getDownloadedSongs: () => localSongs.songs,
       getStorageEstimate: async () => null,
@@ -211,6 +213,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
         if (id.endsWith("/context/playbackStatus")) return { usePlaybackStatus: () => playback };
         if (id === "./components/HomeHero") return load("app/components/HomeHero.jsx");
         if (id.endsWith("/SongAvatar")) return { default: "avatar", initialLetter: (title: string) => title[0], hashStr: (value: string) => [...value].reduce((hash, char) => hash * 31 + char.charCodeAt(0) | 0, 0) };
+        if (id.endsWith("/SongRightsNotice")) return load("app/components/SongRightsNotice.jsx");
         if (["/ActionMenu", "/ConfirmModal", "/EmptyState", "/PlaylistNameDialog", "/StandoutsNudgeSettings"].some((name) => id.endsWith(name))) {
           return load(`app/components${id.slice(id.lastIndexOf("/"))}.jsx`);
         }
@@ -241,17 +244,23 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
   function mount(component: Component, props = {}) {
     const state = { cells: [] as any[], cursor: 0, effects: [] as (() => void)[] };
     let tree: Element;
+    let currentProps = props;
     const render = () => {
       current = state;
       state.cursor = 0;
       state.effects = [];
-      tree = component(props);
+      tree = component(currentProps);
       return tree;
+    };
+    const updateProps = (nextProps: Record<string, any>) => {
+      currentProps = nextProps;
+      return render();
     };
     render();
     return {
       get tree() { return tree; },
       render,
+      updateProps,
       async startEffects() {
         for (const effect of state.effects) effect();
         await new Promise<void>((resolve) => setImmediate(resolve));
@@ -441,14 +450,30 @@ describe("admin publication controls", () => {
     await editor.startEffects();
     expect(find(editor.tree, (node) => node.props.id === "edit-publication-status").props.value).toBe("approved");
     expect(text(editor.tree)).toContain("Approve & publish");
+    const rights = find(editor.tree, (node) => node.props.id === "edit-rights-status");
+    expect(rights.props.value).toBe("unknown");
+    expect(nodes(rights).filter((node) => node.type === "option").map((node) => node.props.value)).toEqual([
+      "church_original", "third_party", "public_domain", "unknown",
+    ]);
     await find(editor.tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
-    expect(h.alert).toHaveBeenCalledOnce();
+    expect(h.alert).toHaveBeenCalledWith(expect.stringContaining("verified rights classification"));
     expect(h.fetch).not.toHaveBeenCalled();
-    const attestation = find(editor.tree, (node) => node.type === "label" && text(node).includes("I confirm Luumbo owns"));
+
+    change(rights, "third_party");
+    change(find(editor.tree, (node) => node.props.id === "edit-rights-note"), "  Used with permission.  ");
+    editor.render();
+    await find(editor.tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
+    expect(h.alert).toHaveBeenCalledTimes(2);
+    expect(h.fetch).not.toHaveBeenCalled();
+    const attestation = find(editor.tree, (node) => node.type === "label" && text(node).includes("I confirm this classification"));
     find(attestation, (node) => node.type === "input").props.onChange({ target: { checked: true } });
     editor.render();
     await find(editor.tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
-    expect(JSON.parse(h.fetch.mock.calls[0][1].body).status).toBe("approved");
+    expect(JSON.parse(h.fetch.mock.calls[0][1].body)).toEqual(expect.objectContaining({
+      status: "approved",
+      rights_status: "third_party",
+      rights_note: "Used with permission.",
+    }));
     expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({ status: "approved" }));
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -459,6 +484,78 @@ describe("admin publication controls", () => {
     await editor.startEffects();
     expect(find(editor.tree, (node) => node.props.id === "edit-publication-status").props.value).toBe("pending");
     expect(text(editor.tree)).toContain("Save Changes");
+  });
+});
+
+describe("shared song rights disclosure", () => {
+  const rightsSong = {
+    ...fixture("rights", "Rights track"),
+    rights_status: "third_party",
+    rights_note: "Used with permission.",
+    copyright_holder: "Song writer",
+    license_type: "Direct permission",
+    license_url: "https://example.org/permission",
+    rights_clearance_date: "2026-11-01",
+  };
+
+  function renderedText(tree: any): string {
+    if (Array.isArray(tree)) return tree.map(renderedText).join("");
+    if (tree == null || typeof tree === "boolean") return "";
+    if (typeof tree.type === "function") return renderedText(tree.type(tree.props));
+    if (typeof tree === "object") return renderedText(tree.props?.children);
+    return String(tree);
+  }
+
+  function renderedNotice(h: any, page: any) {
+    const element = nodes(page.tree).find((node) => {
+      if (typeof node.type !== "function") return false;
+      try {
+        return h.mount(node.type, node.props).tree?.props?.["aria-label"] === "Rights and archive use";
+      } catch {
+        return false;
+      }
+    });
+    expect(element, "Expected the real shared rights notice").toBeDefined();
+    return h.mount(element!.type, element!.props);
+  }
+
+  it("opens the real shared notice from SongItem with classification and metadata", async () => {
+    const h = harness([rightsSong]);
+    const page = h.mount(h.load("app/components/SongItem.jsx"), {
+      song: rightsSong, onClick: h.setActiveSong, saved: false,
+    });
+    const menu = openActionMenu(h, page, "More actions for Rights track");
+    button(menu.tree, "Rights & archive use").props.onClick();
+    page.render();
+    const action = find(page.tree, (node) => node.props.label === "More actions for Rights track");
+    menu.updateProps(action.props);
+
+    const notice = renderedNotice(h, menu);
+    expect(renderedText(notice.tree)).toContain("Rights & archive use");
+    expect(renderedText(notice.tree)).toContain(songRights.SONG_RIGHTS_LABELS.third_party);
+    expect(renderedText(notice.tree)).toContain(songRights.SONG_RIGHTS_ARCHIVE_NOTICE);
+    expect(renderedText(notice.tree)).toContain("Used with permission.");
+    expect(renderedText(notice.tree)).toContain("Song writer");
+    expect(find(notice.tree, (node) => node.type === "a" && node.props.href === "/terms#content")).toBeDefined();
+  });
+
+  it("opens the real shared notice from the songs row without starting playback", async () => {
+    const h = harness([rightsSong]);
+    const catalogue = h.mount(h.load("app/songs/songs-view.js"));
+    const row = songRows(catalogue.tree)[0];
+    const page = h.mount(row.type, row.props);
+    find(page.tree, (node) => node.type === "button" && node.props.title === "More")
+      .props.onClick({ stopPropagation: vi.fn() });
+    page.render();
+    const rightsItem = find(page.tree, (node) => node.props.role === "menuitem" && text(node) === "Rights & archive use");
+    rightsItem.props.onClick();
+    page.render();
+
+    const notice = renderedNotice(h, page);
+    expect(renderedText(notice.tree)).toContain(songRights.SONG_RIGHTS_LABELS.third_party);
+    expect(renderedText(notice.tree)).toContain(songRights.SONG_RIGHTS_ARCHIVE_NOTICE);
+    expect(renderedText(notice.tree)).toContain("Direct permission");
+    expect(h.setActiveSong).not.toHaveBeenCalled();
   });
 });
 
@@ -479,21 +576,59 @@ describe("upload publication feedback", () => {
     return { h, page };
   }
 
+  it("defaults to pending review with an unknown rights classification", () => {
+    const { page } = uploadHarness();
+    expect(find(page.tree, (node) => node.props.id === "upload-publication-status").props.value).toBe("pending");
+    expect(find(page.tree, (node) => node.props.id === "upload-rights-status").props.value).toBe("unknown");
+  });
+
   it.each(["approved", "pending"])("saves the selected %s status and reports its visibility", async (status) => {
     const { h, page } = uploadHarness();
     const select = find(page.tree, (node) => node.props.id === "upload-publication-status");
-    expect(select.props.value).toBe("approved");
+    expect(select.props.value).toBe("pending");
+    change(find(page.tree, (node) => node.props.id === "upload-rights-status"), "third_party");
+    change(find(page.tree, (node) => node.props.id === "upload-rights-note"), "  Used with permission.  ");
     change(select, status);
     page.render();
     await find(page.tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
     page.render();
     const request = h.fetch.mock.calls.find(([url]) => url === "/api/admin/songs");
-    expect(JSON.parse(request![1].body).status).toBe(status);
+    expect(JSON.parse(request![1].body)).toEqual(expect.objectContaining({
+      status,
+      rights_status: "third_party",
+      rights_note: "Used with permission.",
+    }));
     expect(text(page.tree)).toContain(status === "approved" ? "Published 1 track — now available in Songs." : "Pending review — not public");
     expect(h.fetch.mock.calls.some(([, options]) => options?.method === "DELETE")).toBe(false);
+  });
+
+  it("resets a completed upload to pending review and an unknown classification", async () => {
+    const { page } = uploadHarness();
+    change(find(page.tree, (node) => node.props.id === "upload-rights-status"), "third_party");
+    change(find(page.tree, (node) => node.props.id === "upload-rights-note"), "Used with permission.");
+    change(find(page.tree, (node) => node.props.id === "upload-publication-status"), "approved");
+    page.render();
+    await find(page.tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
+    page.render();
+
     button(page.tree, "Start over").props.onClick();
     page.render();
-    expect(find(page.tree, (node) => node.props.id === "upload-publication-status").props.value).toBe("approved");
+
+    expect(find(page.tree, (node) => node.props.id === "upload-publication-status").props.value).toBe("pending");
+    expect(find(page.tree, (node) => node.props.id === "upload-rights-status").props.value).toBe("unknown");
+    expect(find(page.tree, (node) => node.props.id === "upload-rights-note").props.value).toBe("");
+  });
+
+  it("blocks approved uploads with an unknown classification before uploading", async () => {
+    const { h, page } = uploadHarness();
+    change(find(page.tree, (node) => node.props.id === "upload-publication-status"), "approved");
+    page.render();
+
+    await find(page.tree, (node) => node.type === "form").props.onSubmit({ preventDefault() {} });
+    page.render();
+
+    expect(text(find(page.tree, (node) => node.props.role === "alert"))).toContain("verified rights classification");
+    expect(h.fetch).not.toHaveBeenCalled();
   });
 
   it("reports the server's returned status rather than assuming publication", async () => {
@@ -1145,7 +1280,7 @@ describe("songs row is a container, not a button", () => {
     expect(open.props["aria-controls"]).toBe("song-menu-song");
     const menu = find(page.tree, (node) => node.props.role === "menu");
     expect(menu.props["aria-label"]).toBe("More actions for song");
-    expect(nodes(menu).filter((node) => node.props.role === "menuitem")).toHaveLength(6);
+    expect(nodes(menu).filter((node) => node.props.role === "menuitem")).toHaveLength(7);
   });
 
   it("still creates a playlist from the row menu", async () => {

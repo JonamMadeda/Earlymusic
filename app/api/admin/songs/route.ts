@@ -5,6 +5,7 @@ import { verifyStoredAudio, getR2ObjectKey } from "@/lib/audioVerify";
 import { announceNewSong, hasSongAnnouncement } from "@/lib/announcement";
 import { logAdminAction } from "@/lib/adminAudit";
 import { db } from "@/lib/neon";
+import { normalizeSongRightsStatus } from "@/lib/songRights";
 
 export async function GET(request: NextRequest) {
   const limited = await checkRateLimit(request, { name: "admin-songs", limit: 120, windowMs: 60_000 });
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Administrator access is required." }, { status: 403 });
     }
 
-    const { title, author, song_path, category, original_songs, duration, copyright_holder, license_type, license_url, rights_clearance_date, status, region_restricted, download_allowed, allowed_countries } = await request.json();
+    const { title, author, song_path, category, original_songs, duration, copyright_holder, license_type, license_url, rights_clearance_date, rights_status, rights_note, status, region_restricted, download_allowed, allowed_countries } = await request.json();
     if (!title || !song_path) {
       return NextResponse.json({ error: "Title and song_path are required." }, { status: 400 });
     }
@@ -86,17 +87,33 @@ export async function POST(request: NextRequest) {
       ? `{${countryCodes.join(",")}}`
       : null;
 
-    const songStatus = status === undefined ? "approved" : status;
+    const songStatus = status === undefined ? "pending" : status;
     if (!["pending", "approved", "rejected"].includes(songStatus)) {
       return NextResponse.json({ error: "Invalid publication status." }, { status: 400 });
+    }
+    const normalizedRightsStatus = normalizeSongRightsStatus(rights_status ?? "unknown");
+    if (!normalizedRightsStatus) {
+      return NextResponse.json({ error: "Invalid song rights classification." }, { status: 400 });
+    }
+    if (songStatus === "approved" && normalizedRightsStatus === "unknown") {
+      return NextResponse.json(
+        { error: "Classify the song's rights before publishing it." },
+        { status: 400 }
+      );
+    }
+    if (typeof rights_note === "string" && rights_note.trim().length > 500) {
+      return NextResponse.json(
+        { error: "The rights note must be 500 characters or fewer." },
+        { status: 400 }
+      );
     }
 
     const { rows } = await db.query(
       `INSERT INTO public.songs
          (title, author, song_path, category, original_songs, duration,
           copyright_holder, license_type, license_url, rights_clearance_date,
-          status, region_restricted, download_allowed, allowed_countries)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14::text[])
+          rights_status, rights_note, status, region_restricted, download_allowed, allowed_countries)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::text[])
        RETURNING *`,
       [
         title,
@@ -109,6 +126,8 @@ export async function POST(request: NextRequest) {
         license_type || null,
         license_url || null,
         rights_clearance_date || null,
+        normalizedRightsStatus,
+        typeof rights_note === "string" ? rights_note.trim() || null : null,
         songStatus,
         region_restricted === true,
         download_allowed !== false,

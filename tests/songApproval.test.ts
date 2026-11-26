@@ -35,6 +35,7 @@ const existing = {
   title: "Test recording",
   status: "rejected",
   song_path: "/audio/original.mp3",
+  rights_status: "unknown",
   region_restricted: false,
   allowed_countries: null,
 };
@@ -67,18 +68,27 @@ describe("admin upload publication", () => {
   beforeEach(() => {
     mocks.hasSongAnnouncement.mockResolvedValue(false);
     mocks.query.mockReset().mockImplementation(async (_sql: string, params: unknown[]) => ({
-      rows: [{ ...existing, status: params[10] }],
+      rows: [{
+        ...existing,
+        rights_status: params[10],
+        rights_note: params[11],
+        status: params[12],
+      }],
     }));
   });
 
-  it("publishes verified admin uploads by default and announces them", async () => {
+  it("holds verified admin uploads as pending with an unknown classification by default", async () => {
     const response = await create();
 
     expect(response.status).toBe(201);
-    expect((await response.json()).song.status).toBe("approved");
-    expect(mocks.query.mock.calls[0][1][10]).toBe("approved");
+    expect((await response.json()).song).toEqual(expect.objectContaining({
+      status: "pending",
+      rights_status: "unknown",
+    }));
+    expect(mocks.query.mock.calls[0][1].slice(10, 13)).toEqual(["unknown", null, "pending"]);
     expect(mocks.verifyStoredAudio).toHaveBeenCalledExactlyOnceWith(existing.song_path);
-    expect(mocks.announceNewSong).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ status: "approved" }));
+    expect(mocks.hasSongAnnouncement).not.toHaveBeenCalled();
+    expect(mocks.announceNewSong).not.toHaveBeenCalled();
   });
 
   it.each(["pending", "rejected"])("keeps an explicit %s upload private without announcing it", async (status) => {
@@ -86,14 +96,70 @@ describe("admin upload publication", () => {
 
     expect(response.status).toBe(201);
     expect((await response.json()).song.status).toBe(status);
-    expect(mocks.query.mock.calls[0][1][10]).toBe(status);
+    expect(mocks.query.mock.calls[0][1][12]).toBe(status);
     expect(mocks.hasSongAnnouncement).not.toHaveBeenCalled();
     expect(mocks.announceNewSong).not.toHaveBeenCalled();
   });
 
+  it.each(["church_original", "third_party", "public_domain"])("accepts the %s classification for publication", async (rightsStatus) => {
+    const response = await create({ status: "approved", rights_status: rightsStatus });
+
+    expect(response.status).toBe(201);
+    expect((await response.json()).song).toEqual(expect.objectContaining({
+      status: "approved",
+      rights_status: rightsStatus,
+    }));
+    expect(mocks.query.mock.calls[0][1][10]).toBe(rightsStatus);
+    expect(mocks.announceNewSong).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      status: "approved",
+      rights_status: rightsStatus,
+    }));
+  });
+
+  it("normalizes a valid rights classification and persists a trimmed rights note", async () => {
+    const response = await create({
+      rights_status: "  Third_Party ",
+      rights_note: "  Used with permission.  ",
+    });
+    const params = mocks.query.mock.calls[0][1];
+
+    expect(response.status).toBe(201);
+    expect(params[10]).toBe("third_party");
+    expect(params[11]).toBe("Used with permission.");
+    expect((await response.json()).song.rights_note).toBe("Used with permission.");
+  });
+
+  it.each(["   ", null])("stores a blank rights note %s as null", async (rightsNote) => {
+    expect((await create({ rights_note: rightsNote })).status).toBe(201);
+    expect(mocks.query.mock.calls[0][1][11]).toBeNull();
+  });
+
+  it("rejects approved uploads with an omitted or unknown classification before writing", async () => {
+    for (const rightsStatus of [undefined, "unknown", null]) {
+      const response = await create({ status: "approved", rights_status: rightsStatus });
+      expect(response.status).toBe(400);
+      expect((await response.json()).error).toContain("Classify");
+    }
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.announceNewSong).not.toHaveBeenCalled();
+  });
+
+  it.each(["owned", "", 7])("rejects an invalid rights classification %s", async (rightsStatus) => {
+    expect((await create({ rights_status: rightsStatus })).status).toBe(400);
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.announceNewSong).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized rights note before writing", async () => {
+    const response = await create({ rights_note: "x".repeat(501) });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain("500");
+    expect(mocks.query).not.toHaveBeenCalled();
+  });
+
   it("accepts explicit approval without duplicating an existing announcement", async () => {
     mocks.hasSongAnnouncement.mockResolvedValue(true);
-    expect((await create({ status: "approved" })).status).toBe(201);
+    expect((await create({ status: "approved", rights_status: "public_domain" })).status).toBe(201);
     expect(mocks.hasSongAnnouncement).toHaveBeenCalledWith(existing.id);
     expect(mocks.announceNewSong).not.toHaveBeenCalled();
   });
@@ -120,10 +186,12 @@ describe("admin upload publication", () => {
 });
 
 describe("song approval audio verification", () => {
+  const approval = { status: "approved", rights_status: "church_original" };
+
   it("rejects reapproval when the retained path no longer has audio", async () => {
     mocks.verifyStoredAudio.mockResolvedValue({ ok: false, error: "Audio file not found in storage." });
 
-    const response = await patch({ status: "approved" });
+    const response = await patch(approval);
 
     expect(response.status).toBe(400);
     expect(mocks.verifyStoredAudio).toHaveBeenCalledWith(existing.song_path);
@@ -132,7 +200,7 @@ describe("song approval audio verification", () => {
   });
 
   it("approves and announces a track whose stored audio is verified", async () => {
-    const response = await patch({ status: "approved" });
+    const response = await patch(approval);
 
     expect(response.status).toBe(200);
     expect(mocks.verifyStoredAudio).toHaveBeenCalledWith(existing.song_path);
@@ -141,7 +209,7 @@ describe("song approval audio verification", () => {
   });
 
   it("verifies replacement audio instead of a deleted old path when approving", async () => {
-    const response = await patch({ status: "approved", song_path: "/audio/new.mp3" });
+    const response = await patch({ ...approval, song_path: "/audio/new.mp3" });
 
     expect(response.status).toBe(200);
     expect(mocks.verifyStoredAudio).toHaveBeenCalledExactlyOnceWith("/audio/new.mp3");
@@ -157,7 +225,7 @@ describe("song approval audio verification", () => {
   });
 
   it("cannot approve a track while clearing its audio path", async () => {
-    expect((await patch({ status: "approved", song_path: null })).status).toBe(400);
+    expect((await patch({ ...approval, song_path: null })).status).toBe(400);
     expect(mocks.verifyStoredAudio).not.toHaveBeenCalled();
     expect(mocks.query).toHaveBeenCalledTimes(1);
   });
@@ -171,9 +239,99 @@ describe("song approval audio verification", () => {
     mocks.query.mockReset().mockResolvedValueOnce({ rows: [{ ...existing, status: "approved" }] });
     mocks.verifyStoredAudio.mockResolvedValue({ ok: false, error: "Missing audio" });
 
-    expect((await patch({ song_path: "/audio/missing.mp3" })).status).toBe(400);
+    expect((await patch({ ...approval, song_path: "/audio/missing.mp3" })).status).toBe(400);
     expect(mocks.verifyStoredAudio).toHaveBeenCalledWith("/audio/missing.mp3");
     expect(mocks.query).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("song approval rights classification", () => {
+  it.each([undefined, null, "unknown"])("blocks edits to legacy approved rows with rights_status %s", async (rightsStatus) => {
+    mocks.query.mockReset().mockResolvedValueOnce({
+      rows: [{ ...existing, status: "approved", rights_status: rightsStatus }],
+    });
+
+    const response = await patch({ title: "Corrected title" });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain("Classify");
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+    expect(mocks.verifyStoredAudio).not.toHaveBeenCalled();
+  });
+
+  it("requires a classification when approving an unclassified pending row", async () => {
+    const response = await patch({ status: "approved" });
+
+    expect(response.status).toBe(400);
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+    expect(mocks.verifyStoredAudio).not.toHaveBeenCalled();
+    expect(mocks.announceNewSong).not.toHaveBeenCalled();
+  });
+
+  it("rejects downgrading a classified approved row to unknown", async () => {
+    mocks.query.mockReset().mockResolvedValueOnce({
+      rows: [{ ...existing, status: "approved", rights_status: "public_domain" }],
+    });
+
+    const response = await patch({ rights_status: "unknown" });
+
+    expect(response.status).toBe(400);
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+    expect(mocks.verifyStoredAudio).not.toHaveBeenCalled();
+  });
+
+  it.each(["church_original", "third_party", "public_domain"])("accepts %s when approving and stores the normalized value", async (rightsStatus) => {
+    const response = await patch({
+      status: "approved",
+      rights_status: `  ${rightsStatus.toUpperCase()}  `,
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.query.mock.calls[1][1][0]).toBe(rightsStatus);
+    expect(mocks.query.mock.calls[1][0]).not.toContain("rights_status <> 'unknown'");
+    expect(mocks.announceNewSong).toHaveBeenCalledOnce();
+  });
+
+  it.each(["owned", "", null])("rejects an invalid PATCH classification %s before writing", async (rightsStatus) => {
+    expect((await patch({ rights_status: rightsStatus })).status).toBe(400);
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+    expect(mocks.announceNewSong).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized rights note before writing", async () => {
+    const response = await patch({ rights_note: "x".repeat(501) });
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain("500");
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+    expect(mocks.verifyStoredAudio).not.toHaveBeenCalled();
+  });
+
+  it("guards an approval against a concurrent rights downgrade", async () => {
+    mocks.query.mockReset()
+      .mockResolvedValueOnce({ rows: [{ ...existing, status: "approved", rights_status: "public_domain" }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: existing.id }] });
+
+    const response = await patch({ title: "Corrected title" });
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).error).toContain("changed while");
+    expect(mocks.query.mock.calls[1][0]).toContain("rights_status <> 'unknown'");
+    expect(mocks.announceNewSong).not.toHaveBeenCalled();
+    expect(mocks.announceSongUpdate).not.toHaveBeenCalled();
+  });
+
+  it("guards an unclassified downgrade against a concurrent approval", async () => {
+    mocks.query.mockReset()
+      .mockResolvedValueOnce({ rows: [{ ...existing, status: "pending" }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: existing.id }] });
+
+    const response = await patch({ status: "rejected", rights_status: "unknown" });
+
+    expect(response.status).toBe(409);
+    expect(mocks.query.mock.calls[1][0]).toContain("status <> 'approved'");
+    expect(mocks.announceNewSong).not.toHaveBeenCalled();
   });
 });
 
