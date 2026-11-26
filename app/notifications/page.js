@@ -421,7 +421,7 @@ export default function NotificationsPage() {
                     {group.label}
                   </h2>
                   <span className="h-px flex-1 bg-neutral-200/80" />
-                  <span className="text-xs font-semibold tabular-nums text-neutral-500">
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-neutral-100 px-1.5 text-[10px] font-semibold leading-none tabular-nums text-neutral-500">
                     {group.items.length}
                   </span>
                 </div>
