@@ -250,9 +250,9 @@ input[type="range"].seek-bar {
   background: linear-gradient(
     to right,
     #ffffff 0%,
-    #ffffff var(--seek-progress, 0%),
-    rgba(255, 255, 255, 0.24) var(--seek-progress, 0%),
-    rgba(255, 255, 255, 0.24) 100%
+    #dbe7f9 var(--seek-progress, 0%),
+    rgba(255, 255, 255, 0.2) var(--seek-progress, 0%),
+    rgba(255, 255, 255, 0.2) 100%
   ) center / 100% 4px no-repeat;
   cursor: pointer;
 }
@@ -263,8 +263,8 @@ input[type="range"].seek-bar {
   width: 15px;
   height: 15px;
   border-radius: 9999px;
-  background: #ffffff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, #ffffff, #dce7f7);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(255, 255, 255, 0.07);
 }
 
 .seek-bar::-moz-range-thumb {
@@ -272,13 +272,52 @@ input[type="range"].seek-bar {
   height: 15px;
   border: none;
   border-radius: 9999px;
-  background: #ffffff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, #ffffff, #dce7f7);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(255, 255, 255, 0.07);
 }
 
 .seek-bar:disabled {
   cursor: default;
   opacity: 0.45;
+}
+
+/* Backdrop wash for the full player. It starts in the nav's navy (#0f172a) and
+   settles into the player's own blue (#0b1120), with a blue-tinted light source
+   at the top so the overlay reads as a lit room rather than a flat black sheet.
+   Both brand colours stay fixed; only their blend moves. The root is already
+   `fixed`, so this rule must not set position: the unlayered rule would win
+   over the utility and drop the whole overlay into the page flow. */
+.player-surface {
+  background-color: #0b1120;
+  background-image:
+    radial-gradient(130% 85% at 50% -15%, rgba(72, 103, 150, 0.24), transparent 58%),
+    linear-gradient(150deg, #0f172a 0%, #0d1628 38%, #0b1120 72%, #0b1120 100%);
+}
+
+/* Dark gradients band on 8-bit displays, and this one covers the whole screen.
+   A faint noise layer dithers the transitions without changing the palette. */
+.player-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+/* The artwork sits in the brightest part of the wash, so it gets its own halo
+   to lift the record off the background instead of letting the vinyl edge melt
+   into it. It shares the surface's blue rather than a flat grey. */
+.player-artwork-glow {
+  background: radial-gradient(
+    circle at center,
+    rgba(96, 129, 178, 0.2) 0%,
+    rgba(78, 108, 152, 0.08) 38%,
+    transparent 68%
+  );
 }
 
 /* The full player is the app's one dark surface. These are the handful of
@@ -290,17 +329,17 @@ input[type="range"].seek-bar {
 }
 
 .player-dark .volume-slider {
-  background: linear-gradient(rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.28)) center / 100% 6px no-repeat;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.44), rgba(190, 211, 241, 0.26)) center / 100% 6px no-repeat;
 }
 
 .player-dark .volume-slider::-webkit-slider-thumb {
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, #ffffff, #dce7f7);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(255, 255, 255, 0.07);
 }
 
 .player-dark .volume-slider::-moz-range-thumb {
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, #ffffff, #dce7f7);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(255, 255, 255, 0.07);
 }
 
 .player-dark :focus-visible {

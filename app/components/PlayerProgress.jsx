@@ -117,7 +117,7 @@ export const ThinProgress = ({
         }`}
       />
       <div
-        className={`h-full bg-accent transition-[width] duration-150 ${trackClassName}`}
+        className={`h-full bg-gradient-to-r from-accent to-accent/75 transition-[width] duration-150 ${trackClassName}`}
         style={{ width: `${scrub.percent}%` }}
       />
       <div

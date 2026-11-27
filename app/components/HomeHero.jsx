@@ -55,6 +55,16 @@ const addedLabel = (dateStr, now) => {
   return "Recently added";
 };
 
+// Keep the returning-listener line descriptive without inventing a "station":
+// the song's own category (Worship, Praise) and length are the useful cues.
+const recentlyPlayedMeta = (song) => {
+  const category = (song?.category || "").trim();
+  const length = homepageLengthLabel(song);
+  const parts = [category, length].filter(Boolean);
+  if (parts.length) return ` · ${parts.join(" · ")}`;
+  return song?.author ? ` — ${song.author}` : "";
+};
+
 // These are plain render helpers, not components: the hero is a single
 // surface, and calling them inline keeps the whole tree visible to tests that
 // walk page.js without a DOM.
@@ -91,7 +101,7 @@ const standoutCard = ({ song, onPlay }) => {
       <div className="flex items-center justify-between text-[10px] font-semibold uppercase leading-none tracking-wider text-neutral-500">
         <span className="flex items-center gap-1.5">
           <Star size={10} aria-hidden="true" />
-          Standout Station
+          Standout Song
         </span>
         {length && (
           <span className="flex items-center gap-1 font-semibold tabular-nums text-neutral-600">
@@ -417,14 +427,8 @@ export default function HomeHero({
           label: "Welcome back",
           title: "Pick up where you left off",
           description: recentlyPlayed[0]
-            ? `Last played: ${recentlyPlayed[0].title}${
-                homepageLengthLabel(recentlyPlayed[0])
-                  ? ` · ${homepageLengthLabel(recentlyPlayed[0])} station`
-                  : recentlyPlayed[0].author
-                    ? ` — ${recentlyPlayed[0].author}`
-                    : ""
-              }`
-            : "Your worship stations are ready.",
+            ? `Last played: ${recentlyPlayed[0].title}${recentlyPlayedMeta(recentlyPlayed[0])}`
+            : "Your worship songs are ready.",
         };
       default:
         return {

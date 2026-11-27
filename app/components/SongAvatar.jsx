@@ -61,21 +61,20 @@ export const VinylArtwork = ({
   return (
     <div className="relative flex items-center justify-center py-4">
       {/* The shadow lives on a static wrapper: attached to the disc itself it
-          would orbit with the rotation, and the old dark-theme value read as a
-          smudge against the light player. */}
+          would orbit with the rotation. */}
       <div
         className={`relative aspect-square rounded-full ${sizeClassName}`}
-        style={{ boxShadow: "0 18px 36px -20px rgba(15,23,42,0.35), 0 6px 14px -8px rgba(15,23,42,0.14)" }}
+        style={{ boxShadow: "0 26px 50px -24px rgba(0,0,0,0.85), 0 10px 20px -12px rgba(0,0,0,0.55)" }}
       >
         {/* Vinyl record: animation always applied, play state toggles so pause freezes the angle */}
         <div
-          className={`h-full w-full rounded-full bg-neutral-900 border-4 border-neutral-800/90 flex items-center justify-center vinyl-spin ${
+          className={`h-full w-full rounded-full bg-[#0a101b] border-4 border-white/10 flex items-center justify-center vinyl-spin ${
             isPlaying ? "" : "vinyl-spin-paused"
           }`}
           style={{
-            boxShadow: "inset 0 0 25px rgba(255,255,255,0.06)",
+            boxShadow: "inset 0 0 32px rgba(0,0,0,0.9), inset 0 0 22px rgba(255,255,255,0.04)",
             backgroundImage:
-              "repeating-radial-gradient(circle, transparent, transparent 3px, rgba(255,255,255,0.035) 4px, transparent 5px)",
+              "repeating-radial-gradient(circle, transparent, transparent 3px, rgba(173,196,229,0.05) 4px, transparent 5px), radial-gradient(circle at 35% 28%, #1c2b44 0%, #111b2d 42%, #080d16 100%)",
           }}
         >
           {/* Subtle groove rings */}
@@ -84,7 +83,7 @@ export const VinylArtwork = ({
           <div className="absolute inset-14 sm:inset-18 rounded-full border border-white/5 pointer-events-none" />
 
           {/* Center label */}
-          <div className="relative aspect-square w-22 sm:w-28 rounded-full bg-gradient-to-br from-slate-900 via-accent to-slate-800 p-1 shadow-inner flex flex-col items-center justify-center border-2 border-white/20">
+          <div className="relative aspect-square w-22 sm:w-28 rounded-full bg-gradient-to-br from-[#243a5a] via-[#13223a] to-[#0a1120] p-1 shadow-inner flex flex-col items-center justify-center border-2 border-white/15">
             <div className="absolute inset-1 rounded-full border border-white/10" />
             <span className="text-2xl sm:text-3xl font-black text-white select-none drop-shadow-md">
               {letter}
@@ -93,7 +92,7 @@ export const VinylArtwork = ({
               Luumbo
             </span>
             {/* Center spindle hole */}
-            <div className="absolute h-3 w-3 rounded-full bg-neutral-900 border border-white/40 shadow-inner" />
+            <div className="absolute h-3 w-3 rounded-full bg-[#070b13] border border-white/30 shadow-inner" />
           </div>
         </div>
       </div>

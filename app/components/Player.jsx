@@ -1504,10 +1504,8 @@ const Player = () => {
           role="dialog"
           aria-modal="true"
           aria-labelledby="player-title"
-          className="player-dark fixed inset-0 z-[1000] flex h-dvh flex-col overflow-hidden animate-fade-in bg-[#0b1120] text-white"
+          className="player-surface player-dark fixed inset-0 z-[1000] flex h-dvh flex-col overflow-hidden animate-fade-in text-white"
         >
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0f172a] to-[#0b1120]" />
-
           {/* Swipe-down grabber */}
           <div
             aria-hidden="true"
@@ -1525,11 +1523,17 @@ const Player = () => {
               type="button"
               aria-label="Close player"
               onClick={closeFullPlayer}
-              className="tap-sm flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
+              className="tap-sm flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition hover:bg-white/10 hover:text-white"
             >
               <ChevronDown size={22} aria-hidden="true" />
             </button>
-            <p className="text-center text-xs font-semibold uppercase tracking-[0.16em] text-white/50">
+            <p className="flex items-center justify-center gap-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white/50">
+              <span
+                aria-hidden="true"
+                className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                  isPlaying ? "bg-white/80" : "bg-white/30"
+                }`}
+              />
               {showQueue ? "Up next" : "Now playing"}
             </p>
             <SongOverflowMenu
@@ -1562,7 +1566,8 @@ const Player = () => {
 
           <div className="full-player-body relative z-10 mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col md:grid md:grid-cols-[minmax(0,1fr)_minmax(20rem,0.85fr)] md:items-center md:gap-12 md:px-8 md:py-6 lg:gap-20">
             {!showQueue && (
-              <div className="full-player-artwork flex min-h-0 flex-1 items-center justify-center overflow-hidden px-6 md:h-full md:px-0" aria-hidden="true">
+              <div className="full-player-artwork relative flex min-h-0 flex-1 items-center justify-center overflow-hidden px-6 md:h-full md:px-0" aria-hidden="true">
+                <div className="player-artwork-glow pointer-events-none absolute inset-0" />
                 <VinylArtwork
                   title={song.title}
                   isPlaying={isPlaying}
@@ -1586,7 +1591,7 @@ const Player = () => {
               </section>
             )}
 
-            <div className="full-player-controls w-full min-w-0 shrink-0 px-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-2 sm:px-8 md:max-w-md md:justify-self-center md:px-0 md:pb-0 md:pt-0">
+            <div className="full-player-controls w-full min-w-0 shrink-0 px-5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-2 sm:px-8 md:max-w-md md:justify-self-center md:px-0 md:pb-0 md:pt-0 lg:max-w-lg lg:rounded-[2rem] lg:border lg:border-white/10 lg:bg-gradient-to-br lg:from-white/[0.07] lg:via-white/[0.035] lg:to-white/[0.012] lg:p-6 lg:shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)] lg:ring-1 lg:ring-inset lg:ring-white/5 lg:backdrop-blur-2xl">
               <div className="mb-4 md:mb-6">
                 <div className="flex items-start gap-3">
                   <div className="min-w-0 flex-1">
@@ -1682,7 +1687,7 @@ const Player = () => {
                     type="button"
                     aria-label={isBusy ? "Loading" : isPlaying ? "Pause" : "Play"}
                     onClick={togglePlay}
-                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white text-neutral-900 shadow-xl transition active:scale-95 hover:scale-105"
+                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-b from-white via-white to-[#d8e2f0] text-[#0f172a] shadow-[0_18px_40px_-18px_rgba(2,6,23,0.9)] ring-1 ring-white/60 transition active:scale-95 hover:scale-105"
                   >
                     {isBusy ? (
                       <BusySpinner size={26} />
@@ -1758,7 +1763,7 @@ const Player = () => {
                       aria-pressed={showQueue}
                       onClick={() => setShowQueue(!showQueue)}
                       className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${
-                        showQueue ? "bg-white text-neutral-900" : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
+                        showQueue ? "bg-white text-[#0f172a]" : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
                       }`}
                     >
                       <ListMusic size={15} />
