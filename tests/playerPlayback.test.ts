@@ -40,7 +40,6 @@ vi.mock("../app/components/PlayerQueue", () => ({ default: () => null }));
 vi.mock("../app/components/SongOverflowMenu", () => ({ default: () => null }));
 
 import Player from "../app/components/Player";
-import { SONG_RIGHTS_ARCHIVE_NOTICE } from "../lib/songRights";
 
 const songs = ["a", "b", "c"].map((id) => ({
   id, title: `Song ${id}`, author: "Artist", song_path: `https://audio.example/${id}.mp3`,
@@ -366,23 +365,8 @@ describe("Player same-source selections", () => {
   });
 });
 
-describe("Player rights disclosure", () => {
-  it("renders the active song's rights in the full-player shared notice and updates on selection", async () => {
-    const renderedText = (node: any): string => {
-      if (Array.isArray(node)) return node.map(renderedText).join("");
-      if (node == null || typeof node === "boolean") return "";
-      if (typeof node.type === "function") return renderedText(node.type(node.props));
-      if (typeof node === "object") return renderedText(node.props?.children);
-      return String(node);
-    };
-    const disclosureText = () => {
-      const disclosure = player.nodes().find((node) =>
-        node.type === "details" && renderedText(node).includes("Rights & archive use")
-      );
-      expect(disclosure).toBeDefined();
-      return renderedText(disclosure);
-    };
-
+describe("Player rights entry", () => {
+  it("keeps rights details out of the full-player layout", async () => {
     vi.stubGlobal("document", {
       activeElement: null,
       getElementById: () => null,
@@ -392,17 +376,12 @@ describe("Player rights disclosure", () => {
     (window as any).location = { href: "http://localhost/" };
     await player.settle();
     await player.click(`Open now playing: ${songs[0].title}`);
-    expect(disclosureText()).toContain("Third-party song");
-    expect(disclosureText()).toContain(SONG_RIGHTS_ARCHIVE_NOTICE);
-    expect(disclosureText()).toContain("Permission confirmed for archive listening.");
-    expect(disclosureText()).toContain("Song writer");
-    expect(disclosureText()).toContain("Direct permission");
 
-    await player.select(songs[1]);
-    expect(disclosureText()).toContain("Archive recording");
-    expect(disclosureText()).toContain(SONG_RIGHTS_ARCHIVE_NOTICE);
-    expect(disclosureText()).not.toContain("Permission confirmed for archive listening.");
-    expect(disclosureText()).not.toContain("Third-party song");
+    expect(player.nodes().some((node) =>
+      node.type === "details" && player.nodes(node).some((child) =>
+        typeof child.props?.children === "string" && child.props.children.includes("Rights & archive use")
+      )
+    )).toBe(false);
   });
 });
 

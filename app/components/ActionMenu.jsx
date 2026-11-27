@@ -15,10 +15,12 @@ export default function ActionMenu({
   align = "right",
   className = "",
   triggerClassName = "",
+  buttonRef: buttonRefProp,
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
-  const buttonRef = useRef(null);
+  const internalButtonRef = useRef(null);
+  const buttonRef = buttonRefProp || internalButtonRef;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -36,7 +38,7 @@ export default function ActionMenu({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [open, buttonRef]);
 
   return (
     <div ref={rootRef} className={`relative ${className}`}>
@@ -74,7 +76,9 @@ export default function ActionMenu({
               align === "left" ? "sm:left-0" : "sm:right-0"
             }`}
           >
-            {typeof children === "function" ? children({ close: () => setOpen(false) }) : children}
+            {typeof children === "function"
+              ? children({ close: () => setOpen(false) })
+              : children}
           </div>
         </>
       )}

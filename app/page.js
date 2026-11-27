@@ -407,7 +407,7 @@ const HistoryCard = ({ song, index, onClick, isActive, isNew = false, isHistory 
         </div>
       </div>
 
-      {/* Progress track for paused station */}
+      {/* Progress track for paused song */}
       {resume && percent > 0 && (
         <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-neutral-200/80">
           <div

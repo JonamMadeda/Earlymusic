@@ -68,13 +68,13 @@ export const VinylArtwork = ({
       >
         {/* Vinyl record: animation always applied, play state toggles so pause freezes the angle */}
         <div
-          className={`h-full w-full rounded-full bg-[#0a101b] border-4 border-white/10 flex items-center justify-center vinyl-spin ${
+          className={`h-full w-full rounded-full bg-[#0b1120] border-4 border-white/10 flex items-center justify-center vinyl-spin ${
             isPlaying ? "" : "vinyl-spin-paused"
           }`}
           style={{
             boxShadow: "inset 0 0 32px rgba(0,0,0,0.9), inset 0 0 22px rgba(255,255,255,0.04)",
             backgroundImage:
-              "repeating-radial-gradient(circle, transparent, transparent 3px, rgba(173,196,229,0.05) 4px, transparent 5px), radial-gradient(circle at 35% 28%, #1c2b44 0%, #111b2d 42%, #080d16 100%)",
+              "repeating-radial-gradient(circle, transparent, transparent 3px, rgba(173,196,229,0.05) 4px, transparent 5px), radial-gradient(circle at 35% 28%, var(--color-accent) 0%, #0d1628 44%, #0b1120 100%)",
           }}
         >
           {/* Subtle groove rings */}
@@ -83,12 +83,12 @@ export const VinylArtwork = ({
           <div className="absolute inset-14 sm:inset-18 rounded-full border border-white/5 pointer-events-none" />
 
           {/* Center label */}
-          <div className="relative aspect-square w-22 sm:w-28 rounded-full bg-gradient-to-br from-[#243a5a] via-[#13223a] to-[#0a1120] p-1 shadow-inner flex flex-col items-center justify-center border-2 border-white/15">
+          <div className="relative aspect-square w-22 sm:w-28 rounded-full bg-gradient-to-br from-[#17233a] via-[var(--color-accent)] to-[#0b1120] p-1 shadow-inner flex flex-col items-center justify-center border-2 border-white/15">
             <div className="absolute inset-1 rounded-full border border-white/10" />
             <span className="text-2xl sm:text-3xl font-black text-white select-none drop-shadow-md">
               {letter}
             </span>
-            <span className="text-xs sm:text-xs font-bold tracking-[0.2em] text-white/70 uppercase mt-0.5 select-none">
+            <span className="text-[9px] sm:text-[10px] font-bold tracking-[0.16em] text-white/70 uppercase mt-0.5 select-none">
               Luumbo
             </span>
             {/* Center spindle hole */}

@@ -72,6 +72,7 @@ const hasEmptyState = (tree: Element, title: string) =>
 
 function harness(songs: Song[], tab = "top", search: Record<string, string> | null = null) {
   const connection = { online: true };
+  const portalBody = {};
   const auth: { user: { id: string } | null; isAdmin: boolean; loading: boolean; roleLoading: boolean } = {
     user: { id: "user" }, isAdmin: true, loading: false, roleLoading: false,
   };
@@ -214,6 +215,11 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
         if (id === "./components/HomeHero") return load("app/components/HomeHero.jsx");
         if (id.endsWith("/SongAvatar")) return { default: "avatar", initialLetter: (title: string) => title[0], hashStr: (value: string) => [...value].reduce((hash, char) => hash * 31 + char.charCodeAt(0) | 0, 0) };
         if (id.endsWith("/SongRightsNotice")) return load("app/components/SongRightsNotice.jsx");
+        if (id.endsWith("/SongRightsDialog")) return load("app/components/SongRightsDialog.jsx");
+        if (id === "react-dom") return { createPortal: (node: any, target: any) => {
+          expect(target).toBe(portalBody);
+          return node;
+        } };
         if (["/ActionMenu", "/ConfirmModal", "/EmptyState", "/PlaylistNameDialog", "/StandoutsNudgeSettings"].some((name) => id.endsWith(name))) {
           return load(`app/components${id.slice(id.lastIndexOf("/"))}.jsx`);
         }
@@ -225,6 +231,7 @@ function harness(songs: Song[], tab = "top", search: Record<string, string> | nu
       alert,
       window: { addEventListener: vi.fn(), removeEventListener: vi.fn(), matchMedia: () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }), history: { state: null, replaceState: vi.fn() }, location: { pathname: "/library", search: "" } },
       document: {
+        body: portalBody,
         getElementById: () => null,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
@@ -506,40 +513,76 @@ describe("shared song rights disclosure", () => {
     return String(tree);
   }
 
-  function renderedNotice(h: any, page: any) {
-    const element = nodes(page.tree).find((node) => {
-      if (typeof node.type !== "function") return false;
-      try {
-        return h.mount(node.type, node.props).tree?.props?.["aria-label"] === "Rights and archive use";
-      } catch {
-        return false;
-      }
-    });
-    expect(element, "Expected the real shared rights notice").toBeDefined();
-    return h.mount(element!.type, element!.props);
+  function renderedRightsDialog(h: any, page: any) {
+    const element = find(page.tree, (node) => node.type?.name === "SongRightsDialog");
+    expect(element.props.open).toBe(true);
+    return h.mount(element.type, element.props);
   }
 
-  it("opens the real shared notice from SongItem with classification and metadata", async () => {
+  it("opens player overflow copyright details in a modal", () => {
+    const h = harness([rightsSong]);
+    const menu = h.mount(h.load("app/components/SongOverflowMenu.jsx"), {
+      song: rightsSong,
+      dark: true,
+    });
+    find(menu.tree, (node) => node.props["aria-label"] === "More actions for this song").props.onClick();
+    menu.render();
+    button(menu.tree, "Copyright & song rights").props.onClick();
+    menu.render();
+
+    const dialog = renderedRightsDialog(h, menu);
+    expect(renderedText(dialog.tree)).toContain("Copyright & song rights");
+    expect(renderedText(dialog.tree)).toContain(songRights.SONG_RIGHTS_LABELS.third_party);
+    expect(renderedText(dialog.tree)).toContain(songRights.SONG_RIGHTS_ARCHIVE_NOTICE);
+    expect(renderedText(dialog.tree)).toContain("Used with permission.");
+    expect(renderedText(dialog.tree)).toContain("Song writer");
+    expect(nodes(menu.tree).some((node) => node.props["aria-label"] === "Song actions")).toBe(false);
+
+    find(dialog.tree, (node) => node.props["aria-label"] === "Close copyright information").props.onClick();
+    menu.render();
+    expect(find(menu.tree, (node) => node.type?.name === "SongRightsDialog").props.open).toBe(false);
+  });
+
+  it("opens SongItem copyright details in a modal and closes the menu", () => {
     const h = harness([rightsSong]);
     const page = h.mount(h.load("app/components/SongItem.jsx"), {
       song: rightsSong, onClick: h.setActiveSong, saved: false,
     });
     const menu = openActionMenu(h, page, "More actions for Rights track");
-    button(menu.tree, "Rights & archive use").props.onClick();
+    button(menu.tree, "Copyright & song rights").props.onClick();
     page.render();
     const action = find(page.tree, (node) => node.props.label === "More actions for Rights track");
     menu.updateProps(action.props);
+    expect(nodes(menu.tree).some((node) => node.props.role === "menu")).toBe(false);
 
-    const notice = renderedNotice(h, menu);
-    expect(renderedText(notice.tree)).toContain("Rights & archive use");
-    expect(renderedText(notice.tree)).toContain(songRights.SONG_RIGHTS_LABELS.third_party);
-    expect(renderedText(notice.tree)).toContain(songRights.SONG_RIGHTS_ARCHIVE_NOTICE);
-    expect(renderedText(notice.tree)).toContain("Used with permission.");
-    expect(renderedText(notice.tree)).toContain("Song writer");
-    expect(find(notice.tree, (node) => node.type === "a" && node.props.href === "/terms#content")).toBeDefined();
+    const dialog = renderedRightsDialog(h, page);
+    expect(renderedText(dialog.tree)).toContain("Copyright & song rights");
+    expect(renderedText(dialog.tree)).toContain("Rights & archive use");
+    expect(renderedText(dialog.tree)).toContain(songRights.SONG_RIGHTS_LABELS.third_party);
+    expect(renderedText(dialog.tree)).toContain(songRights.SONG_RIGHTS_ARCHIVE_NOTICE);
+    expect(renderedText(dialog.tree)).toContain("Used with permission.");
+    expect(renderedText(dialog.tree)).toContain("Song writer");
+    expect(renderedText(dialog.tree)).toContain("Music rights policy");
   });
 
-  it("opens the real shared notice from the songs row without starting playback", async () => {
+  it("opens shared-recording copyright details from its overflow menu", () => {
+    const h = harness([rightsSong]);
+    const page = h.mount(h.load("app/share/[id]/ShareClient.jsx"), { song: rightsSong });
+    expect(nodes(page.tree).some((node) => node.type?.name === "SongRightsNotice")).toBe(false);
+
+    const menu = openActionMenu(h, page, "More actions for Rights track");
+    button(menu.tree, "Copyright & song rights").props.onClick();
+    page.render();
+    const action = find(page.tree, (node) => node.props.label === "More actions for Rights track");
+    menu.updateProps(action.props);
+    expect(nodes(menu.tree).some((node) => node.props.role === "menu")).toBe(false);
+
+    const dialog = renderedRightsDialog(h, page);
+    expect(renderedText(dialog.tree)).toContain("Rights & archive use");
+    expect(renderedText(dialog.tree)).toContain(songRights.SONG_RIGHTS_ARCHIVE_NOTICE);
+  });
+
+  it("opens songs-row copyright details in a modal without starting playback", () => {
     const h = harness([rightsSong]);
     const catalogue = h.mount(h.load("app/songs/songs-view.js"));
     const row = songRows(catalogue.tree)[0];
@@ -547,14 +590,15 @@ describe("shared song rights disclosure", () => {
     find(page.tree, (node) => node.type === "button" && node.props.title === "More")
       .props.onClick({ stopPropagation: vi.fn() });
     page.render();
-    const rightsItem = find(page.tree, (node) => node.props.role === "menuitem" && text(node) === "Rights & archive use");
+    const rightsItem = find(page.tree, (node) => node.props.role === "menuitem" && text(node) === "Copyright & song rights");
     rightsItem.props.onClick();
     page.render();
+    expect(nodes(page.tree).some((node) => node.props.role === "menu")).toBe(false);
 
-    const notice = renderedNotice(h, page);
-    expect(renderedText(notice.tree)).toContain(songRights.SONG_RIGHTS_LABELS.third_party);
-    expect(renderedText(notice.tree)).toContain(songRights.SONG_RIGHTS_ARCHIVE_NOTICE);
-    expect(renderedText(notice.tree)).toContain("Direct permission");
+    const dialog = renderedRightsDialog(h, page);
+    expect(renderedText(dialog.tree)).toContain(songRights.SONG_RIGHTS_LABELS.third_party);
+    expect(renderedText(dialog.tree)).toContain(songRights.SONG_RIGHTS_ARCHIVE_NOTICE);
+    expect(renderedText(dialog.tree)).toContain("Direct permission");
     expect(h.setActiveSong).not.toHaveBeenCalled();
   });
 });

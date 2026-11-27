@@ -20,7 +20,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { downloadSong, isSongDownloaded, onDownloadsChanged, removeDownload } from "@/lib/downloadManager";
 import ReportSongDialog from "@/app/components/ReportSongDialog";
-import SongRightsNotice from "@/app/components/SongRightsNotice";
+import SongRightsDialog from "@/app/components/SongRightsDialog";
 
 /**
  * The player's overflow menu. Add-to-playlist, offline download and reporting
@@ -34,12 +34,14 @@ const SongOverflowMenu = ({
   onStatus,
   onOfflineChange,
   onShare,
+  onRightsPolicyClick,
   dark = false,
 }) => {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const containerRef = useRef(null);
+  const triggerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState("menu");
   const [playlists, setPlaylists] = useState([]);
@@ -48,6 +50,7 @@ const SongOverflowMenu = ({
   const [downloaded, setDownloaded] = useState(false);
   const [error, setError] = useState("");
   const [reportOpen, setReportOpen] = useState(false);
+  const [rightsOpen, setRightsOpen] = useState(false);
 
   const say = useCallback(
     (message) => {
@@ -195,6 +198,7 @@ const SongOverflowMenu = ({
   return (
     <div ref={containerRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         aria-label="More actions for this song"
         aria-haspopup="dialog"
@@ -241,12 +245,14 @@ const SongOverflowMenu = ({
                 type="button"
                 className={itemClass}
                 onClick={() => {
-                  setView("rights");
+                  setOpen(false);
+                  setView("menu");
                   setError("");
+                  setRightsOpen(true);
                 }}
               >
                 <ShieldCheck size={16} className="text-neutral-400" />
-                Rights &amp; archive use
+                Copyright &amp; song rights
               </button>
               {onShare && (
                 <button
@@ -299,10 +305,6 @@ const SongOverflowMenu = ({
                 Report this song
               </button>
             </>
-          )}
-
-          {view === "rights" && (
-            <SongRightsNotice song={song} compact />
           )}
 
           {view === "playlists" && (
@@ -369,6 +371,18 @@ const SongOverflowMenu = ({
           )}
         </div>
       )}
+
+      <SongRightsDialog
+        open={rightsOpen}
+        song={song}
+        dark
+        returnFocusRef={triggerRef}
+        onClose={() => setRightsOpen(false)}
+        onPolicyClick={() => {
+          setRightsOpen(false);
+          onRightsPolicyClick?.();
+        }}
+      />
 
       <ReportSongDialog
         open={reportOpen}

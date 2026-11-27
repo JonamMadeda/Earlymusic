@@ -1,19 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Play, Share2, Copy, Check, ListMusic, ArrowLeft } from "lucide-react";
+import { Play, Share2, Copy, Check, ListMusic, ArrowLeft, ShieldCheck } from "lucide-react";
 import { usePlayer } from "@/app/context/PlayerContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { getSongShareUrl, shareSong, copyTextToClipboard } from "@/lib/share";
 import { VinylArtwork } from "@/app/components/SongAvatar";
-import SongRightsNotice, { SongRightsTag } from "@/app/components/SongRightsNotice";
+import ActionMenu from "@/app/components/ActionMenu";
+import SongRightsDialog from "@/app/components/SongRightsDialog";
 
 export default function ShareClient({ song }) {
   const { activeSong, setActiveSong, allSongs, setAllSongs } = usePlayer();
   const [queue, setQueue] = useState([song]);
   const [copied, setCopied] = useState(false);
   const [shareState, setShareState] = useState("");
+  const [rightsOpen, setRightsOpen] = useState(false);
+  const rightsTriggerRef = useRef(null);
 
   // Ensure the global song list is populated so next/previous + the
   // persistent player keep working after opening a shared link directly.
@@ -79,12 +82,33 @@ export default function ShareClient({ song }) {
           Back to home
         </Link>
 
-        <section className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-2xs">
+        <section className="rounded-xl border border-neutral-200 bg-white shadow-2xs">
           {/* Dark showcase header */}
           <div
-            className="relative flex flex-col items-center px-6 pt-8 pb-6 text-center text-white"
+            className="relative flex flex-col items-center rounded-t-xl px-6 pt-8 pb-6 text-center text-white"
             style={{ backgroundColor: "#0f172a" }}
           >
+            <ActionMenu
+              label={`More actions for ${song.title || "this song"}`}
+              triggerTitle="More"
+              className="absolute right-4 top-4"
+              buttonRef={rightsTriggerRef}
+              triggerClassName="tap-sm flex h-9 w-9 items-center justify-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white"
+            >
+              {({ close }) => (
+                <button
+                  type="button"
+                  onClick={() => {
+                    close();
+                    setRightsOpen(true);
+                  }}
+                  className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                >
+                  <ShieldCheck size={16} className="text-neutral-400" aria-hidden="true" />
+                  Copyright &amp; song rights
+                </button>
+              )}
+            </ActionMenu>
             <span className="mb-4 rounded border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
               Shared song
             </span>
@@ -100,9 +124,6 @@ export default function ShareClient({ song }) {
                 {song.category}
               </span>
             )}
-            <div className="mt-3">
-              <SongRightsTag song={song} dark />
-            </div>
           </div>
 
           {/* Actions */}
@@ -164,8 +185,6 @@ export default function ShareClient({ song }) {
               </p>
             )}
 
-            <SongRightsNotice song={song} />
-
             {song.original_songs && song.original_songs.length > 0 && (
               <div className="rounded-lg bg-neutral-50 p-3 text-left">
                 <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-neutral-400">
@@ -187,6 +206,13 @@ export default function ShareClient({ song }) {
             )}
           </div>
         </section>
+
+        <SongRightsDialog
+          open={rightsOpen}
+          song={song}
+          returnFocusRef={rightsTriggerRef}
+          onClose={() => setRightsOpen(false)}
+        />
 
         <p className="text-center text-xs text-neutral-400">
           Shared links always open right here in the app — no account needed to

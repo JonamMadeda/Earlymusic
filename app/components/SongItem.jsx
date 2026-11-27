@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Heart,
@@ -18,7 +18,7 @@ import {
 import SongAvatar from "@/app/components/SongAvatar";
 import ActionMenu from "@/app/components/ActionMenu";
 import ReportSongDialog from "@/app/components/ReportSongDialog";
-import SongRightsNotice from "@/app/components/SongRightsNotice";
+import SongRightsDialog from "@/app/components/SongRightsDialog";
 
 import { useAuth } from "@/app/context/AuthContext";
 
@@ -48,12 +48,13 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
 
   const [internalSaved, setInternalSaved] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [showRights, setShowRights] = useState(false);
+  const [rightsOpen, setRightsOpen] = useState(false);
   const [showPlaylists, setShowPlaylists] = useState(false);
   const [playlists, setPlaylists] = useState([]);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [shareFeedback, setShareFeedback] = useState("");
   const [showReport, setShowReport] = useState(false);
+  const rightsTriggerRef = useRef(null);
 
   const isSaved = saved !== undefined ? saved : internalSaved;
 
@@ -88,13 +89,13 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
       return;
     }
     setShowInfo(false);
-    setShowRights(false);
+    setRightsOpen(false);
     setShowPlaylists(true);
   };
 
   const backToMenu = () => {
     setShowInfo(false);
-    setShowRights(false);
+    setRightsOpen(false);
     setShowPlaylists(false);
   };
 
@@ -278,7 +279,9 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
           label={`More actions for ${song.title || "this song"}`}
           triggerTitle="More"
           className="shrink-0"
+          buttonRef={rightsTriggerRef}
         >
+          {({ close }) => (
           <div onClick={(event) => event.stopPropagation()}>
             {showInfo ? (
               <>
@@ -362,23 +365,13 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
                   </div>
                 </div>
               </>
-            ) : showRights ? (
-              <>
-                <button type="button" onClick={backToMenu} className={menuItemClass}>
-                  <ArrowLeft size={16} className="text-neutral-400" aria-hidden="true" />
-                  Back
-                </button>
-                <div className="mt-1">
-                  <SongRightsNotice song={song} compact />
-                </div>
-              </>
             ) : (
               <>
                 <button
                   type="button"
                   onClick={() => {
                     setShowInfo(true);
-                    setShowRights(false);
+                    setRightsOpen(false);
                     setShowPlaylists(false);
                   }}
                   className={menuItemClass}
@@ -389,14 +382,15 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowRights(true);
+                    close();
                     setShowInfo(false);
                     setShowPlaylists(false);
+                    setRightsOpen(true);
                   }}
                   className={menuItemClass}
                 >
                   <ShieldCheck size={16} className="text-neutral-400" aria-hidden="true" />
-                  Rights &amp; archive use
+                  Copyright &amp; song rights
                 </button>
                 <button type="button" onClick={openPlaylists} className={menuItemClass}>
                   <ListPlus size={16} className="text-neutral-400" aria-hidden="true" />
@@ -438,8 +432,16 @@ const SongItem = ({ song, onClick, saved, onToggleSave, isNew: isNewProp }) => {
               </>
             )}
           </div>
+          )}
         </ActionMenu>
       </div>
+
+      <SongRightsDialog
+        open={rightsOpen}
+        song={song}
+        returnFocusRef={rightsTriggerRef}
+        onClose={() => setRightsOpen(false)}
+      />
 
       <ReportSongDialog
         open={showReport}

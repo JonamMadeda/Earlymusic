@@ -27,13 +27,14 @@ describe("songs row menu", () => {
     expect(menu.match(/role="menuitem"/g)).toHaveLength(7);
   });
 
-  it("tracks the rights subview separately and closes it with the other overlays", () => {
-    expect(row).toContain("const [showRights, setShowRights] = useState(false)");
-    expect(row).toContain("setShowRights(true)");
-    expect(row).toContain("{showRights && (");
-    expect(row).toContain("<SongRightsNotice song={song} compact");
-    expect(row).toMatch(/if \(!showMenu && !showInfo && !showRights && !showPlaylists && !showReport\) return;/);
-    expect(row).toMatch(/\[showMenu, showInfo, showRights, showPlaylists, showReport\]/);
+  it("opens rights in the shared modal instead of an anchored subview", () => {
+    expect(row).toContain("const [rightsOpen, setRightsOpen] = useState(false)");
+    expect(row).toContain("setRightsOpen(true)");
+    expect(row).toContain("<SongRightsDialog");
+    expect(row).toContain("Copyright &amp; song rights");
+    expect(row).not.toContain("<SongRightsNotice");
+    expect(row).toMatch(/if \(!showMenu && !showInfo && !rightsOpen && !showPlaylists && !showReport\) return;/);
+    expect(row).toMatch(/\[showMenu, showInfo, rightsOpen, showPlaylists, showReport\]/);
   });
 
   it("takes Escape for itself and hands focus back to the ⋯", () => {

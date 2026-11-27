@@ -34,7 +34,6 @@ import { SleepTimerControl } from "./SleepTimer";
 import { ThinProgress, SeekBar, TimeReadout } from "./PlayerProgress";
 import PlayerQueue from "./PlayerQueue";
 import SongOverflowMenu from "./SongOverflowMenu";
-import SongRightsNotice, { SongRightsTag } from "./SongRightsNotice";
 import { useAuth } from "../context/AuthContext";
 
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5];
@@ -1542,6 +1541,10 @@ const Player = () => {
               playbackRate={playbackRate}
               onCyclePlaybackRate={cyclePlaybackRate}
               onShare={handleShare}
+              onRightsPolicyClick={() => {
+                historyPushedRef.current = false;
+                setShowFullPlayer(false);
+              }}
               onStatus={announce}
               onOfflineChange={setIsOffline}
               dark
@@ -1613,23 +1616,6 @@ const Player = () => {
                     <Heart size={20} fill={isLiked ? "currentColor" : "none"} aria-hidden="true" />
                   </button>
                 </div>
-                <details className="group/rights mt-3">
-                  <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg py-1 text-xs font-semibold text-white/70 transition hover:text-white [&::-webkit-details-marker]:hidden">
-                    <SongRightsTag song={song} dark />
-                    <span>Rights &amp; archive use</span>
-                    <span className="ml-auto text-white/40 transition group-open/rights:rotate-180" aria-hidden="true">⌄</span>
-                  </summary>
-                  <SongRightsNotice
-                    song={song}
-                    dark
-                    compact
-                    className="mt-2"
-                    onPolicyClick={() => {
-                      historyPushedRef.current = false;
-                      setShowFullPlayer(false);
-                    }}
-                  />
-                </details>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 md:justify-center">
                   {isOffline && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold text-white/70">

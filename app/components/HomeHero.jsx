@@ -55,8 +55,8 @@ const addedLabel = (dateStr, now) => {
   return "Recently added";
 };
 
-// Keep the returning-listener line descriptive without inventing a "station":
-// the song's own category (Worship, Praise) and length are the useful cues.
+// Keep the returning-listener line descriptive: the song's own category
+// (Worship, Praise) and length are the useful cues.
 const recentlyPlayedMeta = (song) => {
   const category = (song?.category || "").trim();
   const length = homepageLengthLabel(song);
@@ -604,7 +604,7 @@ export default function HomeHero({
           {!isLoading && stats.total > 0 && (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs leading-4 text-neutral-500">
               <span className="whitespace-nowrap">
-                {stats.total} {stats.total === 1 ? "station" : "stations"}
+                {stats.total} {stats.total === 1 ? "song" : "songs"}
               </span>
               {stats.artists > 1 ? (
                 <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
@@ -616,7 +616,7 @@ export default function HomeHero({
               ) : (
                 <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                   <span aria-hidden="true" className="text-neutral-300">·</span>
-                  <span>Ministry Archive</span>
+                  <span>Worship &amp; Praise</span>
                 </span>
               )}
               {stats.newCount > 0 && (
