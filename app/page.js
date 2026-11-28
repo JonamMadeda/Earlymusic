@@ -493,26 +493,40 @@ const SectionBlock = ({ id, title, subtitle = null, icon: Icon, items, onPlay, c
           )}
         </div>
       </div>
-      <div
-        id={`${id}-rail`}
-        ref={scrollRef}
-        role="region"
-        aria-label={`${title} — scrollable worship sessions`}
-        tabIndex={0}
-        onScroll={updateEdges}
-        onKeyDown={(e) => {
-          if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-          e.preventDefault();
-          scrollRail(e.key === "ArrowRight" ? 1 : -1);
-        }}
-        className="flex snap-x snap-mandatory scroll-px-1 gap-3.5 overflow-x-auto overscroll-x-contain px-1 py-2 -mx-1 -my-2 no-scrollbar"
-      >
-        {items.map((song, index) => (
-          <Card key={song.id} song={song} index={index} isHistory={isHistory} isActive={song.id === activeSongId} isNew={newSongIds?.has(song.id) || false} resumeProgress={resumeProgress} navyArtwork={navyArtwork} onClick={() => onPlay(song)} />
-        ))}
-        {/* Trailing room lets the final card settle fully inside the rail
-            instead of ending flush against the right edge. */}
-        <span aria-hidden="true" className="h-px w-2 shrink-0" />
+      <div className="relative">
+        <div
+          id={`${id}-rail`}
+          ref={scrollRef}
+          role="region"
+          aria-label={`${title} — scrollable worship sessions`}
+          tabIndex={0}
+          onScroll={updateEdges}
+          onKeyDown={(e) => {
+            if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+            e.preventDefault();
+            scrollRail(e.key === "ArrowRight" ? 1 : -1);
+          }}
+          className="flex snap-x snap-mandatory scroll-px-1 gap-3.5 overflow-x-auto overscroll-x-contain px-1 py-2 -mx-1 -my-2 no-scrollbar"
+        >
+          {items.map((song, index) => (
+            <Card key={song.id} song={song} index={index} isHistory={isHistory} isActive={song.id === activeSongId} isNew={newSongIds?.has(song.id) || false} resumeProgress={resumeProgress} navyArtwork={navyArtwork} onClick={() => onPlay(song)} />
+          ))}
+          {/* Trailing room lets the final card settle fully inside the rail
+              instead of ending flush against the right edge. */}
+          <span aria-hidden="true" className="h-px w-2 shrink-0" />
+        </div>
+        {/* Soft edge fades hint that the rail continues; each only appears
+            when there is more to scroll in that direction. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-1 -top-2 -bottom-2 w-6 bg-gradient-to-r from-white to-white/0 transition-opacity duration-200"
+          style={{ opacity: edges.left ? 1 : 0 }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-1 -top-2 -bottom-2 w-6 bg-gradient-to-l from-white to-white/0 transition-opacity duration-200"
+          style={{ opacity: edges.right ? 1 : 0 }}
+        />
       </div>
     </section>
   );
